@@ -1,0 +1,58 @@
+{
+  "name": "service-starter",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node -r dotenv/config src/index.js | pino-human",
+    "lint": "eslint . && prettier . --check",
+    "format": "prettier . --write && eslint . --fix",
+    "postversion": "git push --follow-tags"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sceat/service-starter.git"
+  },
+  "babel": {
+    "parserOpts": {
+      "allowAwaitOutsideFunction": true
+    }
+  },
+  "keywords": [],
+  "author": "sceat",
+  "license": "ISC",
+  "dependencies": {
+    "@hydre/pino-human": "1.3.0",
+    "dotenv": "^16.3.1",
+    "pino": "^8.16.2",
+    "undici": "^5.28.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.3",
+    "@babel/eslint-parser": "7.23.3",
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "9.0.0",
+    "eslint-config-standard": "17.1.0",
+    "eslint-plugin-import": "2.29.0",
+    "eslint-plugin-node": "11.1.0",
+    "eslint-plugin-promise": "6.1.1",
+    "husky": "^4.3.8",
+    "lint-staged": "15.1.0",
+    "prettier": "3.1.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.js": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.json": "prettier --write",
+    "*.md": "prettier --write",
+    "*.yml": "prettier --write"
+  }
+}

@@ -1,0 +1,5 @@
+.gitignore
+.eslint*
+README.md
+node_modules/
+.git*/
