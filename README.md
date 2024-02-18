@@ -1,3 +1,3 @@
-# service-starter
+# aresrpg-world
 
-A boilerplate for js microservice
+This library is a world generator for AresRPG
