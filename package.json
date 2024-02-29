@@ -27,7 +27,8 @@
     "@mongodb-js/zstd": "^1.2.0",
     "alea": "^1.0.1",
     "ndarray": "^1.0.19",
-    "simplex-noise": "^4.0.1"
+    "simplex-noise": "^4.0.1",
+    "sparse-octree": "^7.1.8"
   },
   "devDependencies": {
     "@babel/core": "^7.23.9",
