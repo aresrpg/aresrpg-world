@@ -1,4 +1,5 @@
 import { Vector2 } from "three";
+import { EVoxelType } from "./contants";
 
 /**
  * Removing out of range values
@@ -28,4 +29,12 @@ const interpolatePoints = (p1: Vector2, p2: Vector2, t) => {
     return p1.y + slope * (t - p1.x)
 }
 
-export { sanitiseNoise, interpolatePoints }
+const getVoxelTypeFromHeight = (height) => {
+    if (height < 10) return EVoxelType.WATER
+    else if (height < 20) return EVoxelType.SAND
+    else if (height < 60) return EVoxelType.GRASS
+    else if (height < 100) return EVoxelType.ROCK
+    else if (height >= 100) return EVoxelType.SNOW
+}
+
+export { sanitiseNoise, interpolatePoints, getVoxelTypeFromHeight }

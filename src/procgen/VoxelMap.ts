@@ -1,41 +1,20 @@
-import { Box3, Vector3, Color } from "three";
+import { Box3, Vector3 } from "three";
 import { OctreeIterator, PointData, PointOctant, PointOctree } from "sparse-octree";
-import { IVoxelMaterial, IVoxelMap, IVoxel } from "../shared/i-voxel-map";
 import { ConstVec3 } from "../shared/types";
+import { AresRpgEngine } from "aresrpg-engine";
+import { getVoxelTypeFromHeight } from "../common/utils";
+import { VOXEL_TYPE_COLORS } from "../common/contants";
 
-enum EVoxelType {
-    ROCK,
-    GRASS,
-    SNOW,
-    WATER,
-    SAND,
-}
-
-const VOXEL_COLORS: Record<EVoxelType, IVoxelMaterial> = [
-    { color: new Color("#ABABAB") },
-    { color: new Color("#00B920") },
-    { color: new Color("#E5E5E5") },
-    { color: new Color("#0055E2") },
-    { color: new Color("#DCBE28") },
-];
-
-const getVoxelTypeFromHeight = (height) => {
-    if (height < 10) return EVoxelType.WATER
-    else if (height < 20) return EVoxelType.SAND
-    else if (height < 60) return EVoxelType.GRASS
-    else if (height < 100) return EVoxelType.ROCK
-    else if (height >= 100) return EVoxelType.SNOW
-}
-
-export class VoxelMap implements IVoxelMap {
+export class VoxelMap implements AresRpgEngine.IVoxelMap {
     public readonly size: ConstVec3;
     voxelsOctree;
     public constructor(bbox: Box3) {
         this.size = bbox.getSize(new Vector3());
         this.voxelsOctree = new PointOctree(bbox.min, bbox.max, 0.0, 8, 8);
     }
-    getAllVoxelMaterials(): IVoxelMaterial[] {
-        return Object.values(VOXEL_COLORS);
+    public readonly voxelMaterialsList = Object.values(VOXEL_TYPE_COLORS);
+    getAllVoxelMaterials(): AresRpgEngine.IVoxelMaterial[] {
+        return Object.values(VOXEL_TYPE_COLORS);
     }
     getMaxVoxelsCount(from: ConstVec3, to: ConstVec3): number {
         const bmin = new Vector3(from.x, from.y, from.z);
@@ -45,7 +24,7 @@ export class VoxelMap implements IVoxelMap {
         const count = res.reduce((count, oct) => count + (oct.data?.points?.length || 0), 0)
         return count
     }
-    iterateOnVoxels(from: ConstVec3, to: ConstVec3): Generator<IVoxel, any, unknown> {
+    iterateOnVoxels(from: ConstVec3, to: ConstVec3): Generator<AresRpgEngine.IVoxel, any, unknown> {
         const bmin = new Vector3(from.x, from.y, from.z);
         const bmax = new Vector3(to.x - 1, to.y - 1, to.z - 1);
         const bbox = new Box3(bmin, bmax);
@@ -59,13 +38,13 @@ export class VoxelMap implements IVoxelMap {
                     const points = pointOctant.data?.points || [];
                     for (let i = 0; i < points.length; i += 1) {
                         const { x, y, z } = points[i]
-                        const voxel: IVoxel = {
+                        const voxel: AresRpgEngine.IVoxel = {
                             position: {
                                 x,
                                 y,
                                 z
                             },
-                            typeId: getVoxelTypeFromHeight(y)
+                            materialId: getVoxelTypeFromHeight(y)
                         }
                         // console.log("iter")
                         if (voxel.position.x >= from.x && voxel.position.x < to.x &&

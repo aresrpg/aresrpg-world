@@ -1,5 +1,5 @@
 import { Vector2 } from "three";
-import { interpolatePoints } from "../utils";
+import { interpolatePoints } from "../common/utils";
 
 /**
  * Shape used to profile terrain height

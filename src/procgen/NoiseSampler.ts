@@ -1,6 +1,6 @@
 import { SimplexNoise } from "three/examples/jsm/math/SimplexNoise.js";
 import { Vector2 } from "three"
-import { sanitiseNoise } from "../utils";
+import { sanitiseNoise } from "../common/utils";
 
 export interface ISampler<InputType> {
     // userScale: number;   // scale applied to sampler user input when querying sample
