@@ -1,6 +1,13 @@
 import { Vector2 } from "three";
 import { interpolatePoints } from "../common/utils";
 
+export enum ProfileType {
+    Regular = "regular",
+    Continentalness = "continentalness",
+    Erosion = "erosion",
+    PeaksValleys = "peaksvalleys"
+}
+
 /**
  * Shape used to profile terrain height
  * e.g. mapping value to real ground/terrain height
@@ -11,20 +18,17 @@ class HeightProfiler {
     constructor(curveParams) {
         this.curveParams = curveParams
     }
-    static addProfile(curveProfile, profileName) {
-        HeightProfiler.profiles[profileName] = HeightProfiler.profiles[profileName] || new HeightProfiler(curveProfile)
-    }
-
-    static getProfile(profileName) {
-        return HeightProfiler.profiles[profileName]
+    static addProfile(curveProfile, profileType: ProfileType) {
+        HeightProfiler.profiles[profileType] = HeightProfiler.profiles[profileType] || new HeightProfiler(curveProfile)
     }
 
     getCurveSegment(inputVal) {
         return getCurveSegment(inputVal, this.curveParams)
     }
 
-    apply(inputVal) {
-        return noiseToHeight(inputVal, this.getCurveSegment(inputVal))
+    static apply(profileType: ProfileType, inputVal) {
+        const profile = HeightProfiler.profiles[profileType]
+        return noiseToHeight(inputVal, profile.getCurveSegment(inputVal))
     }
 }
 

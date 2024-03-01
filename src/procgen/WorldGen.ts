@@ -1,6 +1,7 @@
 import { Vector2, Vector3 } from "three"
-import { CurvePresets, HeightProfiler } from "./HeightProfiler"
+import { CurvePresets, HeightProfiler, ProfileType } from "./HeightProfiler"
 import { ISampler, ProceduralNoise2DSampler } from "./NoiseSampler"
+
 /**
  * Filling octree struct with voxels
  */
@@ -12,13 +13,13 @@ export class WorldGenerator {
     constructor(noiseScale) {
         this.noiseScale = noiseScale
         this.generators.continentalness = new ProceduralNoise2DSampler()
-        HeightProfiler.addProfile(CurvePresets.continentalness, "continentalness")
+        HeightProfiler.addProfile(CurvePresets.continentalness, ProfileType.Continentalness)
     }
 
     // mapping noise to height
     getHeight(noiseCoords) {
         const noiseVal = this.generators.continentalness.query(noiseCoords)
-        const profiledHeight = HeightProfiler.getProfile("continentalness").apply(noiseVal)
+        const profiledHeight = HeightProfiler.apply(ProfileType.Continentalness, noiseVal)
         return profiledHeight
     }
 
