@@ -37,7 +37,7 @@ export class WorldGenerator {
             for (let z = bbox.min.z; z < bbox.max.z; z++) {
                 const noiseCoords = new Vector2(x, z)
                 noiseCoords.multiplyScalar(this.noiseScale)// map to noise scale
-                const groundLevel = this.getHeight(noiseCoords);
+                const groundLevel = this.getHeight(noiseCoords)/2;
                 for (let y = bbox.min.y; y < bbox.max.y; y++) {
                     const voxelPoint = new Vector3(x, y, z)
                     // discard every blocks above ground level

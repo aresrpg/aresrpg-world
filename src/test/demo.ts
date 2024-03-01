@@ -25,7 +25,7 @@ udpateRendererSize();
 const scene = new THREE.Scene();
 const noiseScale = 1 / 8    // 1 unit of noise per N voxels
 const bmin = new Vector3(0, 0, 0);
-const bmax = new Vector3(256, 256, 256);
+const bmax = new Vector3(256, 130, 256);
 const bbox = new Box3(bmin, bmax);
 const voxelMap = new VoxelMap(bbox);
 const worldGen = new WorldGenerator(noiseScale)
