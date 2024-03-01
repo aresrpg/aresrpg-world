@@ -24,9 +24,9 @@ export class WorldGenerator {
     }
 
     /**
-     * filling octree with noise samples
+     * filling octree from noise samples
      * @param octree    data struct storing points
-     * @param bbox      voxel range covered by sampling
+     * @param bbox      voxel range covered by generation
      * @returns 
      */
     fill(octree, bbox) {
@@ -36,7 +36,7 @@ export class WorldGenerator {
         for (let x = bbox.min.x; x < bbox.max.x; x++) {
             for (let z = bbox.min.z; z < bbox.max.z; z++) {
                 const noiseCoords = new Vector2(x, z)
-                noiseCoords.multiplyScalar(this.noiseScale)// map to noise scale
+                noiseCoords.multiplyScalar(this.noiseScale)// mapping voxel position to noise coords
                 const groundLevel = this.getHeight(noiseCoords)/2;
                 for (let y = bbox.min.y; y < bbox.max.y; y++) {
                     const voxelPoint = new Vector3(x, y, z)

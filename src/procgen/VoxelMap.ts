@@ -1,12 +1,11 @@
 import { Box3, Vector3 } from "three";
 import { OctreeIterator, PointData, PointOctant, PointOctree } from "sparse-octree";
-import { ConstVec3 } from "../shared/types";
 import { AresRpgEngine } from "aresrpg-engine";
 import { getVoxelTypeFromHeight } from "../common/utils";
-import { VOXEL_TYPE_COLORS } from "../common/contants";
+import { VOXEL_TYPE_COLORS } from "../common/constants";
 
 export class VoxelMap implements AresRpgEngine.IVoxelMap {
-    public readonly size: ConstVec3;
+    public readonly size: Vector3;
     voxelsOctree;
     public constructor(bbox: Box3) {
         this.size = bbox.getSize(new Vector3());
@@ -16,7 +15,7 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
     getAllVoxelMaterials(): AresRpgEngine.IVoxelMaterial[] {
         return Object.values(VOXEL_TYPE_COLORS);
     }
-    getMaxVoxelsCount(from: ConstVec3, to: ConstVec3): number {
+    getMaxVoxelsCount(from: Vector3, to: Vector3): number {
         const bmin = new Vector3(from.x, from.y, from.z);
         const bmax = new Vector3(to.x, to.y, to.z);
         const bbox = new Box3(bmin, bmax);
@@ -24,7 +23,7 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
         const count = res.reduce((count, oct) => count + (oct.data?.points?.length || 0), 0)
         return count
     }
-    iterateOnVoxels(from: ConstVec3, to: ConstVec3): Generator<AresRpgEngine.IVoxel, any, unknown> {
+    iterateOnVoxels(from: Vector3, to: Vector3): Generator<AresRpgEngine.IVoxel, any, unknown> {
         const bmin = new Vector3(from.x, from.y, from.z);
         const bmax = new Vector3(to.x - 1, to.y - 1, to.z - 1);
         const bbox = new Box3(bmin, bmax);

@@ -34,8 +34,8 @@ class HeightProfiler {
 
 /**
  * 
- * @param noise 
- * @param curveProfile array of points
+ * @param noise input val 
+ * @param curveProfile curve points array
  * @returns upper and lower points from curve profile closest to input val
  */
 const getCurveSegment = (noise, curveProfile) => {
@@ -58,9 +58,9 @@ const getCurveSegment = (noise, curveProfile) => {
 
 /**
  * mapping noise to height value
- * @param noise 
- * @param curveProfile noise -> height curve mapping
- * @returns 
+ * @param noise ranging from 0 to 1
+ * @param curveProfile noise to height curve mapping
+ * @returns height ranging from 0 to 255
  */
 const noiseToHeight = (noiseVal, curveSegment) => {
     const { lower, upper } = curveSegment

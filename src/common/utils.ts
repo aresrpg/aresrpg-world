@@ -1,5 +1,5 @@
 import { Vector2 } from "three";
-import { EVoxelType } from "./contants";
+import { EVoxelType } from "./constants";
 
 /**
  * Removing out of range values
