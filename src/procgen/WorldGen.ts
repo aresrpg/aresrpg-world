@@ -40,12 +40,12 @@ export class WorldGenerator {
     let iterCount = 0
     let blocksCount = 0
     // sample volume
-    for (let {x} = bbox.min; x < bbox.max.x; x++) {
-      for (let {z} = bbox.min; z < bbox.max.z; z++) {
+    for (let { x } = bbox.min; x < bbox.max.x; x++) {
+      for (let { z } = bbox.min; z < bbox.max.z; z++) {
         const noiseCoords = new Vector2(x, z)
         noiseCoords.multiplyScalar(this.noiseScale) // mapping voxel position to noise coords
         const groundLevel = this.getHeight(noiseCoords) / 2
-        for (let {y} = bbox.min; y < bbox.max.y; y++) {
+        for (let { y } = bbox.min; y < bbox.max.y; y++) {
           const voxelPoint = new Vector3(x, y, z)
           // discard every blocks above ground level
           if (voxelPoint.y < groundLevel) {
