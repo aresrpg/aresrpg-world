@@ -1,6 +1,7 @@
 {
   "extends": ["standard", "prettier"],
-  "parser": "@babel/eslint-parser",
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
   "parserOptions": {
     "requireConfigFile": false,
     "sourceType": "module",
@@ -17,6 +18,8 @@
     "prefer-destructuring": "error",
     "prefer-numeric-literals": "error",
     "import/order": ["error", { "newlines-between": "always" }],
-    "no-throw-literal": 0
+    "no-throw-literal": 0,
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["error"]
   }
 }
