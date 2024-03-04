@@ -1,0 +1,9 @@
+src
+.github
+test
+.gitignore
+.parcel-cache
+.prettierrc
+.eslintrc
+.eslintignore
+*.tgz
