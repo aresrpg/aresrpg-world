@@ -5,7 +5,7 @@ import {
   PointOctant,
   PointOctree,
 } from 'sparse-octree'
-import { AresRpgEngine } from 'aresrpg-engine'
+import { AresRpgEngine } from '@aresrpg/aresrpg-engine'
 
 import { getVoxelTypeFromHeight } from '../common/utils'
 import { VOXEL_TYPE_COLORS } from '../common/constants'

@@ -7,7 +7,7 @@ import { EVoxelType } from './constants'
  * @param noiseVal
  * @returns noiseVal between 0 and 1
  */
-const sanitiseNoise = noiseVal => {
+const sanitiseNoise = (noiseVal: number) => {
   let res = noiseVal
   const isValidNoiseRange = !isNaN(noiseVal) && noiseVal >= 0 && noiseVal <= 1
   if (!isValidNoiseRange) {
@@ -23,19 +23,19 @@ const sanitiseNoise = noiseVal => {
  * @param p2
  * @param t between P1 and P2
  */
-const interpolatePoints = (p1: Vector2, p2: Vector2, t) => {
+const interpolatePoints = (p1: Vector2, p2: Vector2, t: number) => {
   // interpolate
   const range: Vector2 = p2.clone().sub(p1)
   const slope = range.x > 0 ? range.y / range.x : 0
   return p1.y + slope * (t - p1.x)
 }
 
-const getVoxelTypeFromHeight = height => {
+const getVoxelTypeFromHeight = (height: number) => {
   if (height < 10) return EVoxelType.WATER
   else if (height < 20) return EVoxelType.SAND
   else if (height < 60) return EVoxelType.GRASS
   else if (height < 100) return EVoxelType.ROCK
-  else if (height >= 100) return EVoxelType.SNOW
+  return EVoxelType.SNOW
 }
 
 export { sanitiseNoise, interpolatePoints, getVoxelTypeFromHeight }

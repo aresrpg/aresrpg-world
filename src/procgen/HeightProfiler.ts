@@ -65,7 +65,7 @@ const getCurveSegment = (noise, curveProfile) => {
  * @param curveProfile noise to height curve mapping
  * @returns height ranging from 0 to 255
  */
-const noiseToHeight = (noiseVal, curveSegment) => {
+const noiseToHeight = (noiseVal: number, curveSegment) => {
   const { lower, upper } = curveSegment
   const lowerPoint = new Vector2(lower.noise, lower.height)
   const upperPoint = new Vector2(upper.noise, upper.height)
