@@ -50,15 +50,10 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
         if (result.value.data) {
           const pointOctant: PointOctant<PointData<any>> = result.value
           const points = pointOctant.data?.points || []
-          for (let i = 0; i < points.length; i += 1) {
-            const { x, y, z } = points[i]
+          for (const point of points) {
             const voxel: AresRpgEngine.IVoxel = {
-              position: {
-                x,
-                y,
-                z,
-              },
-              materialId: getVoxelTypeFromHeight(y),
+              position: point,
+              materialId: getVoxelTypeFromHeight(point.y),
             }
             // console.log("iter")
             if (
