@@ -1,4 +1,5 @@
-import { Vector2, Vector3 } from 'three'
+import { Vector2, Vector3, Box3 } from 'three'
+import { PointOctree } from 'sparse-octree'
 
 import { CurvePresets, HeightProfiler, ProfileType } from './HeightProfiler'
 import { ISampler, ProceduralNoise2DSampler } from './NoiseSampler'
@@ -8,10 +9,10 @@ import { ISampler, ProceduralNoise2DSampler } from './NoiseSampler'
  */
 export class WorldGenerator {
   noiseScale
-  sampler: ISampler<Vector2>
+  sampler: ISampler<Vector2> | undefined
   generators: any = {} // WIP support for multiple noise/heightProfile
 
-  constructor(noiseScale) {
+  constructor(noiseScale: number) {
     this.noiseScale = noiseScale
     this.generators.continentalness = new ProceduralNoise2DSampler()
     HeightProfiler.addProfile(
@@ -21,7 +22,7 @@ export class WorldGenerator {
   }
 
   // mapping noise to height
-  getHeight(noiseCoords) {
+  getHeight(noiseCoords: Vector2) {
     const noiseVal = this.generators.continentalness.query(noiseCoords)
     const profiledHeight = HeightProfiler.apply(
       ProfileType.Continentalness,
@@ -36,7 +37,7 @@ export class WorldGenerator {
    * @param bbox      voxel range covered by generation
    * @returns
    */
-  fill(octree, bbox) {
+  fill(octree: PointOctree<any>, bbox: Box3) {
     let iterCount = 0
     let blocksCount = 0
     // sample volume
