@@ -21,7 +21,7 @@ const sanitiseNoise = (noiseVal: number) => {
  *
  * @param p1
  * @param p2
- * @param t between P1 and P2
+ * @param t time between P1 and P2
  */
 const interpolatePoints = (p1: Vector2, p2: Vector2, t: number) => {
   // interpolate

@@ -8,7 +8,8 @@
   "scripts": {
     "watch": "tsc --watch",
     "build": "tsc",
-    "lint": "eslint . --ext .ts && prettier . --check",
+    "lint": "eslint . --ext .ts && prettier . --check && npm run typecheck",
+    "typecheck": "tsc --build",
     "format": "prettier . --write && eslint . --fix --ext .ts",
     "postversion": "git push --follow-tags"
   },
