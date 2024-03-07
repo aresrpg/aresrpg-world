@@ -2,9 +2,14 @@ import { Box3, Vector3 } from 'three'
 import { OctreeIterator, PointOctree } from 'sparse-octree'
 import { AresRpgEngine } from '@aresrpg/aresrpg-engine'
 
-import { getVoxelTypeFromHeight } from '../common/utils'
+import * as Utils from '../common/utils'
 import { VOXEL_TYPE_COLORS } from '../common/constants'
 
+/**
+ * Interface for the voxel engine to query voxels and render them,
+ * without knowing the underlying storage and generation process.
+ * Current implementation is using octree to store each voxels as 3D points
+ */
 export class VoxelMap implements AresRpgEngine.IVoxelMap {
   public readonly size: Vector3
   voxelsOctree
@@ -23,7 +28,7 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
     const bmax = new Vector3(to.x, to.y, to.z)
     const bbox = new Box3(bmin, bmax)
     const res = this.voxelsOctree.cull(bbox)
-    const count: number = res.reduce(
+    const count = res.reduce(
       (count: number, node: any) => count + (node.data?.points?.length || 0),
       0,
     )
@@ -38,6 +43,7 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
     const bmax = new Vector3(to.x - 1, to.y - 1, to.z - 1)
     const bbox = new Box3(bmin, bmax)
     const iter = new OctreeIterator(this.voxelsOctree, bbox)
+    const {voxelsOctree} = this
 
     function* makeGenerator() {
       let result: any = iter.next()
@@ -46,9 +52,23 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
           const pointOctant: any = result.value
           const points = pointOctant.data?.points || []
           for (const point of points) {
+            // find voxel neighbours
+            const neighbourVoxels = voxelsOctree.findPoints(point, Math.sqrt(2))
+            const neighbours: any = {}
+            neighbourVoxels.forEach((neighbour: any) => {
+              const sub = neighbour.point.clone().sub(point)
+              const dir = Utils.getCoordsDirection(...sub.toArray())
+              if (dir !== undefined) neighbours[dir] = true
+            })
+            const { x, y, z } = point
             const voxel: AresRpgEngine.IVoxel = {
-              position: point,
-              materialId: getVoxelTypeFromHeight(point.y),
+              position: {
+                x,
+                y,
+                z,
+              },
+              neighbours,
+              materialId: Utils.getVoxelTypeFromHeight(y),
             }
             // console.log("iter")
             if (
@@ -69,6 +89,7 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
   }
 
   voxelExists(x: number, y: number, z: number): boolean {
+    // console.warn("[VoxelMap::voxelExists] now deprecated")
     const point = new Vector3(x, y, z)
     const exists = !!this.voxelsOctree.findPoints(point, 0.001).length
     return exists

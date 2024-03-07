@@ -1,6 +1,8 @@
 import { Vector2 } from 'three'
+import { AresRpgEngine } from '@aresrpg/aresrpg-engine'
 
 import { EVoxelType } from './constants'
+const {ENeighbour} = AresRpgEngine
 
 /**
  * Removing out of range values
@@ -21,7 +23,7 @@ const sanitiseNoise = (noiseVal: number) => {
  *
  * @param p1
  * @param p2
- * @param t time between P1 and P2
+ * @param t between P1 and P2
  */
 const interpolatePoints = (p1: Vector2, p2: Vector2, t: number) => {
   // interpolate
@@ -38,4 +40,53 @@ const getVoxelTypeFromHeight = (height: number) => {
   return EVoxelType.SNOW
 }
 
-export { sanitiseNoise, interpolatePoints, getVoxelTypeFromHeight }
+/**
+ * Get direction from relative coords
+ * z- back
+ * z+ front
+ * x- left
+ * x+ right
+ * y+ top
+ * y- bottom
+ * @param x
+ * @param y
+ * @param z
+ * @returns ENeighbour
+ */
+const getCoordsDirection = (x: number, y: number, z: number) => {
+  let dir
+  if (x === -1 && y === -1 && z === -1) dir = ENeighbour.xMyMzM
+  else if (x === -1 && y === -1 && z === 0) dir = ENeighbour.xMyMz0
+  else if (x === -1 && y === -1 && z === 1) dir = ENeighbour.xMyMzP
+  else if (x === -1 && y === 0 && z === -1) dir = ENeighbour.xMy0zM
+  else if (x === -1 && y === 0 && z === 0) dir = ENeighbour.xMy0z0
+  else if (x === -1 && y === 0 && z === 1) dir = ENeighbour.xMy0zP
+  else if (x === -1 && y === 1 && z === -1) dir = ENeighbour.xMyPzM
+  else if (x === -1 && y === 1 && z === 0) dir = ENeighbour.xMyPz0
+  else if (x === -1 && y === 1 && z === 1) dir = ENeighbour.xMyPzP
+  else if (x === 0 && y === -1 && z === -1) dir = ENeighbour.x0yMzM
+  else if (x === 0 && y === -1 && z === 0) dir = ENeighbour.x0yMz0
+  else if (x === 0 && y === -1 && z === 1) dir = ENeighbour.x0yMzP
+  else if (x === 0 && y === 0 && z === -1) dir = ENeighbour.x0y0zM
+  else if (x === 0 && y === 0 && z === 1) dir = ENeighbour.x0y0zP
+  else if (x === 0 && y === 1 && z === -1) dir = ENeighbour.x0yPzM
+  else if (x === 0 && y === 1 && z === 0) dir = ENeighbour.x0yPz0
+  else if (x === 0 && y === 1 && z === 1) dir = ENeighbour.x0yPzP
+  else if (x === 1 && y === -1 && z === -1) dir = ENeighbour.xPyMzM
+  else if (x === 1 && y === -1 && z === 0) dir = ENeighbour.xPyMz0
+  else if (x === 1 && y === -1 && z === 1) dir = ENeighbour.xPyMzP
+  else if (x === 1 && y === 0 && z === -1) dir = ENeighbour.xPy0zM
+  else if (x === 1 && y === 0 && z === 0) dir = ENeighbour.xPy0z0
+  else if (x === 1 && y === 0 && z === 1) dir = ENeighbour.xPy0zP
+  else if (x === 1 && y === 1 && z === -1) dir = ENeighbour.xPyPzM
+  else if (x === 1 && y === 1 && z === 0) dir = ENeighbour.xPyPz0
+  else if (x === 1 && y === 1 && z === 1) dir = ENeighbour.xPyPzP
+  return dir
+}
+
+export {
+  sanitiseNoise,
+  interpolatePoints,
+  getVoxelTypeFromHeight,
+  getCoordsDirection,
+}
