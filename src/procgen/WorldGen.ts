@@ -3,6 +3,7 @@ import { PointOctree } from 'sparse-octree'
 
 import { CurvePresets, HeightProfiler, ProfileType } from './HeightProfiler'
 import { ISampler, ProceduralNoise2DSampler } from './NoiseSampler'
+import { VoxelStore } from './VoxelStore'
 
 /**
  * Filling octree struct with voxels
@@ -40,6 +41,7 @@ export class WorldGenerator {
   fill(octree: PointOctree<any>, bbox: Box3) {
     let iterCount = 0
     let blocksCount = 0
+    VoxelStore.instance.size = bbox.getSize(new Vector3())
     // sample volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
@@ -49,16 +51,23 @@ export class WorldGenerator {
         for (let { y } = bbox.min; y < bbox.max.y; y++) {
           const voxelPoint = new Vector3(x, y, z)
           // discard every blocks above ground level
-          if (voxelPoint.y < groundLevel) {
+          const isFilled = voxelPoint.y < groundLevel
+          if (isFilled) {
             octree.set(voxelPoint, {})
             blocksCount++
           }
+          VoxelStore.instance.array.push(isFilled)
+          // array.push(isFilled)
+          const voxelIndex = VoxelStore.singleton.getIndex(voxelPoint)
           iterCount++
         }
       }
     }
     console.log(
       `[WorldGenerator::fill] iter count: ${iterCount}, blocks count: ${blocksCount} `,
+    )
+    console.log(
+      `[WorldGenerator::fill] items count: ${VoxelStore.instance.array.length} `,
     )
     return octree
   }

@@ -1,8 +1,8 @@
-import { Vector2 } from 'three'
+import { Vector2, Vector3 } from 'three'
 import { AresRpgEngine } from '@aresrpg/aresrpg-engine'
 
 import { EVoxelType } from './constants'
-const {ENeighbour} = AresRpgEngine
+const { ENeighbour } = AresRpgEngine
 
 /**
  * Removing out of range values
@@ -84,9 +84,81 @@ const getCoordsDirection = (x: number, y: number, z: number) => {
   return dir
 }
 
+/**
+ * 
+ * @param pos point position to get neighbours from
+ * @param dir neighbour identifier
+ * @returns 
+ */
+const getNeighbour = (pos: Vector3, dir: AresRpgEngine.ENeighbour): (Vector3 | undefined) => {
+  switch (dir) {
+    case ENeighbour.xMyMzM:
+      return pos.clone().add(new Vector3(-1, -1, -1))
+    case ENeighbour.xMyMz0:
+      return pos.clone().add(new Vector3(-1, -1, 0))
+    case ENeighbour.xMyMzP:
+      return pos.clone().add(new Vector3(-1, -1, 1))
+    case ENeighbour.xMy0zM:
+      return pos.clone().add(new Vector3(-1, 0, -1))
+    case ENeighbour.xMy0z0:
+      return pos.clone().add(new Vector3(-1, 0, 0))
+    case ENeighbour.xMy0zP:
+      return pos.clone().add(new Vector3(-1, 0, 1))
+    case ENeighbour.xMyPzM:
+      return pos.clone().add(new Vector3(-1, 1, -1))
+    case ENeighbour.xMyPz0:
+      return pos.clone().add(new Vector3(-1, 1, 0))
+    case ENeighbour.xMyPzP:
+      return pos.clone().add(new Vector3(-1, 1, 1))
+    case ENeighbour.x0yMzM:
+      return pos.clone().add(new Vector3(0, -1, -1))
+    case ENeighbour.x0yMz0:
+      return pos.clone().add(new Vector3(0, -1, 0))
+    case ENeighbour.x0yMzP:
+      return pos.clone().add(new Vector3(0, -1, 1))
+    case ENeighbour.x0y0zM:
+      return pos.clone().add(new Vector3(0, 0, -1))
+    case ENeighbour.x0y0zP:
+      return pos.clone().add(new Vector3(0, 0, 1))
+    case ENeighbour.x0yPzM:
+      return pos.clone().add(new Vector3(0, 1, -1))
+    case ENeighbour.x0yPz0:
+      return pos.clone().add(new Vector3(0, 1, 0))
+    case ENeighbour.x0yPzP:
+      return pos.clone().add(new Vector3(0, 1, 1))
+    case ENeighbour.xPyMzM:
+      return pos.clone().add(new Vector3(1, -1, -1))
+    case ENeighbour.xPyMz0:
+      return pos.clone().add(new Vector3(1, -1, 0))
+    case ENeighbour.xPyMzP:
+      return pos.clone().add(new Vector3(1, -1, 1))
+    case ENeighbour.xPy0zM:
+      return pos.clone().add(new Vector3(1, 0, -1))
+    case ENeighbour.xPy0z0:
+      return pos.clone().add(new Vector3(1, 0, 0))
+    case ENeighbour.xPy0zP:
+      return pos.clone().add(new Vector3(1, 0, 1))
+    case ENeighbour.xPyPzM:
+      return pos.clone().add(new Vector3(1, 1, -1))
+    case ENeighbour.xPyPz0:
+      return pos.clone().add(new Vector3(1, 1, 0))
+    case ENeighbour.xPyPzP:
+      return pos.clone().add(new Vector3(1, 1, 1))
+  }
+}
+
+const getAllNeighbours: Vector3[] = (pos: Vector3) => {
+  const neighbours = Object.values(AresRpgEngine.ENeighbour)
+    .filter((v) => !isNaN(Number(v)))
+    .map(type => getNeighbour(pos, (type as number)))
+  return neighbours || []
+}
+
 export {
   sanitiseNoise,
   interpolatePoints,
   getVoxelTypeFromHeight,
   getCoordsDirection,
+  getAllNeighbours,
+  getNeighbour
 }
