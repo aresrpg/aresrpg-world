@@ -15,11 +15,11 @@ export interface ISampler<InputType> {
  * Sampling points from noise source
  */
 export class ProceduralNoise2DSampler implements ISampler<Vector2> {
-  source: any
-  density: any // TODO
-  constructor() {
-    this.source = new SimplexNoise()
-  }
+    source: any
+    density: any // TODO
+    constructor() {
+        this.source = new SimplexNoise()
+    }
 
   query(input: Vector2) {
     const { x, y } = input
@@ -29,6 +29,6 @@ export class ProceduralNoise2DSampler implements ISampler<Vector2> {
       noise += (this.source.noise3d(x * f, y * f, 0) + 0.5) / Math.pow(2, i + 1)
     })
 
-    return sanitiseNoise(noise)
-  }
+        return sanitiseNoise(noise)
+    }
 }
