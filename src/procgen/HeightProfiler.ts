@@ -10,8 +10,7 @@ export enum ProfileType {
 }
 
 /**
- * Shape used to profile terrain height
- * e.g. mapping value to real ground/terrain height
+ * Profile used to map scalar field to terrain height
  */
 class HeightProfiler {
   static profiles: any = {}
@@ -32,9 +31,13 @@ class HeightProfiler {
     return getCurveSegment(inputVal, this.curveParams)
   }
 
+  apply(inputVal: number) {
+    return noiseToHeight(inputVal, this.getCurveSegment(inputVal))
+  }
+
   static apply(profileType: ProfileType, inputVal: number) {
     const profile = HeightProfiler.profiles[profileType]
-    return noiseToHeight(inputVal, profile.getCurveSegment(inputVal))
+    return profile.apply(inputVal)
   }
 }
 
@@ -78,73 +81,94 @@ const noiseToHeight = (
   const interpolatedHeight = interpolatePoints(lowerPoint, upperPoint, noiseVal)
   return interpolatedHeight
 }
+/**
+ * Profile to determine 
+ * - used sampled density
+ * - curve mapping from sampled value to height
+ * - threshold after which next profile is applied
+ */
+type HeightProfile = {
+  shape: [],
+  treshold: number,
+  density: number
+}
 
 /**
- *  Spline curve parameters
+ *  Spline curve parameters 
  */
 const CurvePresets = {
-  regular: [
+  identity: [
     {
       noise: 0,
-      height: 0,
+      height: 0
     },
     {
       noise: 1,
-      height: 255,
+      height: 1
+    },
+  ],
+  regular: [
+    {
+      noise: 0,
+      height: 0
+    },
+    {
+      noise: 1,
+      height: 255
     },
   ],
   continentalness: [
     {
       noise: 0,
-      height: 0,
+      height: 0
     },
     {
       noise: 0.65,
-      height: 150,
+      height: 150
     },
     {
       noise: 0.75,
-      height: 255,
+      height: 255
     },
     {
       noise: 1,
-      height: 255,
+      height: 255
     },
   ],
   erosion: [
     {
       noise: 0,
-      height: 50,
+      height: 200
     },
     {
-      noise: 0.65,
-      height: 100,
+      noise: 0.6,
+      height: 100
     },
     {
       noise: 0.75,
-      height: 150,
+      height: 50
     },
     {
       noise: 1,
-      height: 150,
+      height: 50
     },
   ],
   peaksValleys: [
     {
       noise: 0,
-      height: 50,
+      height: 50
     },
     {
       noise: 0.65,
-      height: 100,
+      height: 100
     },
     {
       noise: 0.75,
-      height: 150,
+      height: 150
     },
     {
       noise: 1,
-      height: 150,
+      height: 150
     },
   ],
 }
