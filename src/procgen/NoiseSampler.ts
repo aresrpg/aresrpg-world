@@ -1,34 +1,50 @@
 import { SimplexNoise } from 'three/examples/jsm/math/SimplexNoise.js'
-import { Vector2 } from 'three'
+import { Vector2, Vector3 } from 'three'
 
 import { sanitiseNoise } from '../common/utils'
 
-export interface ISampler<InputType> {
+export type InputType = Vector2 | Vector3
+export type Generator = (input: InputType) => number
+const
+export interface Sampler<InputType> {
   // userScale: number;   // scale applied to sampler user input when querying sample
   density: number // intrinsic sample density
-  source: any
   // querying sample value from input
-  query(input: InputType): number
+  eval(input: InputType): number
+}
+
+export class CustomSampler<InputType> implements Sampler<InputType> {
+  density: number
+  generator: any
+  constructor(generator: Generator) {
+    this.generator = generator
+    this.density = 1
+  }
+  eval(input: InputType): number {
+    return this.generator(input)
+  }
+
 }
 
 /**
  * Sampling points from noise source
  */
-export class ProceduralNoise2DSampler implements ISampler<Vector2> {
-    source: any
-    density: any // TODO
-    constructor() {
-        this.source = new SimplexNoise()
-    }
+export class ProceduralNoiseSampler implements Sampler<InputType> {
+  density: any // TODO
+  noiseSource
 
-  query(input: Vector2) {
+  constructor(noiseSource = new SimplexNoise()) {
+    this.noiseSource = noiseSource
+  }
+
+  eval(input: InputType) {
     const { x, y } = input
     const freq = [0.0125, 0.025, 0.05, 0.1, 0.2, 0.4, 0.8]
     let noise = 0
     freq.forEach((f: number, i: number) => {
-      noise += (this.source.noise3d(x * f, y * f, 0) + 0.5) / Math.pow(2, i + 1)
+      noise += (this.noiseSource.noise3d(x * f, y * f, 0) + 0.5) / Math.pow(2, i + 1)
     })
 
-        return sanitiseNoise(noise)
-    }
+    return sanitiseNoise(noise)
+  }
 }

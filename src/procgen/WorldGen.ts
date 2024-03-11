@@ -2,8 +2,8 @@ import { Vector2, Vector3, Box3 } from 'three'
 import { PointOctree } from 'sparse-octree'
 
 import { CurvePresets, HeightProfiler } from './HeightProfiler'
-import { ProceduralNoise2DSampler } from './NoiseSampler'
 import { GenerationLayer } from './GenerationLayer'
+import { ProceduralNoiseSampler } from './NoiseSampler'
 
 export enum LayerType {
   CONTINENTAL = "continental",
@@ -14,11 +14,11 @@ export enum LayerType {
  * Generation modes:
  */
 export enum GenMode {
-  MONO_CONT = "continental",
-  MONO_ERO = "erosion",
-  DUAL_CONT_ERO = "blend C+E",
-  THRESHOLD_BLEND = "chain layers",
-  THRESHOLD_NO_BLEND = "chain layers no blend",
+  CONT,
+  ERO,
+  BLEND_CONT_ERO,
+  COMBINE_ALL_BLEND,
+  COMBINE_ALL_OVERRIDE,
 }
 
 const HEIGHT_SCALE = 1 / 2
@@ -33,76 +33,75 @@ Layers profile:
 - Peaks&Valleys
 
 Generation modes: 
- * MONO
- * showing only selected profile for debug/visualization purpose
- * DUAL
+ * ONE LAYER
+ * showing only selected layer for debug/visualization purpose
+ * BLEND
  * two layers blended together according to blending map
- * THRESHOLD
- * profiles are linked in specific order and holds threshold value that tells
- * if iterating to next layer is required.
- * Generation starts by looking at first layer and checking its value.
- * - if below threshold it will apply current layer profile
- * - or if above threshold, it will move to next layer in linked list and redo same process.
- * Depnding on blend/noblend mode, layer will either:
+ * COMBINE_ALL
+ * Generation starts by evaluating first layer:
+ * - if value below threshold return current value
+ * - if value above threshold, move to next layer and repeat until value below threshold 
+ * or no profile remains
+ * Depending on blend/override mode, matching layer:
  * - override all preceding layers
  * - or blend with previous layers to avoid discontinuity
  */
 export class WorldGenerator {
   sampleScale
   layersIndex: any = {}
-  chainFirstLayer: GenerationLayer
   config = {
-    mode: GenMode.MONO_CONT,
+    mode: GenMode.CONT,
   }
 
   constructor(sampleScale: number) {
     this.sampleScale = sampleScale
-    // blending layer
-    let sampler = new ProceduralNoise2DSampler()
-    let profile = new HeightProfiler(CurvePresets.identity)
-    GenerationLayer.blendmap = new GenerationLayer(sampler, profile, 0)
+    // set blending map
+    GenerationLayer.blendmap = new ProceduralNoiseSampler()
+    let sampler, profile;
     // first pass: continentalness
-    sampler = new ProceduralNoise2DSampler()
+    sampler = new ProceduralNoiseSampler()
     profile = new HeightProfiler(CurvePresets.continentalness)
     const continentalLayer = new GenerationLayer(sampler, profile, 0.7)
     // set as first element in chain
-    this.chainFirstLayer = continentalLayer
+    GenerationLayer.first = continentalLayer
     // second pass: erosion
-    sampler = new ProceduralNoise2DSampler()
+    sampler = new ProceduralNoiseSampler()
     profile = new HeightProfiler(CurvePresets.erosion)
     const erosionLayer = new GenerationLayer(sampler, profile, 0.7)
-    // link layers
+    // link: continentalness => erosion
     continentalLayer.nextPass = erosionLayer
-
+    // link: erosion => peaksValleys
+    // TODO
     // index layers
     this.layersIndex[LayerType.CONTINENTAL] = continentalLayer
     this.layersIndex[LayerType.EROSION] = erosionLayer
   }
 
-  /*
-   * @param point 
+  /**
+   * 
+   * @param point evaluated point
+   * @param mode generation mode
    * @returns 
    */
-  evalPoint(point: Vector2 | Vector3) {
-    const genMode = this.config.mode
+  getPointValue(point: Vector2 | Vector3, mode = this.config.mode) {
     const continentalLayer: GenerationLayer = this.layersIndex[LayerType.CONTINENTAL]
     const erosionLayer: GenerationLayer = this.layersIndex[LayerType.EROSION]
-    let pointVal;
-    switch (genMode) {
-      case GenMode.MONO_CONT:
+    let pointVal = 0;
+    switch (mode) {
+      case GenMode.CONT:
         pointVal = continentalLayer.eval(point)
         break
-      case GenMode.MONO_ERO:
+      case GenMode.ERO:
         pointVal = erosionLayer.eval(point)
         break
-      case GenMode.DUAL_CONT_ERO:
-        pointVal = GenerationLayer.blendLayers(continentalLayer, erosionLayer, point)
+      case GenMode.BLEND_CONT_ERO:
+        pointVal = continentalLayer.blendWith(erosionLayer)(point)
         break;
-      case GenMode.THRESHOLD_BLEND:
-        pointVal = this.chainFirstLayer.chainEval(point)
+      case GenMode.COMBINE_ALL_BLEND:
+        pointVal = GenerationLayer.first.combine(point)
         break;
-      case GenMode.THRESHOLD_NO_BLEND:
-        pointVal = this.chainFirstLayer.chainEval(point, true)
+      case GenMode.COMBINE_ALL_OVERRIDE:
+        pointVal = GenerationLayer.first.combine(point, false)
         break;
     }
     return HEIGHT_SCALE * pointVal;
@@ -122,8 +121,7 @@ export class WorldGenerator {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
         const noiseCoords = new Vector2(x, z)
         noiseCoords.multiplyScalar(this.sampleScale) // mapping voxel position to noise coords
-        // const groundLevel = this.chainFirstLayer.eval(noiseCoords) / 2
-        const groundLevel = this.evalPoint(noiseCoords)
+        const groundLevel = this.getPointValue(noiseCoords, GenMode.CONT)
 
         for (let { y } = bbox.min; y < bbox.max.y; y++) {
           const voxelPoint = new Vector3(x, y, z)
