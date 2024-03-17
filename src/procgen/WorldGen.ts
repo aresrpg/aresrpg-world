@@ -2,8 +2,9 @@ import { Vector2, Vector3, Box3 } from 'three'
 import { PointOctree } from 'sparse-octree'
 
 import { CurvePresets, HeightProfiler } from './HeightProfiler'
-import { GenerationLayer } from './GenerationLayer'
 import { ProceduralNoiseSampler } from './NoiseSampler'
+import { round2 } from '../common/utils'
+import { GenLayer } from './GenLayer'
 
 export enum LayerType {
   CONTINENTAL = "continental",
@@ -17,17 +18,17 @@ export enum GenMode {
   CONT,
   ERO,
   BLEND_CONT_ERO,
-  COMBINE_ALL_BLEND,
-  COMBINE_ALL_OVERRIDE,
+  COMBINE_ALL,
+  MIN,
+  MAX,
+  MIN_MAX_ALTERNATE
 }
-
-const HEIGHT_SCALE = 1 / 2
 
 /**
   Generate scalar field according to multiple procedural layers combination
 and generation mode.
 
-Layers profile:
+Layer profiles:
 - Continental
 - Erosion
 - Peaks&Valleys
@@ -36,7 +37,7 @@ Generation modes:
  * ONE LAYER
  * showing only selected layer for debug/visualization purpose
  * BLEND
- * two layers blended together according to blending map
+ * two layers blended together according to blending map acting as layer selector
  * COMBINE_ALL
  * Generation starts by evaluating first layer:
  * - if value below threshold return current value
@@ -47,34 +48,58 @@ Generation modes:
  * - or blend with previous layers to avoid discontinuity
  */
 export class WorldGenerator {
-  sampleScale
-  layersIndex: any = {}
-  config = {
+  sampleScale: number
+  heightScale: number = 1
+  genMode: GenMode = GenMode.CONT
+  layersIndex: Record<string, GenLayer> = {}
+  conf = {
     mode: GenMode.CONT,
   }
 
   constructor(sampleScale: number) {
     this.sampleScale = sampleScale
     // set blending map
-    GenerationLayer.blendmap = new ProceduralNoiseSampler()
-    let sampler, profile;
-    // first pass: continentalness
-    sampler = new ProceduralNoiseSampler()
-    profile = new HeightProfiler(CurvePresets.continentalness)
-    const continentalLayer = new GenerationLayer(sampler, profile, 0.7)
-    // set as first element in chain
-    GenerationLayer.first = continentalLayer
-    // second pass: erosion
-    sampler = new ProceduralNoiseSampler()
-    profile = new HeightProfiler(CurvePresets.erosion)
-    const erosionLayer = new GenerationLayer(sampler, profile, 0.7)
-    // link: continentalness => erosion
-    continentalLayer.nextPass = erosionLayer
-    // link: erosion => peaksValleys
-    // TODO
-    // index layers
-    this.layersIndex[LayerType.CONTINENTAL] = continentalLayer
-    this.layersIndex[LayerType.EROSION] = erosionLayer
+    const sampler = new ProceduralNoiseSampler()
+    const profiler = new HeightProfiler(CurvePresets.identity)
+    const transitionThreshold = 0.5
+    const transitionRange = 0.1
+    const transition = {
+      lower: round2(transitionThreshold - transitionRange / 2),
+      upper: round2(transitionThreshold + transitionRange / 2)
+    }
+    GenLayer.blendmap = new GenLayer(sampler, profiler, transition)
+  }
+
+  get config() {
+    return this.conf
+  }
+
+  set config(config) {
+    // Object.preventExtensions(this.conf)
+    // Object.assign(this.conf, config)
+    const { procgen, proclayers } = config
+    if (proclayers) {
+      Object.entries(proclayers).forEach(([name, conf]) => {
+        const { profile, scattering, threshold: transitionThreshold } = conf
+        const density = 1 / Math.pow(2, scattering)
+        const sampler = new ProceduralNoiseSampler(density)
+        const profiler = new HeightProfiler(CurvePresets[profile])
+        const transitionRange = 0.1
+        const transition = {
+          lower: round2(transitionThreshold - transitionRange / 2),
+          upper: round2(transitionThreshold + transitionRange / 2)
+        }
+        const layer = this.layersIndex[name] || new GenLayer(sampler, profiler, transition)
+        layer.profile = profiler
+        layer.transition = transition
+        layer.sampler.density = density
+        this.layersIndex[name] = layer
+      })
+    }
+    this.heightScale = procgen.heightScale
+    this.genMode = procgen.mode
+    console.log(CurvePresets)
+
   }
 
   /**
@@ -83,9 +108,9 @@ export class WorldGenerator {
    * @param mode generation mode
    * @returns 
    */
-  getPointValue(point: Vector2 | Vector3, mode = this.config.mode) {
-    const continentalLayer: GenerationLayer = this.layersIndex[LayerType.CONTINENTAL]
-    const erosionLayer: GenerationLayer = this.layersIndex[LayerType.EROSION]
+  getPointValue(point: Vector2 | Vector3, mode = this.genMode) {
+    const continentalLayer: GenLayer = this.layersIndex[LayerType.CONTINENTAL]
+    const erosionLayer: GenLayer = this.layersIndex[LayerType.EROSION]
     let pointVal = 0;
     switch (mode) {
       case GenMode.CONT:
@@ -95,16 +120,22 @@ export class WorldGenerator {
         pointVal = erosionLayer.eval(point)
         break
       case GenMode.BLEND_CONT_ERO:
-        pointVal = continentalLayer.blendWith(erosionLayer)(point)
+        pointVal = GenLayer.blendLayers(continentalLayer, erosionLayer)(point)
         break;
-      case GenMode.COMBINE_ALL_BLEND:
-        pointVal = GenerationLayer.first.combine(point)
+      case GenMode.COMBINE_ALL:
+        pointVal = GenLayer.first.combine(point)
         break;
-      case GenMode.COMBINE_ALL_OVERRIDE:
-        pointVal = GenerationLayer.first.combine(point, false)
+      case GenMode.MIN:
+        pointVal = GenLayer.minValue(continentalLayer, erosionLayer, point)
+        break;
+      case GenMode.MAX:
+        pointVal = GenLayer.maxValue(continentalLayer, erosionLayer, point)
+        break;
+      case GenMode.MIN_MAX_ALTERNATE:
+        pointVal = GenLayer.minMaxAlternate(continentalLayer, erosionLayer, point)
         break;
     }
-    return HEIGHT_SCALE * pointVal;
+    return this.heightScale * pointVal;
   }
 
   /**
@@ -113,7 +144,7 @@ export class WorldGenerator {
    * @param bbox      voxel range covered by generation
    * @returns
    */
-  fill(octree: PointOctree<any>, bbox: Box3) {
+  generate(octree: PointOctree<any>, bbox: Box3) {
     let iterCount = 0
     let blocksCount = 0
     // sample volume
