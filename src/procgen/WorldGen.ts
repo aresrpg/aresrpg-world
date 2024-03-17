@@ -48,13 +48,11 @@ Generation modes:
  * - or blend with previous layers to avoid discontinuity
  */
 export class WorldGenerator {
+  parent: any
   sampleScale: number
   heightScale: number = 1
   genMode: GenMode = GenMode.CONT
   layersIndex: Record<string, GenLayer> = {}
-  conf = {
-    mode: GenMode.CONT,
-  }
 
   constructor(sampleScale: number) {
     this.sampleScale = sampleScale
@@ -71,35 +69,24 @@ export class WorldGenerator {
   }
 
   get config() {
-    return this.conf
+    return {
+      genMode: this.genMode,
+      heightScale: this.heightScale
+    }
   }
 
   set config(config) {
+    this.genMode = !isNaN(config.genMode) ? config.genMode : this.genMode
+    this.heightScale = !isNaN(config.heightScale) ? config.heightScale : this.heightScale
     // Object.preventExtensions(this.conf)
     // Object.assign(this.conf, config)
-    const { procgen, proclayers } = config
-    if (proclayers) {
-      Object.entries(proclayers).forEach(([name, conf]) => {
-        const { profile, scattering, threshold: transitionThreshold } = conf
-        const density = 1 / Math.pow(2, scattering)
-        const sampler = new ProceduralNoiseSampler(density)
-        const profiler = new HeightProfiler(CurvePresets[profile])
-        const transitionRange = 0.1
-        const transition = {
-          lower: round2(transitionThreshold - transitionRange / 2),
-          upper: round2(transitionThreshold + transitionRange / 2)
-        }
-        const layer = this.layersIndex[name] || new GenLayer(sampler, profiler, transition)
-        layer.profile = profiler
-        layer.transition = transition
-        layer.sampler.density = density
-        this.layersIndex[name] = layer
-      })
-    }
-    this.heightScale = procgen.heightScale
-    this.genMode = procgen.mode
-    console.log(CurvePresets)
+    // const { procgen, proclayers } = config
+    this.parent?.onChange(this)
+  }
 
+  onChange(originator: any) {
+    console.log(`[WorldGen] ${typeof originator} config has changed`)
+    this.parent?.onChange(originator)
   }
 
   /**

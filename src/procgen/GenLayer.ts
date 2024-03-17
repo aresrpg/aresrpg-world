@@ -1,6 +1,7 @@
 import { Vector2 } from 'three'
-import { HeightProfiler } from './HeightProfiler'
-import { InputType, Sampler } from './NoiseSampler'
+import { round2 } from '../common/utils'
+import { CurvePresets, HeightProfiler } from './HeightProfiler'
+import { InputType, ProceduralNoiseSampler, Sampler } from './NoiseSampler'
 
 /**
  * blend threshold and transition
@@ -17,6 +18,7 @@ export class GenLayer {
     // layer selector, used for switching from one layer to another
     static blendmap: GenLayer
     static first: GenLayer  // ref to first layer for combination mode
+    parent: any
     sampler
     profile: HeightProfiler
     transition: LayerTransition | undefined   // used to transition from one layer to another
@@ -29,8 +31,22 @@ export class GenLayer {
    */
     constructor(sampler: Sampler<Vector2>, profile: HeightProfiler, transition: LayerTransition | undefined = undefined) {
         this.sampler = sampler
+        this.sampler.parent = this
         this.profile = profile
         this.transition = transition
+    }
+
+    static instanceFromConf(conf) {
+        const { profile, scattering, threshold: transitionThreshold } = conf
+        const density = 1 / Math.pow(2, scattering)
+        const sampler = new ProceduralNoiseSampler(density)
+        const profiler = new HeightProfiler(CurvePresets[profile])
+        const transitionRange = 0.1
+        const transition = {
+            lower: round2(transitionThreshold - transitionRange / 2),
+            upper: round2(transitionThreshold + transitionRange / 2)
+        }
+        return new GenLayer(sampler, profiler, transition)
     }
 
     /**
@@ -135,6 +151,11 @@ export class GenLayer {
     eval(input: InputType) {
         const rawVal = this.rawEval((input as Vector2))
         return this.profile.apply(rawVal)
+    }
+
+    onChange(originator) {
+        console.log(`[GenLayer] ${typeof originator} config has changed`)
+        this.parent?.onChange(originator)
     }
 
 }
