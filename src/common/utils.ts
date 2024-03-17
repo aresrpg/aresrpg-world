@@ -16,6 +16,12 @@ const sanitiseNoise = (noiseVal: number) => {
   }
   return res
 }
+/**
+ * round val at 2 decimal
+ */
+const round2 = (val: number) => {
+  return Math.round(val * 100) / 100
+}
 
 /**
  *
@@ -38,4 +44,4 @@ const getVoxelTypeFromHeight = (height: number) => {
   return EVoxelType.SNOW
 }
 
-export { sanitiseNoise, interpolatePoints, getVoxelTypeFromHeight }
+export { sanitiseNoise, round2, interpolatePoints, getVoxelTypeFromHeight }

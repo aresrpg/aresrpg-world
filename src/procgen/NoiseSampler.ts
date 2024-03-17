@@ -30,21 +30,22 @@ export class CustomSampler<InputType> implements Sampler<InputType> {
  * Sampling points from noise source
  */
 export class ProceduralNoiseSampler implements Sampler<InputType> {
-  density: any // TODO
+  density: number = 1
   noiseSource
 
-  constructor(noiseSource = new SimplexNoise()) {
+  constructor(density = 1, noiseSource = new SimplexNoise()) {
+    this.density = density
     this.noiseSource = noiseSource
   }
 
   eval(input: InputType) {
     const { x, y } = input
+    const { density } = this
     const freq = [0.0125, 0.025, 0.05, 0.1, 0.2, 0.4, 0.8]
     let noise = 0
     freq.forEach((f: number, i: number) => {
-      noise += (this.noiseSource.noise3d(x * f, y * f, 0) + 0.5) / Math.pow(2, i + 1)
+      noise += (this.noiseSource.noise3d(x * f * density, y * f * density, 0 * density) + 0.5) / Math.pow(2, i + 1)
     })
-
     return sanitiseNoise(noise)
   }
 }

@@ -128,20 +128,20 @@ const CurvePresets = {
     },
     {
       noise: 0.75,
-      height: 255
+      height: 200
     },
     {
       noise: 1,
-      height: 255
+      height: 200
     },
   ],
   erosion: [
     {
       noise: 0,
-      height: 200
+      height: 255
     },
     {
-      noise: 0.6,
+      noise: 0.3,
       height: 100
     },
     {
