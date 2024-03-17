@@ -7,10 +7,13 @@ export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
 const
 export interface Sampler<InputType> {
+  parent: any
   // userScale: number;   // scale applied to sampler user input when querying sample
   density: number // intrinsic sample density
   // querying sample value from input
   eval(input: InputType): number
+  get config(): any
+  set config(config: any)
 }
 
 export class CustomSampler<InputType> implements Sampler<InputType> {
@@ -20,8 +23,20 @@ export class CustomSampler<InputType> implements Sampler<InputType> {
     this.generator = generator
     this.density = 1
   }
+  parent: any
   eval(input: InputType): number {
     return this.generator(input)
+  }
+
+  get config() {
+    return {
+      density: this.density
+    }
+  }
+
+  set config(config) {
+    this.density = config.density
+    this.parent?.onChange(this)
   }
 
 }
@@ -32,10 +47,23 @@ export class CustomSampler<InputType> implements Sampler<InputType> {
 export class ProceduralNoiseSampler implements Sampler<InputType> {
   density: number = 1
   noiseSource
+  parent: any
 
   constructor(density = 1, noiseSource = new SimplexNoise()) {
     this.density = density
     this.noiseSource = noiseSource
+  }
+
+  get config() {
+    return {
+      density: this.density
+    }
+  }
+
+  set config(config) {
+    const density = !isNaN(config.scattering) ? 1 / Math.pow(2, config.scattering) : config.density
+    this.density = !isNaN(density) ? density : this.density
+    this.parent?.onChange(this)
   }
 
   eval(input: InputType) {
