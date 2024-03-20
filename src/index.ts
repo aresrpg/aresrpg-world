@@ -1,5 +1,5 @@
+export { SimplexNoiseSampler } from './procgen/NoiseSampler'
 export { CurvePresets, HeightProfiler } from './procgen/HeightProfiler'
-export { ProceduralNoiseSampler } from './procgen/NoiseSampler'
 export { VoxelMap } from './procgen/VoxelMap'
-export { WorldGenerator, LayerType, GenMode } from './procgen/WorldGen'
-export { GenLayer } from './procgen/GenLayer'
+export { WorldGenerator } from './procgen/WorldGen'
+export { CombineMode, GenChainLayer } from './procgen/GenChainLayer'
