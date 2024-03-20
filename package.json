@@ -19,7 +19,8 @@
   },
   "keywords": [],
   "dependencies": {
-    "@aresrpg/aresrpg-engine": "^0.2.0",
+    "@aresrpg/aresrpg-engine": "file:../aresrpg-engine",
+    "simplex-noise": "^4.0.1",
     "sparse-octree": "^7.1.8",
     "three": "^0.162.0"
   },
