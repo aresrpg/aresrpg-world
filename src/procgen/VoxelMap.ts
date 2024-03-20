@@ -1,11 +1,11 @@
 import { Box3, Vector3 } from 'three'
 import { OctreeIterator, PointOctree } from 'sparse-octree'
-import { AresRpgEngine } from '@aresrpg/aresrpg-engine'
+import { IVoxelMap, IVoxelMaterial, IVoxel } from '@aresrpg/aresrpg-engine'
 
 import { getVoxelTypeFromHeight } from '../common/utils'
 import { VOXEL_TYPE_COLORS } from '../common/constants'
 
-export class VoxelMap implements AresRpgEngine.IVoxelMap {
+export class VoxelMap implements IVoxelMap {
   public readonly size: Vector3
   voxelsOctree
   public constructor(bbox: Box3) {
@@ -14,7 +14,7 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
   }
 
   public readonly voxelMaterialsList = Object.values(VOXEL_TYPE_COLORS)
-  getAllVoxelMaterials(): AresRpgEngine.IVoxelMaterial[] {
+  getAllVoxelMaterials(): IVoxelMaterial[] {
     return Object.values(VOXEL_TYPE_COLORS)
   }
 
@@ -33,7 +33,7 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
   iterateOnVoxels(
     from: Vector3,
     to: Vector3,
-  ): Generator<AresRpgEngine.IVoxel, any, unknown> {
+  ): Generator<IVoxel, any, unknown> {
     const bmin = new Vector3(from.x, from.y, from.z)
     const bmax = new Vector3(to.x - 1, to.y - 1, to.z - 1)
     const bbox = new Box3(bmin, bmax)
@@ -46,7 +46,7 @@ export class VoxelMap implements AresRpgEngine.IVoxelMap {
           const pointOctant: any = result.value
           const points = pointOctant.data?.points || []
           for (const point of points) {
-            const voxel: AresRpgEngine.IVoxel = {
+            const voxel: IVoxel = {
               position: point,
               materialId: getVoxelTypeFromHeight(point.y),
             }

@@ -1,4 +1,4 @@
-import { AresRpgEngine } from '@aresrpg/aresrpg-engine'
+import { IVoxelMaterial } from '@aresrpg/aresrpg-engine'
 import { Color } from 'three'
 
 enum EVoxelType {
@@ -9,7 +9,7 @@ enum EVoxelType {
   SAND,
 }
 
-const VOXEL_TYPE_COLORS: Record<EVoxelType, AresRpgEngine.IVoxelMaterial> = [
+const VOXEL_TYPE_COLORS: Record<EVoxelType, IVoxelMaterial> = [
   { color: new Color('#ABABAB') },
   { color: new Color('#00B920') },
   { color: new Color('#E5E5E5') },
