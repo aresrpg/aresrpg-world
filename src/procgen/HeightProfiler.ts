@@ -81,22 +81,11 @@ const noiseToHeight = (
   const interpolatedHeight = interpolatePoints(lowerPoint, upperPoint, noiseVal)
   return interpolatedHeight
 }
-/**
- * Profile to determine 
- * - used sampled density
- * - curve mapping from sampled value to height
- * - threshold after which next profile is applied
- */
-type HeightProfile = {
-  shape: [],
-  treshold: number,
-  density: number
-}
 
 /**
  *  Spline curve parameters 
  */
-const CurvePresets = {
+const CurvePresets: any = {
   identity: [
     {
       noise: 0,
