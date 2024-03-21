@@ -24,7 +24,7 @@ type Harmonic = {
 export class SimplexNoiseSampler implements Sampler<InputType> {
   density: number
   harmonics: Harmonic[] = []
-  harmonicsAmplitudeSum: number
+  harmonicsAmplitudeSum: number = 0
   noiseSource: any
   noiseParams = {
     harmonics: {
