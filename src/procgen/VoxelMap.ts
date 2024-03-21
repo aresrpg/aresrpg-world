@@ -30,10 +30,7 @@ export class VoxelMap implements IVoxelMap {
     return count
   }
 
-  iterateOnVoxels(
-    from: Vector3,
-    to: Vector3,
-  ): Generator<IVoxel, any, unknown> {
+  iterateOnVoxels(from: Vector3, to: Vector3): Generator<IVoxel, any, unknown> {
     const bmin = new Vector3(from.x, from.y, from.z)
     const bmax = new Vector3(to.x - 1, to.y - 1, to.z - 1)
     const bbox = new Box3(bmin, bmax)
