@@ -1,9 +1,8 @@
 import { Vector2, Vector3, Box3 } from 'three'
 import { PointOctree } from 'sparse-octree'
+
 import { InputType } from './NoiseSampler'
 import { CombineMode, GenChainLayer } from './GenChainLayer'
-
-
 
 /**
  * Filling data struct with generated data
@@ -33,13 +32,15 @@ export class WorldGenerator {
   get config() {
     return {
       genMode: this.genMode,
-      heightScale: this.heightScale
+      heightScale: this.heightScale,
     }
   }
 
   set config(config) {
     this.genMode = config.genMode || this.genMode
-    this.heightScale = !isNaN(config.heightScale) ? config.heightScale : this.heightScale
+    this.heightScale = !isNaN(config.heightScale)
+      ? config.heightScale
+      : this.heightScale
     // Object.preventExtensions(this.conf)
     // Object.assign(this.conf, config)
     // const { procgen, proclayers } = config
@@ -52,14 +53,18 @@ export class WorldGenerator {
   }
 
   /**
-   * 
+   *
    * @param point evaluated point
    * @param mode generation mode
-   * @returns 
+   * @returns
    */
   getPointValue(point: InputType, mode = this.genMode) {
-    const pointVal = GenChainLayer.combineEvals(point, this.chainFirstLayer, mode)
-    return this.heightScale * pointVal;
+    const pointVal = GenChainLayer.combineEvals(
+      point,
+      this.chainFirstLayer,
+      mode,
+    )
+    return this.heightScale * pointVal
   }
 
   /**
@@ -84,7 +89,7 @@ export class WorldGenerator {
           if (voxelPoint.y < groundLevel) {
             octree.set(voxelPoint, {})
             blocksCount++
-            break;
+            break
           }
           iterCount++
         }

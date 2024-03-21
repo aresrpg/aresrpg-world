@@ -83,81 +83,81 @@ const noiseToHeight = (
 }
 
 /**
- *  Spline curve parameters 
+ *  Spline curve parameters
  */
 const CurvePresets: any = {
   identity: [
     {
       noise: 0,
-      height: 0
+      height: 0,
     },
     {
       noise: 1,
-      height: 1
+      height: 1,
     },
   ],
   regular: [
     {
       noise: 0,
-      height: 0
+      height: 0,
     },
     {
       noise: 1,
-      height: 255
+      height: 255,
     },
   ],
   continentalness: [
     {
       noise: 0,
-      height: 0
+      height: 0,
     },
     {
       noise: 0.65,
-      height: 150
+      height: 150,
     },
     {
       noise: 0.75,
-      height: 200
+      height: 200,
     },
     {
       noise: 1,
-      height: 200
+      height: 200,
     },
   ],
   erosion: [
     {
       noise: 0,
-      height: 255
+      height: 255,
     },
     {
       noise: 0.3,
-      height: 100
+      height: 100,
     },
     {
       noise: 0.75,
-      height: 50
+      height: 50,
     },
     {
       noise: 1,
-      height: 50
+      height: 50,
     },
   ],
   peaksValleys: [
     {
       noise: 0,
-      height: 50
+      height: 50,
     },
     {
       noise: 0.65,
-      height: 100
+      height: 100,
     },
     {
       noise: 0.75,
-      height: 150
+      height: 150,
     },
     {
       noise: 1,
-      height: 150
+      height: 150,
     },
   ],
 }
