@@ -1,43 +1,31 @@
 import { Vector2 } from 'three'
 
-import { interpolatePoints } from '../common/utils'
+import * as Utils from '../common/utils'
 
-export enum ProfileType {
-  Regular = 'regular',
-  Continentalness = 'continentalness',
-  Erosion = 'erosion',
-  PeaksValleys = 'peaksvalleys',
+export type CurveParams = {
+  x: number
+  y: number
 }
 
 /**
  * Profile used to map scalar field to terrain height
  */
 class HeightProfiler {
-  static profiles: any = {}
-  curveParams
-  constructor(curveParams: any) {
+  curveParams: CurveParams[]
+  constructor(curveParams: CurveParams[]) {
     this.curveParams = curveParams
   }
 
-  static addProfile(
-    curveProfile: { noise: number; height: number }[],
-    profileType: ProfileType,
-  ) {
-    HeightProfiler.profiles[profileType] =
-      HeightProfiler.profiles[profileType] || new HeightProfiler(curveProfile)
-  }
-
   getCurveSegment(inputVal: any) {
-    return getCurveSegment(inputVal, this.curveParams)
+    try {
+      return getCurveSegment(inputVal, this.curveParams)
+    } catch (error) {
+      return getCurveSegment(Utils.sanitiseNoise(inputVal), this.curveParams)
+    }
   }
 
   apply(inputVal: number) {
     return noiseToHeight(inputVal, this.getCurveSegment(inputVal))
-  }
-
-  static apply(profileType: ProfileType, inputVal: number) {
-    const profile = HeightProfiler.profiles[profileType]
-    return profile.apply(inputVal)
   }
 }
 
@@ -47,19 +35,19 @@ class HeightProfiler {
  * @param curveProfile curve points array
  * @returns upper and lower points from curve profile closest to input val
  */
-const getCurveSegment = (noise: number, curveProfile: any[]) => {
+const getCurveSegment = (noise: number, curveProfile: CurveParams[]) => {
   const lower = curveProfile
-    .filter((point: { noise: number }) => point.noise <= noise)
-    .reduce((last: { noise: number }, curr: { noise: number }) => {
-      const currDiff = Math.abs(noise - curr.noise)
-      const lastDiff = Math.abs(noise - last.noise)
+    .filter((point: CurveParams) => point.x <= noise)
+    .reduce((last: CurveParams, curr: CurveParams) => {
+      const currDiff = Math.abs(noise - curr.x)
+      const lastDiff = Math.abs(noise - last.x)
       return currDiff < lastDiff ? curr : last
     })
   const upper = curveProfile
-    .filter((point: { noise: number }) => point.noise >= noise)
-    .reduce((last: { noise: number }, curr: { noise: number }) => {
-      const currDiff = Math.abs(noise - curr.noise)
-      const lastDiff = Math.abs(noise - last.noise)
+    .filter((point: CurveParams) => point.x >= noise)
+    .reduce((last: CurveParams, curr: CurveParams) => {
+      const currDiff = Math.abs(noise - curr.x)
+      const lastDiff = Math.abs(noise - last.x)
       return currDiff < lastDiff ? curr : last
     })
   return { lower, upper }
@@ -76,90 +64,40 @@ const noiseToHeight = (
   curveSegment: { lower: any; upper: any },
 ) => {
   const { lower, upper } = curveSegment
-  const lowerPoint = new Vector2(lower.noise, lower.height)
-  const upperPoint = new Vector2(upper.noise, upper.height)
-  const interpolatedHeight = interpolatePoints(lowerPoint, upperPoint, noiseVal)
+  const lowerPoint = new Vector2(lower.x, lower.y)
+  const upperPoint = new Vector2(upper.x, upper.y)
+  const interpolatedHeight = Utils.interpolatePoints(
+    lowerPoint,
+    upperPoint,
+    noiseVal,
+  )
   return interpolatedHeight
 }
 
 /**
- *  Spline curve parameters
+ *  Curve parameters presets
  */
-const CurvePresets: any = {
-  identity: [
-    {
-      noise: 0,
-      height: 0,
-    },
-    {
-      noise: 1,
-      height: 1,
-    },
-  ],
-  regular: [
-    {
-      noise: 0,
-      height: 0,
-    },
-    {
-      noise: 1,
-      height: 255,
-    },
-  ],
-  continentalness: [
-    {
-      noise: 0,
-      height: 0,
-    },
-    {
-      noise: 0.65,
-      height: 150,
-    },
-    {
-      noise: 0.75,
-      height: 200,
-    },
-    {
-      noise: 1,
-      height: 200,
-    },
-  ],
-  erosion: [
-    {
-      noise: 0,
-      height: 255,
-    },
-    {
-      noise: 0.3,
-      height: 100,
-    },
-    {
-      noise: 0.75,
-      height: 50,
-    },
-    {
-      noise: 1,
-      height: 50,
-    },
-  ],
-  peaksValleys: [
-    {
-      noise: 0,
-      height: 50,
-    },
-    {
-      noise: 0.65,
-      height: 100,
-    },
-    {
-      noise: 0.75,
-      height: 150,
-    },
-    {
-      noise: 1,
-      height: 150,
-    },
-  ],
-}
+// const DefaultProfiles: any = {
+//   identity: [
+//     {
+//       x: 0,
+//       y: 0,
+//     },
+//     {
+//       x: 1,
+//       y: 1,
+//     },
+//   ],
+//   regular: [
+//     {
+//       x: 0,
+//       y: 0,
+//     },
+//     {
+//       x: 1,
+//       y: 255,
+//     },
+//   ]
+// }
 
-export { HeightProfiler, CurvePresets }
+export { HeightProfiler }
