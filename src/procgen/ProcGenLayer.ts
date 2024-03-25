@@ -52,6 +52,7 @@ export const getCompositor = (blendMode: BlendMode): Compositor => {
  */
 export abstract class GenLayer {
   parent: any
+  // eslint-disable-next-line no-use-before-define
   next: GenLayer | undefined // linked layer for combination mode
   // profile: HeightProfiler = DEFAULT_PROFILE
   transition: LayerTransition = DEFAULT_TRANSITION // used to transition from one layer to another
