@@ -2,21 +2,21 @@ import { Vector2, Vector3, Box3 } from 'three'
 import { PointOctree } from 'sparse-octree'
 
 import { InputType } from './NoiseSampler'
-import { CombineMode, GenChainLayer } from './GenChainLayer'
+import { GenLayer } from './ProcGenLayer'
 
 /**
  * Filling data struct with generated data
  */
 export class WorldGenerator {
   parent: any
-  sampleScale: number
+  samplingScale: number
   heightScale: number = 1
-  genMode: CombineMode = CombineMode.CURRENT
-  chainFirstLayer: GenChainLayer
+  procLayers: GenLayer
+  selection = ''
 
-  constructor(sampleScale: number, layerChain: GenChainLayer) {
-    this.sampleScale = sampleScale
-    this.chainFirstLayer = layerChain
+  constructor(samplingScale: number, layerChain: GenLayer) {
+    this.samplingScale = samplingScale
+    this.procLayers = layerChain
     // set blending map
     // const sampler = new ProceduralNoiseSampler()
     // const profiler = new HeightProfiler(CurvePresets.identity)
@@ -31,16 +31,21 @@ export class WorldGenerator {
 
   get config() {
     return {
-      genMode: this.genMode,
+      selection: this.selection,
       heightScale: this.heightScale,
+      samplingScale: this.samplingScale,
     }
   }
 
-  set config(config) {
-    this.genMode = config.genMode || this.genMode
+  set config(config: any) {
+    this.selection = config.selection || this.selection
     this.heightScale = !isNaN(config.heightScale)
       ? config.heightScale
       : this.heightScale
+    this.samplingScale = !isNaN(config.samplingScale)
+      ? config.samplingScale
+      : this.samplingScale
+    this.procLayers = config.procLayers || this.procLayers
     // Object.preventExtensions(this.conf)
     // Object.assign(this.conf, config)
     // const { procgen, proclayers } = config
@@ -58,12 +63,8 @@ export class WorldGenerator {
    * @param mode generation mode
    * @returns
    */
-  getPointValue(point: InputType, mode = this.genMode) {
-    const pointVal = GenChainLayer.combineEvals(
-      point,
-      this.chainFirstLayer,
-      mode,
-    )
+  getPointValue(point: InputType, mode = this.selection) {
+    const pointVal = GenLayer.combine(point, this.procLayers, mode)
     return this.heightScale * pointVal
   }
 
@@ -80,7 +81,7 @@ export class WorldGenerator {
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
         const noiseCoords = new Vector2(x, z)
-        noiseCoords.multiplyScalar(this.sampleScale) // mapping voxel position to noise coords
+        noiseCoords.multiplyScalar(this.samplingScale) // mapping voxel position to noise coords
         const groundLevel = this.getPointValue(noiseCoords)
 
         for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {

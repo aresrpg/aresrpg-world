@@ -12,12 +12,12 @@ const sanitiseNoise = (noiseVal: number) => {
   const isValidNoiseRange = !isNaN(noiseVal) && noiseVal >= 0 && noiseVal <= 1
   if (!isValidNoiseRange) {
     res = Math.round(noiseVal)
-    // console.warn(`invalid noise value: ${noiseVal} corrected to ${res}`)
+    console.warn(`invalid noise value: ${noiseVal} corrected to ${res}`)
   }
   return res
 }
 /**
- * round val at 2 decimal
+ * round val at 2 decimals
  */
 const round2 = (val: number) => {
   return Math.round(val * 100) / 100

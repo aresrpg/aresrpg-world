@@ -1,6 +1,7 @@
 import { createNoise2D } from 'simplex-noise'
 import { Vector2, Vector3 } from 'three'
-import alea from 'alea';
+import alea from 'alea'
+
 import { sanitiseNoise } from '../common/utils'
 
 export type InputType = Vector2 | Vector3
@@ -40,7 +41,7 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
 
   constructor(seed: string = '') {
     // create a new random function based on the seed
-    const prng = alea(seed);
+    const prng = alea(seed)
     this.noiseSource = createNoise2D(prng)
     this.density = 128
   }
