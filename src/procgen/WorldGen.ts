@@ -1,7 +1,9 @@
 import { Vector2, Vector3, Box3 } from 'three'
 import { PointOctree } from 'sparse-octree'
 
-import { InputType } from './NoiseSampler'
+import * as Utils from '../common/utils'
+import { VoxelType } from '../index'
+
 import { GenLayer } from './ProcGenLayer'
 
 /**
@@ -12,6 +14,7 @@ export class WorldGenerator {
   samplingScale: number
   heightScale: number = 1
   procLayers: GenLayer
+  voxelTypeMapper: (height: number) => VoxelType = () => 0
   selection = ''
 
   constructor(samplingScale: number, layerChain: GenLayer) {
@@ -59,17 +62,35 @@ export class WorldGenerator {
 
   /**
    *
-   * @param point evaluated point
-   * @param mode generation mode
-   * @returns
+   * @param position voxel position
+   * @param mode
+   * @returns null if no voxel or voxel's type if any
    */
-  getPointValue(point: InputType, mode = this.selection) {
-    const pointVal = GenLayer.combine(point, this.procLayers, mode)
-    return this.heightScale * pointVal
+  getVoxel(position: Vector3, cache?: any) {
+    const scaledNoisePos = new Vector2(position.x, position.z).multiplyScalar(
+      this.samplingScale,
+    )
+    // caching last val for 2D heightmap case
+    const val =
+      cache?.lastVal ||
+      GenLayer.combine(scaledNoisePos, this.procLayers, this.selection)
+    if (cache) cache.lastVal = val
+    return position.y < val ? this.voxelTypeMapper(position.y) : null
+  }
+
+  checkAdjacentVoxels(position: Vector3) {
+    const adjacentNeighbours = Utils.AjacentNeighbours.map(adj =>
+      Utils.getNeighbour(position, adj),
+    )
+    const neighbourEvals = adjacentNeighbours.map(adjPos =>
+      this.getVoxel(adjPos),
+    )
+    return neighbourEvals.filter(val => val)
   }
 
   /**
    * filling octree from noise samples
+   * prune hidden blocks
    * @param octree    data struct storing points
    * @param bbox      voxel range covered by generation
    * @returns
@@ -77,22 +98,38 @@ export class WorldGenerator {
   generate(octree: PointOctree<any>, bbox: Box3) {
     let iterCount = 0
     let blocksCount = 0
+
     // sample volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
-        const noiseCoords = new Vector2(x, z)
-        noiseCoords.multiplyScalar(this.samplingScale) // mapping voxel position to noise coords
-        const groundLevel = this.getPointValue(noiseCoords)
-
-        for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
-          const voxelPoint = new Vector3(x, y, z)
-          // discard every blocks above ground level
-          if (voxelPoint.y < groundLevel) {
-            octree.set(voxelPoint, {})
-            blocksCount++
-            break
+        // cache optim for 2D heightmap only (e.g. no caverns/3D noise)
+        const cache = { lastVal: null }
+        let { y } = bbox.max
+        let done = false
+        let adjCount: number = 0
+        // starting from the top all way down to bottom of voxels' column
+        // for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
+        while (!done) {
+          const voxelPos = new Vector3(x, y, z)
+          const voxelType = this.getVoxel(voxelPos, cache)
+          let hiddenBlock = false
+          // non empty voxel
+          if (voxelType !== null && !isNaN(voxelType)) {
+            // count adjacent voxels
+            adjCount = this.checkAdjacentVoxels(voxelPos).length
+            // Stats.instance.adjacentNeighboursCount(adjCount)
+            hiddenBlock = adjCount === 6
+            // add only visible blocks, e.g with a face in contact with air
+            if (!hiddenBlock) {
+              octree.set(voxelPos, { t: voxelType })
+              blocksCount++
+              // hiddenBlock = true
+            }
           }
           iterCount++
+          y--
+          // stop at first hidden block found in column
+          done = hiddenBlock || y < bbox.min.y
         }
       }
     }

@@ -2,8 +2,7 @@ import { Box3, Vector3 } from 'three'
 import { OctreeIterator, PointOctree } from 'sparse-octree'
 import { IVoxelMap, IVoxelMaterial, IVoxel } from '@aresrpg/aresrpg-engine'
 
-import { getVoxelTypeFromHeight } from '../common/utils'
-import { VOXEL_TYPE_COLORS } from '../common/constants'
+import { VOXEL_TYPE_COLORS } from '../common/types'
 
 export class VoxelMap implements IVoxelMap {
   public readonly size: Vector3
@@ -35,17 +34,19 @@ export class VoxelMap implements IVoxelMap {
     const bmax = new Vector3(to.x - 1, to.y - 1, to.z - 1)
     const bbox = new Box3(bmin, bmax)
     const iter = new OctreeIterator(this.voxelsOctree, bbox)
-
+    // console.log(`original query from/to `, from, to)
+    // console.log(`querying octree on range`, bbox)
     function* makeGenerator() {
       let result: any = iter.next()
       while (!result.done) {
         if (result.value.data) {
           const pointOctant: any = result.value
           const points = pointOctant.data?.points || []
-          for (const point of points) {
+          const pointsData = pointOctant.data?.data || []
+          for (let i = 0; i < points.length; i++) {
             const voxel: IVoxel = {
-              position: point,
-              materialId: getVoxelTypeFromHeight(point.y),
+              position: points[i],
+              materialId: pointsData[i].t,
             }
             // console.log("iter")
             if (
@@ -57,6 +58,10 @@ export class VoxelMap implements IVoxelMap {
               voxel.position.z < to.z
             )
               yield voxel
+            // else {
+            //   const { x, y, z } = voxel.position
+            //   console.log(`skipped voxel: x:${x}, y:${y}, z:${z} `)
+            // }
           }
         }
         result = iter.next()
