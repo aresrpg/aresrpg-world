@@ -166,12 +166,8 @@ export class ProcGenLayer extends GenLayer {
 
   eval(input: InputType) {
     const { noiseSampler } = this
-    const statsRange = this.stats.range
-    const { min, max } = statsRange
     const spread = this.config.spreading
     const rawVal = noiseSampler.eval(input.clone().multiplyScalar(NOISE_SCALE))
-    if (rawVal < min) statsRange.min = rawVal
-    else if (rawVal > max) statsRange.max = rawVal
     const finalVal = this.samplerProfile.apply(
       (rawVal - 0.5) * 2 ** spread + 0.5,
     )
@@ -189,7 +185,6 @@ export class ProcGenLayer extends GenLayer {
     layers.forEach(layer => {
       val = layer.eval(input.clone())
       vals = layer.compositor(vals, val / 255, layer.params.blending.weight)
-      // vals= layer.noisePanel.compositor(vals, val / 255, layer.noisePanel.config.blend_weight);
     })
     return vals * 255
   }
@@ -236,13 +231,13 @@ export class ProcGenLayer extends GenLayer {
   }
 
   static fromJsonConfig(jsonConf: any) {
-    console.log(jsonConf)
-    const layers: ProcGenLayer[] = jsonConf.noise_panels.map(
-      (panel: any, i: number) => {
+    // console.log(jsonConf)
+    const layers: ProcGenLayer[] = jsonConf.procLayers.map(
+      (layerCfg: any, i: number) => {
         const noiseSeed = `layer#${i}_seed`
-        const layer = new ProcGenLayer(noiseSeed, panel.spline)
-        layer.applyConfig(panel)
-        return layer
+        const procLayer = new ProcGenLayer(noiseSeed, layerCfg.spline)
+        procLayer.applyConfig(layerCfg)
+        return procLayer
       },
     )
     layers.reduce((prev, curr) => {
@@ -252,26 +247,3 @@ export class ProcGenLayer extends GenLayer {
     return layers[0]
   }
 }
-
-// const DEFAULT_PROFILE: HeightProfiler = new HeightProfiler(CurvePresets.)
-
-// GenLayersChain
-// GenLayersChain.compose(firstLayer)
-
-/**
- * must be inserted in LayersCombinator to be used
- */
-// interface GenSourceLayer {
-
-// }
-
-// export class ProcGenSourceLayer implements GenSourceLayer {
-
-// }
-/**
- * Layer composition/blending
- * Combining several SourceLayer to aggregate and mix their values
- */
-// export class LayersCombinator {
-
-// }
