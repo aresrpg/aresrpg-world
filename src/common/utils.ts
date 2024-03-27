@@ -1,6 +1,6 @@
 import { Vector2, Vector3 } from 'three'
 
-import { Stats } from './stats'
+import { ProcGenStats } from './stats'
 
 /**
  * Removing out of range values
@@ -13,7 +13,7 @@ const sanitiseNoise = (noiseVal: number) => {
   // correct and report noise anomaly
   if (invalidNoiseRange) {
     res = Math.round(noiseVal)
-    Stats.instance.noiseAnomaly(noiseVal)
+    ProcGenStats.instance.noiseAnomaly(noiseVal)
   }
   return res
 }

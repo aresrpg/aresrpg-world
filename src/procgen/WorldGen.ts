@@ -1,14 +1,10 @@
 import { Vector2, Vector3, Box3 } from 'three'
-import { PointOctree } from 'sparse-octree'
 
 import * as Utils from '../common/utils'
-import { VoxelType } from '../index'
+import { ProcGenStats, VoxelType } from '../index'
 
 import { GenLayer } from './ProcGenLayer'
 
-/**
- * Filling data struct with generated data
- */
 export class WorldGenerator {
   parent: any
   samplingScale: number
@@ -20,16 +16,13 @@ export class WorldGenerator {
   constructor(samplingScale: number, layerChain: GenLayer) {
     this.samplingScale = samplingScale
     this.procLayers = layerChain
-    // set blending map
-    // const sampler = new ProceduralNoiseSampler()
-    // const profiler = new HeightProfiler(CurvePresets.identity)
+    // blending map
     // const transitionThreshold = 0.5
     // const transitionRange = 0.1
     // const transition = {
     //   lower: round2(transitionThreshold - transitionRange / 2),
     //   upper: round2(transitionThreshold + transitionRange / 2)
     // }
-    // GenChainLayer.blendmap = new GenChainLayer(sampler, profiler, transition)
   }
 
   get config() {
@@ -66,15 +59,16 @@ export class WorldGenerator {
    * @param mode
    * @returns null if no voxel or voxel's type if any
    */
-  getVoxel(position: Vector3, cache?: any) {
+  getVoxel(position: Vector3) {
     const scaledNoisePos = new Vector2(position.x, position.z).multiplyScalar(
       this.samplingScale,
     )
     // caching last val for 2D heightmap case
-    const val =
-      cache?.lastVal ||
-      GenLayer.combine(scaledNoisePos, this.procLayers, this.selection)
-    if (cache) cache.lastVal = val
+    const val = GenLayer.combine(
+      scaledNoisePos,
+      this.procLayers,
+      this.selection,
+    )
     return position.y < val ? this.voxelTypeMapper(position.y) : null
   }
 
@@ -89,53 +83,83 @@ export class WorldGenerator {
   }
 
   /**
-   * filling octree from noise samples
-   * prune hidden blocks
-   * @param octree    data struct storing points
-   * @param bbox      voxel range covered by generation
-   * @returns
+   * on-the-fly generation
+   * @param bbox
+   * @param pruning optional hidden blocks pruning
    */
-  generate(octree: PointOctree<any>, bbox: Box3) {
+  *generate(bbox: Box3, pruning = true) {
     let iterCount = 0
     let blocksCount = 0
-
-    // sample volume
+    const voxelMinMax = new Box3()
+    const startTime = Date.now()
+    // sampling volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
-        // cache optim for 2D heightmap only (e.g. no caverns/3D noise)
-        const cache = { lastVal: null }
         let { y } = bbox.max
-        let done = false
+        let isVisibleBlock = true
         let adjCount: number = 0
+        let voxelMax, voxelMin
         // starting from the top all way down to bottom of voxels' column
         // for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
-        while (!done) {
+        while (isVisibleBlock && y >= bbox.min.y) {
           const voxelPos = new Vector3(x, y, z)
-          const voxelType = this.getVoxel(voxelPos, cache)
-          let hiddenBlock = false
-          // non empty voxel
+          const voxelType = voxelMax
+            ? this.voxelTypeMapper(voxelPos.y)
+            : this.getVoxel(voxelPos)
+          isVisibleBlock = true
           if (voxelType !== null && !isNaN(voxelType)) {
-            // count adjacent voxels
-            adjCount = this.checkAdjacentVoxels(voxelPos).length
-            // Stats.instance.adjacentNeighboursCount(adjCount)
-            hiddenBlock = adjCount === 6
+            voxelMax = voxelMax || voxelPos // store first non empty voxel
+            voxelMin = voxelPos
             // add only visible blocks, e.g with a face in contact with air
-            if (!hiddenBlock) {
-              octree.set(voxelPos, { t: voxelType })
+            if (pruning) {
+              // count adjacent voxels
+              adjCount = this.checkAdjacentVoxels(voxelPos).length
+              // Stats.instance.adjacentNeighboursCount(adjCount)
+              isVisibleBlock = adjCount !== 6
+            }
+            if (isVisibleBlock) {
+              // const voxel = {
+              //   pos: voxelPos,
+              //   type: voxelType
+              // }
+              const voxel = {
+                position: voxelPos,
+                materialId: voxelType,
+              }
+              yield voxel
               blocksCount++
               // hiddenBlock = true
             }
           }
           iterCount++
           y--
-          // stop at first hidden block found in column
-          done = hiddenBlock || y < bbox.min.y
         }
+        voxelMinMax.min =
+          voxelMin && voxelMin.y < voxelMinMax.min.y
+            ? voxelMin
+            : voxelMinMax.min
+        voxelMinMax.max =
+          voxelMax && voxelMax.y > voxelMinMax.max.y
+            ? voxelMax
+            : voxelMinMax.max
       }
     }
-    console.log(
-      `[WorldGenerator::fill] iter count: ${iterCount}, blocks count: ${blocksCount} `,
-    )
-    return octree
+    const elapsedTime = Date.now() - startTime
+    // console.log(
+    //   `[WorldGenerator::fill] iter count: ${iterCount},
+    //   blocks count: ${blocksCount}
+    //   chunk min/max: ${voxelMinMax.min.y}, ${voxelMinMax.max.y}
+    //   elapsed time: ${elapsedTime} ms`
+    // )
+    ProcGenStats.instance.worldGen = {
+      time: elapsedTime,
+      blocks: blocksCount,
+      iterations: iterCount,
+    }
+  }
+
+  getEstimatedVoxelsCount(bbox: Box3): number {
+    const range = bbox.getSize(new Vector3())
+    return range.x * range.z * 2
   }
 }

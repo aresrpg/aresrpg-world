@@ -1,9 +1,13 @@
-export class Stats {
+export class ProcGenStats {
   // eslint-disable-next-line no-use-before-define
-  static singleton: Stats
+  static singleton: ProcGenStats
   static get instance() {
-    Stats.singleton = Stats.singleton || new Stats()
-    return Stats.singleton
+    ProcGenStats.singleton = ProcGenStats.singleton || new ProcGenStats()
+    // put in global scope for access from dev console
+    // window.aresrpg = {}
+    // window.aresrpg.procgen = {}
+    // window.aresrpg.procgen.stats = ProcGenStats.singleton.stats
+    return ProcGenStats.singleton
   }
 
   stats: any = {
@@ -21,6 +25,11 @@ export class Stats {
       5: 0,
       6: 0,
     },
+    worldGen: {
+      time: 0,
+      blocks: 0,
+      iterations: 0,
+    },
   }
 
   /**
@@ -37,5 +46,15 @@ export class Stats {
   adjacentNeighboursCount(adjCount: number) {
     const { adjacentCount } = this.stats
     adjacentCount[adjCount]++
+  }
+
+  get worldGen() {
+    return this.stats.worldGen
+  }
+
+  set worldGen(stats) {
+    this.stats.worldGen.time += stats.time || 0
+    this.stats.worldGen.blocks += stats.blocks || 0
+    this.stats.worldGen.iterations += stats.iterations || 0
   }
 }

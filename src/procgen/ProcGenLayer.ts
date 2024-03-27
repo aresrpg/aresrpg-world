@@ -232,12 +232,12 @@ export class ProcGenLayer extends GenLayer {
 
   static fromJsonConfig(jsonConf: any) {
     // console.log(jsonConf)
-    const layers: ProcGenLayer[] = jsonConf.noise_panels.map(
-      (panel: any, i: number) => {
+    const layers: ProcGenLayer[] = jsonConf.procLayers.map(
+      (layerCfg: any, i: number) => {
         const noiseSeed = `layer#${i}_seed`
-        const layer = new ProcGenLayer(noiseSeed, panel.spline)
-        layer.applyConfig(panel)
-        return layer
+        const procLayer = new ProcGenLayer(noiseSeed, layerCfg.spline)
+        procLayer.applyConfig(layerCfg)
+        return procLayer
       },
     )
     layers.reduce((prev, curr) => {
