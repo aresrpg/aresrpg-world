@@ -63,7 +63,6 @@ export class WorldGenerator {
     const scaledNoisePos = new Vector2(position.x, position.z).multiplyScalar(
       this.samplingScale,
     )
-    // caching last val for 2D heightmap case
     const val = GenLayer.combine(
       scaledNoisePos,
       this.procLayers,
@@ -79,11 +78,11 @@ export class WorldGenerator {
     const neighbourEvals = adjacentNeighbours.map(adjPos =>
       this.getVoxel(adjPos),
     )
-    return neighbourEvals.filter(val => val)
+    return neighbourEvals.filter(val => val !== null)
   }
 
   /**
-   * on-the-fly generation
+   * on-the-fly generation from bounding box
    * @param bbox
    * @param pruning optional hidden blocks pruning
    */
