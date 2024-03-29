@@ -53,32 +53,41 @@ export class WorldGenerator {
     this.parent?.onChange(originator)
   }
 
+  getVoxelType(voxel: Vector3) {
+    return this.voxelTypeMapper(voxel.y)
+  }
+
   /**
-   *
-   * @param position voxel position
-   * @param mode
-   * @returns null if no voxel or voxel's type if any
+   * Only relevant for heightmap mode (2D)
    */
-  getVoxel(position: Vector3) {
-    const scaledNoisePos = new Vector2(position.x, position.z).multiplyScalar(
-      this.samplingScale,
-    )
+  getHeight(pos: Vector2) {
+    const scaledNoisePos = pos.multiplyScalar(this.samplingScale,)
     const val = GenLayer.combine(
       scaledNoisePos,
       this.procLayers,
       this.selection,
     )
-    return position.y < val ? this.voxelTypeMapper(position.y) : null
+    return val
   }
 
-  checkAdjacentVoxels(position: Vector3) {
+  /**
+   * noise density in 3D scalar field
+   * @param position voxel position
+   * @returns null if empty voxel or voxel's type if any
+   */
+  getBlock(position: Vector3) {
+    // TODO
+  }
+
+  adjacentCount(position: Vector3) {
     const adjacentNeighbours = Utils.AjacentNeighbours.map(adj =>
       Utils.getNeighbour(position, adj),
     )
-    const neighbourEvals = adjacentNeighbours.map(adjPos =>
-      this.getVoxel(adjPos),
-    )
-    return neighbourEvals.filter(val => val !== null)
+    const neighbours = adjacentNeighbours.filter(adjPos => {
+      const groundLevel = this.getHeight(new Vector2(adjPos.x, adjPos.z))
+      return adjPos.y < groundLevel
+    })
+    return neighbours.length
   }
 
   /**
@@ -89,41 +98,30 @@ export class WorldGenerator {
   *generate(bbox: Box3, pruning = true) {
     let iterCount = 0
     let blocksCount = 0
-    const voxelMinMax = new Box3()
     const startTime = Date.now()
     // sampling volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
         let { y } = bbox.max
-        let isVisibleBlock = true
-        let adjCount: number = 0
-        let voxelMax, voxelMin
+        let hiddenBlock = false
+        let existingBlock = false
+        let groundLevel = this.getHeight(new Vector2(x, z))
         // starting from the top all way down to bottom of voxels' column
         // for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
-        while (isVisibleBlock && y >= bbox.min.y) {
+        while (!hiddenBlock && y >= bbox.min.y) {
           const voxelPos = new Vector3(x, y, z)
-          const voxelType = voxelMax
-            ? this.voxelTypeMapper(voxelPos.y)
-            : this.getVoxel(voxelPos)
-          isVisibleBlock = true
-          if (voxelType !== null && !isNaN(voxelType)) {
-            voxelMax = voxelMax || voxelPos // store first non empty voxel
-            voxelMin = voxelPos
-            // add only visible blocks, e.g with a face in contact with air
-            if (pruning) {
-              // count adjacent voxels
-              adjCount = this.checkAdjacentVoxels(voxelPos).length
-              // Stats.instance.adjacentNeighboursCount(adjCount)
-              isVisibleBlock = adjCount !== 6
-            }
-            if (isVisibleBlock) {
+          existingBlock = voxelPos.y < groundLevel
+          if (existingBlock) {
+            // add only visible blocks, e.g with a face in contact with air 
+            hiddenBlock = pruning ? this.adjacentCount(voxelPos) === 6 : false
+            if (!hiddenBlock) {
               // const voxel = {
               //   pos: voxelPos,
               //   type: voxelType
               // }
               const voxel = {
                 position: voxelPos,
-                materialId: voxelType,
+                materialId: this.getVoxelType(voxelPos),
               }
               yield voxel
               blocksCount++
@@ -133,14 +131,6 @@ export class WorldGenerator {
           iterCount++
           y--
         }
-        voxelMinMax.min =
-          voxelMin && voxelMin.y < voxelMinMax.min.y
-            ? voxelMin
-            : voxelMinMax.min
-        voxelMinMax.max =
-          voxelMax && voxelMax.y > voxelMinMax.max.y
-            ? voxelMax
-            : voxelMinMax.max
       }
     }
     const elapsedTime = Date.now() - startTime
