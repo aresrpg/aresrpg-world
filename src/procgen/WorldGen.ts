@@ -61,7 +61,7 @@ export class WorldGenerator {
    * Only relevant for heightmap mode (2D)
    */
   getHeight(pos: Vector2) {
-    const scaledNoisePos = pos.multiplyScalar(this.samplingScale,)
+    const scaledNoisePos = pos.multiplyScalar(this.samplingScale)
     const val = GenLayer.combine(
       scaledNoisePos,
       this.procLayers,
@@ -105,14 +105,14 @@ export class WorldGenerator {
         let y = bbox.max.y - 1
         let hiddenBlock = false
         let existingBlock = false
-        let groundLevel = this.getHeight(new Vector2(x, z))
+        const groundLevel = this.getHeight(new Vector2(x, z))
         // starting from the top all way down to bottom of voxels' column
         // for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
         while (!hiddenBlock && y >= bbox.min.y) {
           const voxelPos = new Vector3(x, y, z)
           existingBlock = voxelPos.y < groundLevel
           if (existingBlock) {
-            // add only visible blocks, e.g with a face in contact with air 
+            // add only visible blocks, e.g with a face in contact with air
             hiddenBlock = pruning ? this.adjacentCount(voxelPos) === 6 : false
             if (!hiddenBlock) {
               // const voxel = {
