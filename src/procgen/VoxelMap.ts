@@ -1,4 +1,4 @@
-import { Box3, Vector3 } from 'three'
+import { Box3, Vector2, Vector3 } from 'three'
 import { IVoxelMap, IVoxelMaterial, IVoxel } from '@aresrpg/aresrpg-engine'
 
 import { VOXEL_TYPE_COLORS } from '../common/types'
@@ -33,13 +33,13 @@ export class VoxelMap implements IVoxelMap {
 
   iterateOnVoxels(from: Vector3, to: Vector3): Generator<IVoxel, any, unknown> {
     const bmin = new Vector3(from.x, from.y, from.z)
-    const bmax = new Vector3(to.x - 1, to.y - 1, to.z - 1)
+    const bmax = new Vector3(to.x, to.y, to.z)
     const bbox = new Box3(bmin, bmax)
-    return this.worldGen.generate(bbox)
+    return this.worldGen.generate(bbox, true)
   }
 
   voxelExists(x: number, y: number, z: number): boolean {
-    const point = new Vector3(x, y, z)
-    return !!this.worldGen.getVoxel(point)
+    const h = this.worldGen.getHeight(new Vector2(x, z))
+    return y < h
   }
 }

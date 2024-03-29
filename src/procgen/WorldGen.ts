@@ -76,7 +76,7 @@ export class WorldGenerator {
    * @returns null if empty voxel or voxel's type if any
    */
   getBlock(position: Vector3) {
-    // TODO
+    return position < this.getHeight()
   }
 
   adjacentCount(position: Vector3) {
@@ -102,7 +102,7 @@ export class WorldGenerator {
     // sampling volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
-        let { y } = bbox.max
+        let y = bbox.max.y - 1
         let hiddenBlock = false
         let existingBlock = false
         let groundLevel = this.getHeight(new Vector2(x, z))
@@ -123,6 +123,7 @@ export class WorldGenerator {
                 position: voxelPos,
                 materialId: this.getVoxelType(voxelPos),
               }
+              console.log(voxelPos.x)
               yield voxel
               blocksCount++
               // hiddenBlock = true
