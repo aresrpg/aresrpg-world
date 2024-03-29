@@ -71,12 +71,16 @@ export class WorldGenerator {
   }
 
   /**
-   * noise density in 3D scalar field
-   * @param position voxel position
-   * @returns null if empty voxel or voxel's type if any
+   * Determine block's existence based on density value evaluated at given position
+   * Full or empty block is returned depending on value being above or below threshold
+   * @param position voxel position to eval density at
+   * @returns null if empty voxel or voxel's type if present
    */
   getBlock(position: Vector3) {
-    return position < this.getHeight()
+    const { x, y, z } = position
+    return y < this.getHeight(new Vector2(x, z))
+      ? this.voxelTypeMapper(y)
+      : null
   }
 
   adjacentCount(position: Vector3) {
@@ -123,7 +127,6 @@ export class WorldGenerator {
                 position: voxelPos,
                 materialId: this.getVoxelType(voxelPos),
               }
-              console.log(voxelPos.x)
               yield voxel
               blocksCount++
               // hiddenBlock = true
