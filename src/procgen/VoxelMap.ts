@@ -1,11 +1,8 @@
-import { Box3, Vector2, Vector3 } from 'three'
-import { IVoxelMap, IVoxelMaterial, IVoxel } from '@aresrpg/aresrpg-engine'
-
-import { VOXEL_TYPE_COLORS } from '../common/types'
-
+import { Box3, Color, Vector2, Vector3 } from 'three'
+import { blockTypesColorMapping } from '../common/misc'
 import { WorldGenerator } from './WorldGen'
 
-export class VoxelMap implements IVoxelMap {
+export class VoxelMap {
   public readonly size: Vector3
   worldGen
   public constructor(bbox: Box3, worldGen: WorldGenerator) {
@@ -13,9 +10,10 @@ export class VoxelMap implements IVoxelMap {
     this.worldGen = worldGen
   }
 
-  public readonly voxelMaterialsList = Object.values(VOXEL_TYPE_COLORS)
-  getAllVoxelMaterials(): IVoxelMaterial[] {
-    return Object.values(VOXEL_TYPE_COLORS)
+  // public readonly voxelMaterialsList = Object.values(VOXEL_TYPE_COLORS)
+
+  getAllVoxelMaterials() {
+    return Object.values(blockTypesColorMapping).map(col => new Color(col as number))
   }
 
   getMaxVoxelsCount(from: Vector3, to: Vector3): number {
@@ -31,7 +29,7 @@ export class VoxelMap implements IVoxelMap {
     return count
   }
 
-  iterateOnVoxels(from: Vector3, to: Vector3): Generator<IVoxel, any, unknown> {
+  *iterateOnVoxels(from: Vector3, to: Vector3) {
     const bmin = new Vector3(from.x, from.y, from.z)
     const bmax = new Vector3(to.x, to.y, to.z)
     const bbox = new Box3(bmin, bmax)

@@ -189,6 +189,10 @@ export class ProcGenLayer extends GenLayer {
     return vals * 255
   }
 
+  static layerIndex(index: number){
+    return `layer#${index}`
+  }
+
   get config() {
     return this.params
   }

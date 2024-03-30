@@ -1,7 +1,6 @@
-import { IVoxelMaterial } from '@aresrpg/aresrpg-engine'
-import { Color } from 'three'
+import { Vector3 } from 'three'
 
-enum VoxelType {
+export enum BlockType {
   ROCK,
   GRASS,
   SNOW,
@@ -9,12 +8,36 @@ enum VoxelType {
   SAND,
 }
 
-const VOXEL_TYPE_COLORS: Record<VoxelType, IVoxelMaterial> = [
-  { color: new Color('#ABABAB') },
-  { color: new Color('#00B920') },
-  { color: new Color('#E5E5E5') },
-  { color: new Color('#0055E2') },
-  { color: new Color('#DCBE28') },
-]
+export type Block = {
+  pos: Vector3,
+  type: BlockType
+}
 
-export { VoxelType, VOXEL_TYPE_COLORS }
+export enum BlockNeighbour {
+  xMyMzM,
+  xMyMz0,
+  xMyMzP,
+  xMy0zM,
+  xMy0z0,
+  xMy0zP,
+  xMyPzM,
+  xMyPz0,
+  xMyPzP,
+  x0yMzM,
+  x0yMz0,
+  x0yMzP,
+  x0y0zM,
+  x0y0zP,
+  x0yPzM,
+  x0yPz0,
+  x0yPzP,
+  xPyMzM,
+  xPyMz0,
+  xPyMzP,
+  xPy0zM,
+  xPy0z0,
+  xPy0zP,
+  xPyPzM,
+  xPyPz0,
+  xPyPzP,
+}

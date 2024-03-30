@@ -1,21 +1,19 @@
 import { Vector2, Vector3, Box3 } from 'three'
-
-import * as Utils from '../common/utils'
-import { ProcGenStats, VoxelType } from '../index'
-
+import { Block, BlockType } from '../common/types'
 import { GenLayer } from './ProcGenLayer'
+import { GenStats } from '../common/stats'
+import * as Utils from '../common/utils'
 
 export class WorldGenerator {
+  static singleton: WorldGenerator
   parent: any
-  samplingScale: number
+  samplingScale: number = 1 / 8 // 8 blocks per unit of noise
   heightScale: number = 1
-  procLayers: GenLayer
-  voxelTypeMapper: (height: number) => VoxelType = () => 0
-  selection = ''
+  blockTypeMapper: (height: number) => BlockType = () => 0
+  procLayers!: GenLayer
+  layerSelection!: string
 
-  constructor(samplingScale: number, layerChain: GenLayer) {
-    this.samplingScale = samplingScale
-    this.procLayers = layerChain
+  constructor() {
     // blending map
     // const transitionThreshold = 0.5
     // const transitionRange = 0.1
@@ -25,16 +23,21 @@ export class WorldGenerator {
     // }
   }
 
+  static get instance() {
+    WorldGenerator.singleton = WorldGenerator.singleton || new WorldGenerator()
+    return WorldGenerator.singleton
+  }
+
   get config() {
     return {
-      selection: this.selection,
+      selection: this.layerSelection,
       heightScale: this.heightScale,
       samplingScale: this.samplingScale,
     }
   }
 
   set config(config: any) {
-    this.selection = config.selection || this.selection
+    this.layerSelection = config.selection || this.layerSelection
     this.heightScale = !isNaN(config.heightScale)
       ? config.heightScale
       : this.heightScale
@@ -42,6 +45,7 @@ export class WorldGenerator {
       ? config.samplingScale
       : this.samplingScale
     this.procLayers = config.procLayers || this.procLayers
+    this.blockTypeMapper = config.blockTypeMapper
     // Object.preventExtensions(this.conf)
     // Object.assign(this.conf, config)
     // const { procgen, proclayers } = config
@@ -53,8 +57,22 @@ export class WorldGenerator {
     this.parent?.onChange(originator)
   }
 
-  getVoxelType(voxel: Vector3) {
-    return this.voxelTypeMapper(voxel.y)
+  /**
+   * Determine block's existence based on density value evaluated at given position
+   * @param position voxel position to eval density at
+   * @returns block or null if present or not
+   */
+  getBlock(pos: Vector3): Block | null {
+    // const { x, y, z } = position
+    // eval density at block position
+    // check density value is above or below threshold to determine if block is empty or not
+    const blockExists = true//y < this.getHeight(new Vector2(x, z))  // TODO
+    const blockType = this.blockTypeMapper(pos.y)
+    const block = {
+      pos,
+      type: blockType
+    }
+    return blockExists ? block : null
   }
 
   /**
@@ -65,33 +83,24 @@ export class WorldGenerator {
     const val = GenLayer.combine(
       scaledNoisePos,
       this.procLayers,
-      this.selection,
+      this.layerSelection,
     )
     return val
   }
 
   /**
-   * Determine block's existence based on density value evaluated at given position
-   * Full or empty block is returned depending on value being above or below threshold
-   * @param position voxel position to eval density at
-   * @returns null if empty voxel or voxel's type if present
+   * Checking neighbours surrounding block position to determine
+   * if block is hidden or not
    */
-  getBlock(position: Vector3) {
-    const { x, y, z } = position
-    return y < this.getHeight(new Vector2(x, z))
-      ? this.voxelTypeMapper(y)
-      : null
-  }
-
-  adjacentCount(position: Vector3) {
-    const adjacentNeighbours = Utils.AjacentNeighbours.map(adj =>
+  hiddenBlock(position: Vector3) {
+    const adjacentNeighbours = Utils.AdjacentNeighbours.map(adj =>
       Utils.getNeighbour(position, adj),
     )
     const neighbours = adjacentNeighbours.filter(adjPos => {
       const groundLevel = this.getHeight(new Vector2(adjPos.x, adjPos.z))
       return adjPos.y < groundLevel
     })
-    return neighbours.length
+    return neighbours.length === 6
   }
 
   /**
@@ -107,30 +116,18 @@ export class WorldGenerator {
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
         let y = bbox.max.y - 1
-        let hiddenBlock = false
-        let existingBlock = false
+        let hidden = false
         const groundLevel = this.getHeight(new Vector2(x, z))
         // starting from the top all way down to bottom of voxels' column
         // for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
-        while (!hiddenBlock && y >= bbox.min.y) {
-          const voxelPos = new Vector3(x, y, z)
-          existingBlock = voxelPos.y < groundLevel
-          if (existingBlock) {
-            // add only visible blocks, e.g with a face in contact with air
-            hiddenBlock = pruning ? this.adjacentCount(voxelPos) === 6 : false
-            if (!hiddenBlock) {
-              // const voxel = {
-              //   pos: voxelPos,
-              //   type: voxelType
-              // }
-              const voxel = {
-                position: voxelPos,
-                materialId: this.getVoxelType(voxelPos),
-              }
-              yield voxel
-              blocksCount++
-              // hiddenBlock = true
-            }
+        while (!hidden && y >= bbox.min.y) {
+          const blockPos = new Vector3(x, y, z)
+          const block = blockPos.y < groundLevel ? this.getBlock(blockPos) : null
+          hidden = pruning && !!block && this.hiddenBlock(block.pos)
+          // add only visible blocks, e.g with a face in contact with air
+          if (block && !hidden) {
+            yield block
+            blocksCount++
           }
           iterCount++
           y--
@@ -144,7 +141,7 @@ export class WorldGenerator {
     //   chunk min/max: ${voxelMinMax.min.y}, ${voxelMinMax.max.y}
     //   elapsed time: ${elapsedTime} ms`
     // )
-    ProcGenStats.instance.worldGen = {
+    GenStats.instance.worldGen = {
       time: elapsedTime,
       blocks: blocksCount,
       iterations: iterCount,
