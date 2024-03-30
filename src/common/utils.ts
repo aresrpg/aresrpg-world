@@ -1,6 +1,6 @@
 import { Vector2, Vector3 } from 'three'
-
-import { ProcGenStats } from './stats'
+import { GenStats } from './stats'
+import { BlockNeighbour } from './types'
 
 /**
  * Removing out of range values
@@ -13,7 +13,7 @@ const sanitiseNoise = (noiseVal: number) => {
   // correct and report noise anomaly
   if (invalidNoiseRange) {
     res = Math.round(noiseVal)
-    ProcGenStats.instance.noiseAnomaly(noiseVal)
+    GenStats.instance.noiseAnomaly(noiseVal)
   }
   return res
 }
@@ -36,42 +36,19 @@ const interpolatePoints = (p1: Vector2, p2: Vector2, t: number) => {
   const slope = range.x > 0 ? range.y / range.x : 0
   return p1.y + slope * (t - p1.x)
 }
-enum NeighbourType {
-  xMyMzM,
-  xMyMz0,
-  xMyMzP,
-  xMy0zM,
-  xMy0z0,
-  xMy0zP,
-  xMyPzM,
-  xMyPz0,
-  xMyPzP,
-  x0yMzM,
-  x0yMz0,
-  x0yMzP,
-  x0y0zM,
-  x0y0zP,
-  x0yPzM,
-  x0yPz0,
-  x0yPzP,
-  xPyMzM,
-  xPyMz0,
-  xPyMzP,
-  xPy0zM,
-  xPy0z0,
-  xPy0zP,
-  xPyPzM,
-  xPyPz0,
-  xPyPzP,
-}
-
-const AjacentNeighbours = [
-  NeighbourType.xPy0z0,
-  NeighbourType.xMy0z0, // right, left
-  NeighbourType.x0yPz0,
-  NeighbourType.x0yMz0, // top, bottom
-  NeighbourType.x0y0zP,
-  NeighbourType.x0y0zM, // front, back
+/**
+ * Direct neighbours e.g. 
+ * - FRONT/BACK, 
+ * - TOP/BOTTOM, 
+ * - LEFT/RIGHT
+ */
+const AdjacentNeighbours = [
+  BlockNeighbour.xPy0z0,
+  BlockNeighbour.xMy0z0, // right, left
+  BlockNeighbour.x0yPz0,
+  BlockNeighbour.x0yMz0, // top, bottom
+  BlockNeighbour.x0y0zP,
+  BlockNeighbour.x0y0zM, // front, back
 ]
 
 /**
@@ -80,65 +57,65 @@ const AjacentNeighbours = [
  * @param dir neighbour identifier
  * @returns
  */
-const getNeighbour = (pos: Vector3, dir: NeighbourType): Vector3 => {
+const getNeighbour = (pos: Vector3, dir: BlockNeighbour): Vector3 => {
   switch (dir) {
-    case NeighbourType.xMyMzM:
+    case BlockNeighbour.xMyMzM:
       return pos.clone().add(new Vector3(-1, -1, -1))
-    case NeighbourType.xMyMz0:
+    case BlockNeighbour.xMyMz0:
       return pos.clone().add(new Vector3(-1, -1, 0))
-    case NeighbourType.xMyMzP:
+    case BlockNeighbour.xMyMzP:
       return pos.clone().add(new Vector3(-1, -1, 1))
-    case NeighbourType.xMy0zM:
+    case BlockNeighbour.xMy0zM:
       return pos.clone().add(new Vector3(-1, 0, -1))
-    case NeighbourType.xMy0z0:
+    case BlockNeighbour.xMy0z0:
       return pos.clone().add(new Vector3(-1, 0, 0))
-    case NeighbourType.xMy0zP:
+    case BlockNeighbour.xMy0zP:
       return pos.clone().add(new Vector3(-1, 0, 1))
-    case NeighbourType.xMyPzM:
+    case BlockNeighbour.xMyPzM:
       return pos.clone().add(new Vector3(-1, 1, -1))
-    case NeighbourType.xMyPz0:
+    case BlockNeighbour.xMyPz0:
       return pos.clone().add(new Vector3(-1, 1, 0))
-    case NeighbourType.xMyPzP:
+    case BlockNeighbour.xMyPzP:
       return pos.clone().add(new Vector3(-1, 1, 1))
-    case NeighbourType.x0yMzM:
+    case BlockNeighbour.x0yMzM:
       return pos.clone().add(new Vector3(0, -1, -1))
-    case NeighbourType.x0yMz0:
+    case BlockNeighbour.x0yMz0:
       return pos.clone().add(new Vector3(0, -1, 0))
-    case NeighbourType.x0yMzP:
+    case BlockNeighbour.x0yMzP:
       return pos.clone().add(new Vector3(0, -1, 1))
-    case NeighbourType.x0y0zM:
+    case BlockNeighbour.x0y0zM:
       return pos.clone().add(new Vector3(0, 0, -1))
-    case NeighbourType.x0y0zP:
+    case BlockNeighbour.x0y0zP:
       return pos.clone().add(new Vector3(0, 0, 1))
-    case NeighbourType.x0yPzM:
+    case BlockNeighbour.x0yPzM:
       return pos.clone().add(new Vector3(0, 1, -1))
-    case NeighbourType.x0yPz0:
+    case BlockNeighbour.x0yPz0:
       return pos.clone().add(new Vector3(0, 1, 0))
-    case NeighbourType.x0yPzP:
+    case BlockNeighbour.x0yPzP:
       return pos.clone().add(new Vector3(0, 1, 1))
-    case NeighbourType.xPyMzM:
+    case BlockNeighbour.xPyMzM:
       return pos.clone().add(new Vector3(1, -1, -1))
-    case NeighbourType.xPyMz0:
+    case BlockNeighbour.xPyMz0:
       return pos.clone().add(new Vector3(1, -1, 0))
-    case NeighbourType.xPyMzP:
+    case BlockNeighbour.xPyMzP:
       return pos.clone().add(new Vector3(1, -1, 1))
-    case NeighbourType.xPy0zM:
+    case BlockNeighbour.xPy0zM:
       return pos.clone().add(new Vector3(1, 0, -1))
-    case NeighbourType.xPy0z0:
+    case BlockNeighbour.xPy0z0:
       return pos.clone().add(new Vector3(1, 0, 0))
-    case NeighbourType.xPy0zP:
+    case BlockNeighbour.xPy0zP:
       return pos.clone().add(new Vector3(1, 0, 1))
-    case NeighbourType.xPyPzM:
+    case BlockNeighbour.xPyPzM:
       return pos.clone().add(new Vector3(1, 1, -1))
-    case NeighbourType.xPyPz0:
+    case BlockNeighbour.xPyPz0:
       return pos.clone().add(new Vector3(1, 1, 0))
-    case NeighbourType.xPyPzP:
+    case BlockNeighbour.xPyPzP:
       return pos.clone().add(new Vector3(1, 1, 1))
   }
 }
 
 const getAllNeighbours = (pos: Vector3): Vector3[] => {
-  const neighbours = Object.values(NeighbourType)
+  const neighbours = Object.values(BlockNeighbour)
     .filter(v => !isNaN(Number(v)))
     .map(type => getNeighbour(pos, type as number))
   return neighbours
@@ -149,6 +126,6 @@ export {
   round2,
   interpolatePoints,
   getAllNeighbours,
-  AjacentNeighbours,
+  AdjacentNeighbours,
   getNeighbour,
 }
