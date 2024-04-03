@@ -58,24 +58,6 @@ export class WorldGenerator {
   }
 
   /**
-   * Determine block's existence based on density value evaluated at given position
-   * @param position voxel position to eval density at
-   * @returns block or null if present or not
-   */
-  getBlock(pos: Vector3): Block | null {
-    // const { x, y, z } = position
-    // eval density at block position
-    // check density value is above or below threshold to determine if block is empty or not
-    const blockExists = true//y < this.getHeight(new Vector2(x, z))  // TODO
-    const blockType = this.blockTypeMapper(pos.y)
-    const block = {
-      pos,
-      type: blockType
-    }
-    return blockExists ? block : null
-  }
-
-  /**
    * Only relevant for heightmap mode (2D)
    */
   getHeight(pos: Vector2) {
@@ -89,8 +71,8 @@ export class WorldGenerator {
   }
 
   /**
-   * Checking neighbours surrounding block position to determine
-   * if block is hidden or not
+   * Checking neighbours surrounding block's position 
+   * to determine if block is hidden or not
    */
   hiddenBlock(position: Vector3) {
     const adjacentNeighbours = Utils.AdjacentNeighbours.map(adj =>
@@ -104,28 +86,44 @@ export class WorldGenerator {
   }
 
   /**
+   * Determine block's existence based on density value evaluated at block position
+   * @param position block position where density is evaluated
+   * @returns existing block or null if empty
+   */
+  getBlock(pos: Vector3): BlockType {
+    const { x, y, z } = pos
+    // eval density at block position
+    const density = this.getHeight(new Vector2(x, z)) // TODO replace by real density val
+    // determine if block is empty or not based on density val being above or below threshold
+    const blockExists = y < density
+    return blockExists ? this.blockTypeMapper(y) : BlockType.NONE
+  }
+
+  /**
    * on-the-fly generation from bounding box
    * @param bbox
    * @param pruning optional hidden blocks pruning
    */
-  *generate(bbox: Box3, pruning = true) {
+  *generate(bbox: Box3, pruning = true): Generator<Block, void, unknown> {
     let iterCount = 0
     let blocksCount = 0
     const startTime = Date.now()
     // sampling volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
+        // starting from the top of voxels' column
         let y = bbox.max.y - 1
+        // optim for heightmap only: stop at first hidden block encountered
         let hidden = false
         const groundLevel = this.getHeight(new Vector2(x, z))
-        // starting from the top all way down to bottom of voxels' column
         // for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
         while (!hidden && y >= bbox.min.y) {
           const blockPos = new Vector3(x, y, z)
-          const block = blockPos.y < groundLevel ? this.getBlock(blockPos) : null
-          hidden = pruning && !!block && this.hiddenBlock(block.pos)
-          // add only visible blocks, e.g with a face in contact with air
-          if (block && !hidden) {
+          const blockType = blockPos.y < groundLevel ? this.blockTypeMapper(blockPos.y) : BlockType.NONE
+          const block: Block = { pos: blockPos, type: blockType }
+          hidden = pruning && block.type !== BlockType.NONE && this.hiddenBlock(block.pos)
+          // only existing and visible block, e.g with a face in contact with air
+          if (block.type !== BlockType.NONE && !hidden) {
             yield block
             blocksCount++
           }
@@ -147,8 +145,11 @@ export class WorldGenerator {
       iterations: iterCount,
     }
   }
-
-  getEstimatedVoxelsCount(bbox: Box3): number {
+  /**
+   * @param bbox 
+   * @returns 
+   */
+  estimatedVoxelsCount(bbox: Box3): number {
     const range = bbox.getSize(new Vector3())
     return range.x * range.z * 2
   }

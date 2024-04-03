@@ -1,6 +1,7 @@
 import { Vector3 } from 'three'
 
 export enum BlockType {
+  NONE,
   ROCK,
   GRASS,
   SNOW,
