@@ -1,4 +1,5 @@
 import { Vector2, Vector3 } from 'three'
+
 import { GenStats } from './stats'
 import { BlockNeighbour } from './types'
 
@@ -37,9 +38,9 @@ const interpolatePoints = (p1: Vector2, p2: Vector2, t: number) => {
   return p1.y + slope * (t - p1.x)
 }
 /**
- * Direct neighbours e.g. 
- * - FRONT/BACK, 
- * - TOP/BOTTOM, 
+ * Direct neighbours e.g.
+ * - FRONT/BACK,
+ * - TOP/BOTTOM,
  * - LEFT/RIGHT
  */
 const AdjacentNeighbours = [
