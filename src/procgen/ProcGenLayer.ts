@@ -189,7 +189,7 @@ export class ProcGenLayer extends GenLayer {
     return vals * 255
   }
 
-  static layerIndex(index: number){
+  static layerIndex(index: number) {
     return `layer#${index}`
   }
 

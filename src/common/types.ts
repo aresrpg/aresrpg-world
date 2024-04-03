@@ -10,7 +10,7 @@ export enum BlockType {
 }
 
 export type Block = {
-  pos: Vector3,
+  pos: Vector3
   type: BlockType
 }
 

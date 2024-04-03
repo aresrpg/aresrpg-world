@@ -1,10 +1,13 @@
 import { Vector2, Vector3, Box3 } from 'three'
+
 import { Block, BlockType } from '../common/types'
-import { GenLayer } from './ProcGenLayer'
 import { GenStats } from '../common/stats'
 import * as Utils from '../common/utils'
 
+import { GenLayer } from './ProcGenLayer'
+
 export class WorldGenerator {
+  // eslint-disable-next-line no-use-before-define
   static singleton: WorldGenerator
   parent: any
   samplingScale: number = 1 / 8 // 8 blocks per unit of noise
@@ -12,16 +15,6 @@ export class WorldGenerator {
   blockTypeMapper: (height: number) => BlockType = () => 0
   procLayers!: GenLayer
   layerSelection!: string
-
-  constructor() {
-    // blending map
-    // const transitionThreshold = 0.5
-    // const transitionRange = 0.1
-    // const transition = {
-    //   lower: round2(transitionThreshold - transitionRange / 2),
-    //   upper: round2(transitionThreshold + transitionRange / 2)
-    // }
-  }
 
   static get instance() {
     WorldGenerator.singleton = WorldGenerator.singleton || new WorldGenerator()
@@ -71,7 +64,7 @@ export class WorldGenerator {
   }
 
   /**
-   * Checking neighbours surrounding block's position 
+   * Checking neighbours surrounding block's position
    * to determine if block is hidden or not
    */
   hiddenBlock(position: Vector3) {
@@ -119,9 +112,15 @@ export class WorldGenerator {
         // for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
         while (!hidden && y >= bbox.min.y) {
           const blockPos = new Vector3(x, y, z)
-          const blockType = blockPos.y < groundLevel ? this.blockTypeMapper(blockPos.y) : BlockType.NONE
+          const blockType =
+            blockPos.y < groundLevel
+              ? this.blockTypeMapper(blockPos.y)
+              : BlockType.NONE
           const block: Block = { pos: blockPos, type: blockType }
-          hidden = pruning && block.type !== BlockType.NONE && this.hiddenBlock(block.pos)
+          hidden =
+            pruning &&
+            block.type !== BlockType.NONE &&
+            this.hiddenBlock(block.pos)
           // only existing and visible block, e.g with a face in contact with air
           if (block.type !== BlockType.NONE && !hidden) {
             yield block
@@ -145,9 +144,10 @@ export class WorldGenerator {
       iterations: iterCount,
     }
   }
+
   /**
-   * @param bbox 
-   * @returns 
+   * @param bbox
+   * @returns
    */
   estimatedVoxelsCount(bbox: Box3): number {
     const range = bbox.getSize(new Vector3())
