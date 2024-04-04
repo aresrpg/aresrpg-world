@@ -1,8 +1,9 @@
 import { Vector2, Vector3, Box3 } from 'three'
 
-import { Block, BlockType } from '../common/types'
+import { Block, BlockType, TerrainBlocksMapping } from '../common/types'
 import { GenStats } from '../common/stats'
 import * as Utils from '../common/utils'
+import { LinkedList } from '../common/misc'
 
 import { GenLayer } from './ProcGenLayer'
 
@@ -12,7 +13,8 @@ export class WorldGenerator {
   parent: any
   samplingScale: number = 1 / 8 // 8 blocks per unit of noise
   heightScale: number = 1
-  blockTypeMapper: (height: number) => BlockType = () => 0
+  // externally provided
+  terrainBlocksMapping!: LinkedList<TerrainBlocksMapping>
   procLayers!: GenLayer
   layerSelection!: string
 
@@ -38,7 +40,15 @@ export class WorldGenerator {
       ? config.samplingScale
       : this.samplingScale
     this.procLayers = config.procLayers || this.procLayers
-    this.blockTypeMapper = config.blockTypeMapper
+    const {
+      terrainBlocksMapping,
+    }: { terrainBlocksMapping: TerrainBlocksMapping[] } = config
+    if (terrainBlocksMapping) {
+      this.terrainBlocksMapping = LinkedList.fromArray<TerrainBlocksMapping>(
+        terrainBlocksMapping,
+        (a, b) => a.threshold - b.threshold,
+      )
+    }
     // Object.preventExtensions(this.conf)
     // Object.assign(this.conf, config)
     // const { procgen, proclayers } = config
@@ -78,6 +88,14 @@ export class WorldGenerator {
     return neighbours.length === 6
   }
 
+  getBlockType = (height: number) => {
+    let item = this.terrainBlocksMapping
+    while (item.next && item.next.data.threshold < height) {
+      item = item.next
+    }
+    return item.data.blockType
+  }
+
   /**
    * Determine block's existence based on density value evaluated at block position
    * @param position block position where density is evaluated
@@ -89,7 +107,7 @@ export class WorldGenerator {
     const density = this.getHeight(new Vector2(x, z)) // TODO replace by real density val
     // determine if block is empty or not based on density val being above or below threshold
     const blockExists = y < density
-    return blockExists ? this.blockTypeMapper(y) : BlockType.NONE
+    return blockExists ? this.getBlockType(y) : BlockType.NONE
   }
 
   /**
@@ -97,7 +115,7 @@ export class WorldGenerator {
    * @param bbox
    * @param pruning optional hidden blocks pruning
    */
-  *generate(bbox: Box3, pruning = true): Generator<Block, void, unknown> {
+  *generate(bbox: Box3, pruning = false): Generator<Block, void, unknown> {
     let iterCount = 0
     let blocksCount = 0
     const startTime = Date.now()
@@ -114,7 +132,7 @@ export class WorldGenerator {
           const blockPos = new Vector3(x, y, z)
           const blockType =
             blockPos.y < groundLevel
-              ? this.blockTypeMapper(blockPos.y)
+              ? this.getBlockType(blockPos.y)
               : BlockType.NONE
           const block: Block = { pos: blockPos, type: blockType }
           hidden =

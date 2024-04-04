@@ -161,7 +161,7 @@ export class ProcGenLayer extends GenLayer {
   constructor(noiseSeed: string, heightProfile: CurveParams[]) {
     super()
     this.noiseSampler = new SimplexNoiseSampler(noiseSeed)
-    this.samplerProfile = new HeightProfiler(heightProfile)
+    this.samplerProfile = HeightProfiler.fromArray(heightProfile)
   }
 
   eval(input: InputType) {

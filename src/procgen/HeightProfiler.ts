@@ -1,6 +1,7 @@
 import { Vector2 } from 'three'
 
 import * as Utils from '../common/utils'
+import { LinkedList } from '../common/misc'
 
 export type CurveParams = {
   x: number
@@ -11,8 +12,8 @@ export type CurveParams = {
  * Profile used to map scalar field to terrain height
  */
 class HeightProfiler {
-  curveParams: CurveParams[]
-  constructor(curveParams: CurveParams[]) {
+  curveParams: LinkedList<CurveParams>
+  constructor(curveParams: LinkedList<CurveParams>) {
     this.curveParams = curveParams
   }
 
@@ -27,6 +28,14 @@ class HeightProfiler {
   apply(inputVal: number) {
     return noiseToHeight(inputVal, this.getCurveSegment(inputVal))
   }
+
+  static fromArray(curveParams: CurveParams[]): HeightProfiler {
+    const linkedCurveParams = LinkedList.fromArray<CurveParams>(
+      curveParams,
+      (a, b) => a.x - b.x,
+    )
+    return new HeightProfiler(linkedCurveParams)
+  }
 }
 
 /**
@@ -35,22 +44,15 @@ class HeightProfiler {
  * @param curveProfile curve points array
  * @returns upper and lower points from curve profile closest to input val
  */
-const getCurveSegment = (noise: number, curveProfile: CurveParams[]) => {
-  const lower = curveProfile
-    .filter((point: CurveParams) => point.x <= noise)
-    .reduce((last: CurveParams, curr: CurveParams) => {
-      const currDiff = Math.abs(noise - curr.x)
-      const lastDiff = Math.abs(noise - last.x)
-      return currDiff < lastDiff ? curr : last
-    })
-  const upper = curveProfile
-    .filter((point: CurveParams) => point.x >= noise)
-    .reduce((last: CurveParams, curr: CurveParams) => {
-      const currDiff = Math.abs(noise - curr.x)
-      const lastDiff = Math.abs(noise - last.x)
-      return currDiff < lastDiff ? curr : last
-    })
-  return { lower, upper }
+const getCurveSegment = (
+  noise: number,
+  curveProfile: LinkedList<CurveParams>,
+) => {
+  let curveSegment = curveProfile
+  while (curveSegment.next && curveSegment.next.data.x < noise) {
+    curveSegment = curveSegment.next
+  }
+  return curveSegment
 }
 
 /**
@@ -61,11 +63,17 @@ const getCurveSegment = (noise: number, curveProfile: CurveParams[]) => {
  */
 const noiseToHeight = (
   noiseVal: number,
-  curveSegment: { lower: any; upper: any },
+  curveSegment: LinkedList<CurveParams>,
 ) => {
-  const { lower, upper } = curveSegment
-  const lowerPoint = new Vector2(lower.x, lower.y)
-  const upperPoint = new Vector2(upper.x, upper.y)
+  if (!curveSegment.next) {
+    console.warn(`[noiseToHeight] invalid curve segment provided`)
+    return -1
+  }
+  const lowerPoint = new Vector2(curveSegment.data.x, curveSegment.data.y)
+  const upperPoint = new Vector2(
+    curveSegment.next.data.x,
+    curveSegment.next.data.y,
+  )
   const interpolatedHeight = Utils.interpolatePoints(
     lowerPoint,
     upperPoint,
