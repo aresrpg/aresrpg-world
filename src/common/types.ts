@@ -2,17 +2,26 @@ import { Vector3 } from 'three'
 
 export enum BlockType {
   NONE,
-  ROCK,
-  GRASS,
-  SNOW,
   WATER,
   SAND,
+  GRASS,
+  DRY_GRASS,
+  MUD,
+  ROCK,
+  SNOW,
 }
 
 export type Block = {
   pos: Vector3
   type: BlockType
 }
+
+export type TerrainBlocksMapping = {
+  blockType: BlockType
+  threshold: number
+}
+
+export type TerrainMapping = Record<any, TerrainBlocksMapping>
 
 export enum BlockNeighbour {
   xMyMzM,
@@ -42,3 +51,14 @@ export enum BlockNeighbour {
   xPyPz0,
   xPyPzP,
 }
+
+// export enum TerrainType {
+//   SEA,
+//   BEACH,
+//   CLIFF,
+//   LOWLANDS,
+//   MIDLANDS,
+//   HIGHLANDS,
+//   MOUNTAINS,
+//   MOUNTAINS_TOP,
+// }
