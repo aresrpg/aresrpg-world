@@ -65,14 +65,11 @@ const noiseToHeight = (
   noiseVal: number,
   curveSegment: LinkedList<CurveParams>,
 ) => {
-  if (!curveSegment.next) {
-    console.warn(`[noiseToHeight] invalid curve segment provided`)
-    return -1
-  }
+  const upper = curveSegment.next || curveSegment
   const lowerPoint = new Vector2(curveSegment.data.x, curveSegment.data.y)
   const upperPoint = new Vector2(
-    curveSegment.next.data.x,
-    curveSegment.next.data.y,
+    upper.data.x,
+    upper.data.y,
   )
   const interpolatedHeight = Utils.interpolatePoints(
     lowerPoint,
