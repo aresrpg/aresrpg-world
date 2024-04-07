@@ -17,6 +17,7 @@ export class WorldGenerator {
   terrainBlocksMapping!: LinkedList<TerrainBlocksMapping>
   procLayers!: GenLayer
   layerSelection!: string
+  seaLevel = 50
 
   static get instance() {
     WorldGenerator.singleton = WorldGenerator.singleton || new WorldGenerator()
@@ -28,6 +29,7 @@ export class WorldGenerator {
       selection: this.layerSelection,
       heightScale: this.heightScale,
       samplingScale: this.samplingScale,
+      seaLevel: this.seaLevel
     }
   }
 
@@ -39,6 +41,9 @@ export class WorldGenerator {
     this.samplingScale = !isNaN(config.samplingScale)
       ? config.samplingScale
       : this.samplingScale
+    this.seaLevel = !isNaN(config.seaLevel)
+      ? config.seaLevel
+      : this.seaLevel
     this.procLayers = config.procLayers || this.procLayers
     const {
       terrainBlocksMapping,
@@ -119,6 +124,7 @@ export class WorldGenerator {
     let iterCount = 0
     let blocksCount = 0
     const startTime = Date.now()
+    const { seaLevel } = this
     // sampling volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
@@ -131,7 +137,7 @@ export class WorldGenerator {
         while (!hidden && y >= bbox.min.y) {
           const blockPos = new Vector3(x, y, z)
           const blockType =
-            blockPos.y < groundLevel
+            (blockPos.y < Math.max(groundLevel, seaLevel))
               ? this.getBlockType(blockPos.y)
               : BlockType.NONE
           const block: Block = { pos: blockPos, type: blockType }
