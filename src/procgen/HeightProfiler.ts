@@ -67,10 +67,7 @@ const noiseToHeight = (
 ) => {
   const upper = curveSegment.next || curveSegment
   const lowerPoint = new Vector2(curveSegment.data.x, curveSegment.data.y)
-  const upperPoint = new Vector2(
-    upper.data.x,
-    upper.data.y,
-  )
+  const upperPoint = new Vector2(upper.data.x, upper.data.y)
   const interpolatedHeight = Utils.interpolatePoints(
     lowerPoint,
     upperPoint,

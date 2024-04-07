@@ -29,7 +29,7 @@ export class WorldGenerator {
       selection: this.layerSelection,
       heightScale: this.heightScale,
       samplingScale: this.samplingScale,
-      seaLevel: this.seaLevel
+      seaLevel: this.seaLevel,
     }
   }
 
@@ -41,9 +41,7 @@ export class WorldGenerator {
     this.samplingScale = !isNaN(config.samplingScale)
       ? config.samplingScale
       : this.samplingScale
-    this.seaLevel = !isNaN(config.seaLevel)
-      ? config.seaLevel
-      : this.seaLevel
+    this.seaLevel = !isNaN(config.seaLevel) ? config.seaLevel : this.seaLevel
     this.procLayers = config.procLayers || this.procLayers
     const {
       terrainBlocksMapping,
@@ -137,7 +135,7 @@ export class WorldGenerator {
         while (!hidden && y >= bbox.min.y) {
           const blockPos = new Vector3(x, y, z)
           const blockType =
-            (blockPos.y < Math.max(groundLevel, seaLevel))
+            blockPos.y < Math.max(groundLevel, seaLevel)
               ? this.getBlockType(blockPos.y)
               : BlockType.NONE
           const block: Block = { pos: blockPos, type: blockType }

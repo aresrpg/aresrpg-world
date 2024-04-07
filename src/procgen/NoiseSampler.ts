@@ -58,6 +58,7 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
     const density = !isNaN(params.scattering)
       ? 1 / Math.pow(2, params.scattering)
       : params.density
+    this.density = !isNaN(params.period) ? params.period : this.density
     this.density = !isNaN(density) ? density : this.density
     this.onChange(this)
   }
