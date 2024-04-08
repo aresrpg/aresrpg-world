@@ -109,7 +109,7 @@ export class WorldGenerator {
     // eval density at block position
     const density = this.getHeight(new Vector2(x, z)) // TODO replace by real density val
     // determine if block is empty or not based on density val being above or below threshold
-    const blockExists = y < density
+    const blockExists = y <  Math.max(density, this.seaLevel)
     return blockExists ? this.getBlockType(y) : BlockType.NONE
   }
 
