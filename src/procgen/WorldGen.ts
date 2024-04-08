@@ -86,7 +86,7 @@ export class WorldGenerator {
     )
     const neighbours = adjacentNeighbours.filter(adjPos => {
       const groundLevel = this.getHeight(new Vector2(adjPos.x, adjPos.z))
-      return adjPos.y < groundLevel
+      return adjPos.y <= groundLevel
     })
     return neighbours.length === 6
   }
@@ -109,7 +109,7 @@ export class WorldGenerator {
     // eval density at block position
     const density = this.getHeight(new Vector2(x, z)) // TODO replace by real density val
     // determine if block is empty or not based on density val being above or below threshold
-    const blockExists = y <  Math.max(density, this.seaLevel)
+    const blockExists = y <=  Math.max(density, this.seaLevel)
     return blockExists ? this.getBlockType(y) : BlockType.NONE
   }
 
@@ -135,7 +135,7 @@ export class WorldGenerator {
         while (!hidden && y >= bbox.min.y) {
           const blockPos = new Vector3(x, y, z)
           const blockType =
-            blockPos.y < Math.max(groundLevel, seaLevel)
+            blockPos.y <= Math.max(groundLevel, seaLevel)
               ? this.getBlockType(blockPos.y)
               : BlockType.NONE
           const block: Block = { pos: blockPos, type: blockType }
