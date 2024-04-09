@@ -91,9 +91,9 @@ export class WorldGenerator {
     return neighbours.length === 6
   }
 
-  getBlockType = (height: number) => {
+  getBlockType = (block: Vector3) => {
     let item = this.terrainBlocksMapping
-    while (item.next && item.next.data.threshold < height) {
+    while (item.next && item.next.data.threshold < block.y) {
       item = item.next
     }
     return item.data.blockType
@@ -110,7 +110,7 @@ export class WorldGenerator {
     const density = this.getHeight(new Vector2(x, z)) // TODO replace by real density val
     // determine if block is empty or not based on density val being above or below threshold
     const blockExists = y <=  Math.max(density, this.seaLevel)
-    return blockExists ? this.getBlockType(y) : BlockType.NONE
+    return blockExists ? this.getBlockType(pos) : BlockType.NONE
   }
 
   /**
@@ -135,8 +135,8 @@ export class WorldGenerator {
         while (!hidden && y >= bbox.min.y) {
           const blockPos = new Vector3(x, y, z)
           const blockType =
-            blockPos.y <= Math.max(groundLevel, seaLevel)
-              ? this.getBlockType(blockPos.y)
+            blockPos.y < Math.max(groundLevel, seaLevel)
+              ? this.getBlockType(blockPos)
               : BlockType.NONE
           const block: Block = { pos: blockPos, type: blockType }
           hidden =
