@@ -1,4 +1,4 @@
-import { CurveParams, HeightProfiler } from './HeightProfiler'
+import { HeightProfiler } from './HeightProfiler'
 import { InputType, SimplexNoiseSampler } from './NoiseSampler'
 /**
  * blend threshold and transition
@@ -56,8 +56,12 @@ export abstract class GenLayer {
   next: GenLayer | undefined // linked layer for combination mode
   // profile: HeightProfiler = DEFAULT_PROFILE
   transition: LayerTransition = DEFAULT_TRANSITION // used to transition from one layer to another
-
+  name: string  // unique layer identifier
   // abstract rawEval(input: InputType): number
+
+  constructor(layerName: string) {
+    this.name = layerName
+  }
 
   /**
    * Layer's own value
@@ -106,15 +110,19 @@ export abstract class GenLayer {
     return combinedLayers
   }
 
-  static combine(input: InputType, layerChain: GenLayer, selection: string) {
+  static combine(input: InputType, layerChain: GenLayer, selected: string) {
     let pointVal = 0
-    if (selection.startsWith('layer')) {
-      const layerIndex = parseInt(selection.split('#')[1] || '')
-      const selectedLayer = GenLayer.getLayerAtIndex(layerChain, layerIndex)
-      pointVal = selectedLayer.eval(input)
-    } else if (selection === 'combination') {
+    if (selected === 'combination') {
       pointVal = layerChain.recursiveEval(input)
+    } else {
+      const selectedLayer = GenLayer.getLayer(layerChain, selected)
+      pointVal = selectedLayer.eval(input)
     }
+    // else if (selected.startsWith('layer')) {
+    //   const layerIndex = parseInt(selected.split('#')[1] || '')
+    //   const selectedLayer = GenLayer.getLayerAtIndex(layerChain, layerIndex)
+    //   pointVal = selectedLayer.eval(input)
+    // } 
     return pointVal
   }
 
@@ -126,6 +134,14 @@ export abstract class GenLayer {
       layer = layer.next
     }
     return layers
+  }
+
+  static getLayer(layerChain: GenLayer, layerName: string) {
+    let layer = layerChain
+    while (layer.name !== layerName && layer.next) {
+      layer = layer.next
+    }
+    return layer
   }
 
   static getLayerAtIndex(layerChain: GenLayer, layerIndex: number) {
@@ -140,8 +156,8 @@ export abstract class GenLayer {
 }
 
 export class ProcGenLayer extends GenLayer {
-  noiseSampler: SimplexNoiseSampler
-  samplerProfile: HeightProfiler
+  noiseSampler!: SimplexNoiseSampler
+  samplerProfile!: HeightProfiler
   compositor: Compositor = getCompositor(BlendMode.ADD) // addition assigned by default
   params = {
     blending: {
@@ -158,59 +174,10 @@ export class ProcGenLayer extends GenLayer {
     },
   }
 
-  constructor(noiseSeed: string, heightProfile: CurveParams[]) {
-    super()
-    this.noiseSampler = new SimplexNoiseSampler(noiseSeed)
-    this.samplerProfile = HeightProfiler.fromArray(heightProfile)
-  }
-
-  eval(input: InputType) {
-    const { noiseSampler } = this
-    const spread = this.config.spreading
-    const rawVal = noiseSampler.eval(input.clone().multiplyScalar(NOISE_SCALE))
-    const finalVal = this.samplerProfile.apply(
-      (rawVal - 0.5) * 2 ** spread + 0.5,
-    )
-    return finalVal * 255
-  }
-
-  recursiveEval(input: InputType) {
-    // const vals = this.next?.recursiveEval() || 0
-    // const val = this.eval(input.clone());
-    // // blend current val with other vals
-    // return this.compositor(vals, val / 255) * 255;
-    const layers: ProcGenLayer[] = GenLayer.toArray(this) as ProcGenLayer[]
-    let val
-    let vals = 0
-    layers.forEach(layer => {
-      val = layer.eval(input.clone())
-      vals = layer.compositor(vals, val / 255, layer.params.blending.weight)
-    })
-    return vals * 255
-  }
-
-  static layerIndex(index: number) {
-    return `layer#${index}`
-  }
-
-  get config() {
-    return this.params
-  }
-
-  set config(conf: any) {
-    this.params.blending.weight = !isNaN(conf.blendWeight)
-      ? conf.blendWeight
-      : this.params.blending.weight
-    if (conf.blendMode) {
-      this.params.blending.mode = conf.blendMode
-      this.compositor = getCompositor(conf.blendMode)
-    }
-    this.params.spreading = !isNaN(conf.spreading)
-      ? conf.spreading
-      : this.params.spreading
-  }
-
-  applyConfig(config: any) {
+  // first init
+  init(config: any) {
+    this.noiseSampler = new SimplexNoiseSampler(config.seed)
+    this.samplerProfile = HeightProfiler.fromArray(config.spline)
     // Layer
     const blendWeight = config.blend_weight
     const blendMode = config.blend_mode
@@ -234,13 +201,59 @@ export class ProcGenLayer extends GenLayer {
     this.noiseSampler.config = samplerCfg
   }
 
+  eval(input: InputType) {
+    const { noiseSampler } = this
+    const spread = this.config.spreading
+    const rawVal = noiseSampler.eval(input.clone().multiplyScalar(NOISE_SCALE))
+    const finalVal = this.samplerProfile.apply(
+      (rawVal - 0.5) * 2 ** spread + 0.5,
+    )
+    return finalVal
+  }
+
+  recursiveEval(input: InputType) {
+    // const vals = this.next?.recursiveEval() || 0
+    // const val = this.eval(input.clone());
+    // // blend current val with other vals
+    // return this.compositor(vals, val / 255) * 255;
+    const layers: ProcGenLayer[] = GenLayer.toArray(this) as ProcGenLayer[]
+    let val
+    let vals = 0
+    layers.forEach(layer => {
+      val = layer.eval(input.clone())
+      vals = layer.compositor(vals, val, layer.params.blending.weight)
+    })
+    return vals
+  }
+
+  static layerIndex(index: number) {
+    return `layer#${index}`
+  }
+
+  get config() {
+    return this.params
+  }
+
+  set config(conf: any) {
+    this.params.blending.weight = !isNaN(conf.blendWeight)
+      ? conf.blendWeight
+      : this.params.blending.weight
+    if (conf.blendMode) {
+      this.params.blending.mode = conf.blendMode
+      this.compositor = getCompositor(conf.blendMode)
+    }
+    this.params.spreading = !isNaN(conf.spreading)
+      ? conf.spreading
+      : this.params.spreading
+  }
+
   static fromJsonConfig(jsonConf: any) {
     // console.log(jsonConf)
     const layers: ProcGenLayer[] = jsonConf.procLayers.map(
       (layerCfg: any, i: number) => {
-        const noiseSeed = `layer#${i}_seed`
-        const procLayer = new ProcGenLayer(noiseSeed, layerCfg.spline)
-        procLayer.applyConfig(layerCfg)
+        const layerName = `layer#${i}`
+        const procLayer = new ProcGenLayer(layerName)
+        procLayer.init(layerCfg)
         return procLayer
       },
     )
