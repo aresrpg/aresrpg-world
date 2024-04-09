@@ -6,6 +6,7 @@ import * as Utils from '../common/utils'
 import { LinkedList } from '../common/misc'
 
 import { GenLayer } from './ProcGenLayer'
+import { SimplexNoiseSampler } from './NoiseSampler'
 
 export class WorldGenerator {
   // eslint-disable-next-line no-use-before-define
@@ -17,7 +18,13 @@ export class WorldGenerator {
   terrainBlocksMapping!: LinkedList<TerrainBlocksMapping>
   procLayers!: GenLayer
   layerSelection!: string
+  paintingRandomness = new SimplexNoiseSampler("paintingSeed")
   seaLevel = 50
+
+  constructor() {
+    // this.paintingRandomness.noiseParams.harmonics.period = 256
+    this.paintingRandomness.onChange(this)
+  }
 
   static get instance() {
     WorldGenerator.singleton = WorldGenerator.singleton || new WorldGenerator()
@@ -107,11 +114,41 @@ export class WorldGenerator {
   }
 
   getBlockType = (block: Vector3) => {
-    let item = this.terrainBlocksMapping
-    while (item.next && item.next.data.threshold < block.y) {
-      item = item.next
+    const { x, y, z } = block
+    const period = 0.005
+    const baseHeight = y
+    let current = this.terrainBlocksMapping
+    let previous = this.terrainBlocksMapping
+    while (current.next && current.next.data.threshold < baseHeight) {
+      previous = current
+      current = current.next
     }
-    return item.data.blockType
+    const { next } = current
+    // add some height variations to have less boring painting
+    const { randomness } = current.data
+    const bounds = {
+      lower: current.data.threshold,
+      upper: next?.data.threshold || 1
+    }
+    // nominal type
+    let blockType = current.data.blockType
+    // randomize on lower side
+    if ((baseHeight - bounds.lower) <= (bounds.upper - baseHeight)
+      && (baseHeight - randomness.low) < bounds.lower) {
+      const groundPos = new Vector2(x, z).multiplyScalar(period)
+      const heightVariation = this.paintingRandomness.eval(groundPos) * randomness.low
+      const varyingHeight = baseHeight - heightVariation
+      blockType = varyingHeight < current.data.threshold ? previous.data.blockType : current.data.blockType
+    }
+    // randomize on upper side 
+    else if (baseHeight + randomness.high > bounds.upper && next) {
+      const groundPos = new Vector2(x, z).multiplyScalar(period)
+      const heightVariation = this.paintingRandomness.eval(groundPos) * randomness.high
+      const varyingHeight = baseHeight + heightVariation
+      blockType = varyingHeight > next.data.threshold ? next.data.blockType : current.data.blockType
+    }
+
+    return blockType
   }
 
   /**
