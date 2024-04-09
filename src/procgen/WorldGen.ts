@@ -64,16 +64,31 @@ export class WorldGenerator {
   }
 
   /**
-   * Only relevant for heightmap mode (2D)
+   * 3D noise density for caverns
    */
-  getHeight(pos: Vector2) {
+  getDensity() {
+    throw new Error('Method not implemented.')
+  }
+
+  /**
+   * 2D noise for heightmap
+   */
+  getRawHeight(pos: Vector2) {
     const scaledNoisePos = pos.multiplyScalar(this.samplingScale)
     const val = GenLayer.combine(
       scaledNoisePos,
       this.procLayers,
       this.layerSelection,
     )
-    return val
+    return val * 255
+  }
+
+  /**
+   * Overall height (ground + water)
+   */
+  getHeight(pos: Vector2) {
+    const rawHeight = this.getRawHeight(pos)
+    return Math.max(rawHeight, this.seaLevel)
   }
 
   /**
@@ -109,7 +124,7 @@ export class WorldGenerator {
     // eval density at block position
     const density = this.getHeight(new Vector2(x, z)) // TODO replace by real density val
     // determine if block is empty or not based on density val being above or below threshold
-    const blockExists = y <=  Math.max(density, this.seaLevel)
+    const blockExists = y <= density
     return blockExists ? this.getBlockType(pos) : BlockType.NONE
   }
 
