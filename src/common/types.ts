@@ -19,6 +19,10 @@ export type Block = {
 export type TerrainBlocksMapping = {
   blockType: BlockType
   threshold: number
+  randomness: {
+    low: number,
+    high: number
+  }
 }
 
 export type TerrainMapping = Record<any, TerrainBlocksMapping>
