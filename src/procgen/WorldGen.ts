@@ -18,7 +18,7 @@ export class WorldGenerator {
   terrainBlocksMapping!: LinkedList<TerrainBlocksMapping>
   procLayers!: GenLayer
   layerSelection!: string
-  paintingRandomness = new SimplexNoiseSampler("paintingSeed")
+  paintingRandomness = new SimplexNoiseSampler('paintingSeed')
   seaLevel = 50
 
   constructor() {
@@ -128,24 +128,34 @@ export class WorldGenerator {
     const { randomness } = current.data
     const bounds = {
       lower: current.data.threshold,
-      upper: next?.data.threshold || 1
+      upper: next?.data.threshold || 1,
     }
     // nominal type
-    let blockType = current.data.blockType
+    let { blockType } = current.data
     // randomize on lower side
-    if ((baseHeight - bounds.lower) <= (bounds.upper - baseHeight)
-      && (baseHeight - randomness.low) < bounds.lower) {
+    if (
+      baseHeight - bounds.lower <= bounds.upper - baseHeight &&
+      baseHeight - randomness.low < bounds.lower
+    ) {
       const groundPos = new Vector2(x, z).multiplyScalar(period)
-      const heightVariation = this.paintingRandomness.eval(groundPos) * randomness.low
+      const heightVariation =
+        this.paintingRandomness.eval(groundPos) * randomness.low
       const varyingHeight = baseHeight - heightVariation
-      blockType = varyingHeight < current.data.threshold ? previous.data.blockType : current.data.blockType
+      blockType =
+        varyingHeight < current.data.threshold
+          ? previous.data.blockType
+          : current.data.blockType
     }
-    // randomize on upper side 
+    // randomize on upper side
     else if (baseHeight + randomness.high > bounds.upper && next) {
       const groundPos = new Vector2(x, z).multiplyScalar(period)
-      const heightVariation = this.paintingRandomness.eval(groundPos) * randomness.high
+      const heightVariation =
+        this.paintingRandomness.eval(groundPos) * randomness.high
       const varyingHeight = baseHeight + heightVariation
-      blockType = varyingHeight > next.data.threshold ? next.data.blockType : current.data.blockType
+      blockType =
+        varyingHeight > next.data.threshold
+          ? next.data.blockType
+          : current.data.blockType
     }
 
     return blockType

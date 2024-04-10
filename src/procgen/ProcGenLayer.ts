@@ -56,7 +56,7 @@ export abstract class GenLayer {
   next: GenLayer | undefined // linked layer for combination mode
   // profile: HeightProfiler = DEFAULT_PROFILE
   transition: LayerTransition = DEFAULT_TRANSITION // used to transition from one layer to another
-  name: string  // unique layer identifier
+  name: string // unique layer identifier
   // abstract rawEval(input: InputType): number
 
   constructor(layerName: string) {
@@ -122,7 +122,7 @@ export abstract class GenLayer {
     //   const layerIndex = parseInt(selected.split('#')[1] || '')
     //   const selectedLayer = GenLayer.getLayerAtIndex(layerChain, layerIndex)
     //   pointVal = selectedLayer.eval(input)
-    // } 
+    // }
     return pointVal
   }
 

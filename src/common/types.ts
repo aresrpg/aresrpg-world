@@ -20,7 +20,7 @@ export type TerrainBlocksMapping = {
   blockType: BlockType
   threshold: number
   randomness: {
-    low: number,
+    low: number
     high: number
   }
 }
