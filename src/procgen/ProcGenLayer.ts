@@ -265,8 +265,12 @@ export class ProcGenLayer extends GenLayer {
     const spread = this.config.spreading || 1
     const rawVal = this.rawEval(input)
     const noiseAboveThreshold = rawVal - threshold
-    const baseVal = this.samplerProfile.apply((threshold - 0.5) * 2 ** spread + 0.5)
-    const initialVal = this.samplerProfile.apply((rawVal - 0.5) * 2 ** spread + 0.5)
+    const baseVal = this.samplerProfile.apply(
+      (threshold - 0.5) * 2 ** spread + 0.5,
+    )
+    const initialVal = this.samplerProfile.apply(
+      (rawVal - 0.5) * 2 ** spread + 0.5,
+    )
     let finalVal = initialVal
     // modulates amplitude after threshold
     if (noiseAboveThreshold > 0) {

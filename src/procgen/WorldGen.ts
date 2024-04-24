@@ -5,9 +5,7 @@ import * as Utils from '../common/utils'
 import { LinkedList } from '../common/misc'
 import { ProcGenStatsReporting } from '../tools/StatsReporting'
 
-import {
-  GenLayer,
-} from './ProcGenLayer'
+import { GenLayer } from './ProcGenLayer'
 import { SimplexNoiseSampler } from './NoiseSampler'
 
 export class WorldGenerator {
@@ -101,11 +99,19 @@ export class WorldGenerator {
    */
   getRawHeight(pos: Vector3) {
     const noiseScalePos = pos.multiplyScalar(this.samplingScale)
-    const val = WorldGenerator.instance.layerSelection === "all" ?
-      // procLayers.combinedEval(samplerCoords) :
-      this.procLayers.combinedWith(noiseScalePos, this.procLayers.next || this.procLayers, 0.7) :
-      // procLayers.modulatedBy(samplerCoords, procLayers.next, 0.7) :
-      GenLayer.getLayer(this.procLayers, WorldGenerator.instance.layerSelection).eval(noiseScalePos)
+    const val =
+      WorldGenerator.instance.layerSelection === 'all'
+        ? // procLayers.combinedEval(samplerCoords) :
+          this.procLayers.combinedWith(
+            noiseScalePos,
+            this.procLayers.next || this.procLayers,
+            0.7,
+          )
+        : // procLayers.modulatedBy(samplerCoords, procLayers.next, 0.7) :
+          GenLayer.getLayer(
+            this.procLayers,
+            WorldGenerator.instance.layerSelection,
+          ).eval(noiseScalePos)
     return val * 255
   }
 
