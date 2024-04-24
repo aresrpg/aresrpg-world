@@ -3,9 +3,39 @@ import { Vector2 } from 'three'
 import * as Utils from '../common/utils'
 import { LinkedList } from '../common/misc'
 
-export type CurveParams = {
-  x: number
+type CurveRawParams = {
+  x: number,
   y: number
+}
+
+export class CurveParams {
+  onChange
+  abscissa: number
+  ordinate: number
+
+  constructor(rawParams: CurveRawParams, onChange?) {
+    this.abscissa = rawParams.x
+    this.ordinate = rawParams.y
+    this.onChange = onChange
+  }
+
+  get absc() {
+    return Utils.rnd_dec(this.abscissa, 3)
+  }
+
+  set absc(val) {
+    this.abscissa = Utils.rnd_dec(val, 3)
+    this.onChange?.('CurveParams:absc')
+  }
+
+  get ord() {
+    return Utils.rnd_dec(this.ordinate, 3)
+  }
+
+  set ord(val) {
+    this.ordinate = Utils.rnd_dec(val, 3)
+    this.onChange?.('CurveParams:ord')
+  }
 }
 
 /**
@@ -13,6 +43,7 @@ export type CurveParams = {
  */
 class HeightProfiler {
   curveParams: LinkedList<CurveParams>
+
   constructor(curveParams: LinkedList<CurveParams>) {
     this.curveParams = curveParams
   }
@@ -29,10 +60,11 @@ class HeightProfiler {
     return noiseToHeight(inputVal, this.getCurveSegment(inputVal))
   }
 
-  static fromArray(curveParams: CurveParams[]): HeightProfiler {
+  static fromArray(rawParams: CurveRawParams[], onChange?): HeightProfiler {
+    const curveParams = rawParams.map(param => new CurveParams(param, onChange))
     const linkedCurveParams = LinkedList.fromArray<CurveParams>(
       curveParams,
-      (a, b) => a.x - b.x,
+      (a, b) => a.absc - b.absc,
     )
     return new HeightProfiler(linkedCurveParams)
   }
@@ -49,7 +81,7 @@ const getCurveSegment = (
   curveProfile: LinkedList<CurveParams>,
 ) => {
   let curveSegment = curveProfile
-  while (curveSegment.next && curveSegment.next.data.x < noise) {
+  while (curveSegment.next && curveSegment.next.data.absc < noise) {
     curveSegment = curveSegment.next
   }
   return curveSegment
@@ -66,8 +98,8 @@ const noiseToHeight = (
   curveSegment: LinkedList<CurveParams>,
 ) => {
   const upper = curveSegment.next || curveSegment
-  const lowerPoint = new Vector2(curveSegment.data.x, curveSegment.data.y)
-  const upperPoint = new Vector2(upper.data.x, upper.data.y)
+  const lowerPoint = new Vector2(curveSegment.data.absc, curveSegment.data.ord)
+  const upperPoint = new Vector2(upper.data.absc, upper.data.ord)
   const interpolatedHeight = Utils.interpolatePoints(
     lowerPoint,
     upperPoint,

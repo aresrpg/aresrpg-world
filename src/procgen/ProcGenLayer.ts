@@ -1,3 +1,4 @@
+import { Vector2 } from 'three'
 import { HeightProfiler } from './HeightProfiler'
 import { InputType, SimplexNoiseSampler } from './NoiseSampler'
 /**
@@ -64,7 +65,14 @@ export abstract class GenLayer {
   }
 
   /**
-   * Layer's own value
+   * Layer's raw value
+   * @param input
+   * @returns
+   */
+  abstract rawEval(input: InputType): number
+
+  /**
+   * Layer's value
    * @param input
    * @returns
    */
@@ -75,11 +83,14 @@ export abstract class GenLayer {
    * @param input
    * @returns
    */
-  abstract recursiveEval(input: InputType): number
+  abstract combinedEval(input: InputType): number
 
-  onChange(originator: any) {
-    console.log(`[GenLayer] ${typeof originator} config has changed`)
-    this.parent?.onChange(originator)
+  abstract combinedWith(input: InputType, layer: GenLayer, threshold: number): number
+  abstract modulatedBy(input: InputType, layer: GenLayer, threshold: number): number
+
+  onChange = (originator: any) => {
+    console.log(`[GenLayer:onChange] from ${originator}`)
+    this.parent?.onChange('GenLayer[' + this.name + ']:' + originator)
   }
 
   /**
@@ -108,22 +119,6 @@ export abstract class GenLayer {
       }
     }
     return combinedLayers
-  }
-
-  static combine(input: InputType, layerChain: GenLayer, selected: string) {
-    let pointVal = 0
-    if (selected === 'combination') {
-      pointVal = layerChain.recursiveEval(input)
-    } else {
-      const selectedLayer = GenLayer.getLayer(layerChain, selected)
-      pointVal = selectedLayer.eval(input)
-    }
-    // else if (selected.startsWith('layer')) {
-    //   const layerIndex = parseInt(selected.split('#')[1] || '')
-    //   const selectedLayer = GenLayer.getLayerAtIndex(layerChain, layerIndex)
-    //   pointVal = selectedLayer.eval(input)
-    // }
-    return pointVal
   }
 
   static toArray(firstLayer: GenLayer) {
@@ -177,7 +172,7 @@ export class ProcGenLayer extends GenLayer {
   // first init
   init(config: any) {
     this.noiseSampler = new SimplexNoiseSampler(config.seed)
-    this.samplerProfile = HeightProfiler.fromArray(config.spline)
+    this.samplerProfile = HeightProfiler.fromArray(config.spline, this.onChange)
     // Layer
     const blendWeight = config.blend_weight
     const blendMode = config.blend_mode
@@ -188,42 +183,95 @@ export class ProcGenLayer extends GenLayer {
     }
     this.config = layerCfg
     // Sampler
-    const samplerCfg = {
-      noise: {
-        harmonics: {
-          period: config.period,
-          count: config.harmonics + 1,
-          spread: config.harmonic_spread,
-          gain: config.harmonic_gain,
-        },
-      },
-    }
-    this.noiseSampler.config = samplerCfg
+    let periodicity = 0
+    while (Math.pow(2, ++periodicity) <= config.period);
+    this.noiseSampler.periodicity = periodicity - 1
+    this.noiseSampler.harmonicsCount = config.harmonics + 1
+    this.noiseSampler.harmonicGain = config.harmonic_gain
+    this.noiseSampler.harmonicSpread = config.harmonic_spread
+    // this.noiseSampler.config = samplerCfg
+    this.noiseSampler.parent = this
+  }
+
+  rawEval(input: InputType) {
+    const adapter = input instanceof Vector2 ? input : new Vector2(input.x, input.z)
+    return this.noiseSampler.eval(adapter.clone().multiplyScalar(NOISE_SCALE))
   }
 
   eval(input: InputType) {
-    const { noiseSampler } = this
+    const rawVal = this.rawEval(input)
     const spread = this.config.spreading
-    const rawVal = noiseSampler.eval(input.clone().multiplyScalar(NOISE_SCALE))
+
     const finalVal = this.samplerProfile.apply(
       (rawVal - 0.5) * 2 ** spread + 0.5,
     )
     return finalVal
   }
 
-  recursiveEval(input: InputType) {
+  combinedEval(input: InputType) {
     // const vals = this.next?.recursiveEval() || 0
     // const val = this.eval(input.clone());
     // // blend current val with other vals
     // return this.compositor(vals, val / 255) * 255;
     const layers: ProcGenLayer[] = GenLayer.toArray(this) as ProcGenLayer[]
     let val
-    let vals = 0
+    let acc = 0
     layers.forEach(layer => {
       val = layer.eval(input.clone())
-      vals = layer.compositor(vals, val, layer.params.blending.weight)
+      acc = layer.compositor(acc, val, layer.params.blending.weight)
     })
-    return vals
+    return acc
+  }
+
+  /**
+   * trigger other layer after threshold 
+   */
+  combinedWith(input: InputType, layer: GenLayer, threshold: number) {
+    const compositor = getCompositor(BlendMode.MUL)
+    const spread = this.config.spreading || 1;
+    const rawVal = this.rawEval(input)
+    let noiseVal = (rawVal - 0.5) * 2 ** spread + 0.5
+    let noiseOverThreshold = noiseVal - threshold
+    const baseVal = this.samplerProfile.apply(threshold)
+    const targetVal = layer.eval(input)
+    const initialVal = this.samplerProfile.apply(noiseVal - 0.01)
+    let finalVal = initialVal
+    // modulates amplitude after threshold
+    if (noiseOverThreshold > 0) {
+      const blendWeight = 1 - 10 * noiseOverThreshold
+      const blendVal = blendWeight * baseVal + 10 * noiseOverThreshold * targetVal
+      // const blendVal = compositor(initialVal, targetVal, blendWeight)
+      finalVal = noiseOverThreshold < .1 ? blendVal : targetVal
+    }
+    return finalVal
+  }
+
+  /**
+   * Use another layer to modulate amplitude after threshold
+   */
+  modulatedBy(input: InputType, layer: GenLayer, threshold: number) {
+    const compositor = getCompositor(BlendMode.MUL)
+    const spread = this.config.spreading || 1;
+    const rawVal = this.rawEval(input)
+    let noiseVal = (rawVal - 0.5) * 2 ** spread + 0.5
+    let modulatedNoise = noiseVal - threshold
+    const baseVal = this.samplerProfile.apply(threshold)
+    const initialVal = this.samplerProfile.apply(noiseVal)
+    let modulatedVal = initialVal - baseVal
+    // modulates amplitude after threshold
+    if (modulatedNoise > 0) {
+      // modulatedNoise = compositor(modulatedNoise, (erosion + 0.5), 1)
+      //  modulated = (continentalnessLayer as ProcGenLayer).samplerProfile.apply(modulatedNoise)
+      const rawVal2 = layer.rawEval(input)
+      modulatedVal = compositor(modulatedVal, rawVal2, 1)
+    }
+    // val = GenLayer.combinedEval(
+    //   scaledNoisePos,
+    //   this.procLayers,
+    //   this.layerSelection,
+    // )
+    const finalVal = modulatedNoise > 0 ? baseVal + modulatedVal : initialVal
+    return finalVal
   }
 
   static layerIndex(index: number) {

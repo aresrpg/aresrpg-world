@@ -14,7 +14,8 @@ export interface Sampler<InputType> {
   // querying sample value from input
   eval(input: InputType): number
   get config(): any
-  set config(config: any)
+  onChange(): any
+  // set config(config: any)
 }
 
 type Harmonic = {
@@ -23,19 +24,20 @@ type Harmonic = {
 }
 
 export class SimplexNoiseSampler implements Sampler<InputType> {
-  density: number
   harmonics: Harmonic[] = []
   harmonicsAmplitudeSum: number = 0
   noiseSource: any
-  noiseParams = {
+  params = {
+    periodicity: 64
     harmonics: {
-      period: 64,
+      // period: 64,
       count: 1,
       spread: 2,
       gain: 1,
     },
   }
-
+  shadowParams = {
+  }
   stats = {}
   parent: any
 
@@ -43,31 +45,80 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
     // create a new random function based on the seed
     const prng = alea(seed)
     this.noiseSource = createNoise2D(prng)
-    this.density = 128
   }
+
+  get harmonicsCount() {
+    return this.params.harmonics.count
+  }
+
+  set harmonicsCount(count) {
+    this.params.harmonics.count = count
+    this.onChange('harmonicsCount')
+  }
+
+  get harmonicGain() {
+    return this.params.harmonics.gain
+  }
+
+  set harmonicGain(gain) {
+    this.params.harmonics.gain = gain
+    this.onChange('harmonicGain')
+  }
+
+  get harmonicSpread() {
+    return this.params.harmonics.spread
+  }
+
+  set harmonicSpread(spread) {
+    this.params.harmonics.spread = spread
+    this.onChange('harmonicSpread')
+  }
+
+  get periodicity() {
+    return this.params.periodicity
+  }
+
+  set periodicity(val) {
+    this.params.periodicity = val
+    this.onChange('periodicity')
+  }
+
+  // get density() {
+  //   return this.params.density
+  // }
+
+  // set density(val) {
+  //   this.params.density = val
+  //   this.onChange('density')
+  // }
+
+  // get scattering() {
+  //   return this.shadowParams.scatterFactor
+  // }
+
+  // set scattering(val) {
+  //   this.shadowParams.scatterFactor = val
+  //   const scattering = 1 / Math.pow(2, val)
+  //   // this.density = 
+  //   // this.onChange('scattering')
+  // }
 
   get config(): any {
-    return {
-      density: this.density,
-      noiseParams: this.noiseParams,
-    }
+    this.params
   }
 
-  set config(params: any) {
-    this.noiseParams = params.noise || this.noiseParams
-    const density = !isNaN(params.scattering)
-      ? 1 / Math.pow(2, params.scattering)
-      : params.density
-    this.density = !isNaN(params.period) ? params.period : this.density
-    this.density = !isNaN(density) ? density : this.density
-    this.onChange(this)
-  }
+  // set config(params: any) {
+  //   this.params = params.noise || this.params
+  //   this.onChange(this)
+  // }
 
   onChange(originator: any) {
-    const { harmonics } = this.noiseParams
+    console.debug(`[Sampler:onChange] from ${originator}`)
+    const { harmonics } = this.params
+    const periodicity =  Math.pow(2, this.params.periodicity)
     this.harmonics = Array.from(new Array(harmonics.count)).map((_v, i) => {
       // this.stats['h' + i] = { min: 1, max: 0 }
-      const period = harmonics.period / Math.pow(harmonics.spread, i)
+      const period = periodicity / Math.pow(harmonics.spread, i)
       const amplitude = Math.pow(harmonics.gain, i)
       return { period, amplitude }
     })
@@ -75,12 +126,12 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
       (sum, harm) => sum + harm.amplitude,
       0,
     )
-    this.parent?.onChange(originator)
+    this.parent?.onChange(`Sampler:${originator}`)
   }
 
   eval(input: InputType): number {
     const { x, y } = input
-    const { density } = this
+    const density  = Math.pow(2,6)
     let noiseEval
     let noise = 0
     this.harmonics
