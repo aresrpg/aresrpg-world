@@ -1,12 +1,12 @@
 import { Vector2, Vector3, Box3 } from 'three'
 
 import { Block, BlockType, TerrainBlocksMapping } from '../common/types'
-import { GenStats } from '../common/stats'
 import * as Utils from '../common/utils'
 import { LinkedList } from '../common/misc'
 
 import { GenLayer } from './ProcGenLayer'
 import { SimplexNoiseSampler } from './NoiseSampler'
+import { ProcGenStatsReporting } from '../tools/StatsReporting'
 
 export class WorldGenerator {
   // eslint-disable-next-line no-use-before-define
@@ -222,7 +222,7 @@ export class WorldGenerator {
     //   chunk min/max: ${voxelMinMax.min.y}, ${voxelMinMax.max.y}
     //   elapsed time: ${elapsedTime} ms`
     // )
-    GenStats.instance.worldGen = {
+    ProcGenStatsReporting.instance.worldGen = {
       time: elapsedTime,
       blocks: blocksCount,
       iterations: iterCount,

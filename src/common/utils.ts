@@ -1,6 +1,6 @@
 import { Vector2, Vector3 } from 'three'
 
-import { GenStats } from './stats'
+import { ProcGenStatsReporting } from '../tools/StatsReporting'
 import { BlockNeighbour } from './types'
 
 /**
@@ -14,7 +14,7 @@ const sanitiseNoise = (noiseVal: number) => {
   // correct and report noise anomaly
   if (invalidNoiseRange) {
     res = Math.round(noiseVal)
-    GenStats.instance.noiseAnomaly(noiseVal)
+    ProcGenStatsReporting.instance.noiseAnomaly(noiseVal)
   }
   return res
 }
@@ -23,6 +23,11 @@ const sanitiseNoise = (noiseVal: number) => {
  */
 const round2 = (val: number) => {
   return Math.round(val * 100) / 100
+}
+
+const rnd_dec = (val: number, n_pow: number) => {
+  const num = Math.pow(10, n_pow)
+  return Math.round(val * num) / num
 }
 
 /**
@@ -122,11 +127,17 @@ const getAllNeighbours = (pos: Vector3): Vector3[] => {
   return neighbours
 }
 
+// Clamp number between two values:
+const clamp = (num: number, min: number, max: number) => Math.min(Math.max(num, min), max)
+
+
 export {
   sanitiseNoise,
   round2,
+  rnd_dec,
   interpolatePoints,
   getAllNeighbours,
   AdjacentNeighbours,
   getNeighbour,
+  clamp
 }

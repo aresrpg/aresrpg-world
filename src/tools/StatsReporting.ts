@@ -1,13 +1,16 @@
-export class GenStats {
+/**
+ * Handling stats reporting
+ */
+export class ProcGenStatsReporting {
   // eslint-disable-next-line no-use-before-define
-  static singleton: GenStats
+  static singleton: ProcGenStatsReporting
   static get instance() {
-    GenStats.singleton = GenStats.singleton || new GenStats()
+    ProcGenStatsReporting.singleton = ProcGenStatsReporting.singleton || new ProcGenStatsReporting()
     // put in global scope for access from dev console
     // window.aresrpg = {}
     // window.aresrpg.procgen = {}
-    // window.aresrpg.procgen.stats = GenStats.singleton.stats
-    return GenStats.singleton
+    // window.aresrpg.procgen.stats = ProcGenStatsReporting.singleton.stats
+    return ProcGenStatsReporting.singleton
   }
 
   stats: any = {
