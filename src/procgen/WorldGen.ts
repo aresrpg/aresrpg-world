@@ -6,10 +6,7 @@ import { LinkedList } from '../common/misc'
 import { ProcGenStatsReporting } from '../tools/StatsReporting'
 
 import {
-  BlendMode,
   GenLayer,
-  getCompositor,
-  ProcGenLayer,
 } from './ProcGenLayer'
 import { SimplexNoiseSampler } from './NoiseSampler'
 
@@ -103,33 +100,12 @@ export class WorldGenerator {
    * 2D noise for heightmap
    */
   getRawHeight(pos: Vector3) {
-    const noiseThreshold = 0.5
-    const continentalnessLayer = GenLayer.getLayerAtIndex(this.procLayers, 0)
-    const compositor = getCompositor(BlendMode.MUL)
-    const spread = (continentalnessLayer as ProcGenLayer).config.spreading
-    const continentalness = this.getContinentalness(pos)
-    const noiseVal = (continentalness - 0.5) * 2 ** spread + 0.5
-    const modulatedNoise = noiseVal - noiseThreshold
-    const base = (continentalnessLayer as ProcGenLayer).samplerProfile.apply(
-      noiseThreshold,
-    )
-    const original = (
-      continentalnessLayer as ProcGenLayer
-    ).samplerProfile.apply(noiseVal)
-    let modulated = original - base
-    // modulates amplitude after threshold
-    if (modulatedNoise > 0) {
-      // modulatedNoise = compositor(modulatedNoise, (erosion + 0.5), 1)
-      //  modulated = (continentalnessLayer as ProcGenLayer).samplerProfile.apply(modulatedNoise)
-      const erosion = this.getErosion(pos)
-      modulated = compositor(modulated, erosion, 1)
-    }
-    // val = GenLayer.combinedEval(
-    //   scaledNoisePos,
-    //   this.procLayers,
-    //   this.layerSelection,
-    // )
-    const val = modulatedNoise > 0 ? base + modulated : original
+    const noiseScalePos = pos.multiplyScalar(this.samplingScale)
+    const val = WorldGenerator.instance.layerSelection === "all" ?
+      // procLayers.combinedEval(samplerCoords) :
+      this.procLayers.combinedWith(noiseScalePos, this.procLayers.next || this.procLayers, 0.7) :
+      // procLayers.modulatedBy(samplerCoords, procLayers.next, 0.7) :
+      GenLayer.getLayer(this.procLayers, WorldGenerator.instance.layerSelection).eval(noiseScalePos)
     return val * 255
   }
 

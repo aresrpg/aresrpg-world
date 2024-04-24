@@ -241,47 +241,48 @@ export class ProcGenLayer extends GenLayer {
     const spread = this.config.spreading || 1
     const rawVal = this.rawEval(input)
     const noiseVal = (rawVal - 0.5) * 2 ** spread + 0.5
-    const noiseOverThreshold = noiseVal - threshold
+    const noiseAboveThreshold = noiseVal - threshold
     const baseVal = this.samplerProfile.apply(threshold)
     const targetVal = layer.eval(input)
     const initialVal = this.samplerProfile.apply(noiseVal - 0.01)
     let finalVal = initialVal
     // modulates amplitude after threshold
-    if (noiseOverThreshold > 0) {
-      const blendWeight = 1 - 10 * noiseOverThreshold
+    if (noiseAboveThreshold > 0) {
+      const blendWeight = 1 - 10 * noiseAboveThreshold
       const blendVal =
-        blendWeight * baseVal + 10 * noiseOverThreshold * targetVal
+        blendWeight * baseVal + 10 * noiseAboveThreshold * targetVal
       // const blendVal = getCompositor(BlendMode.MUL)(initialVal, targetVal, blendWeight)
-      finalVal = noiseOverThreshold < 0.1 ? blendVal : targetVal
+      finalVal = noiseAboveThreshold < 0.1 ? blendVal : targetVal
     }
     return finalVal
   }
 
   /**
-   * Use another layer to modulate amplitude after threshold
+   * Use another layer to modulate layer's amplitude after threshold
    */
-  modulatedBy(input: InputType, layer: GenLayer, threshold: number) {
+  modulatedBy(input: InputType, modulator: GenLayer, threshold: number) {
     const compositor = getCompositor(BlendMode.MUL)
     const spread = this.config.spreading || 1
     const rawVal = this.rawEval(input)
-    const noiseVal = (rawVal - 0.5) * 2 ** spread + 0.5
-    const modulatedNoise = noiseVal - threshold
-    const baseVal = this.samplerProfile.apply(threshold)
-    const initialVal = this.samplerProfile.apply(noiseVal)
-    let modulatedVal = initialVal - baseVal
+    const noiseAboveThreshold = rawVal - threshold
+    const baseVal = this.samplerProfile.apply((threshold - 0.5) * 2 ** spread + 0.5)
+    const initialVal = this.samplerProfile.apply((rawVal - 0.5) * 2 ** spread + 0.5)
+    let finalVal = initialVal
     // modulates amplitude after threshold
-    if (modulatedNoise > 0) {
-      // modulatedNoise = compositor(modulatedNoise, (erosion + 0.5), 1)
-      //  modulated = (continentalnessLayer as ProcGenLayer).samplerProfile.apply(modulatedNoise)
-      const rawVal2 = layer.rawEval(input)
-      modulatedVal = compositor(modulatedVal, rawVal2, 1)
+    if (noiseAboveThreshold > 0) {
+      // noiseAboveThreshold = compositor(noiseAboveThreshold, (erosion + 0.5), 1)
+      //  modulated = (continentalnessLayer as ProcGenLayer).samplerProfile.apply(noiseAboveThreshold)
+      const modulation = modulator.rawEval(input)
+      let modulatedVal = initialVal - baseVal
+      // modulatedVal = compositor(noiseAboveThreshold, modulation, 1)
+      modulatedVal = compositor(modulatedVal, modulation, 1)
+      finalVal = baseVal + modulatedVal
     }
     // val = GenLayer.combinedEval(
     //   scaledNoisePos,
     //   this.procLayers,
     //   this.layerSelection,
     // )
-    const finalVal = modulatedNoise > 0 ? baseVal + modulatedVal : initialVal
     return finalVal
   }
 
