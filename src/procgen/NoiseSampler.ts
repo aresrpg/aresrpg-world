@@ -10,11 +10,10 @@ export type Generator = (input: InputType) => number
 export interface Sampler<InputType> {
   parent: any
   // userScale: number;   // scale applied to sampler user input when querying sample
-  density: number // intrinsic sample density
+  // density: number // intrinsic sample density
   // querying sample value from input
   eval(input: InputType): number
-  get config(): any
-  onChange(): any
+  onChange(origin: any): void
   // set config(config: any)
 }
 
@@ -28,7 +27,7 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
   harmonicsAmplitudeSum: number = 0
   noiseSource: any
   params = {
-    periodicity: 64
+    periodicity: 64,
     harmonics: {
       // period: 64,
       count: 1,
@@ -36,8 +35,8 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
       gain: 1,
     },
   }
-  shadowParams = {
-  }
+
+  shadowParams = {}
   stats = {}
   parent: any
 
@@ -99,23 +98,14 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
   // set scattering(val) {
   //   this.shadowParams.scatterFactor = val
   //   const scattering = 1 / Math.pow(2, val)
-  //   // this.density = 
+  //   // this.density =
   //   // this.onChange('scattering')
-  // }
-
-  get config(): any {
-    this.params
-  }
-
-  // set config(params: any) {
-  //   this.params = params.noise || this.params
-  //   this.onChange(this)
   // }
 
   onChange(originator: any) {
     console.debug(`[Sampler:onChange] from ${originator}`)
     const { harmonics } = this.params
-    const periodicity =  Math.pow(2, this.params.periodicity)
+    const periodicity = Math.pow(2, this.params.periodicity)
     this.harmonics = Array.from(new Array(harmonics.count)).map((_v, i) => {
       // this.stats['h' + i] = { min: 1, max: 0 }
       const period = periodicity / Math.pow(harmonics.spread, i)
@@ -131,7 +121,7 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
 
   eval(input: InputType): number {
     const { x, y } = input
-    const density  = Math.pow(2,6)
+    const density = Math.pow(2, 6)
     let noiseEval
     let noise = 0
     this.harmonics

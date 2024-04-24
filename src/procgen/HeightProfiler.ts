@@ -4,7 +4,7 @@ import * as Utils from '../common/utils'
 import { LinkedList } from '../common/misc'
 
 type CurveRawParams = {
-  x: number,
+  x: number
   y: number
 }
 
@@ -13,7 +13,7 @@ export class CurveParams {
   abscissa: number
   ordinate: number
 
-  constructor(rawParams: CurveRawParams, onChange?) {
+  constructor(rawParams: CurveRawParams, onChange?: any) {
     this.abscissa = rawParams.x
     this.ordinate = rawParams.y
     this.onChange = onChange
@@ -60,7 +60,10 @@ class HeightProfiler {
     return noiseToHeight(inputVal, this.getCurveSegment(inputVal))
   }
 
-  static fromArray(rawParams: CurveRawParams[], onChange?): HeightProfiler {
+  static fromArray(
+    rawParams: CurveRawParams[],
+    onChange?: any,
+  ): HeightProfiler {
     const curveParams = rawParams.map(param => new CurveParams(param, onChange))
     const linkedCurveParams = LinkedList.fromArray<CurveParams>(
       curveParams,

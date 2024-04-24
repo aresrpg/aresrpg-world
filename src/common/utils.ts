@@ -1,6 +1,7 @@
 import { Vector2, Vector3 } from 'three'
 
 import { ProcGenStatsReporting } from '../tools/StatsReporting'
+
 import { BlockNeighbour } from './types'
 
 /**
@@ -128,8 +129,8 @@ const getAllNeighbours = (pos: Vector3): Vector3[] => {
 }
 
 // Clamp number between two values:
-const clamp = (num: number, min: number, max: number) => Math.min(Math.max(num, min), max)
-
+const clamp = (num: number, min: number, max: number) =>
+  Math.min(Math.max(num, min), max)
 
 export {
   sanitiseNoise,
@@ -139,5 +140,5 @@ export {
   getAllNeighbours,
   AdjacentNeighbours,
   getNeighbour,
-  clamp
+  clamp,
 }

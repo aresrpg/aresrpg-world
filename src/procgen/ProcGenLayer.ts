@@ -1,4 +1,5 @@
 import { Vector2 } from 'three'
+
 import { HeightProfiler } from './HeightProfiler'
 import { InputType, SimplexNoiseSampler } from './NoiseSampler'
 /**
@@ -85,11 +86,20 @@ export abstract class GenLayer {
    */
   abstract combinedEval(input: InputType): number
 
-  abstract combinedWith(input: InputType, layer: GenLayer, threshold: number): number
-  abstract modulatedBy(input: InputType, layer: GenLayer, threshold: number): number
+  abstract combinedWith(
+    input: InputType,
+    layer: GenLayer,
+    threshold: number,
+  ): number
+
+  abstract modulatedBy(
+    input: InputType,
+    layer: GenLayer,
+    threshold: number,
+  ): number
 
   onChange = (originator: any) => {
-    console.log(`[GenLayer:onChange] from ${originator}`)
+    // console.debug(`[GenLayer:onChange] from ${originator}`)
     this.parent?.onChange('GenLayer[' + this.name + ']:' + originator)
   }
 
@@ -194,7 +204,8 @@ export class ProcGenLayer extends GenLayer {
   }
 
   rawEval(input: InputType) {
-    const adapter = input instanceof Vector2 ? input : new Vector2(input.x, input.z)
+    const adapter =
+      input instanceof Vector2 ? input : new Vector2(input.x, input.z)
     return this.noiseSampler.eval(adapter.clone().multiplyScalar(NOISE_SCALE))
   }
 
@@ -224,14 +235,13 @@ export class ProcGenLayer extends GenLayer {
   }
 
   /**
-   * trigger other layer after threshold 
+   * trigger other layer after threshold
    */
   combinedWith(input: InputType, layer: GenLayer, threshold: number) {
-    const compositor = getCompositor(BlendMode.MUL)
-    const spread = this.config.spreading || 1;
+    const spread = this.config.spreading || 1
     const rawVal = this.rawEval(input)
-    let noiseVal = (rawVal - 0.5) * 2 ** spread + 0.5
-    let noiseOverThreshold = noiseVal - threshold
+    const noiseVal = (rawVal - 0.5) * 2 ** spread + 0.5
+    const noiseOverThreshold = noiseVal - threshold
     const baseVal = this.samplerProfile.apply(threshold)
     const targetVal = layer.eval(input)
     const initialVal = this.samplerProfile.apply(noiseVal - 0.01)
@@ -239,9 +249,10 @@ export class ProcGenLayer extends GenLayer {
     // modulates amplitude after threshold
     if (noiseOverThreshold > 0) {
       const blendWeight = 1 - 10 * noiseOverThreshold
-      const blendVal = blendWeight * baseVal + 10 * noiseOverThreshold * targetVal
-      // const blendVal = compositor(initialVal, targetVal, blendWeight)
-      finalVal = noiseOverThreshold < .1 ? blendVal : targetVal
+      const blendVal =
+        blendWeight * baseVal + 10 * noiseOverThreshold * targetVal
+      // const blendVal = getCompositor(BlendMode.MUL)(initialVal, targetVal, blendWeight)
+      finalVal = noiseOverThreshold < 0.1 ? blendVal : targetVal
     }
     return finalVal
   }
@@ -251,10 +262,10 @@ export class ProcGenLayer extends GenLayer {
    */
   modulatedBy(input: InputType, layer: GenLayer, threshold: number) {
     const compositor = getCompositor(BlendMode.MUL)
-    const spread = this.config.spreading || 1;
+    const spread = this.config.spreading || 1
     const rawVal = this.rawEval(input)
-    let noiseVal = (rawVal - 0.5) * 2 ** spread + 0.5
-    let modulatedNoise = noiseVal - threshold
+    const noiseVal = (rawVal - 0.5) * 2 ** spread + 0.5
+    const modulatedNoise = noiseVal - threshold
     const baseVal = this.samplerProfile.apply(threshold)
     const initialVal = this.samplerProfile.apply(noiseVal)
     let modulatedVal = initialVal - baseVal

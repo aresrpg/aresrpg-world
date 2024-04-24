@@ -5,7 +5,8 @@ export class ProcGenStatsReporting {
   // eslint-disable-next-line no-use-before-define
   static singleton: ProcGenStatsReporting
   static get instance() {
-    ProcGenStatsReporting.singleton = ProcGenStatsReporting.singleton || new ProcGenStatsReporting()
+    ProcGenStatsReporting.singleton =
+      ProcGenStatsReporting.singleton || new ProcGenStatsReporting()
     // put in global scope for access from dev console
     // window.aresrpg = {}
     // window.aresrpg.procgen = {}
@@ -28,7 +29,7 @@ export class ProcGenStatsReporting {
       5: 0,
       6: 0,
     },
-    worldGen: {
+    procgen: {
       time: 0,
       blocks: 0,
       iterations: 0,
@@ -56,8 +57,16 @@ export class ProcGenStatsReporting {
   }
 
   set worldGen(stats) {
-    this.stats.worldGen.time += stats.time || 0
-    this.stats.worldGen.blocks += stats.blocks || 0
-    this.stats.worldGen.iterations += stats.iterations || 0
+    this.stats.procgen.time += stats.time || 0
+    this.stats.procgen.blocks += stats.blocks || 0
+    this.stats.procgen.iterations += stats.iterations || 0
+  }
+
+  printGenStats(stats = this.stats.procgen) {
+    console.log(
+      `[stats:procgen] iter count: ${stats.iterations},
+      blocks count: ${stats.blocks}
+      elapsed time: ${stats.time} ms`,
+    )
   }
 }

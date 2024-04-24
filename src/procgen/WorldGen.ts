@@ -3,10 +3,15 @@ import { Vector2, Vector3, Box3 } from 'three'
 import { Block, BlockType, TerrainBlocksMapping } from '../common/types'
 import * as Utils from '../common/utils'
 import { LinkedList } from '../common/misc'
-
-import { BlendMode, GenLayer, getCompositor, ProcGenLayer } from './ProcGenLayer'
-import { SimplexNoiseSampler } from './NoiseSampler'
 import { ProcGenStatsReporting } from '../tools/StatsReporting'
+
+import {
+  BlendMode,
+  GenLayer,
+  getCompositor,
+  ProcGenLayer,
+} from './ProcGenLayer'
+import { SimplexNoiseSampler } from './NoiseSampler'
 
 export class WorldGenerator {
   // eslint-disable-next-line no-use-before-define
@@ -17,10 +22,11 @@ export class WorldGenerator {
   // externally provided
   terrainBlocksMapping!: LinkedList<TerrainBlocksMapping>
   procLayers!: GenLayer // 3 layers: continental, erosion, peaks => C, E, PV
-  biomaps!: GenLayer    // 2 layers: heatmap, rainfall => T°/H°
+  biomaps!: GenLayer // 2 layers: heatmap, rainfall => T°/H°
   layerSelection!: string
   paintingRandomness = new SimplexNoiseSampler('paintingSeed')
   seaLevel = 50
+  needsRegen = false
 
   constructor() {
     // this.paintingRandomness.noiseParams.harmonics.period = 256
@@ -81,7 +87,8 @@ export class WorldGenerator {
   }
 
   onChange(originator: any) {
-    console.log(`[WorldGen:onChange] from ${originator}`)
+    // console.debug(`[WorldGen:onChange] from ${originator}`)
+    WorldGenerator.instance.needsRegen = true
     this.parent?.onChange('WorldGen:' + originator)
   }
 
@@ -97,14 +104,18 @@ export class WorldGenerator {
    */
   getRawHeight(pos: Vector3) {
     const noiseThreshold = 0.5
-    const continentalnessLayer = GenLayer.getLayerAtIndex(this.procLayers, 0);
+    const continentalnessLayer = GenLayer.getLayerAtIndex(this.procLayers, 0)
     const compositor = getCompositor(BlendMode.MUL)
-    const spread = (continentalnessLayer as ProcGenLayer).config.spreading;
+    const spread = (continentalnessLayer as ProcGenLayer).config.spreading
     const continentalness = this.getContinentalness(pos)
-    let noiseVal = (continentalness - 0.5) * 2 ** spread + 0.5
-    let modulatedNoise = noiseVal - noiseThreshold
-    const base = (continentalnessLayer as ProcGenLayer).samplerProfile.apply(noiseThreshold)
-    const original = (continentalnessLayer as ProcGenLayer).samplerProfile.apply(noiseVal)
+    const noiseVal = (continentalness - 0.5) * 2 ** spread + 0.5
+    const modulatedNoise = noiseVal - noiseThreshold
+    const base = (continentalnessLayer as ProcGenLayer).samplerProfile.apply(
+      noiseThreshold,
+    )
+    const original = (
+      continentalnessLayer as ProcGenLayer
+    ).samplerProfile.apply(noiseVal)
     let modulated = original - base
     // modulates amplitude after threshold
     if (modulatedNoise > 0) {
@@ -132,7 +143,9 @@ export class WorldGenerator {
 
   getTemperature(pos: Vector3) {
     const scaledNoisePos = pos.multiplyScalar(this.samplingScale)
-    const val = GenLayer.getLayer(this.biomaps, 'temperature').eval(scaledNoisePos)
+    const val = GenLayer.getLayer(this.biomaps, 'temperature').eval(
+      scaledNoisePos,
+    )
     return val * 100 - 50
   }
 
@@ -153,7 +166,7 @@ export class WorldGenerator {
   }
 
   /**
-   * Higher density noise to make rougher terrain with quick variation 
+   * Higher density noise to make rougher terrain with quick variation
    * depending on erosion modulation can produce
    * - mountains, peaks
    * - highlands
@@ -165,7 +178,7 @@ export class WorldGenerator {
 
   /**
    * Modulates terrain amplitude for:
-   * - continentalness only after prairies 
+   * - continentalness only after prairies
    * - peaks only for higher errosion
    * low erosion : high amplitude
    * high erosion: low amplitude
@@ -256,14 +269,11 @@ export class WorldGenerator {
 
   /**
    * Heightmap patch mode
-   * @param bbox 
+   * @param bbox
    */
-  *generatePatch(bbox: Box3): Generator<Block, void, unknown> {
-    // patch stats
-    const stats = {
-
-    }
-  }
+  // *generatePatch(bbox: Box3): Generator<Block, void, unknown> {
+  //   //TODO
+  // }
 
   /**
    * Chunk mode
@@ -272,18 +282,14 @@ export class WorldGenerator {
    * @param pruning optional hidden blocks pruning
    */
   *generateChunk(bbox: Box3, pruning = false): Generator<Block, void, unknown> {
+    // Gen stats
     let iterCount = 0
     let blocksCount = 0
-    // chunk stats
-    const stats = {
-      iterations: 0,
-      blocksCount: 0,
-      blocksLevel: {
-        avg: 0,
-        min: 0,
-        max: 0
-      }
-    }
+    // const blocksLevels = {
+    //   avg: 0,
+    //   min: 0,
+    //   max: 0
+    // }
     const startTime = Date.now()
     const { seaLevel } = this
     // sampling volume
@@ -317,17 +323,13 @@ export class WorldGenerator {
       }
     }
     const elapsedTime = Date.now() - startTime
-    // console.log(
-    //   `[WorldGenerator::fill] iter count: ${iterCount},
-    //   blocks count: ${blocksCount}
-    //   chunk min/max: ${voxelMinMax.min.y}, ${voxelMinMax.max.y}
-    //   elapsed time: ${elapsedTime} ms`
-    // )
-    ProcGenStatsReporting.instance.worldGen = {
+    const genStats = {
       time: elapsedTime,
       blocks: blocksCount,
       iterations: iterCount,
     }
+    ProcGenStatsReporting.instance.worldGen = genStats
+    // ProcGenStatsReporting.instance.printGenStats(genStats)
   }
 
   /**
