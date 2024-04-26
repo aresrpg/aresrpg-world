@@ -3,6 +3,7 @@ import { Vector2, Vector3 } from 'three'
 import alea from 'alea'
 
 import { sanitiseNoise } from '../common/utils'
+import { ProcLayerExtCfg } from '../common/types'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
@@ -27,12 +28,13 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
   harmonicsAmplitudeSum: number = 0
   noiseSource: any
   params = {
-    periodicity: 64,
+    seed: '',
+    periodicity: 6, // 64 by default
     harmonics: {
       // period: 64,
       count: 1,
       spread: 2,
-      gain: 1,
+      gain: 0.5,
     },
   }
 
@@ -40,10 +42,27 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
   stats = {}
   parent: any
 
-  constructor(seed: string = '') {
+  constructor(seed = '') {
+    this.params.seed = seed
+    this.init()
+  }
+
+  init() {
     // create a new random function based on the seed
-    const prng = alea(seed)
+    const prng = alea(this.seed)
     this.noiseSource = createNoise2D(prng)
+    const { harmonics } = this.params
+    const periodicity = Math.pow(2, this.params.periodicity)
+    this.harmonics = Array.from(new Array(harmonics.count)).map((_v, i) => {
+      // this.stats['h' + i] = { min: 1, max: 0 }
+      const period = periodicity / Math.pow(harmonics.spread, i)
+      const amplitude = Math.pow(harmonics.gain, i)
+      return { period, amplitude }
+    })
+    this.harmonicsAmplitudeSum = this.harmonics.reduce(
+      (sum, harm) => sum + harm.amplitude,
+      0,
+    )
   }
 
   get harmonicsCount() {
@@ -82,6 +101,47 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
     this.onChange('periodicity')
   }
 
+  get seed() {
+    return this.params.seed
+  }
+
+  set seed(seed) {
+    this.params.seed = seed
+    this.onChange('seed')
+  }
+
+  onChange(originator: any) {
+    console.debug(`[Sampler:onChange] from ${originator}`)
+    this.init()
+    this.parent?.onChange(`Sampler:${originator}`)
+  }
+
+  importConf(extConf: ProcLayerExtCfg) {
+    let periodicity = extConf.periodicity || 0
+    if (!periodicity && extConf.period) {
+      while (Math.pow(2, ++periodicity) <= extConf.period);
+      periodicity--
+    }
+    this.params.periodicity = periodicity
+    this.params.harmonics.count = extConf.harmonics + 1
+    this.params.harmonics.gain = extConf.harmonic_gain
+    this.params.harmonics.spread = extConf.harmonic_spread
+    this.params.seed = extConf.seed || ''
+    this.init()
+  }
+
+  exportConf() {
+    const samplerConf = {
+      periodicity: this.periodicity,
+      period: Math.pow(2, this.periodicity),
+      harmonics: this.harmonicsCount - 1,
+      harmonic_gain: this.harmonicGain,
+      harmonic_spread: this.harmonicSpread,
+      seed: this.seed
+    }
+    return samplerConf
+  }
+
   // get density() {
   //   return this.params.density
   // }
@@ -102,26 +162,11 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
   //   // this.onChange('scattering')
   // }
 
-  onChange(originator: any) {
-    console.debug(`[Sampler:onChange] from ${originator}`)
-    const { harmonics } = this.params
-    const periodicity = Math.pow(2, this.params.periodicity)
-    this.harmonics = Array.from(new Array(harmonics.count)).map((_v, i) => {
-      // this.stats['h' + i] = { min: 1, max: 0 }
-      const period = periodicity / Math.pow(harmonics.spread, i)
-      const amplitude = Math.pow(harmonics.gain, i)
-      return { period, amplitude }
-    })
-    this.harmonicsAmplitudeSum = this.harmonics.reduce(
-      (sum, harm) => sum + harm.amplitude,
-      0,
-    )
-    this.parent?.onChange(`Sampler:${originator}`)
-  }
+
 
   eval(input: InputType): number {
     const { x, y } = input
-    const density = Math.pow(2, 6)
+    const density = Math.pow(2, 6)  // TODO remove hardcoding
     let noiseEval
     let noise = 0
     this.harmonics

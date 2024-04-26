@@ -5,169 +5,118 @@ import * as Utils from '../common/utils'
 import { LinkedList } from '../common/misc'
 import { ProcGenStatsReporting } from '../tools/StatsReporting'
 
-import { GenLayer } from './ProcGenLayer'
-import { SimplexNoiseSampler } from './NoiseSampler'
+import { EvalMode, ProcGenLayer } from './ProcGenLayer'
+
+export enum MapType {
+  Default = "default",
+  Heightmap = "heightmap",
+  Amplitude = "amplitude",
+  Heatmap = "heatmap",
+  Rainfall = "rainfall",
+  Treemap = "treemap",
+  PaintRandomness = "paintrandom"
+}
+
+/**
+ * # Generation modes
+ * 
+ * - genHeightmapChunk: voxels heightmap for terrain
+ * - genVolumetricChunk: volumetric voxels for caverns 
+ * - genPatch: regular heightmap
+ * 
+ * # Procedural layers
+ * 
+ * ## Terrain maps
+ *  - Heighmap: terrain elevation with threshold for ocean, beach, riff, prairies, ..
+ *  Specifies overall terrain shape and how far inland.
+ * - Amplitude modulation (or erosion)
+ * modulating terrain amplitude, to produce variants like hilly prairies, ..
+ * - ?: higher density noise to make rougher terrain with quick variation (TODO)
+ * 
+ * ## Biome maps
+ * - Rainfall
+ * - Heatmap
+ * - Treemap
+ *  
+ */
 
 export class WorldGenerator {
   // eslint-disable-next-line no-use-before-define
   static singleton: WorldGenerator
   parent: any
-  samplingScale: number = 1 / 8 // 8 blocks per unit of noise
-  heightScale: number = 1
-  // externally provided
-  terrainBlocksMapping!: LinkedList<TerrainBlocksMapping>
-  procLayers!: GenLayer // 3 layers: continental, erosion, peaks => C, E, PV
-  biomaps!: GenLayer // 2 layers: heatmap, rainfall => T°/H°
-  layerSelection!: string
-  paintingRandomness = new SimplexNoiseSampler('paintingSeed')
-  seaLevel = 50
   needsRegen = false
-
-  constructor() {
-    // this.paintingRandomness.noiseParams.harmonics.period = 256
-    this.paintingRandomness.params.harmonics.count = 1
-    this.paintingRandomness.onChange(this)
+  params = {
+    heightScale: 1,
+    samplingScale: 1 / 8, // default: 8 blocks per unit of noise
+    seaLevel: 50,
+    mode: EvalMode.Default
   }
+  selectedLayer = MapType.Default // used for individual layer preview
+  // externally provided maps
+  procLayers!: ProcGenLayer[] // all proc layers
+  terrainLayers!: LinkedList<ProcGenLayer> // terrain: elevation, amplitude
+  blocksMap!: LinkedList<TerrainBlocksMapping>  // terrain types: water, sand, grass, mud, rock, snow, ..
 
   static get instance() {
     WorldGenerator.singleton = WorldGenerator.singleton || new WorldGenerator()
     return WorldGenerator.singleton
   }
 
-  get config() {
-    return {
-      selection: this.layerSelection,
-      heightScale: this.heightScale,
-      samplingScale: this.samplingScale,
-      seaLevel: this.seaLevel,
-    }
+  findProcLayer(layerName: string) {
+    return this.procLayers.find(layer => layer.name === layerName)
   }
 
-  set config(config: any) {
-    this.layerSelection = config.selection || this.layerSelection
-    this.heightScale = !isNaN(config.heightScale)
-      ? config.heightScale
-      : this.heightScale
-    this.samplingScale = !isNaN(config.samplingScale)
-      ? config.samplingScale
-      : this.samplingScale
-    this.seaLevel = !isNaN(config.seaLevel) ? config.seaLevel : this.seaLevel
-    this.procLayers = config.procLayers || this.procLayers
-
-    let lay: GenLayer | undefined = this.procLayers
-    while (lay) {
-      // adjust height range to 255
-      // (lay as ProcGenLayer).samplerProfile.multiplier = 255
-      lay.parent = this
-      lay = lay.next
-    }
-    this.biomaps = config.biomaps || this.biomaps
-    // adjust temp range from 0 to 100%
-    // (GenLayer.getLayer(this.biomaps, `temperature`) as ProcGenLayer).samplerProfile.multiplier = 255
-    // adjust humidity range from 0 to 100%
-    // (GenLayer.getLayer(this.biomaps, `temperature`) as ProcGenLayer).samplerProfile.multiplier = 100
-    const {
-      terrainBlocksMapping,
-    }: { terrainBlocksMapping: TerrainBlocksMapping[] } = config
-    if (terrainBlocksMapping) {
-      this.terrainBlocksMapping = LinkedList.fromArray<TerrainBlocksMapping>(
-        terrainBlocksMapping,
-        (a, b) => a.threshold - b.threshold,
-      )
-    }
-    // Object.preventExtensions(this.conf)
-    // Object.assign(this.conf, config)
-    // const { procgen, proclayers } = config
-    this.parent?.onChange(this)
+  initProcLayers(procLayers: ProcGenLayer[]) {
+    procLayers.forEach(layer => {
+      layer.parent = this
+    })
+    this.procLayers = procLayers
   }
 
-  onChange(originator: any) {
-    // console.debug(`[WorldGen:onChange] from ${originator}`)
-    WorldGenerator.instance.needsRegen = true
-    this.parent?.onChange('WorldGen:' + originator)
+  initBlocksMap(blocksMapping: TerrainBlocksMapping[]) {
+    this.blocksMap = LinkedList.fromArraWithSorting<TerrainBlocksMapping>(
+      blocksMapping,
+      (a, b) => a.threshold - b.threshold,
+    )
   }
 
   /**
    * 3D noise density for caverns
+   * Determine block's existence based on density value evaluated at block position
+   * @param position block position where density is evaluated
    */
-  getDensity() {
+  getVolumetricDensity() {
     throw new Error('Method not implemented.')
   }
 
   /**
-   * 2D noise for heightmap
+   * EvalMode:
+   * - raw: noise value
+   * - profile: value after applying profile to map noise
+   * - profile_low: 
+   * - profile_up:
    */
-  getRawHeight(pos: Vector3) {
-    const noiseScalePos = pos.multiplyScalar(this.samplingScale)
-    const val =
-      WorldGenerator.instance.layerSelection === 'all'
-        ? // procLayers.combinedEval(samplerCoords) :
-          this.procLayers.combinedWith(
-            noiseScalePos,
-            this.procLayers.next || this.procLayers,
-            0.7,
-          )
-        : // procLayers.modulatedBy(samplerCoords, procLayers.next, 0.7) :
-          GenLayer.getLayer(
-            this.procLayers,
-            WorldGenerator.instance.layerSelection,
-          ).eval(noiseScalePos)
-    return val * 255
-  }
-
-  /**
-   * Overall height (ground + water)
-   */
-  getHeight(pos: Vector3) {
-    const rawHeight = this.getRawHeight(pos)
-    return Math.max(rawHeight, this.seaLevel)
+  getHeight(pos: Vector3, evalMode: EvalMode = this.evalMode) {
+    const { samplingScale } = this.params
+    const mapCoords = pos.clone().multiplyScalar(samplingScale)
+    const currentLayer = this.findProcLayer(this.selectedMap === MapType.Default ? MapType.Heightmap : this.selectedMap)
+    const amplitudeLayer = (this.findProcLayer(MapType.Amplitude) as ProcGenLayer)
+    const rawVal = this.selectedMap === MapType.Default ? currentLayer?.modulatedBy(mapCoords, amplitudeLayer, 0.318) :
+      currentLayer?.eval(mapCoords, evalMode)
+    return rawVal ? rawVal * 255 : 0
   }
 
   getTemperature(pos: Vector3) {
-    const scaledNoisePos = pos.multiplyScalar(this.samplingScale)
-    const val = GenLayer.getLayer(this.biomaps, 'temperature').eval(
-      scaledNoisePos,
-    )
-    return val * 100 - 50
+    const scaledNoisePos = pos.clone().multiplyScalar(this.params.samplingScale)
+    const heatmap = this.findProcLayer(MapType.Heatmap)
+    const val = heatmap?.eval(scaledNoisePos)
+    return val ? val * 100 - 50 : NaN
   }
 
   getHumidity(pos: Vector3) {
-    const scaledNoisePos = pos.multiplyScalar(this.samplingScale)
-    const val = GenLayer.getLayer(this.biomaps, 'humidity').eval(scaledNoisePos)
-    return val
-  }
-
-  /**
-   * How far inland + terrain shape for: ocean, beach, riff, prairies
-   * depending on erosion modulation can produce hilly prairies variant
-   * The higher values are placeholder for Peaks&Valleys
-   */
-  getContinentalness = (pos: Vector3) => {
-    const scaledPos = pos.clone().multiplyScalar(this.samplingScale)
-    return GenLayer.getLayerAtIndex(this.procLayers, 0).rawEval(scaledPos)
-  }
-
-  /**
-   * Higher density noise to make rougher terrain with quick variation
-   * depending on erosion modulation can produce
-   * - mountains, peaks
-   * - highlands
-   */
-  getPeaksValleys = (pos: Vector3) => {
-    const scaledPos = pos.clone().multiplyScalar(this.samplingScale)
-    return GenLayer.getLayerAtIndex(this.procLayers, 2).rawEval(scaledPos)
-  }
-
-  /**
-   * Modulates terrain amplitude for:
-   * - continentalness only after prairies
-   * - peaks only for higher errosion
-   * low erosion : high amplitude
-   * high erosion: low amplitude
-   */
-  getErosion = (pos: Vector3) => {
-    const scaledPos = pos.clone().multiplyScalar(this.samplingScale)
-    return GenLayer.getLayerAtIndex(this.procLayers, 1).rawEval(scaledPos)
+    const scaledNoisePos = pos.clone().multiplyScalar(this.params.samplingScale)
+    const rainfallmap = this.findProcLayer(MapType.Rainfall)
+    return rainfallmap?.eval(scaledNoisePos) || NaN
   }
 
   /**
@@ -186,11 +135,12 @@ export class WorldGenerator {
   }
 
   getBlockType = (block: Vector3) => {
+    const paintingRandomness = this.findProcLayer(MapType.PaintRandomness)
     const { x, y, z } = block
     const period = 0.005 * Math.pow(2, 2)
     const baseHeight = y
-    let current = this.terrainBlocksMapping
-    let previous = this.terrainBlocksMapping
+    let current = this.blocksMap
+    let previous = this.blocksMap
     while (current.next && baseHeight > current.next.data.threshold) {
       previous = current
       current = current.next
@@ -205,13 +155,15 @@ export class WorldGenerator {
     // nominal type
     let { blockType } = current.data
     // randomize on lower side
-    if (
+    if (!paintingRandomness) {
+      return blockType
+    } else if (
       baseHeight - bounds.lower <= bounds.upper - baseHeight &&
       baseHeight - randomness.low < bounds.lower
     ) {
       const groundPos = new Vector2(x, z).multiplyScalar(period)
       const heightVariation =
-        this.paintingRandomness.eval(groundPos) * randomness.low
+        paintingRandomness.eval(groundPos) * randomness.low
       const varyingHeight = baseHeight - heightVariation
       blockType =
         varyingHeight < current.data.threshold
@@ -225,7 +177,7 @@ export class WorldGenerator {
       //   Utils.clamp(this.paintingRandomness.eval(groundPos), 0.5, 1) * randomness.high
       // heightVariation = heightVariation > 0 ? (heightVariation - 0.5) * 2 : 0
       const heightVariation =
-        this.paintingRandomness.eval(groundPos) * randomness.high
+        paintingRandomness.eval(groundPos) * randomness.high
       const varyingHeight = baseHeight + heightVariation
       blockType =
         varyingHeight > next.data.threshold
@@ -237,33 +189,11 @@ export class WorldGenerator {
   }
 
   /**
-   * Determine block's existence based on density value evaluated at block position
-   * @param position block position where density is evaluated
-   * @returns existing block or null if empty
+   * Voxels on-the-fly generation for terrain
+   * @param bbox 
+   * @param pruning optionaly prune hidden voxels
    */
-  getBlock(pos: Vector3): BlockType {
-    // eval density at block position
-    const density = this.getHeight(pos) // TODO replace by real density val
-    // determine if block is empty or not based on density val being above or below threshold
-    const blockExists = pos.y <= density
-    return blockExists ? this.getBlockType(pos) : BlockType.NONE
-  }
-
-  /**
-   * Heightmap patch mode
-   * @param bbox
-   */
-  // *generatePatch(bbox: Box3): Generator<Block, void, unknown> {
-  //   //TODO
-  // }
-
-  /**
-   * Chunk mode
-   * on-the-fly generation suitable for voxels volume rendering
-   * @param bbox
-   * @param pruning optional hidden blocks pruning
-   */
-  *generateChunk(bbox: Box3, pruning = false): Generator<Block, void, unknown> {
+  *genHeightmapChunk(bbox: Box3, includeSea = false, pruning = false): Generator<Block, void, unknown> {
     // Gen stats
     let iterCount = 0
     let blocksCount = 0
@@ -273,23 +203,22 @@ export class WorldGenerator {
     //   max: 0
     // }
     const startTime = Date.now()
-    const { seaLevel } = this
+    const { seaLevel } = this.params
+
     // sampling volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
         // starting from the top of voxels' column
-        let y = bbox.max.y - 1
+        const blockPos = new Vector3(x, bbox.max.y - 1, z)
         // optim for heightmap only: stop at first hidden block encountered
         let hidden = false
-        const groundLevel = this.getHeight(new Vector3(x, y, z))
-        // for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
-        while (!hidden && y >= bbox.min.y) {
-          const blockPos = new Vector3(x, y, z)
-          const blockType =
-            blockPos.y < Math.max(groundLevel, seaLevel)
-              ? this.getBlockType(blockPos)
-              : BlockType.NONE
-          const block: Block = { pos: blockPos, type: blockType }
+        const groundLevel = this.getHeight(blockPos)
+        let height = includeSea ? Math.max(groundLevel, seaLevel) : groundLevel
+        while (!hidden && blockPos.y >= bbox.min.y) {
+          const blockType = blockPos.y < height ?
+            this.getBlockType(blockPos) :
+            BlockType.NONE
+          const block: Block = { pos: blockPos.clone(), type: blockType }
           hidden =
             pruning &&
             block.type !== BlockType.NONE &&
@@ -300,7 +229,7 @@ export class WorldGenerator {
             blocksCount++
           }
           iterCount++
-          y--
+          blockPos.y--
         }
       }
     }
@@ -315,11 +244,50 @@ export class WorldGenerator {
   }
 
   /**
+   * Voxels volume on-the-fly generation for caverns
+   * @param bbox
+   * @param pruning optionaly prune hidden voxels
+   */
+  // *genVolumetricChunk(bbox: Box3, pruning = false): Generator<Block, void, unknown> {
+  // }
+
+  /**
+  * Regular heightmap patch
+  * @param bbox
+  */
+  // *genPatch(bbox: Box3): Generator<Block, void, unknown> {
+  // }
+
+  get selectedMap() {
+    return this.selectedLayer
+  }
+
+  set selectedMap(mapType: MapType) {
+    this.selectedLayer = mapType
+    this.onChange(`selectedLayer`)
+  }
+
+  get evalMode() {
+    return this.params.mode
+  }
+
+  set evalMode(evalMode) {
+    this.params.mode = evalMode
+    this.onChange(`evalMode`)
+  }
+
+  /**
    * @param bbox
    * @returns
    */
   estimatedVoxelsCount(bbox: Box3): number {
     const range = bbox.getSize(new Vector3())
     return range.x * range.z * 2
+  }
+
+  onChange(originator: any) {
+    // console.debug(`[WorldGen:onChange] from ${originator}`)
+    WorldGenerator.instance.needsRegen = true
+    this.parent?.onChange('WorldGen:' + originator)
   }
 }

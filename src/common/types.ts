@@ -1,4 +1,5 @@
 import { Vector3 } from 'three'
+import { CurveRawParams } from '../procgen/HeightProfiler'
 
 export enum BlockType {
   NONE,
@@ -54,6 +55,22 @@ export enum BlockNeighbour {
   xPyPzM,
   xPyPz0,
   xPyPzP,
+}
+
+/**
+ * External procedural layer conf format
+ */
+export type ProcLayerExtCfg = {
+  seed: string;
+  spline: CurveRawParams[];
+  blend_weight: any;
+  blend_mode: any;
+  spread: number;
+  period?: number;
+  periodicity?: number;
+  harmonics: number;
+  harmonic_gain: number;
+  harmonic_spread: number
 }
 
 // export enum TerrainType {

@@ -3,7 +3,7 @@ import { Vector2 } from 'three'
 import * as Utils from '../common/utils'
 import { LinkedList } from '../common/misc'
 
-type CurveRawParams = {
+export type CurveRawParams = {
   x: number
   y: number
 }
@@ -60,12 +60,16 @@ class HeightProfiler {
     return noiseToHeight(inputVal, this.getCurveSegment(inputVal))
   }
 
+  getLower(inputVal: number) {
+    return this.getCurveSegment(inputVal).data.ord
+  }
+
   static fromArray(
     rawParams: CurveRawParams[],
     onChange?: any,
   ): HeightProfiler {
     const curveParams = rawParams.map(param => new CurveParams(param, onChange))
-    const linkedCurveParams = LinkedList.fromArray<CurveParams>(
+    const linkedCurveParams = LinkedList.fromArraWithSorting<CurveParams>(
       curveParams,
       (a, b) => a.absc - b.absc,
     )
@@ -114,27 +118,89 @@ const noiseToHeight = (
 /**
  *  Curve parameters presets
  */
-// const DefaultProfiles: any = {
-//   identity: [
-//     {
-//       x: 0,
-//       y: 0,
-//     },
-//     {
-//       x: 1,
-//       y: 1,
-//     },
-//   ],
-//   regular: [
-//     {
-//       x: 0,
-//       y: 0,
-//     },
-//     {
-//       x: 1,
-//       y: 255,
-//     },
-//   ]
-// }
+
+export const CurvePresets: any = {
+  identity: [
+    {
+      x: 0,
+      y: 0,
+    },
+    {
+      x: 1,
+      y: 1,
+    },
+  ],
+  regular: [
+    {
+      x: 0,
+      y: 0,
+    },
+    {
+      x: 1,
+      y: 255,
+    },
+  ],
+  step2: (x1 = 0.33, x2 = 0.66) => ([
+    {
+      "x": 0,
+      "y": 0
+    },
+    {
+      "x": x1,
+      "y": 0
+    },
+    {
+      "x": x1,
+      "y": 0.5
+    },
+    {
+      "x": x2,
+      "y": 0.5
+    },
+    {
+      "x": x2,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 1
+    },
+  ]),
+  step3: [
+    {
+      "x": 0,
+      "y": 0
+    },
+
+    {
+      "x": 0.25,
+      "y": 0
+    },
+    {
+      "x": 0.25,
+      "y": 0.33
+    },
+    {
+      "x": 0.5,
+      "y": 0.33
+    },
+    {
+      "x": 0.5,
+      "y": 0.66
+    },
+    {
+      "x": 0.75,
+      "y": 0.66
+    },
+    {
+      "x": 0.75,
+      "y": 1
+    },
+    {
+      "x": 1,
+      "y": 1
+    },
+  ]
+}
 
 export { HeightProfiler }
