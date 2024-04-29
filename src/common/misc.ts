@@ -7,9 +7,7 @@ export class LinkedList<T> {
   // eslint-disable-next-line no-use-before-define
   next: LinkedList<T> | undefined
 
-  static fromArray<U>(
-    itemsData: U[]
-  ): LinkedList<U> {
+  static fromArray<U>(itemsData: U[]): LinkedList<U> {
     const items = itemsData.map(data => new LinkedList<U>(data))
     // link items together
     items.reduce((prev, curr) => {

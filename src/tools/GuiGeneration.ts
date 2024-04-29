@@ -13,7 +13,9 @@ export const ProcGenGuiGenerator = (parentGui: GUI) => {
   console.log(`[ProcGenGuiGenerator] `)
   const worldGen = WorldGenerator.instance
   const { procLayers } = worldGen
-  const selectOptions: any = procLayers.map((layer, i: number) => layer.name || `unknown#${i}`)
+  const selectOptions: any = procLayers.map(
+    (layer, i: number) => layer.name || `unknown#${i}`,
+  )
   selectOptions.push(MapType.Default)
   // worldGen.selectedLayer = MapType.Default
   const evalModes: EvalMode[] = [EvalMode.Default, EvalMode.Raw]
@@ -23,7 +25,8 @@ export const ProcGenGuiGenerator = (parentGui: GUI) => {
       parentGui.removeFolder(folder),
     )
     const selectedLayer =
-      selection !== MapType.Default && procLayers.find(layer => layer.name === selection)
+      selection !== MapType.Default &&
+      procLayers.find(layer => layer.name === selection)
     // fill layer conf
     if (selectedLayer) {
       ProcLayerGui(parentGui, selectedLayer)
@@ -34,7 +37,7 @@ export const ProcGenGuiGenerator = (parentGui: GUI) => {
     .onChange((selection: string) => onLayerSwitch(selection))
   parentGui
     .add(worldGen, 'evalMode', evalModes)
-    .onChange((evalMode: string) => worldGen.evalMode = (evalMode as EvalMode))
+    .onChange((evalMode: string) => (worldGen.evalMode = evalMode as EvalMode))
   onLayerSwitch(selectOptions?.[0] || '')
 }
 
@@ -49,11 +52,14 @@ const ProcLayerGui = (parentGui: GUI, layer: ProcGenLayer) => {
     // const shapeProfile = parentGui.addFolder(`Layer ${i}`);
     // const layerCopy = layer // need to make copy to avoid context loss
     NoiseParametrization(parentGui, layer.noiseSampler)
-    ProfileSettings(parentGui, layer.samplerProfile);
+    ProfileSettings(parentGui, layer.samplerProfile)
   }
 }
 
-const NoiseParametrization = (parentGui: GUI, noiseSampler: SimplexNoiseSampler) => {
+const NoiseParametrization = (
+  parentGui: GUI,
+  noiseSampler: SimplexNoiseSampler,
+) => {
   const noiseSettings = parentGui.addFolder('noise')
   noiseSettings
     .add(noiseSampler, 'periodicity', 5, 10, 1)
@@ -61,9 +67,7 @@ const NoiseParametrization = (parentGui: GUI, noiseSampler: SimplexNoiseSampler)
   noiseSettings
     .add(noiseSampler, 'harmonicsCount', 0, 10, 1)
     .name('count')
-    .onChange(
-      (count: number) => (noiseSampler.harmonicsCount = count),
-    )
+    .onChange((count: number) => (noiseSampler.harmonicsCount = count))
   noiseSettings
     .add(noiseSampler, 'harmonicGain', 0, 2, 0.1)
     .name('gain')
@@ -71,9 +75,7 @@ const NoiseParametrization = (parentGui: GUI, noiseSampler: SimplexNoiseSampler)
   noiseSettings
     .add(noiseSampler, 'harmonicSpread', 0, 4, 0.1)
     .name('spread')
-    .onChange(
-      (spread: number) => (noiseSampler.harmonicSpread = spread),
-    )
+    .onChange((spread: number) => (noiseSampler.harmonicSpread = spread))
 }
 
 const ProfileSettings = (parentGui: GUI, profile: HeightProfiler) => {

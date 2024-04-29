@@ -137,7 +137,7 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
       harmonics: this.harmonicsCount - 1,
       harmonic_gain: this.harmonicGain,
       harmonic_spread: this.harmonicSpread,
-      seed: this.seed
+      seed: this.seed,
     }
     return samplerConf
   }
@@ -162,11 +162,9 @@ export class SimplexNoiseSampler implements Sampler<InputType> {
   //   // this.onChange('scattering')
   // }
 
-
-
   eval(input: InputType): number {
     const { x, y } = input
-    const density = Math.pow(2, 6)  // TODO remove hardcoding
+    const density = Math.pow(2, 6) // TODO remove hardcoding
     let noiseEval
     let noise = 0
     this.harmonics

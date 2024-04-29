@@ -8,36 +8,36 @@ import { ProcGenStatsReporting } from '../tools/StatsReporting'
 import { EvalMode, ProcGenLayer } from './ProcGenLayer'
 
 export enum MapType {
-  Default = "default",
-  Heightmap = "heightmap",
-  Amplitude = "amplitude",
-  Heatmap = "heatmap",
-  Rainfall = "rainfall",
-  Treemap = "treemap",
-  PaintRandomness = "paintrandom"
+  Default = 'default',
+  Heightmap = 'heightmap',
+  Amplitude = 'amplitude',
+  Heatmap = 'heatmap',
+  Rainfall = 'rainfall',
+  Treemap = 'treemap',
+  PaintRandomness = 'paintrandom',
 }
 
 /**
  * # Generation modes
- * 
+ *
  * - genHeightmapChunk: voxels heightmap for terrain
- * - genVolumetricChunk: volumetric voxels for caverns 
+ * - genVolumetricChunk: volumetric voxels for caverns
  * - genPatch: regular heightmap
- * 
+ *
  * # Procedural layers
- * 
+ *
  * ## Terrain maps
  *  - Heighmap: terrain elevation with threshold for ocean, beach, riff, prairies, ..
  *  Specifies overall terrain shape and how far inland.
  * - Amplitude modulation (or erosion)
  * modulating terrain amplitude, to produce variants like hilly prairies, ..
  * - ?: higher density noise to make rougher terrain with quick variation (TODO)
- * 
+ *
  * ## Biome maps
  * - Rainfall
  * - Heatmap
  * - Treemap
- *  
+ *
  */
 
 export class WorldGenerator {
@@ -49,13 +49,14 @@ export class WorldGenerator {
     heightScale: 1,
     samplingScale: 1 / 8, // default: 8 blocks per unit of noise
     seaLevel: 50,
-    mode: EvalMode.Default
+    mode: EvalMode.Default,
   }
+
   selectedLayer = MapType.Default // used for individual layer preview
   // externally provided maps
   procLayers!: ProcGenLayer[] // all proc layers
   terrainLayers!: LinkedList<ProcGenLayer> // terrain: elevation, amplitude
-  blocksMap!: LinkedList<TerrainBlocksMapping>  // terrain types: water, sand, grass, mud, rock, snow, ..
+  blocksMap!: LinkedList<TerrainBlocksMapping> // terrain types: water, sand, grass, mud, rock, snow, ..
 
   static get instance() {
     WorldGenerator.singleton = WorldGenerator.singleton || new WorldGenerator()
@@ -93,16 +94,22 @@ export class WorldGenerator {
    * EvalMode:
    * - raw: noise value
    * - profile: value after applying profile to map noise
-   * - profile_low: 
+   * - profile_low:
    * - profile_up:
    */
   getHeight(pos: Vector3, evalMode: EvalMode = this.evalMode) {
     const { samplingScale } = this.params
     const mapCoords = pos.clone().multiplyScalar(samplingScale)
-    const currentLayer = this.findProcLayer(this.selectedMap === MapType.Default ? MapType.Heightmap : this.selectedMap)
-    const amplitudeLayer = (this.findProcLayer(MapType.Amplitude) as ProcGenLayer)
-    const rawVal = this.selectedMap === MapType.Default ? currentLayer?.modulatedBy(mapCoords, amplitudeLayer, 0.318) :
-      currentLayer?.eval(mapCoords, evalMode)
+    const currentLayer = this.findProcLayer(
+      this.selectedMap === MapType.Default
+        ? MapType.Heightmap
+        : this.selectedMap,
+    )
+    const amplitudeLayer = this.findProcLayer(MapType.Amplitude) as ProcGenLayer
+    const rawVal =
+      this.selectedMap === MapType.Default
+        ? currentLayer?.modulatedBy(mapCoords, amplitudeLayer, 0.318)
+        : currentLayer?.eval(mapCoords, evalMode)
     return rawVal ? rawVal * 255 : 0
   }
 
@@ -186,14 +193,18 @@ export class WorldGenerator {
     }
 
     return blockType
-  }
+  };
 
   /**
    * Voxels on-the-fly generation for terrain
-   * @param bbox 
+   * @param bbox
    * @param pruning optionaly prune hidden voxels
    */
-  *genHeightmapChunk(bbox: Box3, includeSea = false, pruning = false): Generator<Block, void, unknown> {
+  *genHeightmapChunk(
+    bbox: Box3,
+    includeSea = false,
+    pruning = false,
+  ): Generator<Block, void, unknown> {
     // Gen stats
     let iterCount = 0
     let blocksCount = 0
@@ -213,11 +224,12 @@ export class WorldGenerator {
         // optim for heightmap only: stop at first hidden block encountered
         let hidden = false
         const groundLevel = this.getHeight(blockPos)
-        let height = includeSea ? Math.max(groundLevel, seaLevel) : groundLevel
+        const height = includeSea
+          ? Math.max(groundLevel, seaLevel)
+          : groundLevel
         while (!hidden && blockPos.y >= bbox.min.y) {
-          const blockType = blockPos.y < height ?
-            this.getBlockType(blockPos) :
-            BlockType.NONE
+          const blockType =
+            blockPos.y < height ? this.getBlockType(blockPos) : BlockType.NONE
           const block: Block = { pos: blockPos.clone(), type: blockType }
           hidden =
             pruning &&
@@ -252,9 +264,9 @@ export class WorldGenerator {
   // }
 
   /**
-  * Regular heightmap patch
-  * @param bbox
-  */
+   * Regular heightmap patch
+   * @param bbox
+   */
   // *genPatch(bbox: Box3): Generator<Block, void, unknown> {
   // }
 

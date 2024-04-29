@@ -1,4 +1,5 @@
 import { Vector2 } from 'three'
+
 import { LinkedList } from '../common/misc'
 import { ProcLayerExtCfg } from '../common/types'
 
@@ -23,10 +24,10 @@ const DEFAULT_TRANSITION: LayerTransition = {
 export type Compositor = (base: number, val: number, weight: number) => number
 
 export enum EvalMode {
-  Default = "default",  // profiled
-  Raw = "raw",  // pure noise value 
-  Lower = "lower",  // lower profile bound
-  Upper = "upper",   // upper profile bound
+  Default = 'default', // profiled
+  Raw = 'raw', // pure noise value
+  Lower = 'lower', // lower profile bound
+  Upper = 'upper', // upper profile bound
 }
 
 export enum BlendMode {
@@ -70,7 +71,7 @@ export class ProcGenLayer {
     blending: {
       weight: 1,
       mode: BlendMode.ADD,
-      threshold: 1  // disable blending by default
+      threshold: 1, // disable blending by default
     },
     spreading: 0,
   }
@@ -86,7 +87,10 @@ export class ProcGenLayer {
     this.name = layerName
     this.noiseSampler = new SimplexNoiseSampler(layerName)
     this.noiseSampler.parent = this
-    this.samplerProfile = HeightProfiler.fromArray(CurvePresets.identity, this.onChange)
+    this.samplerProfile = HeightProfiler.fromArray(
+      CurvePresets.identity,
+      this.onChange,
+    )
   }
 
   get spreading() {
@@ -122,15 +126,17 @@ export class ProcGenLayer {
   eval(input: InputType, mode = EvalMode.Default) {
     const adapter =
       input instanceof Vector2 ? input : new Vector2(input.x, input.z)
-    const rawVal = this.noiseSampler.eval(adapter.clone().multiplyScalar(NOISE_SCALE));
+    const rawVal = this.noiseSampler.eval(
+      adapter.clone().multiplyScalar(NOISE_SCALE),
+    )
     const val = (rawVal - 0.5) * 2 ** this.spreading + 0.5
     switch (mode) {
       case EvalMode.Raw:
         return rawVal
       case EvalMode.Lower:
-        return this.samplerProfile.getLower(val);
+        return this.samplerProfile.getLower(val)
       default:
-        return this.samplerProfile.apply(val);
+        return this.samplerProfile.apply(val)
     }
   }
 
@@ -141,13 +147,13 @@ export class ProcGenLayer {
     const compositor = getCompositor(modLayer.blendingMode)
     const initialVal = this.eval(input)
     let finalVal = initialVal
-    const aboveThreshold = initialVal - threshold//rawVal - threshold
+    const aboveThreshold = initialVal - threshold // rawVal - threshold
     // modulates height after threshold according to amplitude layer
     if (aboveThreshold > 0) {
       const modulation = modLayer.eval(input, EvalMode.Raw)
-      let modulatedVal = aboveThreshold//initialVal - baseVal
+      let modulatedVal = aboveThreshold // initialVal - baseVal
       // modulatedVal = compositor(noiseAboveThreshold, modulation, 1)
-      let { blendingWeight } = modLayer
+      const { blendingWeight } = modLayer
       // blendingWeight /= (threshold + modulatedVal) > 0.8 ? 1.2 : 1
       modulatedVal = compositor(modulatedVal, modulation, blendingWeight)
       finalVal = threshold + modulatedVal
@@ -160,7 +166,10 @@ export class ProcGenLayer {
     this.blendingMode = extConf.blend_mode
     this.spreading = extConf.spread - 0.7
     this.noiseSampler.importConf(extConf)
-    this.samplerProfile = HeightProfiler.fromArray(extConf.spline, this.onChange)
+    this.samplerProfile = HeightProfiler.fromArray(
+      extConf.spline,
+      this.onChange,
+    )
   }
 
   exportConf(): ProcLayerExtCfg {
@@ -169,8 +178,8 @@ export class ProcGenLayer {
       blend_weight: this.blendingWeight,
       blend_mode: this.blendingMode,
       spread: this.spreading,
-      spline: [],  // todo
-      ...samplerConf
+      spline: [], // todo
+      ...samplerConf,
     }
     return layerConf
   }
@@ -189,7 +198,10 @@ export class ProcGenLayer {
     return linkedLayers
   }
 
-  static getLinkedLayer(linkedLayers: LinkedList<ProcGenLayer>, layerName: string) {
+  static getLinkedLayer(
+    linkedLayers: LinkedList<ProcGenLayer>,
+    layerName: string,
+  ) {
     let layer: LinkedList<ProcGenLayer> | undefined = linkedLayers
     while (layer && layer.data.name !== layerName) {
       layer = layer.next
@@ -198,11 +210,12 @@ export class ProcGenLayer {
   }
 
   /**
- * Combining linked layers (experimental)
- */
+   * Combining linked layers (experimental)
+   */
   static combineAll(linkedLayers: LinkedList<ProcGenLayer>, input: InputType) {
     let currentItem: LinkedList<ProcGenLayer> | undefined = linkedLayers
-    let acc = 0, done = false
+    let acc = 0
+    let done = false
     while (currentItem && !done) {
       const currentLayer = currentItem.data
       const { mode, weight, threshold } = currentLayer.params.blending
