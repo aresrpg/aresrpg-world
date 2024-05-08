@@ -1,6 +1,6 @@
 export { WorldGenerator } from './procgen/WorldGen'
-export { SimplexNoiseSampler } from './procgen/NoiseSampler'
-export { HeightProfiler } from './procgen/HeightProfiler'
-export { BlendMode, ProcGenLayer, GenLayer } from './procgen/ProcGenLayer'
-export { GenStats } from './common/stats'
-export { BlockType } from './common/types'
+export { NoiseSampler } from './procgen/NoiseSampler'
+export { ProcLayer } from './procgen/ProcLayer'
+export { BlockType } from './procgen/BlocksMapping'
+
+// export type { MappingConf, MappingData, MappingRanges } from "./common/types"

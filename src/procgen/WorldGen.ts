@@ -1,29 +1,44 @@
-import { Vector2, Vector3, Box3 } from 'three'
-
-import { Block, BlockType, TerrainBlocksMapping } from '../common/types'
-import { GenStats } from '../common/stats'
+import { Vector3, Box3 } from 'three'
+import alea from 'alea'
+import { ProcLayer } from './ProcLayer'
+import { BlocksMapping, BlockType } from "./BlocksMapping";
+import { BlendMode, getCompositor } from "./NoiseComposition";
+import { Block } from '../common/types';
 import * as Utils from '../common/utils'
-import { LinkedList } from '../common/misc'
 
-import { GenLayer } from './ProcGenLayer'
-import { SimplexNoiseSampler } from './NoiseSampler'
+/**
+ * # Procedural generation
+ * ## Modes
+ * - `genHeightmapChunk`: voxels heightmap for terrain
+ * - `genVolumetricChunk`: volumetric voxels for caverns
+ * - `genPatch`: regular heightmap
+ *
+ * ## Maps
+ * - `Heightmap`: terrain elevation with threshold for ocean, beach, riff, lands, mountains ..
+ *  Specifies overall terrain shape and how far inland.
+ * - `Amplitude` modulation (or erosion)
+ * modulating terrain amplitude, to produce variants like flat, hilly lands, ..
+ * - (TODO): higher density noise to make rougher terrain with quick variation
+ *
+ */
 
 export class WorldGenerator {
   // eslint-disable-next-line no-use-before-define
   static singleton: WorldGenerator
   parent: any
-  samplingScale: number = 1 / 8 // 8 blocks per unit of noise
-  heightScale: number = 1
-  // externally provided
-  terrainBlocksMapping!: LinkedList<TerrainBlocksMapping>
-  procLayers!: GenLayer
-  layerSelection!: string
-  paintingRandomness = new SimplexNoiseSampler('paintingSeed')
-  seaLevel = 50
+  params = {
+  }
+  prng = alea('tree_map')
+  compositor = getCompositor(BlendMode.MUL)
+  // maps (externally provided)
+  heightmap!: ProcLayer
+  amplitude!: ProcLayer
+  blocksMapping!: BlocksMapping
 
-  constructor() {
-    // this.paintingRandomness.noiseParams.harmonics.period = 256
-    this.paintingRandomness.onChange(this)
+  constructor(){
+    this.heightmap = new ProcLayer('heightmap')
+    this.amplitude = new ProcLayer('amplitude')
+    this.blocksMapping = new BlocksMapping()
   }
 
   static get instance() {
@@ -31,203 +46,125 @@ export class WorldGenerator {
     return WorldGenerator.singleton
   }
 
-  get config() {
-    return {
-      selection: this.layerSelection,
-      heightScale: this.heightScale,
-      samplingScale: this.samplingScale,
-      seaLevel: this.seaLevel,
+  modulate(input: Vector3, initialVal: number, threshold: number) {
+    let finalVal = initialVal
+    const aboveThreshold = initialVal - threshold // rawVal - threshold
+    // modulates height after threshold according to amplitude layer
+    if (aboveThreshold > 0) {
+      const modulation = this.amplitude.eval(input)
+      const blendingWeight = 3
+      // blendingWeight /= (threshold + modulatedVal) > 0.8 ? 1.2 : 1
+      const modulatedVal = this.compositor(aboveThreshold, modulation, blendingWeight)
+      finalVal = threshold + modulatedVal
     }
-  }
-
-  set config(config: any) {
-    this.layerSelection = config.selection || this.layerSelection
-    this.heightScale = !isNaN(config.heightScale)
-      ? config.heightScale
-      : this.heightScale
-    this.samplingScale = !isNaN(config.samplingScale)
-      ? config.samplingScale
-      : this.samplingScale
-    this.seaLevel = !isNaN(config.seaLevel) ? config.seaLevel : this.seaLevel
-    this.procLayers = config.procLayers || this.procLayers
-    const {
-      terrainBlocksMapping,
-    }: { terrainBlocksMapping: TerrainBlocksMapping[] } = config
-    if (terrainBlocksMapping) {
-      this.terrainBlocksMapping = LinkedList.fromArray<TerrainBlocksMapping>(
-        terrainBlocksMapping,
-        (a, b) => a.threshold - b.threshold,
-      )
-    }
-    // Object.preventExtensions(this.conf)
-    // Object.assign(this.conf, config)
-    // const { procgen, proclayers } = config
-    this.parent?.onChange(this)
-  }
-
-  onChange(originator: any) {
-    console.log(`[WorldGen] ${typeof originator} config has changed`)
-    this.parent?.onChange(originator)
+    return finalVal
   }
 
   /**
-   * 3D noise density for caverns
+   * 2D noise
    */
-  getDensity() {
+  getHeight(pos: Vector3, noSea?: boolean) {
+    const noiseVal = this.heightmap.eval(pos)
+    const nominalVal = this.blocksMapping.getBlockLevel(noiseVal, noSea)
+    const finalVal = this.modulate(pos, nominalVal, 0.318)
+    const defaultType = this.blocksMapping.getBlockType(pos, noiseVal)
+    return finalVal * 255
+  }
+
+  /**
+   * 3D noise density
+   * Determine block's existence based on density value evaluated at block position
+   * @param position block position where density is evaluated
+   */
+  getVolumetricDensity() {
     throw new Error('Method not implemented.')
   }
 
   /**
-   * 2D noise for heightmap
-   */
-  getRawHeight(pos: Vector2) {
-    const scaledNoisePos = pos.multiplyScalar(this.samplingScale)
-    const val = GenLayer.combine(
-      scaledNoisePos,
-      this.procLayers,
-      this.layerSelection,
-    )
-    return val * 255
-  }
-
-  /**
-   * Overall height (ground + water)
-   */
-  getHeight(pos: Vector2) {
-    const rawHeight = this.getRawHeight(pos)
-    return Math.max(rawHeight, this.seaLevel)
-  }
-
-  /**
-   * Checking neighbours surrounding block's position
-   * to determine if block is hidden or not
-   */
+  * Checking neighbours surrounding block's position
+  * to determine if block is hidden or not
+  */
   hiddenBlock(position: Vector3) {
     const adjacentNeighbours = Utils.AdjacentNeighbours.map(adj =>
       Utils.getNeighbour(position, adj),
     )
     const neighbours = adjacentNeighbours.filter(adjPos => {
-      const groundLevel = this.getHeight(new Vector2(adjPos.x, adjPos.z))
+      const groundLevel = this.getHeight(adjPos)
       return adjPos.y <= groundLevel
     })
     return neighbours.length === 6
   }
 
-  getBlockType = (block: Vector3) => {
-    const { x, y, z } = block
-    const period = 0.005
-    const baseHeight = y
-    let current = this.terrainBlocksMapping
-    let previous = this.terrainBlocksMapping
-    while (current.next && current.next.data.threshold < baseHeight) {
-      previous = current
-      current = current.next
-    }
-    const { next } = current
-    // add some height variations to have less boring painting
-    const { randomness } = current.data
-    const bounds = {
-      lower: current.data.threshold,
-      upper: next?.data.threshold || 1,
-    }
-    // nominal type
-    let { blockType } = current.data
-    // randomize on lower side
-    if (
-      baseHeight - bounds.lower <= bounds.upper - baseHeight &&
-      baseHeight - randomness.low < bounds.lower
-    ) {
-      const groundPos = new Vector2(x, z).multiplyScalar(period)
-      const heightVariation =
-        this.paintingRandomness.eval(groundPos) * randomness.low
-      const varyingHeight = baseHeight - heightVariation
-      blockType =
-        varyingHeight < current.data.threshold
-          ? previous.data.blockType
-          : current.data.blockType
-    }
-    // randomize on upper side
-    else if (baseHeight + randomness.high > bounds.upper && next) {
-      const groundPos = new Vector2(x, z).multiplyScalar(period)
-      const heightVariation =
-        this.paintingRandomness.eval(groundPos) * randomness.high
-      const varyingHeight = baseHeight + heightVariation
-      blockType =
-        varyingHeight > next.data.threshold
-          ? next.data.blockType
-          : current.data.blockType
-    }
-
-    return blockType
-  }
-
-  /**
-   * Determine block's existence based on density value evaluated at block position
-   * @param position block position where density is evaluated
-   * @returns existing block or null if empty
-   */
-  getBlock(pos: Vector3): BlockType {
-    const { x, y, z } = pos
-    // eval density at block position
-    const density = this.getHeight(new Vector2(x, z)) // TODO replace by real density val
-    // determine if block is empty or not based on density val being above or below threshold
-    const blockExists = y <= density
-    return blockExists ? this.getBlockType(pos) : BlockType.NONE
-  }
-
-  /**
-   * on-the-fly generation from bounding box
-   * @param bbox
-   * @param pruning optional hidden blocks pruning
-   */
-  *generate(bbox: Box3, pruning = false): Generator<Block, void, unknown> {
+  *genBlocks(bbox: Box3,
+    includeSea = false,
+    pruning = false,): Generator<Block, void, unknown> {
+    // Gen stats
     let iterCount = 0
     let blocksCount = 0
+    // const blocksLevels = {
+    //   avg: 0,
+    //   min: 0,
+    //   max: 0
+    // }
     const startTime = Date.now()
-    const { seaLevel } = this
+
     // sampling volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
         // starting from the top of voxels' column
-        let y = bbox.max.y - 1
+        const blockPos = new Vector3(x, bbox.max.y - 1, z)
         // optim for heightmap only: stop at first hidden block encountered
         let hidden = false
-        const groundLevel = this.getHeight(new Vector2(x, z))
-        // for (let y = bbox.max.y - 1; y >= bbox.min.y; y--) {
-        while (!hidden && y >= bbox.min.y) {
-          const blockPos = new Vector3(x, y, z)
+        const noiseVal = this.heightmap.eval(blockPos)
+        const mappedVal = this.blocksMapping.getBlockLevel(noiseVal)
+        const finalVal = this.modulate(blockPos, mappedVal, 0.318)
+        const height = finalVal * 255
+        const defaultType = this.blocksMapping.getBlockType(blockPos, noiseVal)
+        // height += isTree ? 10 : 0
+        while (!hidden && blockPos.y >= bbox.min.y) {
           const blockType =
-            blockPos.y < Math.max(groundLevel, seaLevel)
-              ? this.getBlockType(blockPos)
+            blockPos.y < height
+              ? defaultType
               : BlockType.NONE
-          const block: Block = { pos: blockPos, type: blockType }
+          const block: Block = { pos: blockPos.clone(), type: blockType }
           hidden =
             pruning &&
             block.type !== BlockType.NONE &&
             this.hiddenBlock(block.pos)
-          // only existing and visible block, e.g with a face in contact with air
+          // only existing and visible blocks, e.g with a face in contact with air
           if (block.type !== BlockType.NONE && !hidden) {
             yield block
             blocksCount++
           }
           iterCount++
-          y--
+          blockPos.y--
         }
       }
     }
     const elapsedTime = Date.now() - startTime
-    // console.log(
-    //   `[WorldGenerator::fill] iter count: ${iterCount},
-    //   blocks count: ${blocksCount}
-    //   chunk min/max: ${voxelMinMax.min.y}, ${voxelMinMax.max.y}
-    //   elapsed time: ${elapsedTime} ms`
-    // )
-    GenStats.instance.worldGen = {
+    const genStats = {
       time: elapsedTime,
       blocks: blocksCount,
       iterations: iterCount,
     }
+    // ProcGenStatsReporting.instance.worldGen = genStats
+    // ProcGenStatsReporting.instance.printGenStats(genStats)
   }
+
+  /**
+   * Voxels volume on-the-fly generation for caverns
+   * @param bbox
+   * @param pruning optionaly prune hidden voxels
+   */
+  // *genVolumetricChunk(bbox: Box3, pruning = false): Generator<Block, void, unknown> {
+  // }
+
+  /**
+   * Regular heightmap patch
+   * @param bbox
+   */
+  // *genPatch(bbox: Box3): Generator<Block, void, unknown> {
+  // }
 
   /**
    * @param bbox

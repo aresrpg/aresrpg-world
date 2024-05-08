@@ -1,28 +1,29 @@
 import { Vector2, Vector3 } from 'three'
+import { BlockNeighbour, MappingRanges } from './types'
 
-import { GenStats } from './stats'
-import { BlockNeighbour } from './types'
+// Clamp number between two values:
+const clamp = (num: number, min: number, max: number) =>
+  Math.min(Math.max(num, min), max)
 
-/**
- * Removing out of range values
- * @param noiseVal
- * @returns noiseVal between 0 and 1
- */
-const sanitiseNoise = (noiseVal: number) => {
-  let res = noiseVal
-  const invalidNoiseRange = isNaN(noiseVal) || noiseVal < 0 || noiseVal > 1
-  // correct and report noise anomaly
-  if (invalidNoiseRange) {
-    res = Math.round(noiseVal)
-    GenStats.instance.noiseAnomaly(noiseVal)
-  }
-  return res
+const roundToDec = (val: number, n_pow: number) => {
+  const num = Math.pow(10, n_pow)
+  return Math.round(val * num) / num
 }
+
+// const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
+// const MappingRangeSorter = (item1: MappingData, item2: MappingData) => item1.x - item2.x
+
 /**
- * round val at 2 decimals
- */
-const round2 = (val: number) => {
-  return Math.round(val * 100) / 100
+   * find element with inputVal withing interpolation range 
+   * @param inputVal 
+   * @returns 
+   */
+const findMatchingRange = (inputVal: number, mappingRanges: MappingRanges) => {
+  let match = mappingRanges.first()
+  while (match.next && inputVal > match.next.data.x) {
+    match = match.next
+  }
+  return match
 }
 
 /**
@@ -123,8 +124,9 @@ const getAllNeighbours = (pos: Vector3): Vector3[] => {
 }
 
 export {
-  sanitiseNoise,
-  round2,
+  roundToDec,
+  clamp,
+  findMatchingRange,
   interpolatePoints,
   getAllNeighbours,
   AdjacentNeighbours,

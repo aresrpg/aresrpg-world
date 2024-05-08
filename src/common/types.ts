@@ -1,31 +1,11 @@
 import { Vector3 } from 'three'
-
-export enum BlockType {
-  NONE,
-  WATER,
-  SAND,
-  GRASS,
-  DRY_GRASS,
-  MUD,
-  ROCK,
-  SNOW,
-}
+import { BlockType } from '../procgen/BlocksMapping'
+import { LinkedList } from './misc'
 
 export type Block = {
   pos: Vector3
   type: BlockType
 }
-
-export type TerrainBlocksMapping = {
-  blockType: BlockType
-  threshold: number
-  randomness: {
-    low: number
-    high: number
-  }
-}
-
-export type TerrainMapping = Record<any, TerrainBlocksMapping>
 
 export enum BlockNeighbour {
   xMyMzM,
@@ -56,6 +36,27 @@ export enum BlockNeighbour {
   xPyPzP,
 }
 
+type Point = {
+  x: number,
+  y: number
+}
+
+/**
+ * External procedural layer conf format
+ */
+export type ProcLayerExtCfg = {
+  seed: string
+  spline: Point[]
+  blend_weight?: any
+  blend_mode?: any
+  spread: number
+  period?: number
+  periodicity?: number
+  harmonics: number
+  harmonic_gain: number
+  harmonic_spread: number
+}
+
 // export enum TerrainType {
 //   SEA,
 //   BEACH,
@@ -66,3 +67,17 @@ export enum BlockNeighbour {
 //   MOUNTAINS,
 //   MOUNTAINS_TOP,
 // }
+
+export interface MappingData {
+  x: number,          // noise
+  y: number,          // noise mapping
+  blockType?: BlockType, // nominal block type
+  amplitude?: {          // random amplitude used in blocks randomization
+    low: number,
+    high: number,
+  },
+  treeSpawn?: boolean // specifies wether a tree can spawn or not
+}
+
+export type MappingConf = Record<string, MappingData>
+export type MappingRanges = LinkedList<MappingData>
