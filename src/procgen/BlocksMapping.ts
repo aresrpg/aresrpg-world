@@ -2,8 +2,8 @@ import { Vector2, Vector3 } from "three"
 import { LinkedList } from "../common/misc"
 import { ProcLayer } from "./ProcLayer"
 import { MappingConf, MappingData, MappingRanges } from "../common/types"
-import { CurvePresets } from '../tools/CurvePresets'
 import * as Utils from '../common/utils'
+import { WorldGenerator } from "./WorldGen"
 
 export enum BlockType {
     NONE,
@@ -23,21 +23,22 @@ const MappingRangeSorter = (item1: MappingData, item2: MappingData) => item1.x -
  * assign block types: water, sand, grass, mud, rock, snow, ..
  */
 export class BlocksMapping {
-    mappingRanges: MappingRanges
+    mappingRanges!: MappingRanges
     paintRandomness: ProcLayer
 
     constructor(mappingConf?: MappingConf) {
-        this.setMappingRanges(mappingConf)
+
         this.paintRandomness = new ProcLayer('paint_random')
         this.paintRandomness.sampling.periodicity = 6
+        if (mappingConf) this.setMappingRanges(mappingConf)
     }
 
     params = {
         seaLevel: 0
     }
 
-    setMappingRanges(mappingConf?: MappingConf) {
-        const mappingItems = mappingConf ? Object.values(mappingConf) : CurvePresets.identity
+    setMappingRanges(mappingConf: MappingConf) {
+        const mappingItems = Object.values(mappingConf)
         this.mappingRanges = LinkedList.fromArrayAfterSorting(mappingItems, MappingRangeSorter)
     }
 
@@ -102,6 +103,9 @@ export class BlocksMapping {
             matchingRange = matchingRange.prev
         }
         const nominalType = matchingRange.data.blockType
+        // trigger tree gen on applicable regions
+        matchingRange.data.treeSpawn &&
+            WorldGenerator.instance.vegetation.treeSpawner(blockPos, rawVal)
         // const finalBlockType = this.blockRandomization(groundPos, baseHeight, currentBlockMap)
         // if (finalBlockType !== nominalBlockType) console.log(`[getBlockType] nominal${nominalBlockType} random${finalBlock}`)
         return nominalType//finalBlock

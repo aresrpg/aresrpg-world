@@ -1,6 +1,7 @@
 import { Vector3, Box3 } from 'three'
 import alea from 'alea'
 import { ProcLayer } from './ProcLayer'
+import { Vegetation } from "./Vegetation";
 import { BlocksMapping, BlockType } from "./BlocksMapping";
 import { BlendMode, getCompositor } from "./NoiseComposition";
 import { Block } from '../common/types';
@@ -31,14 +32,16 @@ export class WorldGenerator {
   prng = alea('tree_map')
   compositor = getCompositor(BlendMode.MUL)
   // maps (externally provided)
-  heightmap!: ProcLayer
-  amplitude!: ProcLayer
-  blocksMapping!: BlocksMapping
+  heightmap: ProcLayer
+  amplitude: ProcLayer
+  blocksMapping: BlocksMapping
+  vegetation: Vegetation
 
-  constructor(){
+  constructor() {
     this.heightmap = new ProcLayer('heightmap')
     this.amplitude = new ProcLayer('amplitude')
     this.blocksMapping = new BlocksMapping()
+    this.vegetation = new Vegetation()
   }
 
   static get instance() {
@@ -107,7 +110,8 @@ export class WorldGenerator {
     //   max: 0
     // }
     const startTime = Date.now()
-
+    // fill tree buffer
+    // this.vegetation.treeGen(bbox)
     // sampling volume
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
@@ -118,14 +122,16 @@ export class WorldGenerator {
         const noiseVal = this.heightmap.eval(blockPos)
         const mappedVal = this.blocksMapping.getBlockLevel(noiseVal)
         const finalVal = this.modulate(blockPos, mappedVal, 0.318)
-        const height = finalVal * 255
+        let height = finalVal * 255
+        blockPos.y = Math.floor(height)
         const defaultType = this.blocksMapping.getBlockType(blockPos, noiseVal)
+        const treeBuffer = this.vegetation.fillHeightBuffer(blockPos)
+        blockPos.y+= treeBuffer.length
+        // height += this.vegetation.treeBuffer[x]?.[z] ? 15 : 0
         // height += isTree ? 10 : 0
         while (!hidden && blockPos.y >= bbox.min.y) {
-          const blockType =
-            blockPos.y < height
-              ? defaultType
-              : BlockType.NONE
+          const treeBlock = treeBuffer.pop()
+          const blockType = treeBlock !== undefined ? treeBlock : defaultType
           const block: Block = { pos: blockPos.clone(), type: blockType }
           hidden =
             pruning &&
@@ -147,6 +153,8 @@ export class WorldGenerator {
       blocks: blocksCount,
       iterations: iterCount,
     }
+    // clear tree buffer
+    this.vegetation.treeBuffer = {}
     // ProcGenStatsReporting.instance.worldGen = genStats
     // ProcGenStatsReporting.instance.printGenStats(genStats)
   }
