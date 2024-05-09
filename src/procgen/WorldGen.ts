@@ -1,11 +1,13 @@
 import { Vector3, Box3 } from 'three'
 import alea from 'alea'
-import { ProcLayer } from './ProcLayer'
-import { Vegetation } from "./Vegetation";
-import { BlocksMapping, BlockType } from "./BlocksMapping";
-import { BlendMode, getCompositor } from "./NoiseComposition";
-import { Block } from '../common/types';
+
+import { Block } from '../common/types'
 import * as Utils from '../common/utils'
+
+import { ProcLayer } from './ProcLayer'
+import { Vegetation } from './Vegetation'
+import { BlocksMapping, BlockType } from './BlocksMapping'
+import { BlendMode, getCompositor } from './NoiseComposition'
 
 /**
  * # Procedural generation
@@ -27,8 +29,7 @@ export class WorldGenerator {
   // eslint-disable-next-line no-use-before-define
   static singleton: WorldGenerator
   parent: any
-  params = {
-  }
+  params = {}
   prng = alea('tree_map')
   compositor = getCompositor(BlendMode.MUL)
   // maps (externally provided)
@@ -57,7 +58,11 @@ export class WorldGenerator {
       const modulation = this.amplitude.eval(input)
       const blendingWeight = 3
       // blendingWeight /= (threshold + modulatedVal) > 0.8 ? 1.2 : 1
-      const modulatedVal = this.compositor(aboveThreshold, modulation, blendingWeight)
+      const modulatedVal = this.compositor(
+        aboveThreshold,
+        modulation,
+        blendingWeight,
+      )
       finalVal = threshold + modulatedVal
     }
     return finalVal
@@ -70,7 +75,6 @@ export class WorldGenerator {
     const noiseVal = this.heightmap.eval(pos)
     const nominalVal = this.blocksMapping.getBlockLevel(noiseVal, noSea)
     const finalVal = this.modulate(pos, nominalVal, 0.318)
-    const defaultType = this.blocksMapping.getBlockType(pos, noiseVal)
     return finalVal * 255
   }
 
@@ -84,9 +88,9 @@ export class WorldGenerator {
   }
 
   /**
-  * Checking neighbours surrounding block's position
-  * to determine if block is hidden or not
-  */
+   * Checking neighbours surrounding block's position
+   * to determine if block is hidden or not
+   */
   hiddenBlock(position: Vector3) {
     const adjacentNeighbours = Utils.AdjacentNeighbours.map(adj =>
       Utils.getNeighbour(position, adj),
@@ -98,9 +102,7 @@ export class WorldGenerator {
     return neighbours.length === 6
   }
 
-  *genBlocks(bbox: Box3,
-    includeSea = false,
-    pruning = false,): Generator<Block, void, unknown> {
+  *genBlocks(bbox: Box3, pruning = false): Generator<Block, void, unknown> {
     // Gen stats
     let iterCount = 0
     let blocksCount = 0
@@ -122,11 +124,11 @@ export class WorldGenerator {
         const noiseVal = this.heightmap.eval(blockPos)
         const mappedVal = this.blocksMapping.getBlockLevel(noiseVal)
         const finalVal = this.modulate(blockPos, mappedVal, 0.318)
-        let height = finalVal * 255
+        const height = finalVal * 255
         blockPos.y = Math.floor(height)
         const defaultType = this.blocksMapping.getBlockType(blockPos, noiseVal)
         const treeBuffer = this.vegetation.fillHeightBuffer(blockPos)
-        blockPos.y+= treeBuffer.length
+        blockPos.y += treeBuffer.length
         // height += this.vegetation.treeBuffer[x]?.[z] ? 15 : 0
         // height += isTree ? 10 : 0
         while (!hidden && blockPos.y >= bbox.min.y) {
@@ -153,6 +155,7 @@ export class WorldGenerator {
       blocks: blocksCount,
       iterations: iterCount,
     }
+    genStats.blocks += 0
     // clear tree buffer
     this.vegetation.treeBuffer = {}
     // ProcGenStatsReporting.instance.worldGen = genStats

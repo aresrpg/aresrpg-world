@@ -1,5 +1,7 @@
 import { Vector3 } from 'three'
+
 import { BlockType } from '../procgen/BlocksMapping'
+
 import { LinkedList } from './misc'
 
 export type Block = {
@@ -37,7 +39,7 @@ export enum BlockNeighbour {
 }
 
 type Point = {
-  x: number,
+  x: number
   y: number
 }
 
@@ -69,13 +71,14 @@ export type ProcLayerExtCfg = {
 // }
 
 export interface MappingData {
-  x: number,          // noise
-  y: number,          // noise mapping
-  blockType?: BlockType, // nominal block type
-  amplitude?: {          // random amplitude used in blocks randomization
-    low: number,
-    high: number,
-  },
+  x: number // noise
+  y: number // noise mapping
+  blockType?: BlockType // nominal block type
+  amplitude?: {
+    // random amplitude used in blocks randomization
+    low: number
+    high: number
+  }
   treeSpawn?: boolean // specifies wether a tree can spawn or not
 }
 

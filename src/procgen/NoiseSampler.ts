@@ -1,6 +1,7 @@
 import { createNoise2D } from 'simplex-noise'
 import alea from 'alea'
 import { Vector2, Vector3 } from 'three'
+
 import * as Utils from '../common/utils'
 
 export type InputType = Vector2 | Vector3
@@ -104,7 +105,7 @@ export class NoiseSampler {
   }
 
   eval(input: InputType): number {
-    const x = input.x
+    const { x } = input
     const y = input instanceof Vector2 ? input.y : input.z
     const density = Math.pow(2, 6) // TODO remove hardcoding
     let noiseEval

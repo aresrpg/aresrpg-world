@@ -1,6 +1,6 @@
 import { MappingRanges } from '../common/types'
-import { InputType, NoiseSampler } from './NoiseSampler'
 
+import { InputType, NoiseSampler } from './NoiseSampler'
 
 /**
  * # Procedural Generation Layer
@@ -12,14 +12,16 @@ export class ProcLayer {
   mapping!: MappingRanges
   params = {
     spreading: 0,
-    scaling: 0.001
+    scaling: 0.001,
   }
+
   lastInput?: InputType
   lastEval = {
     noise: 0,
     raw: 0,
     // mapping: 0
   }
+
   stats = {
     range: {
       min: 1,
@@ -39,7 +41,7 @@ export class ProcLayer {
 
   eval(rawInput: InputType) {
     this.lastInput = rawInput
-    const input =rawInput.clone().multiplyScalar(this.params.scaling)
+    const input = rawInput.clone().multiplyScalar(this.params.scaling)
     const noiseVal = this.sampling.eval(input)
     this.lastEval.noise = noiseVal
     const rawVal = (noiseVal - 0.5) * 2 ** this.params.spreading + 0.5
