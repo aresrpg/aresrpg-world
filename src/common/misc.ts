@@ -6,6 +6,7 @@ export class LinkedList<T> {
   data: T
   // eslint-disable-next-line no-use-before-define
   prev: LinkedList<T> | undefined
+  // eslint-disable-next-line no-use-before-define
   next: LinkedList<T> | undefined
   // finder?: (item: T, val: any) => boolean
 

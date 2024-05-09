@@ -1,4 +1,5 @@
 import { Vector2, Vector3 } from 'three'
+
 import { BlockNeighbour, MappingRanges } from './types'
 
 // Clamp number between two values:
@@ -14,10 +15,10 @@ const roundToDec = (val: number, n_pow: number) => {
 // const MappingRangeSorter = (item1: MappingData, item2: MappingData) => item1.x - item2.x
 
 /**
-   * find element with inputVal withing interpolation range 
-   * @param inputVal 
-   * @returns 
-   */
+ * find element with inputVal withing interpolation range
+ * @param inputVal
+ * @returns
+ */
 const findMatchingRange = (inputVal: number, mappingRanges: MappingRanges) => {
   let match = mappingRanges.first()
   while (match.next && inputVal > match.next.data.x) {
