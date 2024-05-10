@@ -125,9 +125,16 @@ export class WorldGenerator {
         const mappedVal = this.blocksMapping.getBlockLevel(noiseVal)
         const finalVal = this.modulate(blockPos, mappedVal, 0.318)
         const height = finalVal * 255
-        blockPos.y = Math.floor(height)
+        const maxAddedHeight = Utils.clamp(blockPos.y - height, 0, 255)
+        blockPos.y = Math.min(Math.floor(height), bbox.max.y - 1)
         const defaultType = this.blocksMapping.getBlockType(blockPos, noiseVal)
-        const treeBuffer = this.vegetation.fillHeightBuffer(blockPos)
+        // no tree spawning below ground
+        const treeBuffer =
+          maxAddedHeight > 0
+            ? this.vegetation
+                .fillHeightBuffer(blockPos)
+                .slice(0, maxAddedHeight - 1)
+            : []
         blockPos.y += treeBuffer.length
         // height += this.vegetation.treeBuffer[x]?.[z] ? 15 : 0
         // height += isTree ? 10 : 0
