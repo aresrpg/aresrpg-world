@@ -9,6 +9,8 @@ import { Vegetation } from './Vegetation'
 import { BlocksMapping, BlockType } from './BlocksMapping'
 import { BlendMode, getCompositor } from './NoiseComposition'
 
+const MODULATION_THRESHOLD = 0.318
+
 /**
  * # Procedural generation
  * ## Modes
@@ -50,7 +52,7 @@ export class WorldGenerator {
     return WorldGenerator.singleton
   }
 
-  modulate(input: Vector3, initialVal: number, threshold: number) {
+  applyModulation(input: Vector3, initialVal: number, threshold: number) {
     let finalVal = initialVal
     const aboveThreshold = initialVal - threshold // rawVal - threshold
     // modulates height after threshold according to amplitude layer
@@ -69,13 +71,24 @@ export class WorldGenerator {
   }
 
   /**
-   * 2D noise
+   * 
+   * @param pos 
+   * @param includeSea 
+   * @param rawType default type
+   * @returns 
    */
-  getHeight(pos: Vector3, noSea?: boolean) {
+  getGroundBlock(pos: Vector3, includeSea?: boolean, rawType?: boolean) {
+    const block: Block = {
+      pos: pos.clone(),
+      type: BlockType.ROCK
+    }
     const noiseVal = this.heightmap.eval(pos)
-    const nominalVal = this.blocksMapping.getBlockLevel(noiseVal, noSea)
-    const finalVal = this.modulate(pos, nominalVal, 0.318)
-    return finalVal * 255
+    // noiseVal = includeSea ? Math.max(noiseVal, this.biomeMapping.params.seaLevel) : noiseVal
+    const nominalVal = this.blocksMapping.getBlockLevel(noiseVal, pos, includeSea)
+    const finalVal = this.applyModulation(pos, nominalVal, MODULATION_THRESHOLD)
+    block.pos.y = finalVal * 255
+    block.type = rawType ? block.type : this.blocksMapping.getBlockType(block.pos, noiseVal)
+    return block
   }
 
   /**
@@ -96,13 +109,13 @@ export class WorldGenerator {
       Utils.getNeighbour(position, adj),
     )
     const neighbours = adjacentNeighbours.filter(adjPos => {
-      const groundLevel = this.getHeight(adjPos)
-      return adjPos.y <= groundLevel
+      const groundBlock = this.getGroundBlock(adjPos, false, true)
+      return adjPos.y <= groundBlock.pos.y
     })
     return neighbours.length === 6
   }
 
-  *genBlocks(bbox: Box3, pruning = false): Generator<Block, void, unknown> {
+  *genBlocks(bbox: Box3, includeSea = false, pruneHidden = false): Generator<Block, void, unknown> {
     // Gen stats
     let iterCount = 0
     let blocksCount = 0
@@ -121,29 +134,24 @@ export class WorldGenerator {
         const blockPos = new Vector3(x, bbox.max.y - 1, z)
         // optim for heightmap only: stop at first hidden block encountered
         let hidden = false
-        const noiseVal = this.heightmap.eval(blockPos)
-        const mappedVal = this.blocksMapping.getBlockLevel(noiseVal)
-        const finalVal = this.modulate(blockPos, mappedVal, 0.318)
-        const height = finalVal * 255
-        const maxAddedHeight = Utils.clamp(blockPos.y - height, 0, 255)
-        blockPos.y = Math.min(Math.floor(height), bbox.max.y - 1)
-        const defaultType = this.blocksMapping.getBlockType(blockPos, noiseVal)
-        // no tree spawning below ground
-        const treeBuffer =
-          maxAddedHeight > 0
-            ? this.vegetation
-                .fillHeightBuffer(blockPos)
-                .slice(0, maxAddedHeight - 1)
-            : []
-        blockPos.y += treeBuffer.length
+        const groundBlock = this.getGroundBlock(blockPos, includeSea)
+        const groundLevel = groundBlock.pos.y
+        blockPos.y = Math.min(Math.floor(groundLevel), bbox.max.y - 1)
+        // prevent tree spawning below ground
+        const maxExtraHeight = Utils.clamp(bbox.max.y - 1 - blockPos.y, 0, 255)
+        const extraBuffer = maxExtraHeight ?//new Array(maxExtraHeight).fill(BlockType.TREE_TRUNK)
+          this.vegetation
+            .fillHeightBuffer(blockPos)
+            .slice(0, maxExtraHeight - 1) : []
+        blockPos.y += extraBuffer.length
         // height += this.vegetation.treeBuffer[x]?.[z] ? 15 : 0
         // height += isTree ? 10 : 0
         while (!hidden && blockPos.y >= bbox.min.y) {
-          const treeBlock = treeBuffer.pop()
-          const blockType = treeBlock !== undefined ? treeBlock : defaultType
+          const extraType = extraBuffer.pop()
+          const blockType = extraType !== undefined ? extraType : groundBlock.type
           const block: Block = { pos: blockPos.clone(), type: blockType }
           hidden =
-            pruning &&
+            pruneHidden &&
             block.type !== BlockType.NONE &&
             this.hiddenBlock(block.pos)
           // only existing and visible blocks, e.g with a face in contact with air
@@ -172,7 +180,7 @@ export class WorldGenerator {
   /**
    * Voxels volume on-the-fly generation for caverns
    * @param bbox
-   * @param pruning optionaly prune hidden voxels
+   * @param pruneHidden optionaly prune hidden voxels
    */
   // *genVolumetricChunk(bbox: Box3, pruning = false): Generator<Block, void, unknown> {
   // }
