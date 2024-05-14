@@ -3,6 +3,7 @@ import { Vector2, Vector3 } from 'three'
 import { LinkedList } from '../common/misc'
 import { MappingConf, MappingData, MappingRanges } from '../common/types'
 import * as Utils from '../common/utils'
+import { TreeType } from '../tools/TreeGenerator'
 
 import { ProcLayer } from './ProcLayer'
 import { WorldGenerator } from './WorldGen'
@@ -109,8 +110,7 @@ export class BlocksMapping {
     }
     const nominalType = matchingRange.data.blockType || BlockType.NONE
     // trigger tree gen on applicable regions
-    matchingRange.data.treeSpawn &&
-      WorldGenerator.instance.vegetation.treeSpawner(blockPos)
+      WorldGenerator.instance.vegetation.treeSpawner(blockPos, (matchingRange.data.vegetation?.[0] as TreeType))
     // const finalBlockType = this.blockRandomization(groundPos, baseHeight, currentBlockMap)
     // if (finalBlockType !== nominalBlockType) console.log(`[getBlockType] nominal${nominalBlockType} random${finalBlock}`)
     return nominalType // finalBlock

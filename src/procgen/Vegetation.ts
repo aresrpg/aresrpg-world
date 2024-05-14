@@ -2,7 +2,7 @@ import alea from 'alea'
 import { Box3, Vector2, Vector3 } from 'three'
 
 import { ProcLayer } from './ProcLayer'
-import { BlockType } from './BiomeMapping'
+import { BlockType } from './BlocksMapping'
 import { TreeGenerators, TreeType } from '../tools/TreeGenerator'
 /**
  * # Vegetation
