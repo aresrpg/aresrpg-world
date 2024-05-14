@@ -6,7 +6,7 @@ import * as Utils from '../common/utils'
 
 import { ProcLayer } from './ProcLayer'
 import { Vegetation } from './Vegetation'
-import { BlocksMapping, BlockType } from './BlocksMapping'
+import { BiomeMapping, BlockType } from './BiomeMapping'
 import { BlendMode, getCompositor } from './NoiseComposition'
 
 const MODULATION_THRESHOLD = 0.318
@@ -37,13 +37,13 @@ export class WorldGenerator {
   // maps (externally provided)
   heightmap: ProcLayer
   amplitude: ProcLayer
-  blocksMapping: BlocksMapping
+  biomeMapping: BiomeMapping
   vegetation: Vegetation
 
   constructor() {
     this.heightmap = new ProcLayer('heightmap')
     this.amplitude = new ProcLayer('amplitude')
-    this.blocksMapping = new BlocksMapping()
+    this.biomeMapping = new BiomeMapping()
     this.vegetation = new Vegetation()
   }
 
@@ -84,10 +84,10 @@ export class WorldGenerator {
     }
     const noiseVal = this.heightmap.eval(pos)
     // noiseVal = includeSea ? Math.max(noiseVal, this.biomeMapping.params.seaLevel) : noiseVal
-    const nominalVal = this.blocksMapping.getBlockLevel(noiseVal, pos, includeSea)
+    const nominalVal = this.biomeMapping.getBlockLevel(noiseVal, pos, includeSea)
     const finalVal = this.applyModulation(pos, nominalVal, MODULATION_THRESHOLD)
     block.pos.y = finalVal * 255
-    block.type = rawType ? block.type : this.blocksMapping.getBlockType(block.pos, noiseVal)
+    block.type = rawType ? block.type : this.biomeMapping.getBlockType(block.pos, noiseVal)
     return block
   }
 

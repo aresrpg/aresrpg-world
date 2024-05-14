@@ -1,6 +1,6 @@
 import { Vector2, Vector3 } from 'three'
 
-import { BlockNeighbour, MappingRanges } from './types'
+import { BlockNeighbour, MappingData, MappingRanges } from './types'
 
 // Clamp number between two values:
 const clamp = (num: number, min: number, max: number) =>
@@ -12,7 +12,8 @@ const roundToDec = (val: number, n_pow: number) => {
 }
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
-// const MappingRangeSorter = (item1: MappingData, item2: MappingData) => item1.x - item2.x
+export const MappingRangeSorter = (item1: MappingData, item2: MappingData) => item1.x - item2.x
+
 
 /**
  * find element with inputVal withing interpolation range
