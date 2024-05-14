@@ -1,6 +1,5 @@
 import { Vector3 } from 'three'
-
-import { BlockType } from '../procgen/BlocksMapping'
+import { BiomeType, BlockType } from '../procgen/BiomeMapping'
 
 import { LinkedList } from './misc'
 
@@ -73,7 +72,10 @@ export type ProcLayerExtCfg = {
 export interface MappingData {
   x: number // noise
   y: number // noise mapping
-  blockType?: BlockType // nominal block type
+  blockType?: {
+    primary: BlockType // nominal block type,
+    secondary: BlockType
+  }
   amplitude?: {
     // random amplitude used in blocks randomization
     low: number
@@ -84,3 +86,5 @@ export interface MappingData {
 
 export type MappingConf = Record<string, MappingData>
 export type MappingRanges = LinkedList<MappingData>
+export type BiomeConf = Record<BiomeType, MappingConf>
+export type BiomeMappings = Record<BiomeType, MappingRanges>
