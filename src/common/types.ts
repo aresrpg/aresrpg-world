@@ -79,7 +79,7 @@ export interface MappingData {
     low: number
     high: number
   }
-  treeSpawn?: boolean // specifies wether a tree can spawn or not
+  vegetation?: string[] // specifies wether a tree can spawn or not
 }
 
 export type MappingConf = Record<string, MappingData>

@@ -2,7 +2,8 @@ import alea from 'alea'
 import { Box3, Vector2, Vector3 } from 'three'
 
 import { ProcLayer } from './ProcLayer'
-import { BlockType } from './BlocksMapping'
+import { BlockType } from './BiomeMapping'
+import { TreeGenerators, TreeType } from '../tools/TreeGenerator'
 /**
  * # Vegetation
  * - `Treemap`
@@ -52,70 +53,62 @@ export class Vegetation {
   }
 
   fillHeightBuffer(blockPos: Vector3, { treeRadius, treeSize } = this.params) {
-    const treeBuffer = []
+    let treeBuffer = []
     const { x, y, z } = blockPos
-    const { level, xzProj } = this.treeBuffer[x]?.[z] || 0
-    const radius = treeRadius
-    if (level) {
-      const offset = y - level
+    const { groundLevel, xzProj, type: treeType } = this.treeBuffer[x]?.[z] || {}
+    if (groundLevel) {
+      const offset = y - groundLevel
       let i = 0
       const count = treeSize - offset
-      // tree base
-      while (i++ <= count) {
-        treeBuffer.push(xzProj ? BlockType.NONE : BlockType.TREE_TRUNK)
-      }
-      if (xzProj) {
-        for (let y = -radius; y < radius; y++) {
-          const dist = Math.sqrt(Math.pow(xzProj, 2) + Math.pow(y, 2))
-          const f = dist <= radius ? BlockType.TREE_FOLIAGE : BlockType.NONE
-          treeBuffer.push(f)
+
+      if (xzProj && count > 0) {
+        // tree base
+        treeBuffer = new Array(count).fill(BlockType.NONE)
+        // tree foliage
+        for (let y = -treeRadius; y < treeRadius; y++) {
+          const isFoliage = TreeGenerators[treeType](xzProj, y, treeRadius)//TreeGenerator.AppleTree(xzProj, y, treeRadius)
+          treeBuffer.push(isFoliage ? BlockType.TREE_FOLIAGE : BlockType.NONE)
         }
       } else {
-        while (i++ < count + radius) treeBuffer.push(BlockType.TREE_TRUNK)
+        try {
+          treeBuffer = new Array(count + treeRadius).fill(BlockType.TREE_TRUNK)
+        } catch (error) {
+          console.log(error)
+        }
       }
     }
     return treeBuffer
   }
 
-  genTree(radius = this.params.treeRadius) {
-    const treeModel: any[] = []
-    for (let x = -radius; x <= radius; x++) {
-      for (let y = -radius; y <= radius; y++) {
-        const vect = new Vector2(x, y)
-        treeModel.push(vect.length())
-      }
-    }
-    return treeModel
-  }
-
-  insertTree(startPos: Vector3, treeModel: any[]) {
-    const treeSize = Math.sqrt(treeModel.length)
-    const endPos = startPos.clone().addScalar(treeSize)
-    const level = startPos.y
-    let index = 0
-    for (let { x } = startPos; x < endPos.x; x++) {
-      for (let { z } = startPos; z < endPos.z; z++) {
-        const xzProj = treeModel[index]
-        this.treeBuffer[x] = this.treeBuffer[x] || {}
-        this.treeBuffer[x][z] = { level, xzProj }
-        index++
+  /**
+   * Placeholder storing tree building data
+   */
+  insertPreprocData(startPos: Vector3, type: TreeType, range = this.params.treeRadius) {
+    const groundLevel = Math.floor(startPos.y)
+    for (let x = -range; x <= range; x++) {
+      for (let z = -range; z <= range; z++) {
+        const vect = new Vector2(x, z)
+        const xzProj = vect.length()
+        const xIndex = startPos.x + range + x
+        const zIndex = startPos.z + range + z
+        this.treeBuffer[xIndex] = this.treeBuffer[xIndex] || {}
+        this.treeBuffer[xIndex][zIndex] = { groundLevel, xzProj, type }
       }
     }
   }
 
-  treeSpawner(blockPos: Vector3) {
+  treeSpawner(blockPos: Vector3, type: TreeType | undefined) {
     const { treeThreshold } = this.params
     const { x, z } = blockPos
     // const { mappingRanges } = WorldGenerator.instance.blocksMapping
     // const mappingRange = Utils.findMatchingRange(rawVal, mappingRanges)
     // check existing tree in buffer
     const existingTree = this.treeBuffer[x]?.[z] // && mappingRange.data.treeSpawn
-    if (!existingTree) {
+    if (!existingTree && type) {
       // check random spawn
       const randomSpawn = this.prng() * this.treeEval(blockPos)
       if (randomSpawn < treeThreshold) {
-        const treeModel = this.genTree()
-        this.insertTree(blockPos, treeModel)
+        this.insertPreprocData(blockPos, type)
       }
     }
     return this.treeBuffer[x]?.[z]
