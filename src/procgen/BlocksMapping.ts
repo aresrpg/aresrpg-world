@@ -13,6 +13,7 @@ export enum BlockType {
   WATER,
   TREE_TRUNK,
   TREE_FOLIAGE,
+  TREE_FOLIAGE_2,
   SAND,
   GRASS,
   MUD,
