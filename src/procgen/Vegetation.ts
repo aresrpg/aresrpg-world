@@ -66,8 +66,8 @@ export class Vegetation {
         treeBuffer = new Array(count).fill(BlockType.NONE)
         // tree foliage
         for (let y = -treeRadius; y < treeRadius; y++) {
-          const isFoliage = TreeGenerators[treeType](xzProj, y, treeRadius)//TreeGenerator.AppleTree(xzProj, y, treeRadius)
-          treeBuffer.push(isFoliage ? BlockType.TREE_FOLIAGE : BlockType.NONE)
+          const blockType = TreeGenerators[treeType](xzProj, y, treeRadius)//TreeGenerator.AppleTree(xzProj, y, treeRadius)
+          treeBuffer.push(blockType)
         }
       } else {
         try {
