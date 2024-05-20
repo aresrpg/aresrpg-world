@@ -1,11 +1,12 @@
 import { Vector2, Vector3 } from 'three'
 import { ProcLayer } from './ProcLayer'
-import { WorldGenerator } from './WorldGen'
-import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
+// import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 import { BiomeConf, BiomeMappings, MappingRanges } from '../common/types'
 import { LinkedList } from '../common/misc'
 import { MappingRangeSorter } from '../common/utils'
 import * as Utils from '../common/utils'
+import { Vegetation } from './Vegetation'
+import { TreeType } from '../tools/TreeGenerator'
 
 export enum BlockType {
   NONE,
@@ -39,7 +40,7 @@ enum Rain {
   Wet = "wet"
 }
 
-const BiomesTypesMapping = {
+const BiomesMapping: Record<Heat, Record<Rain, BiomeType>> = {
   [Heat.Cold]: {
     [Rain.Dry]: BiomeType.Artic,
     [Rain.Moderate]: BiomeType.Artic,
@@ -52,6 +53,7 @@ const BiomesTypesMapping = {
   },
   [Heat.Hot]: {
     [Rain.Dry]: BiomeType.Desert,
+    [Rain.Moderate]: BiomeType.Temperate,
     [Rain.Wet]: BiomeType.Tropical
   }
 }
@@ -59,14 +61,15 @@ const BiomesTypesMapping = {
 /**
  * assign block types: water, sand, grass, mud, rock, snow, ..
  */
-export class BiomeMapping {
+export class Biome {
+  static singleton: Biome
 
   heatmap: ProcLayer
   rainmap: ProcLayer
-  heatProfile: MappingRanges
-  rainProfile: MappingRanges
+  // heatProfile: MappingRanges
+  // rainProfile: MappingRanges
 
-  biomeMappings = {} as BiomeMappings
+  mappings = {} as BiomeMappings
   paintRandomness: ProcLayer
 
   params = {
@@ -80,18 +83,23 @@ export class BiomeMapping {
     this.rainmap = new ProcLayer('rainmap')
     this.rainmap.sampling.harmonicsCount = 1
     this.rainmap.sampling.periodicity = 8
-    const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
-    this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
-    this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
+    // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
+    // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
+    // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
     this.paintRandomness = new ProcLayer('paint_random')
     this.paintRandomness.sampling.periodicity = 6
-    if (biomeConf) this.setBiomeMappings(biomeConf)
+    if (biomeConf) this.setMappings(biomeConf)
+  }
+
+  static get instance() {
+    Biome.singleton = Biome.singleton || new Biome()
+    return Biome.singleton
   }
 
   getBiomeType(pos: Vector3): BiomeType {
     const heatVal = this.heatmap.eval(pos)
     const rainVal = this.rainmap.eval(pos)
-    let heatType
+    let heatType: Heat
     if (heatVal <= 0.33) {
       heatType = Heat.Cold
     }
@@ -101,7 +109,7 @@ export class BiomeMapping {
     else {
       heatType = Heat.Hot
     }
-    let rainType
+    let rainType: Rain
     if (rainVal <= 0.33) {
       rainType = Rain.Dry
     }
@@ -111,18 +119,18 @@ export class BiomeMapping {
     else {
       rainType = Rain.Wet
     }
-    const biomeType = BiomesTypesMapping[heatType][rainType] || BiomeType.Temperate
+    const biomeType = BiomesMapping[heatType][rainType] || BiomeType.Temperate
     return biomeType
   }
 
-  setBiomeMappings(biomeConf: BiomeConf) {
+  setMappings(biomeConf: BiomeConf) {
     Object.entries(biomeConf).map(([biomeType, mappingConf]) => {
       const mappingItems = Object.values(mappingConf)
       const mappingRanges = LinkedList.fromArrayAfterSorting(
         mappingItems,
         MappingRangeSorter,
       )
-      this.biomeMappings[biomeType as BiomeType] = mappingRanges
+      this.mappings[biomeType as BiomeType] = mappingRanges
     })
   }
 
@@ -169,12 +177,11 @@ export class BiomeMapping {
     return blockTypes?.primary
   }
 
-  getBlockLevel = (rawVal: number, blockPos: Vector3, includeSea = false) => {
+  getBlockLevel = (rawVal: number, biomeType: BiomeType, includeSea = false) => {
     const { seaLevel } = this.params
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     const validInput = Utils.clamp(rawVal, 0, 1)
-    const biomeType = this.getBiomeType(blockPos)
-    const mappingRange = Utils.findMatchingRange(rawVal, this.biomeMappings[biomeType])
+    const mappingRange = Utils.findMatchingRange(rawVal, this.mappings[biomeType])
     const upperRange = mappingRange.next || mappingRange
     const min = new Vector2(mappingRange.data.x, mappingRange.data.y)
     const max = new Vector2(upperRange.data.x, upperRange.data.y)
@@ -185,13 +192,14 @@ export class BiomeMapping {
   getBlockType = (blockPos: Vector3, rawVal: number) => {
     // nominal block type
     const biomeType = this.getBiomeType(blockPos)
-    let mappingRange = Utils.findMatchingRange(rawVal, this.biomeMappings[biomeType])
+    let mappingRange = Utils.findMatchingRange(rawVal, this.mappings[biomeType])
     while (!mappingRange.data.blockType && mappingRange.prev) {
       mappingRange = mappingRange.prev
     }
     const nominalType = mappingRange.data.blockType?.primary || mappingRange.data.blockType as any as BlockType || BlockType.NONE
     // trigger tree gen on applicable regions
-    WorldGenerator.instance.vegetation.treeSpawner(blockPos, mappingRange.data.vegetation?.[0])
+    const treeType = mappingRange.data.vegetation?.[0] as TreeType
+    Vegetation.instance.treeSpawner(blockPos, treeType)
     // const finalBlockType = this.blockRandomization(groundPos, baseHeight, currentBlockMap)
     // if (finalBlockType !== nominalBlockType) console.log(`[getBlockType] nominal${nominalBlockType} random${finalBlock}`)
     return nominalType // finalBlock

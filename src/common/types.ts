@@ -1,5 +1,5 @@
 import { Vector3 } from 'three'
-import { BiomeType, BlockType } from '../procgen/BiomeMapping'
+import { BiomeType, BlockType } from '../procgen/Biome'
 
 import { LinkedList } from './misc'
 

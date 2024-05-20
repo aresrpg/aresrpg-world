@@ -2,8 +2,8 @@ import alea from 'alea'
 import { Box3, Vector2, Vector3 } from 'three'
 
 import { ProcLayer } from './ProcLayer'
-import { BlockType } from './BlocksMapping'
 import { TreeGenerators, TreeType } from '../tools/TreeGenerator'
+import { BlockType } from './Biome'
 /**
  * # Vegetation
  * - `Treemap`
@@ -17,10 +17,16 @@ export class Vegetation {
     treeSize: 5,
     treeThreshold: 1,
   }
+  static singleton: Vegetation
 
   constructor() {
     this.treeMap = new ProcLayer('treemap')
     this.prng = alea('tree_map')
+  }
+
+  static get instance() {
+    Vegetation.singleton = Vegetation.singleton || new Vegetation()
+    return Vegetation.singleton
   }
 
   treeEval(pos: Vector3) {
@@ -52,26 +58,24 @@ export class Vegetation {
     }
   }
 
-  fillHeightBuffer(blockPos: Vector3, { treeRadius, treeSize } = this.params) {
-    let treeBuffer = []
+  fillTreeBuffer(blockPos: Vector3, treeBuffer: BlockType[], { treeRadius, treeSize } = this.params) {
     const { x, y, z } = blockPos
     const { groundLevel, xzProj, type: treeType } = this.treeBuffer[x]?.[z] || {}
     if (groundLevel) {
       const offset = y - groundLevel
-      let i = 0
       const count = treeSize - offset
 
       if (xzProj && count > 0) {
-        // tree base
-        treeBuffer = new Array(count).fill(BlockType.NONE)
+        // fill tree base
+        new Array(count).fill(BlockType.NONE).forEach(item => treeBuffer.push(item))
         // tree foliage
         for (let y = -treeRadius; y < treeRadius; y++) {
-          const blockType = TreeGenerators[treeType](xzProj, y, treeRadius)//TreeGenerator.AppleTree(xzProj, y, treeRadius)
+          const blockType = TreeGenerators[treeType as TreeType](xzProj, y, treeRadius)//TreeGenerator.AppleTree(xzProj, y, treeRadius)
           treeBuffer.push(blockType)
         }
       } else {
         try {
-          treeBuffer = new Array(count + treeRadius).fill(BlockType.TREE_TRUNK)
+          new Array(count + treeRadius).fill(BlockType.TREE_TRUNK).forEach(item => treeBuffer.push(item))
         } catch (error) {
           console.log(error)
         }

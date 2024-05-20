@@ -1,6 +1,8 @@
-export { WorldGenerator } from './procgen/WorldGen'
+
+export { Heightmap } from './procgen/Heightmap'
 export { NoiseSampler } from './procgen/NoiseSampler'
 export { ProcLayer } from './procgen/ProcLayer'
-export { BlockType } from './procgen/BiomeMapping'
-
+export { Biome, BlockType } from './procgen/Biome'
+export { DevHacks } from './tools/DevHacks'
+export { BlocksPatch } from './procgen/BlocksPatch'
 // export type { MappingConf, MappingData, MappingRanges } from "./common/types"
