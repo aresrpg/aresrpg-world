@@ -7,6 +7,7 @@ import { MappingRangeSorter } from '../common/utils'
 import * as Utils from '../common/utils'
 import { Vegetation } from './Vegetation'
 import { TreeType } from '../tools/TreeGenerator'
+import { BlockIterData } from './BlocksPatch'
 
 export enum BlockType {
   NONE,
@@ -189,9 +190,9 @@ export class Biome {
     return interpolated// includeSea ? Math.max(interpolated, seaLevel) : interpolated
   }
 
-  getBlockType = (blockPos: Vector3, rawVal: number) => {
+  getBlockType = (blockData: BlockIterData) => {
+    const { biome: biomeType, raw: rawVal } = blockData.cache.genData
     // nominal block type
-    const biomeType = this.getBiomeType(blockPos)
     let mappingRange = Utils.findMatchingRange(rawVal, this.mappings[biomeType])
     while (!mappingRange.data.blockType && mappingRange.prev) {
       mappingRange = mappingRange.prev
@@ -199,7 +200,10 @@ export class Biome {
     const nominalType = mappingRange.data.blockType?.primary || mappingRange.data.blockType as any as BlockType || BlockType.NONE
     // trigger tree gen on applicable regions
     const treeType = mappingRange.data.vegetation?.[0] as TreeType
-    Vegetation.instance.treeSpawner(blockPos, treeType)
+    if (!blockData.cache.genData.tree && treeType) {
+      blockData.cache.genData.tree = { type: treeType }
+    }
+    blockData.cache.type = nominalType
     // const finalBlockType = this.blockRandomization(groundPos, baseHeight, currentBlockMap)
     // if (finalBlockType !== nominalBlockType) console.log(`[getBlockType] nominal${nominalBlockType} random${finalBlock}`)
     return nominalType // finalBlock

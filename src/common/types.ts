@@ -1,5 +1,6 @@
 import { Vector3 } from 'three'
 import { BiomeType, BlockType } from '../procgen/Biome'
+import { TreeData } from '../procgen/Vegetation'
 
 import { LinkedList } from './misc'
 
@@ -82,6 +83,12 @@ export interface MappingData {
     high: number
   }
   vegetation?: string[] // specifies wether a tree can spawn or not
+}
+
+export type BlockGenData = {
+  biome: BiomeType,
+  tree: TreeData,
+  raw: number
 }
 
 export type MappingConf = Record<string, MappingData>
