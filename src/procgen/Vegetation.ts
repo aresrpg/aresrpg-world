@@ -4,19 +4,27 @@ import { Box3, Vector2, Vector3 } from 'three'
 import { ProcLayer } from './ProcLayer'
 import { TreeGenerators, TreeType } from '../tools/TreeGenerator'
 import { BlockType } from './Biome'
+import { BlockCacheData, BlocksPatch } from './BlocksPatch'
+
+export type TreeData = {
+  xzProj: number,
+  levelRef: number,
+  type: TreeType
+}
 /**
  * # Vegetation
  * - `Treemap`
  */
 export class Vegetation {
   treeMap: ProcLayer
-  treeBuffer: any = {}
   prng
   params = {
     treeRadius: 5,
     treeSize: 5,
     treeThreshold: 1,
   }
+  treeCache: Box3[] = []
+
   static singleton: Vegetation
 
   constructor() {
@@ -35,42 +43,20 @@ export class Vegetation {
     return treeEval
   }
 
-  treeGen(bbox: Box3) {
-    // const startTime = Date.now()
-    const { treeThreshold } = this.params
-    // init prng for tree distribution
-    const prng = alea('tree_map')
-    // let trees = []
-    for (let { x } = bbox.min; x < bbox.max.x; x++) {
-      for (let { z } = bbox.min; z < bbox.max.z; z++) {
-        const blockPos = new Vector3(x, 0, z)
-        // check tree existence
-        const treeEval = this.treeEval(blockPos)
-        const isTree = prng() * treeEval < treeThreshold
-        if (isTree) {
-          this.treeBuffer[x] = this.treeBuffer[x] || {}
-          this.treeBuffer[x][z] = true
-        }
-        // if(isTree){
-        //     current.data.treeSpawn &&
-        // }
-      }
-    }
-  }
-
-  fillTreeBuffer(blockPos: Vector3, treeBuffer: BlockType[], { treeRadius, treeSize } = this.params) {
-    const { x, y, z } = blockPos
-    const { groundLevel, xzProj, type: treeType } = this.treeBuffer[x]?.[z] || {}
-    if (groundLevel) {
-      const offset = y - groundLevel
+  fillTreeBuffer(block: BlockCacheData, treeData?: TreeData, treeParams = this.params) {
+    const { treeRadius, treeSize } = treeParams
+    const treeBuffer = block?.overground
+    treeData = treeData || block.genData.tree
+    if (treeData && treeBuffer) {
+      const offset = block.level - treeData.levelRef
       const count = treeSize - offset
 
-      if (xzProj && count > 0) {
+      if (treeData.xzProj && count > 0) {
         // fill tree base
         new Array(count).fill(BlockType.NONE).forEach(item => treeBuffer.push(item))
         // tree foliage
         for (let y = -treeRadius; y < treeRadius; y++) {
-          const blockType = TreeGenerators[treeType as TreeType](xzProj, y, treeRadius)//TreeGenerator.AppleTree(xzProj, y, treeRadius)
+          const blockType = TreeGenerators[treeData.type as TreeType](treeData.xzProj, y, treeRadius)
           treeBuffer.push(blockType)
         }
       } else {
@@ -80,41 +66,58 @@ export class Vegetation {
           console.log(error)
         }
       }
+      block.overground = [BlockType.TREE_TRUNK, BlockType.TREE_TRUNK]
     }
+
     return treeBuffer
   }
 
   /**
    * Placeholder storing tree building data
    */
-  insertPreprocData(startPos: Vector3, type: TreeType, range = this.params.treeRadius) {
-    const groundLevel = Math.floor(startPos.y)
+  markTreeBlocks(startPos: Vector3, type: TreeType, range = this.params.treeRadius) {
+    // console.log(`tree spawn at: `, startPos)
+    const levelRef = Math.floor(startPos.y)
     for (let x = -range; x <= range; x++) {
       for (let z = -range; z <= range; z++) {
         const vect = new Vector2(x, z)
         const xzProj = vect.length()
         const xIndex = startPos.x + range + x
         const zIndex = startPos.z + range + z
-        this.treeBuffer[xIndex] = this.treeBuffer[xIndex] || {}
-        this.treeBuffer[xIndex][zIndex] = { groundLevel, xzProj, type }
+        const treeData = {
+          xzProj,
+          levelRef,
+          type
+        }
+        const blockPos = new Vector3(xIndex, 0, zIndex)
+        let block = BlocksPatch.getBlock(blockPos) as BlockCacheData
+        if (!block) {
+          // console.log(blockPos)
+          block = new BlockCacheData()
+          // create patch
+          const patch = BlocksPatch.getPatch(blockPos, true)
+          BlocksPatch.setBlock(blockPos, block)
+        }
+        block.genData.tree = treeData
+        // if (!block) {
+        //   console.log(blockPos)
+        // }
+        // this.fillTreeBuffer(block, treeData)
       }
     }
   }
 
-  treeSpawner(blockPos: Vector3, type: TreeType | undefined) {
+  isSpawningTree(blockPos: Vector3) {
     const { treeThreshold } = this.params
-    const { x, z } = blockPos
     // const { mappingRanges } = WorldGenerator.instance.blocksMapping
     // const mappingRange = Utils.findMatchingRange(rawVal, mappingRanges)
     // check existing tree in buffer
-    const existingTree = this.treeBuffer[x]?.[z] // && mappingRange.data.treeSpawn
-    if (!existingTree && type) {
+    const block = BlocksPatch.getBlock(blockPos) || new BlockCacheData()
+    if (block.overground.length === 0 && !block.genData.tree) {
       // check random spawn
       const randomSpawn = this.prng() * this.treeEval(blockPos)
-      if (randomSpawn < treeThreshold) {
-        this.insertPreprocData(blockPos, type)
-      }
+      return randomSpawn < treeThreshold
     }
-    return this.treeBuffer[x]?.[z]
+    return block.overground.length > 0
   }
 }

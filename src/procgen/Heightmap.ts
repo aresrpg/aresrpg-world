@@ -5,7 +5,7 @@ import { Block } from '../common/types'
 import { ProcLayer } from './ProcLayer'
 import { Biome, BlockType } from './Biome'
 import { BlendMode, getCompositor } from './NoiseComposition'
-import { BlockIteratorData } from './BlocksPatch'
+import { BlockIterData } from './BlocksPatch'
 
 const MODULATION_THRESHOLD = 0.318
 
@@ -57,30 +57,28 @@ export class Heightmap {
     return finalVal
   }
 
+
   /**
    * 
-   * @param pos 
+   * @param blockData 
    * @param includeSea 
-   * @param rawType default type
    * @returns 
    */
-  getGroundBlock(pos: Vector3, buildData?: BlockIteratorData, includeSea?: boolean, rawType?: boolean) {
-    const block: Block = {
-      pos: pos.clone(),
-      type: BlockType.ROCK,
-    }
+  getGroundPos(blockData: BlockIterData | Vector3, includeSea?: boolean) {
+    const pos = (blockData as BlockIterData).pos || (blockData as Vector3)
     const noiseVal = this.heightmap.eval(pos)
-    const biomeType = buildData?.biome || Biome.instance.getBiomeType(block.pos)
+    const biomeType = (blockData as BlockIterData).cache?.genData?.biome || Biome.instance.getBiomeType(pos);
+    // (blockData as BlockIterData).cache.type = Biome.instance.getBlockType(pos, noiseVal)
     // noiseVal = includeSea ? Math.max(noiseVal, Biome.instance.params.seaLevel) : noiseVal
     const nominalVal = Biome.instance.getBlockLevel(noiseVal, biomeType, includeSea)
     const finalVal = this.applyModulation(pos, nominalVal, MODULATION_THRESHOLD)
-    block.pos.y = Math.floor(finalVal * 255)
-    block.type = rawType ? block.type : Biome.instance.getBlockType(block.pos, noiseVal)
-    if (buildData) {
-      buildData.data.level = block.pos.y
-      buildData.data.type = block.type
+    pos.y = Math.floor(finalVal * 255)
+    const cacheData = (blockData as BlockIterData).cache
+    if (cacheData) {
+      cacheData.genData.raw = noiseVal
+      cacheData.level = pos.y
       // buildData.data.raw = noiseVal
     }
-    return block
+    return noiseVal
   }
 }
