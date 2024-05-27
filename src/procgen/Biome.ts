@@ -5,7 +5,6 @@ import { BiomeConf, BiomeMappings, MappingRanges } from '../common/types'
 import { LinkedList } from '../common/misc'
 import { MappingRangeSorter } from '../common/utils'
 import * as Utils from '../common/utils'
-import { Vegetation } from './Vegetation'
 import { TreeType } from '../tools/TreeGenerator'
 import { BlockIterData } from './BlocksPatch'
 
