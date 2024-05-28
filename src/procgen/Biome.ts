@@ -27,7 +27,7 @@ export enum BiomeType {
   Temperate = 'temperate',
   Artic = 'artic',
   Desert = 'desert',
-  Tropical = 'tropical',
+  // Tropical = 'tropical',
 }
 
 enum Heat {
@@ -55,8 +55,8 @@ const BiomesMapping: Record<Heat, Record<Rain, BiomeType>> = {
   },
   [Heat.Hot]: {
     [Rain.Dry]: BiomeType.Desert,
-    [Rain.Moderate]: BiomeType.Temperate,
-    [Rain.Wet]: BiomeType.Tropical,
+    [Rain.Moderate]: BiomeType.Desert,
+    [Rain.Wet]: BiomeType.Desert, // TODO BiomeType.Tropical,
   },
 }
 
