@@ -1,9 +1,7 @@
 import { Vector3 } from 'three'
 
-import { Block } from '../common/types'
-
 import { ProcLayer } from './ProcLayer'
-import { Biome, BlockType } from './Biome'
+import { Biome } from './Biome'
 import { BlendMode, getCompositor } from './NoiseComposition'
 import { BlockIterData } from './BlocksPatch'
 
@@ -57,20 +55,25 @@ export class Heightmap {
     return finalVal
   }
 
-
   /**
-   * 
-   * @param blockData 
-   * @param includeSea 
-   * @returns 
+   *
+   * @param blockData
+   * @param includeSea
+   * @returns
    */
   getGroundPos(blockData: BlockIterData | Vector3, includeSea?: boolean) {
     const pos = (blockData as BlockIterData).pos || (blockData as Vector3)
     const noiseVal = this.heightmap.eval(pos)
-    const biomeType = (blockData as BlockIterData).cache?.genData?.biome || Biome.instance.getBiomeType(pos);
+    const biomeType =
+      (blockData as BlockIterData).cache?.genData?.biome ||
+      Biome.instance.getBiomeType(pos)
     // (blockData as BlockIterData).cache.type = Biome.instance.getBlockType(pos, noiseVal)
     // noiseVal = includeSea ? Math.max(noiseVal, Biome.instance.params.seaLevel) : noiseVal
-    const nominalVal = Biome.instance.getBlockLevel(noiseVal, biomeType, includeSea)
+    const nominalVal = Biome.instance.getBlockLevel(
+      noiseVal,
+      biomeType,
+      includeSea,
+    )
     const finalVal = this.applyModulation(pos, nominalVal, MODULATION_THRESHOLD)
     pos.y = Math.floor(finalVal * 255)
     const cacheData = (blockData as BlockIterData).cache

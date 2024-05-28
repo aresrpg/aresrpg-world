@@ -1,14 +1,15 @@
 import alea from 'alea'
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { ProcLayer } from './ProcLayer'
 import { TreeGenerators, TreeType } from '../tools/TreeGenerator'
+
+import { ProcLayer } from './ProcLayer'
 import { BlockType } from './Biome'
 import { BlockCacheData, BlocksPatch } from './BlocksPatch'
 
 export type TreeData = {
-  xzProj: number,
-  levelRef: number,
+  xzProj: number
+  levelRef: number
   type: TreeType
 }
 /**
@@ -23,8 +24,9 @@ export class Vegetation {
     treeSize: 5,
     treeThreshold: 1,
   }
-  treeCache: Box3[] = []
 
+  treeCache: Box3[] = []
+  // eslint-disable-next-line no-use-before-define
   static singleton: Vegetation
 
   constructor() {
@@ -58,12 +60,16 @@ export class Vegetation {
 
   /**
    * Using precached tree data and block level to fill tree blocks buffer
-   * @param treeData 
-   * @param blockLevel 
-   * @param treeParams 
-   * @returns 
+   * @param treeData
+   * @param blockLevel
+   * @param treeParams
+   * @returns
    */
-  fillTreeBuffer(treeData: TreeData, blockLevel: number, treeParams = this.params) {
+  fillTreeBuffer(
+    treeData: TreeData,
+    blockLevel: number,
+    treeParams = this.params,
+  ) {
     const { treeRadius, treeSize } = treeParams
     const treeBuffer: BlockType[] = []
     if (treeData && treeBuffer) {
@@ -72,11 +78,16 @@ export class Vegetation {
 
       if (treeData.xzProj && count > 0) {
         // fill tree base
-        new Array(count).fill(BlockType.NONE)
+        new Array(count)
+          .fill(BlockType.NONE)
           .forEach(item => treeBuffer.push(item))
         // tree foliage
         for (let y = -treeRadius; y < treeRadius; y++) {
-          const blockType = TreeGenerators[treeData.type as TreeType](treeData.xzProj, y, treeRadius)
+          const blockType = TreeGenerators[treeData.type as TreeType](
+            treeData.xzProj,
+            y,
+            treeRadius,
+          )
           treeBuffer.push(blockType)
         }
       } else {
@@ -96,13 +107,22 @@ export class Vegetation {
    * Placeholder for data used in tree generation
    * which will happen later when final block level is known
    */
-  markTreeBlocks(startPos: Vector3, type: TreeType, range = this.params.treeRadius) {
+  markTreeBlocks(
+    startPos: Vector3,
+    type: TreeType,
+    range = this.params.treeRadius,
+  ) {
     // console.log(`tree spawn at: `, startPos)
     const levelRef = Math.floor(startPos.y)
-    const treeBbox = new Box3(startPos, startPos.clone().addScalar(2 * range + 2))
+    const treeBbox = new Box3(
+      startPos,
+      startPos.clone().addScalar(2 * range + 2),
+    )
     treeBbox.min.y = 0
     treeBbox.max.y = 0
-    const treeOverlap = !!Vegetation.instance.treeCache.find(bbox => bbox.intersectsBox(treeBbox))
+    const treeOverlap = !!Vegetation.instance.treeCache.find(bbox =>
+      bbox.intersectsBox(treeBbox),
+    )
     let skipped = 0
     if (!treeOverlap) {
       // console.log(treeBbox.min, treeBbox.max)
@@ -117,15 +137,15 @@ export class Vegetation {
           const treeData = {
             xzProj,
             levelRef,
-            type
+            type,
           }
 
           let block = BlocksPatch.getBlock(blockPos) as BlockCacheData
           if (!block) {
             // console.log(blockPos)
             block = new BlockCacheData()
-            // create patch if block is in another patch
-            const patch = BlocksPatch.getPatch(blockPos, true)
+            // create patch if block belongs to another patch
+            BlocksPatch.getPatch(blockPos, true)
             // if (patch)
             BlocksPatch.setBlock(blockPos, block)
           }
@@ -134,7 +154,7 @@ export class Vegetation {
           //   Vegetation.instance.fillTreeBuffer(treeData, block.level)
           // }
 
-          //safety check, shouldn't happen
+          // safety check, shouldn't happen
           if (!block.genData.tree?.levelRef) {
             block.genData.tree = treeData
           } else {
