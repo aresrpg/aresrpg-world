@@ -20,9 +20,10 @@
   "keywords": [],
   "dependencies": {
     "alea": "^1.0.1",
-    "simplex-noise": "^4.0.1",
-    "sparse-octree": "^7.1.8",
-    "three": "^0.162.0"
+    "simplex-noise": "^4.0.1"
+  },
+  "peerDependencies": {
+    "three": ">=0.163.0"
   },
   "devDependencies": {
     "@parcel/packager-ts": "^2.12.0",
