@@ -1,4 +1,5 @@
 import { Vector3 } from 'three'
+
 import { BiomeType, BlockType } from '../procgen/Biome'
 import { TreeData } from '../procgen/Vegetation'
 
@@ -86,8 +87,8 @@ export interface MappingData {
 }
 
 export type BlockGenData = {
-  biome: BiomeType,
-  tree: TreeData,
+  biome: BiomeType
+  tree: Partial<TreeData>
   raw: number
 }
 

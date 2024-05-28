@@ -1,11 +1,13 @@
 import { Vector2, Vector3 } from 'three'
-import { ProcLayer } from './ProcLayer'
+
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 import { BiomeConf, BiomeMappings, MappingRanges } from '../common/types'
 import { LinkedList } from '../common/misc'
 import { MappingRangeSorter } from '../common/utils'
 import * as Utils from '../common/utils'
 import { TreeType } from '../tools/TreeGenerator'
+
+import { ProcLayer } from './ProcLayer'
 import { BlockIterData } from './BlocksPatch'
 
 export enum BlockType {
@@ -22,46 +24,47 @@ export enum BlockType {
 }
 
 export enum BiomeType {
-  Temperate = "temperate",
-  Artic = "artic",
-  Desert = "desert",
-  Tropical = "tropical"
+  Temperate = 'temperate',
+  Artic = 'artic',
+  Desert = 'desert',
+  Tropical = 'tropical',
 }
 
 enum Heat {
-  Cold = "cold",
-  Temperate = "temperate",
-  Hot = "hot"
+  Cold = 'cold',
+  Temperate = 'temperate',
+  Hot = 'hot',
 }
 
 enum Rain {
-  Dry = "dry",
-  Moderate = "moderate",
-  Wet = "wet"
+  Dry = 'dry',
+  Moderate = 'moderate',
+  Wet = 'wet',
 }
 
 const BiomesMapping: Record<Heat, Record<Rain, BiomeType>> = {
   [Heat.Cold]: {
     [Rain.Dry]: BiomeType.Artic,
     [Rain.Moderate]: BiomeType.Artic,
-    [Rain.Wet]: BiomeType.Artic
+    [Rain.Wet]: BiomeType.Artic,
   },
   [Heat.Temperate]: {
-    [Rain.Dry]: BiomeType.Temperate,  // TODO
+    [Rain.Dry]: BiomeType.Temperate, // TODO
     [Rain.Moderate]: BiomeType.Temperate,
-    [Rain.Wet]: BiomeType.Temperate,  // TODO
+    [Rain.Wet]: BiomeType.Temperate, // TODO
   },
   [Heat.Hot]: {
     [Rain.Dry]: BiomeType.Desert,
     [Rain.Moderate]: BiomeType.Temperate,
-    [Rain.Wet]: BiomeType.Tropical
-  }
+    [Rain.Wet]: BiomeType.Tropical,
+  },
 }
 
 /**
  * assign block types: water, sand, grass, mud, rock, snow, ..
  */
 export class Biome {
+  // eslint-disable-next-line no-use-before-define
   static singleton: Biome
 
   heatmap: ProcLayer
@@ -102,21 +105,17 @@ export class Biome {
     let heatType: Heat
     if (heatVal <= 0.33) {
       heatType = Heat.Cold
-    }
-    else if (heatVal <= 0.66) {
+    } else if (heatVal <= 0.66) {
       heatType = Heat.Temperate
-    }
-    else {
+    } else {
       heatType = Heat.Hot
     }
     let rainType: Rain
     if (rainVal <= 0.33) {
       rainType = Rain.Dry
-    }
-    else if (rainVal <= 0.66) {
+    } else if (rainVal <= 0.66) {
       rainType = Rain.Moderate
-    }
-    else {
+    } else {
       rainType = Rain.Wet
     }
     const biomeType = BiomesMapping[heatType][rainType] || BiomeType.Temperate
@@ -124,7 +123,7 @@ export class Biome {
   }
 
   setMappings(biomeConf: BiomeConf) {
-    Object.entries(biomeConf).map(([biomeType, mappingConf]) => {
+    Object.entries(biomeConf).forEach(([biomeType, mappingConf]) => {
       const mappingItems = Object.values(mappingConf)
       const mappingRanges = LinkedList.fromArrayAfterSorting(
         mappingItems,
@@ -177,26 +176,39 @@ export class Biome {
     return blockTypes?.primary
   }
 
-  getBlockLevel = (rawVal: number, biomeType: BiomeType, includeSea = false) => {
+  getBlockLevel = (
+    rawVal: number,
+    biomeType: BiomeType,
+    includeSea = false,
+  ) => {
     const { seaLevel } = this.params
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     const validInput = Utils.clamp(rawVal, 0, 1)
-    const mappingRange = Utils.findMatchingRange(rawVal, this.mappings[biomeType])
+    const mappingRange = Utils.findMatchingRange(
+      rawVal,
+      this.mappings[biomeType],
+    )
     const upperRange = mappingRange.next || mappingRange
     const min = new Vector2(mappingRange.data.x, mappingRange.data.y)
     const max = new Vector2(upperRange.data.x, upperRange.data.y)
     const interpolated = Utils.interpolatePoints(min, max, validInput)
-    return interpolated// includeSea ? Math.max(interpolated, seaLevel) : interpolated
+    return interpolated // includeSea ? Math.max(interpolated, seaLevel) : interpolated
   }
 
   getBlockType = (blockData: BlockIterData) => {
     const { biome: biomeType, raw: rawVal } = blockData.cache.genData
     // nominal block type
-    let mappingRange = Utils.findMatchingRange(rawVal, this.mappings[biomeType])
+    let mappingRange = Utils.findMatchingRange(
+      rawVal as number,
+      this.mappings[biomeType as BiomeType],
+    )
     while (!mappingRange.data.blockType && mappingRange.prev) {
       mappingRange = mappingRange.prev
     }
-    const nominalType = mappingRange.data.blockType?.primary || mappingRange.data.blockType as any as BlockType || BlockType.NONE
+    const nominalType =
+      mappingRange.data.blockType?.primary ||
+      (mappingRange.data.blockType as any as BlockType) ||
+      BlockType.NONE
     // trigger tree gen on applicable regions
     const treeType = mappingRange.data.vegetation?.[0] as TreeType
     if (!blockData.cache.genData.tree && treeType) {
