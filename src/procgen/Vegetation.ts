@@ -6,10 +6,11 @@ import { TreeGenerators, TreeType } from '../tools/TreeGenerator'
 import { ProcLayer } from './ProcLayer'
 import { BlockType } from './Biome'
 import { BlockCacheData, BlocksPatch } from './BlocksPatch'
+import { Heightmap } from './Heightmap'
 
 export type TreeData = {
   xzProj: number
-  levelRef: number
+  level: number
   type: TreeType
 }
 /**
@@ -21,7 +22,7 @@ export class Vegetation {
   prng
   params = {
     treeRadius: 5,
-    treeSize: 5,
+    treeSize: 10,
     treeThreshold: 1,
   }
 
@@ -73,7 +74,7 @@ export class Vegetation {
     const { treeRadius, treeSize } = treeParams
     const treeBuffer: BlockType[] = []
     if (treeData && treeBuffer) {
-      const offset = blockLevel - treeData.levelRef
+      const offset = blockLevel - treeData.level
       const count = treeSize - offset
 
       if (treeData.xzProj && count > 0) {
@@ -92,7 +93,8 @@ export class Vegetation {
         }
       } else {
         try {
-          new Array(count + treeRadius)
+          // a bit of an hack for now => TODO: find good fix
+          new Array(count + treeRadius - Math.floor(treeData.size * 0.4))
             .fill(BlockType.TREE_TRUNK)
             .forEach(item => treeBuffer.push(item))
         } catch (error) {
@@ -113,11 +115,14 @@ export class Vegetation {
     range = this.params.treeRadius,
   ) {
     // console.log(`tree spawn at: `, startPos)
-    const levelRef = Math.floor(startPos.y)
+    const endPos = startPos.clone().addScalar(2 * range + 2)
     const treeBbox = new Box3(
       startPos,
-      startPos.clone().addScalar(2 * range + 2),
+      endPos,
     )
+    const center = treeBbox.getCenter(new Vector3())
+    const level = Heightmap.instance.getGroundPos(center)
+    const size = Math.abs(level - startPos.y)
     treeBbox.min.y = 0
     treeBbox.max.y = 0
     const treeOverlap = !!Vegetation.instance.treeCache.find(bbox =>
@@ -136,7 +141,8 @@ export class Vegetation {
           const blockPos = new Vector3(xIndex, 0, zIndex)
           const treeData = {
             xzProj,
-            levelRef,
+            level,
+            size,
             type,
           }
 
@@ -155,7 +161,7 @@ export class Vegetation {
           // }
 
           // safety check, shouldn't happen
-          if (!block.genData.tree?.levelRef) {
+          if (!block.genData.tree?.level) {
             block.genData.tree = treeData
           } else {
             skipped++
