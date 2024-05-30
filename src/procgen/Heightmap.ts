@@ -82,6 +82,6 @@ export class Heightmap {
       cacheData.level = pos.y
       // buildData.data.raw = noiseVal
     }
-    return noiseVal
+    return pos.y
   }
 }
