@@ -72,18 +72,17 @@ export type ProcLayerExtCfg = {
 // }
 
 export interface MappingData {
-  x: number // noise
-  y: number // noise mapping
-  blockType?: {
-    primary: BlockType // nominal block type,
-    secondary: BlockType
-  }
-  amplitude?: {
-    // random amplitude used in blocks randomization
+  grounds: BlockType[] // which types of ground can be here
+  entities: string[] // which type of entities can spawn
+  amplitude: {  // amplitude used in blocks randomization
     low: number
     high: number
   }
-  vegetation?: string[] // specifies wether a tree can spawn or not
+}
+
+export interface MappingRange extends Partial<MappingData> {
+  x: number // noise
+  y: number // noise mapping
 }
 
 export type BlockGenData = {
@@ -92,7 +91,7 @@ export type BlockGenData = {
   raw: number
 }
 
-export type MappingConf = Record<string, MappingData>
-export type MappingRanges = LinkedList<MappingData>
+export type MappingConf = Record<string, MappingRange>
+export type MappingRanges = LinkedList<MappingRange>
 export type BiomeConf = Record<BiomeType, MappingConf>
 export type BiomeMappings = Record<BiomeType, MappingRanges>

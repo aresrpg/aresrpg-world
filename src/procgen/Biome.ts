@@ -1,18 +1,17 @@
 import { Vector2, Vector3 } from 'three'
 
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
-import { BiomeConf, BiomeMappings, MappingRanges } from '../common/types'
+import { BiomeConf, BiomeMappings, MappingData, MappingRanges } from '../common/types'
 import { LinkedList } from '../common/misc'
 import { MappingRangeSorter } from '../common/utils'
 import * as Utils from '../common/utils'
-import { TreeType } from '../tools/TreeGenerator'
 
 import { ProcLayer } from './ProcLayer'
-import { BlockIterData } from './BlocksPatch'
 
 export enum BlockType {
   NONE,
   WATER,
+  ICE,
   TREE_TRUNK,
   TREE_FOLIAGE,
   TREE_FOLIAGE_2,
@@ -173,7 +172,7 @@ export class Biome {
           ? blockMapping.next.data.blockType
           : blockMapping.data.blockType
     }
-    return blockTypes?.primary
+    return blockTypes?.[0]
   }
 
   getBlockLevel = (
@@ -195,28 +194,18 @@ export class Biome {
     return interpolated // includeSea ? Math.max(interpolated, seaLevel) : interpolated
   }
 
-  getBlockType = (blockData: BlockIterData) => {
-    const { biome: biomeType, raw: rawVal } = blockData.cache.genData
+  getBlockType = (rawVal: number, biomeType: BiomeType) => {
     // nominal block type
     let mappingRange = Utils.findMatchingRange(
       rawVal as number,
       this.mappings[biomeType as BiomeType],
     )
-    while (!mappingRange.data.blockType && mappingRange.prev) {
+    while (!mappingRange.data.grounds && mappingRange.prev) {
       mappingRange = mappingRange.prev
     }
-    const nominalType =
-      mappingRange.data.blockType?.primary ||
-      (mappingRange.data.blockType as any as BlockType) ||
-      BlockType.NONE
-    // trigger tree gen on applicable regions
-    const treeType = mappingRange.data.vegetation?.[0] as TreeType
-    if (!blockData.cache.genData.tree && treeType) {
-      blockData.cache.genData.tree = { type: treeType }
-    }
-    blockData.cache.type = nominalType
+
     // const finalBlockType = this.blockRandomization(groundPos, baseHeight, currentBlockMap)
     // if (finalBlockType !== nominalBlockType) console.log(`[getBlockType] nominal${nominalBlockType} random${finalBlock}`)
-    return nominalType // finalBlock
+    return mappingRange.data as MappingData
   }
 }
