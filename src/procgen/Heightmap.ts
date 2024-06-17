@@ -1,9 +1,8 @@
 import { Vector3 } from 'three'
 
 import { ProcLayer } from './ProcLayer'
-import { Biome } from './Biome'
+import { Biome, BiomeType } from './Biome'
 import { BlendMode, getCompositor } from './NoiseComposition'
-import { BlockIterData } from './BlocksPatch'
 
 const MODULATION_THRESHOLD = 0.318
 
@@ -55,33 +54,29 @@ export class Heightmap {
     return finalVal
   }
 
+  getRawVal(blockPos: Vector3) {
+    return this.heightmap.eval(blockPos)
+  }
+
   /**
    *
    * @param blockData
    * @param includeSea
    * @returns
    */
-  getGroundPos(blockData: BlockIterData | Vector3, includeSea?: boolean) {
-    const pos = (blockData as BlockIterData).pos || (blockData as Vector3)
-    const noiseVal = this.heightmap.eval(pos)
-    const biomeType =
-      (blockData as BlockIterData).cache?.genData?.biome ||
-      Biome.instance.getBiomeType(pos)
-    // (blockData as BlockIterData).cache.type = Biome.instance.getBlockType(pos, noiseVal)
+  getGroundLevel(blockPos: Vector3, rawVal?: number, biomeType?: BiomeType, includeSea?: boolean) {
+    rawVal = rawVal || this.getRawVal(blockPos)
+    biomeType = biomeType ||
+      Biome.instance.getBiomeType(blockPos)
+    // (blockData as BlockIterData).cache.type = Biome.instance.getBlockType(blockPos, noiseVal)
     // noiseVal = includeSea ? Math.max(noiseVal, Biome.instance.params.seaLevel) : noiseVal
-    const nominalVal = Biome.instance.getBlockLevel(
-      noiseVal,
+    const initialVal = Biome.instance.getBlockLevel(
+      rawVal,
       biomeType,
       includeSea,
     )
-    const finalVal = this.applyModulation(pos, nominalVal, MODULATION_THRESHOLD)
-    pos.y = Math.floor(finalVal * 255)
-    const cacheData = (blockData as BlockIterData).cache
-    if (cacheData) {
-      cacheData.genData.raw = noiseVal
-      cacheData.level = pos.y
-      // buildData.data.raw = noiseVal
-    }
-    return pos.y
+    const finalVal = this.applyModulation(blockPos, initialVal, MODULATION_THRESHOLD)
+    blockPos.y = Math.floor(finalVal * 255)
+    return blockPos.y
   }
 }
