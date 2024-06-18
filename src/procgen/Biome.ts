@@ -1,7 +1,12 @@
 import { Vector2, Vector3 } from 'three'
 
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
-import { BiomeConf, BiomeMappings, MappingData, MappingRanges } from '../common/types'
+import {
+  BiomeConf,
+  BiomeMappings,
+  MappingData,
+  MappingRanges,
+} from '../common/types'
 import { LinkedList } from '../common/misc'
 import { MappingRangeSorter } from '../common/utils'
 import * as Utils from '../common/utils'
@@ -157,8 +162,8 @@ export class Biome {
       const varyingHeight = baseHeight - heightVariation
       blockTypes =
         varyingHeight < blockMapping.data.x
-          ? blockMapping.prev?.data.blockType
-          : blockMapping.data.blockType
+          ? blockMapping.prev?.data.grounds
+          : blockMapping.data.grounds
     }
     // randomize on upper side
     else if (blockMapping.next && baseHeight + amplitude.high > bounds.upper) {
@@ -169,8 +174,8 @@ export class Biome {
       const varyingHeight = baseHeight + heightVariation
       blockTypes =
         varyingHeight > blockMapping.next.data.x
-          ? blockMapping.next.data.blockType
-          : blockMapping.data.blockType
+          ? blockMapping.next.data.grounds
+          : blockMapping.data.grounds
     }
     return blockTypes?.[0]
   }

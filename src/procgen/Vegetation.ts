@@ -1,5 +1,4 @@
-import { Box3, Vector2, Vector3 } from 'three'
-import { Quadtree, Rectangle } from '@timohausmann/quadtree-ts';
+import { Box3, Vector3 } from 'three'
 
 import { TreeGenerators, TreeType } from '../tools/TreeGenerator'
 
@@ -29,21 +28,12 @@ export class Vegetation {
     spawnThreshold: 4,
   }
 
-  shared: Quadtree<Rectangle>
   treeCache: Box3[] = []
   // eslint-disable-next-line no-use-before-define
   static singleton: Vegetation
 
   constructor() {
     this.treeMap = new ProcLayer('treemap')
-    this.quadtree = new Quadtree({
-      width: 800,
-      height: 600,
-      x: 0,           // optional, default:  0
-      y: 0,           // optional, default:  0
-      maxObjects: 100, // optional, default: 10
-      maxLevels: 4    // optional, default:  4
-    })
   }
 
   static get instance() {
@@ -144,8 +134,8 @@ export class Vegetation {
 
     const entityData: EntityData = {
       level: 0,
-      type: 0,
-      bbox
+      type: TreeType.None,
+      bbox,
     }
 
     const isSpawning = prng() * this.treeEval(pos) < spawnThreshold
@@ -154,13 +144,12 @@ export class Vegetation {
     // const level = Heightmap.instance.getGroundPos(center)
     // const size = Math.abs(level - startPos.y)
   }
+
   /**
    * Pruning strategy
    * - try removing the lesser trees to match criteria
    * - remove tree spawning further away from patch center in priority
    * - keep top left trees in priority
    */
-  pruneExcessSpawn() {
-
-  }
+  pruneExcessSpawn() {}
 }

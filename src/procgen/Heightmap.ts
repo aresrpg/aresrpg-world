@@ -64,10 +64,14 @@ export class Heightmap {
    * @param includeSea
    * @returns
    */
-  getGroundLevel(blockPos: Vector3, rawVal?: number, biomeType?: BiomeType, includeSea?: boolean) {
+  getGroundLevel(
+    blockPos: Vector3,
+    rawVal?: number,
+    biomeType?: BiomeType,
+    includeSea?: boolean,
+  ) {
     rawVal = rawVal || this.getRawVal(blockPos)
-    biomeType = biomeType ||
-      Biome.instance.getBiomeType(blockPos)
+    biomeType = biomeType || Biome.instance.getBiomeType(blockPos)
     // (blockData as BlockIterData).cache.type = Biome.instance.getBlockType(blockPos, noiseVal)
     // noiseVal = includeSea ? Math.max(noiseVal, Biome.instance.params.seaLevel) : noiseVal
     const initialVal = Biome.instance.getBlockLevel(
@@ -75,7 +79,11 @@ export class Heightmap {
       biomeType,
       includeSea,
     )
-    const finalVal = this.applyModulation(blockPos, initialVal, MODULATION_THRESHOLD)
+    const finalVal = this.applyModulation(
+      blockPos,
+      initialVal,
+      MODULATION_THRESHOLD,
+    )
     blockPos.y = Math.floor(finalVal * 255)
     return blockPos.y
   }

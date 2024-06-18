@@ -1,6 +1,6 @@
-import { Vector2, Vector3 } from 'three'
+import { Box3, Vector2, Vector3 } from 'three'
 
-import { BlockNeighbour, MappingData, MappingRanges } from './types'
+import { BlockNeighbour, MappingRange, MappingRanges } from './types'
 
 // Clamp number between two values:
 const clamp = (num: number, min: number, max: number) =>
@@ -12,7 +12,7 @@ const roundToDec = (val: number, n_pow: number) => {
 }
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
-export const MappingRangeSorter = (item1: MappingData, item2: MappingData) =>
+export const MappingRangeSorter = (item1: MappingRange, item2: MappingRange) =>
   item1.x - item2.x
 
 /**
@@ -125,6 +125,15 @@ const getAllNeighbours = (pos: Vector3): Vector3[] => {
   return neighbours
 }
 
+const bboxContainsPointXZ = (bbox: Box3, point: Vector3) => {
+  return (
+    point.x >= bbox.min.x &&
+    point.z >= bbox.min.z &&
+    point.x < bbox.max.x &&
+    point.z < bbox.max.z
+  )
+}
+
 export {
   roundToDec,
   clamp,
@@ -133,4 +142,5 @@ export {
   getAllNeighbours,
   AdjacentNeighbours,
   getNeighbour,
+  bboxContainsPointXZ,
 }
