@@ -10,13 +10,14 @@ import { EntityData, Vegetation } from './Vegetation'
 export type BlockData = {
   pos: Vector3
   type: BlockType
+  localPos?: Vector3
   buffer?: BlockType[]
 }
 
 export type BlockIteratorRes = IteratorResult<BlockData, void>
 
-
-export class PatchCache { //extends Rectangle {
+export class PatchCache {
+  // extends Rectangle {
   // eslint-disable-next-line no-use-before-define
   static cache: PatchCache[] = []
   static patchSize = Math.pow(2, 6)
@@ -28,13 +29,17 @@ export class PatchCache { //extends Rectangle {
   biomeType: BiomeType // biome value at patch center
   blocks = {
     type: new Uint16Array(Math.pow(PatchCache.patchSize, 2)),
-    level: new Uint16Array(Math.pow(PatchCache.patchSize, 2))
+    level: new Uint16Array(Math.pow(PatchCache.patchSize, 2)),
   }
 
   constructor(patchOrigin: Vector2) {
     const { patchSize } = PatchCache
     const bmin = new Vector3(patchOrigin.x, 0, patchOrigin.y)
-    const bmax = new Vector3(patchOrigin.x + patchSize, 255, patchOrigin.y + patchSize)
+    const bmax = new Vector3(
+      patchOrigin.x + patchSize,
+      255,
+      patchOrigin.y + patchSize,
+    )
     this.bbox = new Box3(bmin, bmax)
     this.bbox.getSize(this.dimensions)
     // init patch biome
@@ -44,8 +49,10 @@ export class PatchCache { //extends Rectangle {
 
   static getPatchOrigin(input: Box3 | Vector3 | Vector2) {
     const { patchSize } = this
-    const inputCopy: Vector3 | Box3 = input instanceof Vector2 ?
-      new Vector3(input.x, 0, input.y) : input.clone()
+    const inputCopy: Vector3 | Box3 =
+      input instanceof Vector2
+        ? new Vector3(input.x, 0, input.y)
+        : input.clone()
     const point =
       inputCopy instanceof Box3
         ? (inputCopy as Box3).getCenter(new Vector3())
@@ -62,19 +69,23 @@ export class PatchCache { //extends Rectangle {
     const bbox = inputBbox.clone()
     bbox.min.y = 0
     bbox.max.y = 512
-    const res = PatchCache.cache.filter(patch =>
-      patch.bbox.intersectsBox(bbox))
+    const res = PatchCache.cache.filter(patch => patch.bbox.intersectsBox(bbox))
     return res
   }
 
   static getPatch(inputPoint: Vector2 | Vector3) {
-    const point = new Vector3(inputPoint.x, 0, inputPoint instanceof Vector3 ? inputPoint.z : inputPoint.y)
+    const point = new Vector3(
+      inputPoint.x,
+      0,
+      inputPoint instanceof Vector3 ? inputPoint.z : inputPoint.y,
+    )
 
-    const res = this.cache.find(patch =>
-      point.x >= patch.bbox.min.x &&
-      point.z >= patch.bbox.min.z &&
-      point.x < patch.bbox.max.x &&
-      point.z < patch.bbox.max.z
+    const res = this.cache.find(
+      patch =>
+        point.x >= patch.bbox.min.x &&
+        point.z >= patch.bbox.min.z &&
+        point.x < patch.bbox.max.x &&
+        point.z < patch.bbox.max.z,
     )
     return res
   }
@@ -82,14 +93,15 @@ export class PatchCache { //extends Rectangle {
   static getBlock(globalPos: Vector3) {
     // find patch containing point in cache
     const patch = this.getPatch(globalPos)
-    let block: BlockData
+    let block
     if (patch) {
       const localPos = globalPos.clone().sub(patch.bbox.min)
       block = patch.getBlock(localPos) as BlockData
       const pos = globalPos.clone()
       pos.y = block.pos.y
       const buffer: BlockType[] = []
-      patch.getEntities()
+      patch
+        .getEntities()
         .filter(entity => entity.bbox.containsPoint(pos))
         .forEach(entity => Vegetation.singleton.fillBuffer(pos, entity, buffer))
       block.buffer = buffer
@@ -105,7 +117,7 @@ export class PatchCache { //extends Rectangle {
     const patch = this.getPatch(globalPos)
     if (patch) {
       const localPos = globalPos.clone().sub(patch.bbox.min)
-      patch.setBlock(localPos, block.pos.y, block.type)
+      patch.setBlock(localPos, block.type)
     } else {
       console.log(globalPos)
     }
@@ -124,7 +136,11 @@ export class PatchCache { //extends Rectangle {
     return block
   }
 
-  setBlockAtIndex(blockIndex: number, blockLevel: number, blockType: BlockType) {
+  setBlockAtIndex(
+    blockIndex: number,
+    blockLevel: number,
+    blockType: BlockType,
+  ) {
     this.blocks.level[blockIndex] = blockLevel
     this.blocks.type[blockIndex] = blockType
   }
@@ -138,8 +154,10 @@ export class PatchCache { //extends Rectangle {
     // bbox.max.y = Math.max(bbox.max.y, levelMax)
   }
 
-  *blockIterator(useLocalCoords?: boolean, includeBuffer?: boolean) {
-    const bbox = useLocalCoords ? new Box3(new Vector3(0), this.dimensions) : this.bbox
+  *blockIterator(useLocalCoords?: boolean) {
+    const bbox = useLocalCoords
+      ? new Box3(new Vector3(0), this.dimensions)
+      : this.bbox
 
     let index = 0
     for (let { x } = bbox.min; x < bbox.max.x; x++) {
@@ -156,7 +174,7 @@ export class PatchCache { //extends Rectangle {
         const blockData = {
           index,
           pos,
-          type
+          type,
         }
         index++
         yield blockData
@@ -165,8 +183,16 @@ export class PatchCache { //extends Rectangle {
   }
 
   *getBlocks(bbox: Box3) {
-    const bmin = new Vector3(Math.max(bbox.min.x, this.bbox.min.x), 0, Math.max(bbox.min.z, this.bbox.min.z))
-    const bmax = new Vector3(Math.min(bbox.max.x, this.bbox.max.x), 0, Math.min(bbox.max.z, this.bbox.max.z))
+    const bmin = new Vector3(
+      Math.max(bbox.min.x, this.bbox.min.x),
+      0,
+      Math.max(bbox.min.z, this.bbox.min.z),
+    )
+    const bmax = new Vector3(
+      Math.min(bbox.max.x, this.bbox.max.x),
+      0,
+      Math.min(bbox.max.z, this.bbox.max.z),
+    )
     for (let { x } = bmin; x < bmax.x; x++) {
       for (let { z } = bmin; z < bmax.z; z++) {
         const pos = new Vector3(x, 0, z)
@@ -176,10 +202,10 @@ export class PatchCache { //extends Rectangle {
         const level = this.blocks.level[index] || 0
         pos.y = level
         localPos.y = level
-        const blockData = {
+        const blockData: BlockData = {
           pos,
           localPos,
-          type
+          type,
         }
         yield blockData
       }
@@ -188,28 +214,40 @@ export class PatchCache { //extends Rectangle {
 
   /**
    * Gathers all entities affecting this patch
-   * @param excludeNearPatches 
-   * @returns 
+   * @param excludeNearPatches
+   * @returns
    */
   getEntities(excludeNearPatches = false) {
     let entities = this.spawnedEntities
     if (!excludeNearPatches) {
       const bbox = this.bbox.clone().expandByScalar(1)
       const nearPatches = PatchCache.getPatches(bbox)
-      const allEntities: EntityData[] = nearPatches.reduce((agg, patch) => [...agg, ...patch.spawnedEntities], [])
-      entities = allEntities.filter(entity => entity.bbox.intersectsBox(this.bbox))
+      const allEntities = nearPatches.reduce<EntityData[]>(
+        (agg, patch) => [...agg, ...patch.spawnedEntities],
+        [],
+      )
+      entities = allEntities.filter(entity =>
+        entity.bbox.intersectsBox(this.bbox),
+      )
     }
     return entities
   }
 
   *overBlocksIter() {
     const entities = this.getEntities()
-    for (let entity of entities) {
+    for (const entity of entities) {
       const blocksIter = this.getBlocks(entity.bbox)
       // let item: BlockIteratorRes = blocksIter.next()
-      for (let block of blocksIter) {
-        const overBlocksBuffer = Vegetation.singleton.fillBuffer(block.pos, entity, [])
-        this.bbox.max.y = Math.max(this.bbox.max.y, block.pos.y + overBlocksBuffer.length)
+      for (const block of blocksIter) {
+        const overBlocksBuffer = Vegetation.singleton.fillBuffer(
+          block.pos,
+          entity,
+          [],
+        )
+        this.bbox.max.y = Math.max(
+          this.bbox.max.y,
+          block.pos.y + overBlocksBuffer.length,
+        )
         block.buffer = overBlocksBuffer
         yield block
       }
@@ -218,11 +256,14 @@ export class PatchCache { //extends Rectangle {
 
   static updateCache(center: Vector3, radius: number, forceUpdate = false) {
     const { patchSize } = this
-    const bbox = new Box3().setFromCenterAndSize(center, new Vector3(radius, 0, radius))
-    bbox.min.x = bbox.min.x - bbox.min.x % patchSize
-    bbox.min.z = bbox.min.z - bbox.min.z % patchSize
-    bbox.max.x = (bbox.max.x - bbox.max.x % patchSize) + patchSize
-    bbox.max.z = (bbox.max.z - bbox.max.z % patchSize) + patchSize
+    const bbox = new Box3().setFromCenterAndSize(
+      center,
+      new Vector3(radius, 0, radius),
+    )
+    bbox.min.x = bbox.min.x - (bbox.min.x % patchSize)
+    bbox.min.z = bbox.min.z - (bbox.min.z % patchSize)
+    bbox.max.x = bbox.max.x - (bbox.max.x % patchSize) + patchSize
+    bbox.max.z = bbox.max.z - (bbox.max.z % patchSize) + patchSize
     bbox.min.x -= bbox.min.x < 0 ? patchSize : 0
     bbox.min.z -= bbox.min.z < 0 ? patchSize : 0
     bbox.min.y = 0
@@ -240,7 +281,7 @@ export class PatchCache { //extends Rectangle {
         for (let zmin = bbox.min.z; zmin < bbox.max.z; zmin += patchSize) {
           const patchStart = new Vector2(xmin, zmin)
           // look for existing patch in current cache
-          let patch = PatchCache.getPatch(patchStart) //|| new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
+          let patch = PatchCache.getPatch(patchStart) // || new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
           if (!patch) {
             patch = new PatchCache(patchStart)
             created.push(patch)
@@ -254,7 +295,7 @@ export class PatchCache { //extends Rectangle {
         PatchCache.buildPatch(patch)
         patch?.bbox.getSize(patch.dimensions)
       })
-      let elapsedTime = Date.now() - startTime
+      const elapsedTime = Date.now() - startTime
       const perPatchAvg = Math.round(elapsedTime / created.length)
       const removedCount = this.cache.length - existing.length
       this.cache = [...existing, ...created]
@@ -268,7 +309,14 @@ export class PatchCache { //extends Rectangle {
 
   static buildPatch(patch: PatchCache) {
     const { bbox } = patch
-    const patchId = patch.bbox.min.x + ',' + patch.bbox.min.z + '-' + patch.bbox.max.x + ',' + patch.bbox.max.z
+    const patchId =
+      patch.bbox.min.x +
+      ',' +
+      patch.bbox.min.z +
+      '-' +
+      patch.bbox.max.x +
+      ',' +
+      patch.bbox.max.z
     const prng = alea(patchId)
 
     // fill tree buffer
@@ -278,11 +326,15 @@ export class PatchCache { //extends Rectangle {
     bbox.min.y = 255
     bbox.max.y = 0
     let blockIndex = 0
-    for (let blockData of blocksIter) {
+    for (const blockData of blocksIter) {
       const rawVal = Heightmap.instance.getRawVal(blockData.pos)
       const blockTypes = Biome.instance.getBlockType(rawVal, patch.biomeType)
-      blockData.pos.y = Heightmap.instance.getGroundLevel(blockData.pos, rawVal, patch.biomeType)
-      blockData.type = blockTypes.grounds[0] as BlockType //|| blockData.cache.type
+      blockData.pos.y = Heightmap.instance.getGroundLevel(
+        blockData.pos,
+        rawVal,
+        patch.biomeType,
+      )
+      blockData.type = blockTypes.grounds[0] as BlockType // || blockData.cache.type
       // const blockItem = new Circle({ x: blockData.pos.x, y: blockData.pos.z, r: 1 })
       // const items = BlocksPatch.quadtree.retrieve(blockItem)
       // const existingTree = items.find(item => new Vector2((item as Circle).x, (item as Circle).y)
@@ -296,13 +348,14 @@ export class PatchCache { //extends Rectangle {
         allowSpawn = !ent
       }
       // if(trees.find(tree=>tree.containsPoint(blockData.pos))){
-      // if block belongs to existing tree 
+      // if block belongs to existing tree
       // if (existingTree) {
       //   treeType ? existingTree.data.blocks.push(blockData) : BlocksPatch.quadtree.remove(existingTree)
       // }
-      // // else check if a tree is spawning 
-      // else 
-      const entity = allowSpawn && Vegetation.instance.spawnEntity(blockData.pos, prng)
+      // // else check if a tree is spawning
+      // else
+      const entity =
+        allowSpawn && Vegetation.instance.spawnEntity(blockData.pos, prng)
       if (entity) {
         // discard entities spawning too close to another
         // const discarded = entity && patch.spawnedEntities.find(entity2 =>
@@ -315,7 +368,7 @@ export class PatchCache { //extends Rectangle {
         const entityPos = entity.bbox.getCenter(new Vector3())
         const entityHeight = 10
         entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
-        entity.bbox.max.y = entity.bbox.min.y //+ entityHeight
+        entity.bbox.max.y = entity.bbox.min.y // + entityHeight
         // check if it has an overlap with edge patch(es)
         if (!patch.bbox.containsBox(entity.bbox)) {
           // find edge points that don't belongs to current patch
@@ -326,7 +379,9 @@ export class PatchCache { //extends Rectangle {
           p1.x = pMax.x
           p2.z = pMax.z
           const edgePoints = [pMin, p1, p2, pMax]
-          entity.edgesOverlaps = edgePoints.filter(p => !patch.bbox.containsPoint(p))
+          entity.edgesOverlaps = edgePoints.filter(
+            p => !patch.bbox.containsPoint(p),
+          )
           // if (entity.bbox.min.z < patch.bbox.min.z) entity.edgesOverlaps.push(PatchEdge.BACK)
           // if (entity.bbox.max.z > patch.bbox.max.z) entity.edgesOverlaps.push(PatchEdge.FRONT)
           // if (entity.bbox.min.x < patch.bbox.min.x) entity.edgesOverlaps.push(PatchEdge.LEFT)

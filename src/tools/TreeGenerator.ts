@@ -7,6 +7,7 @@ export type TreeGenerator = (
 ) => BlockType
 
 export enum TreeType {
+  None = '',
   PineTree = 'pine_tree',
   AppleTree = 'apple_tree',
 }
@@ -24,6 +25,7 @@ const PineTree = (xzProj: number, y: number, range: number) => {
 }
 
 export const TreeGenerators: Record<TreeType, TreeGenerator> = {
+  [TreeType.None]: () => BlockType.NONE,
   [TreeType.AppleTree]: AppleTree,
   [TreeType.PineTree]: PineTree,
 }

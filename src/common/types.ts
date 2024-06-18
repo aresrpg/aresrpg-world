@@ -1,7 +1,6 @@
 import { Vector3 } from 'three'
 
 import { BiomeType, BlockType } from '../procgen/Biome'
-import { TreeData } from '../procgen/Vegetation'
 
 import { LinkedList } from './misc'
 
@@ -74,7 +73,8 @@ export type ProcLayerExtCfg = {
 export interface MappingData {
   grounds: BlockType[] // which types of ground can be here
   entities: string[] // which type of entities can spawn
-  amplitude: {  // amplitude used in blocks randomization
+  amplitude: {
+    // amplitude used in blocks randomization
     low: number
     high: number
   }
@@ -83,12 +83,6 @@ export interface MappingData {
 export interface MappingRange extends Partial<MappingData> {
   x: number // noise
   y: number // noise mapping
-}
-
-export type BlockGenData = {
-  biome: BiomeType
-  tree: Partial<TreeData>
-  raw: number
 }
 
 export type MappingConf = Record<string, MappingRange>
