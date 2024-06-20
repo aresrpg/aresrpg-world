@@ -20,10 +20,14 @@ export class PatchCache {
   // extends Rectangle {
   // eslint-disable-next-line no-use-before-define
   static cache: PatchCache[] = []
+  // eslint-disable-next-line no-use-before-define
+  static queue: PatchCache[] = []
   static patchSize = Math.pow(2, 6)
   static bbox = new Box3()
   static ready = false
+  static updated = false
   spawnedEntities: EntityData[] = []
+  extEntities: EntityData[] = []
   bbox: Box3
   dimensions = new Vector3()
   biomeType: BiomeType // biome value at patch center
@@ -31,6 +35,8 @@ export class PatchCache {
     type: new Uint16Array(Math.pow(PatchCache.patchSize, 2)),
     level: new Uint16Array(Math.pow(PatchCache.patchSize, 2)),
   }
+
+  completed = false
 
   constructor(patchOrigin: Vector2) {
     const { patchSize } = PatchCache
@@ -91,20 +97,25 @@ export class PatchCache {
   }
 
   static getBlock(globalPos: Vector3) {
-    // find patch containing point in cache
-    const patch = this.getPatch(globalPos)
     let block
-    if (patch) {
-      const localPos = globalPos.clone().sub(patch.bbox.min)
-      block = patch.getBlock(localPos) as BlockData
-      const pos = globalPos.clone()
-      pos.y = block.pos.y
-      const buffer: BlockType[] = []
-      patch
-        .getEntities()
-        .filter(entity => entity.bbox.containsPoint(pos))
-        .forEach(entity => Vegetation.singleton.fillBuffer(pos, entity, buffer))
-      block.buffer = buffer
+    globalPos.y = PatchCache.bbox.getCenter(new Vector3()).y
+    if (PatchCache.bbox.containsPoint(globalPos)) {
+      // find patch containing point in cache
+      const patch = this.getPatch(globalPos)
+      if (patch) {
+        const localPos = globalPos.clone().sub(patch.bbox.min)
+        block = patch.getBlock(localPos) as BlockData
+        const pos = globalPos.clone()
+        pos.y = block.pos.y
+        const buffer: BlockType[] = []
+        patch
+          .getEntities()
+          .filter(entity => entity.bbox.containsPoint(pos))
+          .forEach(entity =>
+            Vegetation.singleton.fillBuffer(pos, entity, buffer),
+          )
+        block.buffer = buffer
+      }
     }
     // else {
     //     console.log(`block not found`)
@@ -122,6 +133,33 @@ export class PatchCache {
       console.log(globalPos)
     }
     return block
+  }
+
+  getEdgePatches() {
+    const dim = this.dimensions
+    const patchCenter = this.bbox.getCenter(new Vector3())
+    const minX = patchCenter.clone().add(new Vector3(-dim.x, 0, 0))
+    const maxX = patchCenter.clone().add(new Vector3(dim.x, 0, 0))
+    const minZ = patchCenter.clone().add(new Vector3(0, 0, -dim.z))
+    const maxZ = patchCenter.clone().add(new Vector3(0, 0, dim.z))
+    const minXminZ = patchCenter.clone().add(new Vector3(-dim.x, 0, -dim.z))
+    const minXmaxZ = patchCenter.clone().add(new Vector3(-dim.x, 0, dim.z))
+    const maxXminZ = patchCenter.clone().add(new Vector3(dim.x, 0, -dim.z))
+    const maxXmaxZ = patchCenter.clone().add(new Vector3(dim.x, 0, dim.z))
+    const neighboursCenters = [
+      minX,
+      maxX,
+      minZ,
+      maxZ,
+      minXminZ,
+      minXmaxZ,
+      maxXminZ,
+      maxXmaxZ,
+    ]
+    const patchNeighbours: PatchCache[] = neighboursCenters
+      .map(patchCenter => PatchCache.getPatch(patchCenter))
+      .filter(patch => patch) as PatchCache[]
+    return patchNeighbours
   }
 
   getBlock(localPos: Vector3) {
@@ -217,20 +255,31 @@ export class PatchCache {
    * @param excludeNearPatches
    * @returns
    */
-  getEntities(excludeNearPatches = false) {
-    let entities = this.spawnedEntities
-    if (!excludeNearPatches) {
-      const bbox = this.bbox.clone().expandByScalar(1)
-      const nearPatches = PatchCache.getPatches(bbox)
-      const allEntities = nearPatches.reduce<EntityData[]>(
-        (agg, patch) => [...agg, ...patch.spawnedEntities],
-        [],
-      )
-      entities = allEntities.filter(entity =>
-        entity.bbox.intersectsBox(this.bbox),
-      )
+  getEntities() {
+    this.cacheExtEntities()
+    return [...this.spawnedEntities, ...this.extEntities]
+  }
+
+  cacheExtEntities() {
+    if (!this.completed) {
+      const edgePatches = this.getEdgePatches()
+      // skip patches with incomplete edge patches count or already processed
+      if (edgePatches.length === 8) {
+        this.completed = true
+        // extEntities
+        edgePatches.forEach(patch => {
+          patch.spawnedEntities
+            // .filter(entity => entity.edgesOverlaps)
+            .filter(entity => entity.bbox.intersectsBox(this.bbox))
+            .forEach(entity => this.extEntities.push(entity))
+        })
+        return true
+      }
+      // else {
+      //   console.log(`incomplete patch edges count: ${edgePatches.length}`)
+      // }
     }
-    return entities
+    return false
   }
 
   *overBlocksIter() {
@@ -273,10 +322,8 @@ export class PatchCache {
     prevCenter.y = 0
     const nextCenter = bbox.getCenter(new Vector3())
     if (forceUpdate || nextCenter.distanceTo(prevCenter) > patchSize) {
-      const startTime = Date.now()
       PatchCache.bbox = bbox
       const existing = []
-      const created = []
       for (let xmin = bbox.min.x; xmin < bbox.max.x; xmin += patchSize) {
         for (let zmin = bbox.min.z; zmin < bbox.max.z; zmin += patchSize) {
           const patchStart = new Vector2(xmin, zmin)
@@ -284,30 +331,64 @@ export class PatchCache {
           let patch = PatchCache.getPatch(patchStart) // || new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
           if (!patch) {
             patch = new PatchCache(patchStart)
-            created.push(patch)
+            PatchCache.queue.push(patch)
           } else {
             existing.push(patch)
           }
         }
       }
-      // build new patches
-      created.forEach(patch => {
-        PatchCache.buildPatch(patch)
-        patch?.bbox.getSize(patch.dimensions)
-      })
-      const elapsedTime = Date.now() - startTime
-      const perPatchAvg = Math.round(elapsedTime / created.length)
       const removedCount = this.cache.length - existing.length
-      this.cache = [...existing, ...created]
+      this.cache = [...existing]
       console.log(
-        `[PatchCache] total time ${elapsedTime} ms (${perPatchAvg} ms per patch) => created: ${created.length}, updated: ${existing.length}, removed: ${removedCount} )`,
+        `[PatchCache:update] enqueud: ${this.queue.length}, kept: ${this.cache.length}, removed: ${removedCount} )`,
       )
       return true
     }
     return false
   }
 
-  static buildPatch(patch: PatchCache) {
+  static cacheExtEntities() {
+    let elapsedTime = Date.now()
+    const patchCount = PatchCache.cache
+      .map(patch => patch.cacheExtEntities())
+      .filter(val => val).length
+    elapsedTime -= Date.now()
+    elapsedTime = Math.abs(elapsedTime)
+    // const perPatchMs = Math.round(elapsedTime / patchCount)
+    console.log(
+      `[PatchCache:cacheExtEntities] ${patchCount} patches processed in ${elapsedTime}ms`,
+    )
+    return elapsedTime
+  }
+
+  static buildNextBatch(batchCount = PatchCache.queue.length, maxDuration = 0) {
+    let elapsed = 0
+    // maxCount = MathUtils.clamp(maxCount, Math.round(PatchCache.queue.length / 100), PatchCache.queue.length)
+    batchCount = Math.max(batchCount, Math.round(PatchCache.queue.length / 100))
+    let count = 0
+    while (
+      PatchCache.queue.length > 0 &&
+      count <= batchCount &&
+      // eslint-disable-next-line no-unmodified-loop-condition
+      (maxDuration === 0 || elapsed < maxDuration)
+    ) {
+      const patch = PatchCache.queue.pop() as PatchCache
+      elapsed += patch.buildPatch()
+      PatchCache.cache.push(patch)
+      count++
+    }
+    if (count > 0) {
+      PatchCache.updated = true
+      const avgMs = Math.round(elapsed / count)
+      console.log(`[PatchCache:buildNextBatch] ${count} items ${avgMs} ms/item`)
+      return true
+    }
+    return false
+  }
+
+  buildPatch() {
+    const startTime = Date.now()
+    const patch = this
     const { bbox } = patch
     const patchId =
       patch.bbox.min.x +
@@ -399,7 +480,13 @@ export class PatchCache {
       patch.setBlockAtIndex(blockIndex, blockData.pos.y, blockData.type)
       blockIndex++
     }
+    patch?.bbox.getSize(patch.dimensions)
     // perform blocks buffer generation pass
     PatchCache.bbox.union(bbox)
+    const elapsedTime = Date.now() - startTime
+    // const perPatchAvg = Math.round(elapsedTime / PatchCache.queue.length)
+    // console.log(`[PatchCache:buildPatch] time ${elapsedTime} ms`)
+    // console.log(`[PatchCache:buildPatch]`)
+    return elapsedTime
   }
 }
