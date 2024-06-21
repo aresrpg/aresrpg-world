@@ -17,6 +17,9 @@
     "type": "git",
     "url": "git+https://github.com/aresrpg/aresrpg-world.git"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [],
   "dependencies": {
     "alea": "^1.0.1",
