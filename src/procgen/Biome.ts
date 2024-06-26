@@ -77,7 +77,7 @@ export class Biome {
   // rainProfile: MappingRanges
 
   mappings = {} as BiomeMappings
-  paintRandomness: ProcLayer
+  posRandomizer: ProcLayer
 
   params = {
     seaLevel: 0,
@@ -85,16 +85,16 @@ export class Biome {
 
   constructor(biomeConf?: BiomeConf) {
     this.heatmap = new ProcLayer('heatmap')
-    this.heatmap.sampling.harmonicsCount = 1
+    this.heatmap.sampling.harmonicsCount = 6
     this.heatmap.sampling.periodicity = 8
     this.rainmap = new ProcLayer('rainmap')
-    this.rainmap.sampling.harmonicsCount = 1
+    this.rainmap.sampling.harmonicsCount = 6
     this.rainmap.sampling.periodicity = 8
     // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
     // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
     // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
-    this.paintRandomness = new ProcLayer('paint_random')
-    this.paintRandomness.sampling.periodicity = 6
+    this.posRandomizer = new ProcLayer('pos_random')
+    this.posRandomizer.sampling.periodicity = 6
     if (biomeConf) this.setMappings(biomeConf)
   }
 
@@ -137,14 +137,24 @@ export class Biome {
     })
   }
 
-  blockRandomization = (
+  /**
+   * randomize X,Z coords at transition to make border between biomes less straight
+   */
+  randomizePos(pos) {
+    const period = 0.005 * Math.pow(2, 2)
+    const amplitude = 5
+    const randomEval = this.posRandomizer.eval(pos)
+
+  }
+
+  stepTransition = (
     groundPos: Vector2,
     baseHeight: number,
     blockMapping: MappingRanges,
   ) => {
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)
-    const paintRandomnessVal = this.paintRandomness.eval(mapCoords)
+    const posRandomizerVal = this.posRandomizer.eval(mapCoords)
     // add some height variations to break painting monotony
     const { amplitude }: any = blockMapping.data
     const bounds = {
@@ -158,7 +168,7 @@ export class Biome {
       baseHeight - bounds.lower <= bounds.upper - baseHeight &&
       baseHeight - amplitude.low < bounds.lower
     ) {
-      const heightVariation = paintRandomnessVal * amplitude.low
+      const heightVariation = posRandomizerVal * amplitude.low
       const varyingHeight = baseHeight - heightVariation
       blockTypes =
         varyingHeight < blockMapping.data.x
@@ -170,7 +180,7 @@ export class Biome {
       //   let heightVariation =
       //   Utils.clamp(this.paintingRandomness.eval(groundPos), 0.5, 1) * randomness.high
       // heightVariation = heightVariation > 0 ? (heightVariation - 0.5) * 2 : 0
-      const heightVariation = paintRandomnessVal * amplitude.high
+      const heightVariation = posRandomizerVal * amplitude.high
       const varyingHeight = baseHeight + heightVariation
       blockTypes =
         varyingHeight > blockMapping.next.data.x
