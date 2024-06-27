@@ -1,6 +1,6 @@
 import alea from 'alea'
 import { Box3, Vector2, Vector3 } from 'three'
-import { getBBoxXZCornerPoints, roundToDec } from '../common/utils'
+import { getPatchPoints } from '../common/utils'
 
 import { Heightmap } from '../index'
 import { TreeType } from '../tools/TreeGenerator'
@@ -22,7 +22,11 @@ export class PatchCache {
   // eslint-disable-next-line no-use-before-define
   static cache: PatchCache[] = []
   // eslint-disable-next-line no-use-before-define
-  static queue: PatchCache[] = []
+  static queue = {
+    current: [],
+    postponed: [],
+    skipped: []
+  }
   static patchSize = Math.pow(2, 6)
   static bbox = new Box3()
   static ready = false
@@ -37,8 +41,13 @@ export class PatchCache {
     level: new Uint16Array(Math.pow(PatchCache.patchSize, 2)),
   }
 
+  filled = false  // invisible edge patches will remain empty
   done = false
+  final = false // patch near empty patch will have to regened at patch refresh
+
   isBiomeTransition = false
+  isTransitionPatch = false
+  isCloseToRefPatch = false
 
   constructor(patchOrigin: Vector2) {
     const { patchSize } = PatchCache
@@ -53,6 +62,8 @@ export class PatchCache {
     // init patch biome
     const patchCenter = this.bbox.getCenter(new Vector3())
     this.biomeType = Biome.instance.getBiomeType(patchCenter)
+    this.isBiomeTransition = !!getPatchPoints(this.bbox)
+      .find(point => Biome.instance.getBiomeType(point) !== this.biomeType)
   }
 
   static getPatchOrigin(input: Box3 | Vector3 | Vector2) {
@@ -137,7 +148,7 @@ export class PatchCache {
     return block
   }
 
-  getEdgePatches() {
+  getNearPatches() {
     const dim = this.dimensions
     const patchCenter = this.bbox.getCenter(new Vector3())
     const minX = patchCenter.clone().add(new Vector3(-dim.x, 0, 0))
@@ -264,12 +275,14 @@ export class PatchCache {
 
   cacheExtEntities() {
     if (!this.done) {
-      const edgePatches = this.getEdgePatches()
+      const nearPatches = this.getNearPatches()
       // skip patches with incomplete edge patches count or already processed
-      if (edgePatches.length === 8) {
+      if (nearPatches.length === 8) {
         this.done = true
+        this.final = true
         // extEntities
-        edgePatches.forEach(patch => {
+        nearPatches.forEach(patch => {
+          this.final = this.final && patch.filled
           patch.spawnedEntities
             // .filter(entity => entity.edgesOverlaps)
             .filter(entity => entity.bbox.intersectsBox(this.bbox))
@@ -278,7 +291,7 @@ export class PatchCache {
         return true
       }
       // else {
-      //   console.log(`incomplete patch edges count: ${edgePatches.length}`)
+      //   console.log(`incomplete patch edges count: ${nearPatches.length}`)
       // }
     }
     return false
@@ -323,7 +336,9 @@ export class PatchCache {
     const prevCenter = this.bbox.getCenter(new Vector3())
     prevCenter.y = 0
     const nextCenter = bbox.getCenter(new Vector3())
-    if (forceUpdate || nextCenter.distanceTo(prevCenter) > patchSize) {
+    if (forceUpdate || (!PatchCache.queue.current.length
+      && !PatchCache.queue.postponed.length
+      && nextCenter.distanceTo(prevCenter) > patchSize)) {
       PatchCache.bbox = bbox
       const existing = []
       for (let xmin = bbox.min.x; xmin < bbox.max.x; xmin += patchSize) {
@@ -331,18 +346,18 @@ export class PatchCache {
           const patchStart = new Vector2(xmin, zmin)
           // look for existing patch in current cache
           let patch = PatchCache.getPatch(patchStart) // || new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
-          if (!patch || !patch.done) {
+          if (!patch?.final) {
             patch = new PatchCache(patchStart)
-            PatchCache.queue.push(patch)
+            PatchCache.queue.current.push(patch)
           } else {
             existing.push(patch)
           }
         }
       }
       const removedCount = this.cache.length - existing.length
-      this.cache = [...existing, ...this.queue]
+      this.cache = [...existing, ...this.queue.current]
       console.log(
-        `[PatchCache:update] enqueud: ${this.queue.length}, kept: ${existing.length}, removed: ${removedCount} )`,
+        `[PatchCache:update] enqueud: ${this.queue.current.length}, kept: ${existing.length}, removed: ${removedCount} )`,
       )
       return true
     }
@@ -363,182 +378,121 @@ export class PatchCache {
     return elapsedTime
   }
 
-  static buildNextBatch(batchCount = PatchCache.queue.length, maxDuration = 0) {
+  static buildNextBatch(batchCount = PatchCache.queue.current.length, maxDuration = 0) {
     let elapsed = 0
     // maxCount = MathUtils.clamp(maxCount, Math.round(PatchCache.queue.length / 100), PatchCache.queue.length)
-    batchCount = Math.max(batchCount, Math.round(PatchCache.queue.length / 100))
+    batchCount = Math.max(batchCount, Math.round(PatchCache.queue.current.length / 100))
     let count = 0
     while (
-      PatchCache.queue.length > 0 &&
+      PatchCache.queue.current.length > 0 &&
       count <= batchCount &&
       // eslint-disable-next-line no-unmodified-loop-condition
       (maxDuration === 0 || elapsed < maxDuration)
     ) {
-      const patch = PatchCache.queue.shift() as PatchCache
-      if (!patch.isBiomeTransition) {
-        const edgePatches = patch.getEdgePatches()
-        if (edgePatches.length === 8) {
-          patch.isBiomeTransition = !!edgePatches
-            .find(edgePatch => edgePatch.biomeType !== patch.biomeType)
-          if (!patch.isBiomeTransition) {
+      const patch = PatchCache.queue.current.shift() as PatchCache
+      if (!patch.isTransitionPatch) {
+        const nearPatches = patch.getNearPatches()
+        const isEdgePatch = nearPatches.length !== 8
+        if (!isEdgePatch) {
+          patch.isTransitionPatch = patch.isBiomeTransition || !!nearPatches
+            .find(edgePatch => edgePatch.isBiomeTransition)
+          if (!patch.isTransitionPatch) {
             elapsed += patch.genPatchBlocks()
-            // PatchCache.cache.push(patch)
-            console.log(`build regular patch`)
           } else {
-            console.log(`postpone biome transitioning patch`)
             // postpone biome transitioning patches
-            PatchCache.queue.push(patch)
+            PatchCache.queue.postponed.push(patch)
           }
         } else {
-          console.log(`patch edges count ${edgePatches.length}`)
+          PatchCache.queue.skipped.push(patch)
         }
       } else {
         elapsed += patch.genPatchBlocks()
         // PatchCache.cache.push(patch)
       }
-
       count++
     }
     if (count > 0) {
+      if (PatchCache.queue.current.length === 0) {
+        while (PatchCache.queue.postponed.length > 0) {
+          const item = PatchCache.queue.postponed.shift() as PatchCache
+          item.isCloseToRefPatch = !!item.getNearPatches().find(patch => !patch.isTransitionPatch && patch.filled)
+          PatchCache.queue.current.push(item)
+        }
+        console.log(`[PatchCache:runNextBatch] re-enqueud ${PatchCache.queue.current}`)
+      }
       PatchCache.updated = true
       const avgMs = Math.round(elapsed / count)
-      console.log(`[PatchCache:buildNextBatch] remaining ${PatchCache.queue.length} (done ${count}, avg per patch ${avgMs}ms)`)
+      const remainingCount = PatchCache.queue.postponed.length + PatchCache.queue.current.length
+      console.log(`[PatchCache:buildNextBatch] done: ${count} (avg per patch ${avgMs}ms), remaining: ${remainingCount}`)
       return true
     }
     return false
   }
 
-  buildPatchEntity(entity: EntityData) {
-
-    // discard entities spawning too close to another
-    // const discarded = entity && patch.spawnedEntities.find(entity2 =>
-    //   entity2.bbox.intersectsBox(entity.bbox)
-    //   && bbox.getCenter(new Vector3())
-    //     .distanceTo(entity.bbox.getCenter(new Vector3())) < 8,
-    // )
-
-    const entityPos = entity.bbox.getCenter(new Vector3())
-    const entityHeight = 10
-    entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
-    entity.bbox.max.y = entity.bbox.min.y // + entityHeight
-    // check if it has an overlap with edge patch(es)
-    if (!this.bbox.containsBox(entity.bbox)) {
-      // find edge points that don't belongs to current patch
-      const pMin = entity.bbox.min
-      const p1 = entity.bbox.min.clone()
-      const p2 = entity.bbox.min.clone()
-      const pMax = entity.bbox.max
-      p1.x = pMax.x
-      p2.z = pMax.z
-      const edgePoints = [pMin, p1, p2, pMax]
-      entity.edgesOverlaps = edgePoints.filter(
-        p => !this.bbox.containsPoint(p),
-      )
-      // if (entity.bbox.min.z < patch.bbox.min.z) entity.edgesOverlaps.push(PatchEdge.BACK)
-      // if (entity.bbox.max.z > patch.bbox.max.z) entity.edgesOverlaps.push(PatchEdge.FRONT)
-      // if (entity.bbox.min.x < patch.bbox.min.x) entity.edgesOverlaps.push(PatchEdge.LEFT)
-      // if (entity.bbox.max.x > patch.bbox.max.x) entity.edgesOverlaps.push(PatchEdge.RIGHT)
-    }
-    entity.bbox.max.y += entityHeight
-    // const entity = new Circle({ x: entityPos.x, y: entityPos.z, r: 5, data: entityPos })
-    this.spawnedEntities.push(entity)
-    // BlocksPatch.quadtree.insert(entity)
-    // Vegetation.instance.markTreeBlocks(blockData.pos, treeType)
-  }
-
-  getPointData(refPoint) {
-    refPoint.y = 0
-    const nearPatches = [...PatchCache.cache]
-      .filter(patch => patch.bbox.min.x <= refPoint.x &&
-        patch.bbox.min.z <= refPoint.z &&
-        patch.bbox.max.x >= refPoint.x &&
-        patch.bbox.max.z >= refPoint.z)
-    if (nearPatches.length === 4) {
-      const refPatch = nearPatches.find(patch => !patch.isBiomeTransition)
-      let biome: any = {}
-      if (refPatch) {
-        biome[refPatch.biomeType] = 1
-      } else {
-        nearPatches.forEach(np => {
-          biome[np.biomeType] = biome[np.biomeType] ? biome[np.biomeType] + 1 / 4 : 1 / 4
+  buildRefPoints() {
+    const refPatches = []
+    const refPoints = []
+    const nearPatches = this.getNearPatches()
+    const transitionPatches = nearPatches.filter(patch => patch.isTransitionPatch)
+    transitionPatches.forEach(patch => {
+      if (patch.isCloseToRefPatch) {
+        refPatches.push(patch)
+      }
+      else {
+        patch.getNearPatches()
+          .filter(patch2 => patch2.isTransitionPatch
+            && patch2.isCloseToRefPatch
+            && !refPatches.find(refPatch => refPatch.bbox.equals(patch2.bbox)))
+          .forEach(patch2 => refPatches.push(patch2))
+      }
+    })
+    refPatches.forEach(patch => {
+      const nearPatches = patch.getNearPatches()
+      getPatchPoints(patch.bbox)
+        .filter(point => !refPoints.find(item => item.pos.equals(point)))
+        .forEach(pos => {
+          const matching = nearPatches
+            .filter(patch =>
+              !patch.isTransitionPatch &&
+              patch.bbox.min.x <= pos.x &&
+              patch.bbox.min.z <= pos.z &&
+              patch.bbox.max.x >= pos.x &&
+              patch.bbox.max.z >= pos.z)
+          const biome = matching[0]?.biomeType
+          if (matching.length > 0) refPoints.push({ pos, biome })
         })
-        console.log(biome)
-      }
-      Object.entries(biome)
-      const data = { pos: refPoint, biome }
-      return (data)
-    } else {
-      // console.log(`skip edge patch`)
-      return null
-    }
-    // if (refPatch) pt.
-  }
-
-  getPatchCorners() {
-    const patchCorners: Vector3[] = getBBoxXZCornerPoints(this.bbox)
-      .map(refPoint => this.getPointData(refPoint))
-      .filter(val => val)
-    return patchCorners
-  }
-  /**
-   * @param blockPos 
-   * @param patchCorners 
-   * @returns 
-   */
-  getBlockInterpolationWeights(blockPos: Vector3, patchCorners) {
-    const pow = 6
-    const ptsWeightSum = patchCorners.reduce((sum, elt) => sum + Math.pow(1 / blockPos.distanceTo(elt.pos), pow), 0)
-    const weightedData = patchCorners.map(elt => {
-      const invDist = 1 / blockPos.distanceTo(elt.pos)
-      const weight = Math.pow(invDist, pow) / ptsWeightSum// roundToDec(dist / ptsWeightSum, 2)
-      const data = {
-        pos: elt.point,
-        biome: elt.biome,
-        level: 0
-      }
-      return ({
-        data,
-        weight
-      })
     })
-    return weightedData
-  }
-
-  getBiomeInterpolation(blockPos: Vector3, patchCorners) {
-    let ptWeightSum = 0
-    const biomeInterpol = {
-      [BiomeType.Temperate]: 0,
-      [BiomeType.Artic]: 0,
-      [BiomeType.Desert]: 0,
-    }
-    patchCorners.forEach(item => {
-      const ptWeight = blockPos.distanceTo(item.pos)
-      Object.entries(item.biome).forEach(([bType, bWeight]) => biomeInterpol[bType] += ptWeight * bWeight / 4)
-      ptWeightSum += ptWeight
+    refPoints.forEach(point => {
+      point.pos.y = Heightmap.instance.getGroundLevel(point.pos)
     })
-    Object.keys(biomeInterpol).forEach((bType) => biomeInterpol[bType] = roundToDec(biomeInterpol[bType] / ptWeightSum, 2))
-    return biomeInterpol
+    console.log(`refPoints: ${refPoints.length}`)
+    if (refPoints.length > 8)
+      console.log(refPoints)
+    return refPoints
   }
 
-  getInterpolatedBiome(weightedData) {
-    const biomeInterpol = {
-      [BiomeType.Temperate]: 0,
-      [BiomeType.Artic]: 0,
-      [BiomeType.Desert]: 0,
-    }
-
-    weightedData.forEach(item => {
-      const { weight, data } = item
-      Object.entries(data.biome)
-        .forEach(([bType, bWeight]) => biomeInterpol[bType] += weight * bWeight)
+  getInterpolatedBlock(pos: Vector3, refPoints) {
+    const rawVal = Heightmap.instance.getRawVal(pos)
+    const p = 4
+    const weights = refPoints.reduce((sum, point) => {
+      point.pos.y = 0
+      pos.y = point.pos.y
+      return sum + Math.pow(1 / pos.distanceTo(point.pos), p)
+    }, 0)
+    let h = 0
+    refPoints.forEach(point => {
+      point.pos.y = 0
+      pos.y = point.pos.y
+      const invDist = 1 / pos.distanceTo(point.pos)
+      const w = Math.pow(invDist, p) / weights// roundToDec(dist / ptsWeightSum, 2)
+      const biome = point.biome
+      h += w * Heightmap.instance.getGroundLevel(
+        pos.clone(),
+        rawVal,
+        biome as BiomeType,
+      )
     })
-    Object.keys(biomeInterpol)
-      .forEach((bType) => biomeInterpol[bType] = roundToDec(biomeInterpol[bType], 2))
-    return biomeInterpol
-  }
-
-  getInterpolatedBlock(blockPos: Vector3, patchCorners) {
-
+    return Math.round(h)
   }
 
   genPatchBlocks() {
@@ -553,19 +507,12 @@ export class PatchCache {
       ',' +
       this.bbox.max.z
     const prng = alea(patchId)
-
-    let patchCorners = this.isBiomeTransition ? this.getPatchCorners() : []
-
+    const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
     const blocksIter = this.blockIterator()
     bbox.min.y = 255
     bbox.max.y = 0
     let blockIndex = 0
-    const patchBiome = {
-      [BiomeType.Temperate]: 0,
-      [BiomeType.Artic]: 0,
-      [BiomeType.Desert]: 0,
-    }
-    patchBiome[this.biomeType] = 1
+
     for (const blockData of blocksIter) {
       blockData.pos.y = 0
       // const patchCorner = points.find(pt => pt.distanceTo(blockData.pos) < 2)
@@ -579,53 +526,50 @@ export class PatchCache {
       )
       blockData.type = blockTypes.grounds[0] as BlockType
 
-      if (this.isBiomeTransition) {
-        const weightedData = this.getBlockInterpolationWeights(blockData.pos, patchCorners)
-        // console.log(interpBiome)
-        const patchCorner = patchCorners?.find(item => {
-          item.pos.y = blockData.pos.y
-          return item.pos.distanceTo(blockData.pos) < 2
+      if (this.isTransitionPatch) {
+        // mark ref points
+        const isRefPoint = false && refPoints?.find(point => {
+          blockData.pos.y = point.pos.y
+          return point.pos.distanceTo(blockData.pos) < 4
         })
-        let biomeTypes = patchCorner?.biome || this.getInterpolatedBiome(weightedData)// this.getBiomeInterpolation(blockData.pos, patchCorners)
-        // mark patch corners in transition patches
-        if (patchCorner) {
-          const isRegularCorner = Object.keys(patchCorner?.biome).length === 1
-          blockData.type = isRegularCorner ? BlockType.MUD : BlockType.SAND
-        }
-        // add all biome contributions
-        blockData.pos.y = Object.entries(biomeTypes)
-          .reduce((sum, [type, weight]) =>
-            sum + weight * Heightmap.instance.getGroundLevel(
-              blockData.pos,
-              rawVal,
-              type as BiomeType,
-            ), 0)
+        blockData.type = isRefPoint ? BlockType.MUD : blockData.type
+        const interp = this.getInterpolatedBlock(blockData.pos, refPoints)
+        blockData.pos.y = interp //0.5 * (interp1 + interp2)
       }
 
-      // const blockItem = new Circle({ x: blockData.pos.x, y: blockData.pos.z, r: 1 })
-      // const items = BlocksPatch.quadtree.retrieve(blockItem)
-      // const existingTree = items.find(item => new Vector2((item as Circle).x, (item as Circle).y)
-      //   .distanceTo(blockItem) < (item as Circle).r)
       let allowSpawn
-      if (!this.isBiomeTransition && blockTypes.entities?.[0]) {
+      if (blockTypes.entities?.[0]) {
         const ent = this.spawnedEntities.find(entity => {
           const entityPos = entity.bbox.getCenter(new Vector3())
           return blockData.pos.distanceTo(entityPos) < 10
         })
         allowSpawn = !ent
       }
-      // if(trees.find(tree=>tree.containsPoint(blockData.pos))){
-      // if block belongs to existing tree
-      // if (existingTree) {
-      //   treeType ? existingTree.data.blocks.push(blockData) : BlocksPatch.quadtree.remove(existingTree)
-      // }
-      // // else check if a tree is spawning
-      // else
+
       const entity =
         allowSpawn && Vegetation.instance.spawnEntity(blockData.pos, prng)
       if (entity) {
         entity.type = blockTypes.entities[0] as TreeType
-        this.buildPatchEntity(entity)
+        const entityPos = entity.bbox.getCenter(new Vector3())
+        const entityHeight = 10
+        entity.bbox.min.y = this.isTransitionPatch ?
+          this.getInterpolatedBlock(entityPos, refPoints) : Heightmap.instance.getGroundLevel(entityPos)
+        if (this.isTransitionPatch && entity.bbox.min.y !== Heightmap.instance.getGroundLevel(entityPos)) {
+          console.log(`DBG: ${entity.bbox.min.y}, ${Heightmap.instance.getGroundLevel(entityPos)}`)
+        }
+        // entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
+        entity.bbox.max.y = entity.bbox.min.y // + entityHeight
+        // check if it has an overlap with edge patch(es)
+        // if current patch don't fully contain entity
+        if (!this.bbox.containsBox(entity.bbox)) {
+          // find edge points that don't belongs to current patch
+          const edgePoints = getPatchPoints(entity.bbox)
+          entity.edgesOverlaps = edgePoints.filter(
+            p => !this.bbox.containsPoint(p),
+          )
+        }
+        entity.bbox.max.y += entityHeight
+        this.spawnedEntities.push(entity)
       }
       // const levelMax = blockData.cache.level + blockData.cache.overground.length
       bbox.min.y = Math.min(bbox.min.y, blockData.pos.y)
@@ -640,6 +584,7 @@ export class PatchCache {
     // const perPatchAvg = Math.round(elapsedTime / PatchCache.queue.length)
     // console.log(`[PatchCache:buildPatch] time ${elapsedTime} ms`)
     // console.log(`[PatchCache:buildPatch]`)
+    this.filled = true
     return elapsedTime
   }
 }

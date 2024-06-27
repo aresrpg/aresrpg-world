@@ -137,16 +137,6 @@ export class Biome {
     })
   }
 
-  /**
-   * randomize X,Z coords at transition to make border between biomes less straight
-   */
-  randomizePos(pos) {
-    const period = 0.005 * Math.pow(2, 2)
-    const amplitude = 5
-    const randomEval = this.posRandomizer.eval(pos)
-
-  }
-
   stepTransition = (
     groundPos: Vector2,
     baseHeight: number,
