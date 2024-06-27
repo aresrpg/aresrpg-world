@@ -125,12 +125,17 @@ const getAllNeighbours = (pos: Vector3): Vector3[] => {
   return neighbours
 }
 
-const getBBoxXZCornerPoints = (bbox: Box3) => {
-  const minXmaxZ = bbox.min.clone()
-  minXmaxZ.z = bbox.max.z
-  const maxXminZ = bbox.min.clone()
-  maxXminZ.x = bbox.max.x
-  const points = [bbox.min.clone(), bbox.max.clone(), minXmaxZ, maxXminZ]
+const getPatchPoints = (patchBBox: Box3, clearY = true) => {
+  const { min, max } = patchBBox.clone()
+  if (clearY) {
+    min.y = 0
+    max.y = 0
+  }
+  const minXmaxZ = min.clone()
+  minXmaxZ.z = max.z
+  const maxXminZ = min.clone()
+  maxXminZ.x = max.x
+  const points = [min, max, minXmaxZ, maxXminZ]
   return points
 }
 
@@ -152,5 +157,5 @@ export {
   AdjacentNeighbours,
   getNeighbour,
   bboxContainsPointXZ,
-  getBBoxXZCornerPoints
+  getPatchPoints
 }
