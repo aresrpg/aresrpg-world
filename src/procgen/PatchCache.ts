@@ -22,11 +22,7 @@ export class PatchCache {
   // eslint-disable-next-line no-use-before-define
   static cache: PatchCache[] = []
   // eslint-disable-next-line no-use-before-define
-  static queue = {
-    current: [],
-    postponed: [],
-    skipped: []
-  }
+  static pendingCacheBuild = false
   static patchSize = Math.pow(2, 6)
   static bbox = new Box3()
   static ready = false
@@ -336,10 +332,10 @@ export class PatchCache {
     const prevCenter = this.bbox.getCenter(new Vector3())
     prevCenter.y = 0
     const nextCenter = bbox.getCenter(new Vector3())
-    if (forceUpdate || (!PatchCache.queue.current.length
-      && !PatchCache.queue.postponed.length
-      && nextCenter.distanceTo(prevCenter) > patchSize)) {
+    if (forceUpdate || !this.pendingCacheBuild && nextCenter.distanceTo(prevCenter) > patchSize) {
+      this.pendingCacheBuild = true
       PatchCache.bbox = bbox
+      const batch = []
       const existing = []
       for (let xmin = bbox.min.x; xmin < bbox.max.x; xmin += patchSize) {
         for (let zmin = bbox.min.z; zmin < bbox.max.z; zmin += patchSize) {
@@ -348,71 +344,64 @@ export class PatchCache {
           let patch = PatchCache.getPatch(patchStart) // || new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
           if (!patch?.final) {
             patch = new PatchCache(patchStart)
-            PatchCache.queue.current.push(patch)
+            batch.push(patch)
           } else {
             existing.push(patch)
           }
         }
       }
       const removedCount = this.cache.length - existing.length
-      this.cache = [...existing, ...this.queue.current]
+      this.cache = [...existing, ...batch]
       console.log(
-        `[PatchCache:update] enqueud: ${this.queue.current.length}, kept: ${existing.length}, removed: ${removedCount} )`,
+        `[PatchCache:update] enqueud: ${batch.length}, kept: ${existing.length}, removed: ${removedCount} )`,
       )
-      return true
+      PatchCache.processBatch(batch)
+      PatchCache.cacheExtEntities()
+      this.pendingCacheBuild = false
+      return batch.length > 0
     }
     return false
   }
 
-  static buildNextBatch(batchCount = PatchCache.queue.current.length, maxDuration = 0) {
-    let elapsed = 0
-    // maxCount = MathUtils.clamp(maxCount, Math.round(PatchCache.queue.length / 100), PatchCache.queue.length)
-    batchCount = Math.max(batchCount, Math.round(PatchCache.queue.current.length / 100))
-    let count = 0
-    while (
-      PatchCache.queue.current.length > 0 &&
-      count <= batchCount &&
-      // eslint-disable-next-line no-unmodified-loop-condition
-      (maxDuration === 0 || elapsed < maxDuration)
-    ) {
-      const patch = PatchCache.queue.current.shift() as PatchCache
-      if (!patch.isTransitionPatch) {
-        const nearPatches = patch.getNearPatches()
-        const isEdgePatch = nearPatches.length !== 8
-        if (!isEdgePatch) {
-          patch.isTransitionPatch = patch.isBiomeTransition || !!nearPatches
-            .find(edgePatch => edgePatch.isBiomeTransition)
-          if (!patch.isTransitionPatch) {
-            elapsed += patch.genPatchBlocks()
-          } else {
-            // postpone biome transitioning patches
-            PatchCache.queue.postponed.push(patch)
-          }
-        } else {
-          PatchCache.queue.skipped.push(patch)
-        }
+  static processBatch(patchBatch: PatchCache[]) {
+    let elapsed = Date.now()
+    const batch = {
+      regular: [],
+      transition: [],
+      skipped: []
+    }
+
+    // sort patches
+    for (let patch of patchBatch) {
+      const nearPatches = patch.getNearPatches()
+      const isEdgePatch = nearPatches.length !== 8
+      if (!isEdgePatch) {
+        patch.isTransitionPatch = patch.isBiomeTransition || !!nearPatches
+          .find(edgePatch => edgePatch.isBiomeTransition)
+        patch.isTransitionPatch ? batch.transition.push(patch) : batch.regular.push(patch)
       } else {
-        elapsed += patch.genPatchBlocks()
-        // PatchCache.cache.push(patch)
+        batch.skipped.push(patch)
       }
-      count++
     }
-    if (count > 0) {
-      if (PatchCache.queue.current.length === 0) {
-        while (PatchCache.queue.postponed.length > 0) {
-          const item = PatchCache.queue.postponed.shift() as PatchCache
-          item.isCloseToRefPatch = !!item.getNearPatches().find(patch => !patch.isTransitionPatch && patch.filled)
-          PatchCache.queue.current.push(item)
-        }
-        console.log(`[PatchCache:runNextBatch] requeue postponed items ${PatchCache.queue.current.length}`)
-      }
-      PatchCache.updated = true
-      const avgMs = Math.round(elapsed / count)
-      const remainingCount = PatchCache.queue.postponed.length + PatchCache.queue.current.length
-      console.log(`[PatchCache:runNextBatch] done: ${count} (avg per patch ${avgMs}ms), remaining: ${remainingCount}`)
-      return true
-    }
-    return false
+
+    // build regular first, transition after
+    batch.regular.forEach(patch => {
+      patch.genPatchBlocks()
+    })
+    batch.transition.forEach(patch => {
+      patch.isCloseToRefPatch = !!patch.getNearPatches().find(p => !p.isTransitionPatch && p.filled)
+    })
+    batch.transition.forEach(patch => {
+      patch.genPatchBlocks()
+    })
+    // item.isCloseToRefPatch = !!item.getNearPatches()
+    //   .find(patch => !patch.isTransitionPatch && patch.filled)
+    // finalise 
+    PatchCache.cacheExtEntities()
+    elapsed = Math.abs(elapsed - Date.now())
+    const count = batch.regular.length + batch.transition.length
+    const avgTime = Math.round(elapsed / count)
+    console.log(`[PatchCache:buildPatches] total processed: ${count} (avg: ${avgTime}ms per patch)`)
   }
 
   static cacheExtEntities() {
@@ -428,8 +417,6 @@ export class PatchCache {
     )
     return elapsedTime
   }
-
-
 
   buildRefPoints() {
     const refPatches = []
@@ -481,14 +468,21 @@ export class PatchCache {
       [BiomeType.Artic]: 0,
       [BiomeType.Desert]: 0
     }
-    refPoints.forEach(refPoint => {
-      refPoint.pos.y = 0
-      pos.y = refPoint.pos.y
-      const invDist = 1 / pos.distanceTo(refPoint.pos)
-      const w = Math.pow(invDist, p)
-      totalWeight += w
-      biomesWeights[refPoint.biome as BiomeType] += w
-    })
+
+    for (let point of refPoints) {
+      point.pos.y = 0
+      pos.y = point.pos.y
+      const dist = pos.distanceTo(point.pos)
+      if (dist < 1) {
+        totalWeight = 1
+        Object.keys(biomesWeights).forEach(k => biomesWeights[k] = k === point.biome ? 1 : 0)
+        break;
+      } else {
+        const w = Math.pow(1 / dist, p)
+        totalWeight += w
+        biomesWeights[point.biome as BiomeType] += w
+      }
+    }
     let h = 0
     const blockPos = pos.clone()
     Object.entries(biomesWeights).forEach(([k, v]) => {
