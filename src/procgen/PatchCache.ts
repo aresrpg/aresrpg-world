@@ -364,20 +364,6 @@ export class PatchCache {
     return false
   }
 
-  static cacheExtEntities() {
-    let elapsedTime = Date.now()
-    const patchCount = PatchCache.cache
-      .map(patch => patch.cacheExtEntities())
-      .filter(val => val).length
-    elapsedTime -= Date.now()
-    elapsedTime = Math.abs(elapsedTime)
-    // const perPatchMs = Math.round(elapsedTime / patchCount)
-    console.log(
-      `[PatchCache:cacheExtEntities] ${patchCount} patches processed in ${elapsedTime}ms`,
-    )
-    return elapsedTime
-  }
-
   static buildNextBatch(batchCount = PatchCache.queue.current.length, maxDuration = 0) {
     let elapsed = 0
     // maxCount = MathUtils.clamp(maxCount, Math.round(PatchCache.queue.length / 100), PatchCache.queue.length)
@@ -418,16 +404,32 @@ export class PatchCache {
           item.isCloseToRefPatch = !!item.getNearPatches().find(patch => !patch.isTransitionPatch && patch.filled)
           PatchCache.queue.current.push(item)
         }
-        console.log(`[PatchCache:runNextBatch] re-enqueud ${PatchCache.queue.current}`)
+        console.log(`[PatchCache:runNextBatch] requeue postponed items ${PatchCache.queue.current.length}`)
       }
       PatchCache.updated = true
       const avgMs = Math.round(elapsed / count)
       const remainingCount = PatchCache.queue.postponed.length + PatchCache.queue.current.length
-      console.log(`[PatchCache:buildNextBatch] done: ${count} (avg per patch ${avgMs}ms), remaining: ${remainingCount}`)
+      console.log(`[PatchCache:runNextBatch] done: ${count} (avg per patch ${avgMs}ms), remaining: ${remainingCount}`)
       return true
     }
     return false
   }
+
+  static cacheExtEntities() {
+    let elapsedTime = Date.now()
+    const patchCount = PatchCache.cache
+      .map(patch => patch.cacheExtEntities())
+      .filter(val => val).length
+    elapsedTime -= Date.now()
+    elapsedTime = Math.abs(elapsedTime)
+    // const perPatchMs = Math.round(elapsedTime / patchCount)
+    console.log(
+      `[PatchCache:cacheExtEntities] ${patchCount} patches processed in ${elapsedTime}ms`,
+    )
+    return elapsedTime
+  }
+
+
 
   buildRefPoints() {
     const refPatches = []
@@ -465,31 +467,36 @@ export class PatchCache {
     refPoints.forEach(point => {
       point.pos.y = Heightmap.instance.getGroundLevel(point.pos)
     })
-    console.log(`refPoints: ${refPoints.length}`)
-    if (refPoints.length > 8)
-      console.log(refPoints)
+    // if (refPoints.length > 8)
+    //   console.log(refPoints)
     return refPoints
   }
 
   getInterpolatedBlock(pos: Vector3, refPoints) {
     const rawVal = Heightmap.instance.getRawVal(pos)
     const p = 4
-    const weights = refPoints.reduce((sum, point) => {
-      point.pos.y = 0
-      pos.y = point.pos.y
-      return sum + Math.pow(1 / pos.distanceTo(point.pos), p)
-    }, 0)
+    let totalWeight = 0
+    const biomesWeights: Record<BiomeType, number> = {
+      [BiomeType.Temperate]: 0,
+      [BiomeType.Artic]: 0,
+      [BiomeType.Desert]: 0
+    }
+    refPoints.forEach(refPoint => {
+      refPoint.pos.y = 0
+      pos.y = refPoint.pos.y
+      const invDist = 1 / pos.distanceTo(refPoint.pos)
+      const w = Math.pow(invDist, p)
+      totalWeight += w
+      biomesWeights[refPoint.biome as BiomeType] += w
+    })
     let h = 0
-    refPoints.forEach(point => {
-      point.pos.y = 0
-      pos.y = point.pos.y
-      const invDist = 1 / pos.distanceTo(point.pos)
-      const w = Math.pow(invDist, p) / weights// roundToDec(dist / ptsWeightSum, 2)
-      const biome = point.biome
+    const blockPos = pos.clone()
+    Object.entries(biomesWeights).forEach(([k, v]) => {
+      const w = v / totalWeight
       h += w * Heightmap.instance.getGroundLevel(
-        pos.clone(),
+        blockPos,
         rawVal,
-        biome as BiomeType,
+        k as BiomeType,
       )
     })
     return Math.round(h)
@@ -497,20 +504,14 @@ export class PatchCache {
 
   genPatchBlocks() {
     const startTime = Date.now()
-    const { bbox } = this
-    const patchId =
-      this.bbox.min.x +
-      ',' +
-      this.bbox.min.z +
-      '-' +
-      this.bbox.max.x +
-      ',' +
-      this.bbox.max.z
+    const { min, max } = this.bbox
+    const patchId = min.x + ',' + min.z + '-' +
+      max.x + ',' + max.z
     const prng = alea(patchId)
     const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
     const blocksIter = this.blockIterator()
-    bbox.min.y = 255
-    bbox.max.y = 0
+    min.y = 255
+    max.y = 0
     let blockIndex = 0
 
     for (const blockData of blocksIter) {
@@ -519,23 +520,13 @@ export class PatchCache {
       const biomeType = this.isBiomeTransition ? Biome.instance.getBiomeType(blockData.pos) : this.biomeType
       const rawVal = Heightmap.instance.getRawVal(blockData.pos)
       const blockTypes = Biome.instance.getBlockType(rawVal, biomeType)
-      blockData.pos.y = Heightmap.instance.getGroundLevel(
-        blockData.pos,
-        rawVal,
-        biomeType,
-      )
+      blockData.pos.y = this.isTransitionPatch ? this.getInterpolatedBlock(blockData.pos, refPoints) :
+        Heightmap.instance.getGroundLevel(
+          blockData.pos,
+          rawVal,
+          biomeType,
+        )
       blockData.type = blockTypes.grounds[0] as BlockType
-
-      if (this.isTransitionPatch) {
-        // mark ref points
-        const isRefPoint = false && refPoints?.find(point => {
-          blockData.pos.y = point.pos.y
-          return point.pos.distanceTo(blockData.pos) < 4
-        })
-        blockData.type = isRefPoint ? BlockType.MUD : blockData.type
-        const interp = this.getInterpolatedBlock(blockData.pos, refPoints)
-        blockData.pos.y = interp //0.5 * (interp1 + interp2)
-      }
 
       let allowSpawn
       if (blockTypes.entities?.[0]) {
@@ -554,13 +545,10 @@ export class PatchCache {
         const entityHeight = 10
         entity.bbox.min.y = this.isTransitionPatch ?
           this.getInterpolatedBlock(entityPos, refPoints) : Heightmap.instance.getGroundLevel(entityPos)
-        if (this.isTransitionPatch && entity.bbox.min.y !== Heightmap.instance.getGroundLevel(entityPos)) {
-          console.log(`DBG: ${entity.bbox.min.y}, ${Heightmap.instance.getGroundLevel(entityPos)}`)
-        }
         // entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
         entity.bbox.max.y = entity.bbox.min.y // + entityHeight
         // check if it has an overlap with edge patch(es)
-        // if current patch don't fully contain entity
+        // e.g. check if current patch don't fully contain entity
         if (!this.bbox.containsBox(entity.bbox)) {
           // find edge points that don't belongs to current patch
           const edgePoints = getPatchPoints(entity.bbox)
@@ -572,14 +560,14 @@ export class PatchCache {
         this.spawnedEntities.push(entity)
       }
       // const levelMax = blockData.cache.level + blockData.cache.overground.length
-      bbox.min.y = Math.min(bbox.min.y, blockData.pos.y)
-      bbox.max.y = Math.max(bbox.max.y, blockData.pos.y)
+      min.y = Math.min(min.y, blockData.pos.y)
+      max.y = Math.max(max.y, blockData.pos.y)
       this.writeBlockAtIndex(blockIndex, blockData.pos.y, blockData.type)
       blockIndex++
     }
     this?.bbox.getSize(this.dimensions)
     // perform blocks buffer generation pass
-    PatchCache.bbox.union(bbox)
+    PatchCache.bbox.union(this.bbox)
     const elapsedTime = Date.now() - startTime
     // const perPatchAvg = Math.round(elapsedTime / PatchCache.queue.length)
     // console.log(`[PatchCache:buildPatch] time ${elapsedTime} ms`)
