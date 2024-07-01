@@ -110,7 +110,7 @@ export class PatchCache {
     globalPos.y = PatchCache.bbox.getCenter(new Vector3()).y
     if (PatchCache.bbox.containsPoint(globalPos)) {
       // find patch containing point in cache
-      const patch = this.getPatch(globalPos)
+      const patch = PatchCache.getPatch(globalPos)
       if (patch) {
         const localPos = globalPos.clone().sub(patch.bbox.min)
         block = patch.getBlock(localPos) as BlockData
@@ -315,7 +315,7 @@ export class PatchCache {
   }
 
   static updateCache(center: Vector3, radius: number, forceUpdate = false) {
-    const { patchSize } = this
+    const { patchSize } = PatchCache
     const bbox = new Box3().setFromCenterAndSize(
       center,
       new Vector3(radius, 0, radius),
@@ -329,11 +329,11 @@ export class PatchCache {
     bbox.min.y = 0
     bbox.max.y = 0
 
-    const prevCenter = this.bbox.getCenter(new Vector3())
+    const prevCenter = PatchCache.bbox.getCenter(new Vector3())
     prevCenter.y = 0
     const nextCenter = bbox.getCenter(new Vector3())
-    if (forceUpdate || !this.pendingCacheBuild && nextCenter.distanceTo(prevCenter) > patchSize) {
-      this.pendingCacheBuild = true
+    if (forceUpdate || !PatchCache.pendingCacheBuild && nextCenter.distanceTo(prevCenter) > patchSize) {
+      PatchCache.pendingCacheBuild = true
       PatchCache.bbox = bbox
       const batch = []
       const existing = []
@@ -350,14 +350,14 @@ export class PatchCache {
           }
         }
       }
-      const removedCount = this.cache.length - existing.length
-      this.cache = [...existing, ...batch]
+      const removedCount = PatchCache.cache.length - existing.length
+      PatchCache.cache = [...existing, ...batch]
       console.log(
         `[PatchCache:update] enqueud: ${batch.length}, kept: ${existing.length}, removed: ${removedCount} )`,
       )
       PatchCache.processBatch(batch)
       PatchCache.cacheExtEntities()
-      this.pendingCacheBuild = false
+      PatchCache.pendingCacheBuild = false
       return batch.length > 0
     }
     return false
