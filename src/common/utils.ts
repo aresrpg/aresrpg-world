@@ -157,5 +157,5 @@ export {
   AdjacentNeighbours,
   getNeighbour,
   bboxContainsPointXZ,
-  getPatchPoints
+  getPatchPoints,
 }
