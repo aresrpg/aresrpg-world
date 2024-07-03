@@ -21,7 +21,7 @@ enum PatchState {
   Empty,
   Filled,
   Done,
-  Final
+  Final,
 }
 
 enum BatchProcessStep {
@@ -29,7 +29,7 @@ enum BatchProcessStep {
   PreTransitionGen,
   TransitionGen,
   PostProcessEntities,
-  Done
+  Done,
 }
 
 export class PatchCache {
@@ -42,26 +42,29 @@ export class PatchCache {
   static bbox = new Box3()
   static ready = false
   static updated = false
-  static patchQueue: PatchCache[] = []
   static batch: {
     currentStep: BatchProcessStep
     startTime: number
     totalElapsedTime: number
     count: number
     totalCount: number
+    // eslint-disable-next-line no-use-before-define
     regular: PatchCache[]
+    // eslint-disable-next-line no-use-before-define
     transition: PatchCache[]
+    // eslint-disable-next-line no-use-before-define
     skipped: PatchCache[]
   } = {
-      currentStep: BatchProcessStep.RegularGen,
-      startTime: 0,
-      totalElapsedTime: 0,
-      count: 0,
-      totalCount: 0,
-      regular: [],
-      transition: [],
-      skipped: [],
-    }
+    currentStep: BatchProcessStep.RegularGen,
+    startTime: 0,
+    totalElapsedTime: 0,
+    count: 0,
+    totalCount: 0,
+    regular: [],
+    transition: [],
+    skipped: [],
+  }
+
   spawnedEntities: EntityData[] = []
   extEntities: EntityData[] = []
   bbox: Box3
@@ -71,6 +74,7 @@ export class PatchCache {
     type: new Uint16Array(Math.pow(PatchCache.patchSize, 2)),
     level: new Uint16Array(Math.pow(PatchCache.patchSize, 2)),
   }
+
   state = PatchState.Empty
   isBiomeTransition = false
   isTransitionPatch = false
@@ -315,7 +319,7 @@ export class PatchCache {
             .filter(entity => entity.bbox.intersectsBox(this.bbox))
             .forEach(entity => this.extEntities.push(entity))
         })
-        this.state = PatchState.Final//isFinal ? PatchState.Final : PatchState.Done
+        this.state = PatchState.Final // isFinal ? PatchState.Final : PatchState.Done
         return true
       }
       // else {
@@ -346,7 +350,7 @@ export class PatchCache {
     }
   }
 
-  static updateCache(center: Vector3, radius: number, forceUpdate = false) {
+  static updateCache(center: Vector3, radius: number) {
     const { patchSize, batch } = PatchCache
     const bbox = new Box3().setFromCenterAndSize(
       center,
@@ -364,8 +368,9 @@ export class PatchCache {
     const prevCenter = PatchCache.bbox.getCenter(new Vector3())
     prevCenter.y = 0
     const nextCenter = bbox.getCenter(new Vector3())
+
     if (
-      forceUpdate ||
+      PatchCache.cache.length === 0 ||
       (batch.currentStep === BatchProcessStep.Done &&
         nextCenter.distanceTo(prevCenter) > patchSize)
     ) {
@@ -417,35 +422,40 @@ export class PatchCache {
         batch.startTime = Date.now()
         batch.totalElapsedTime = 0
         batch.currentStep = BatchProcessStep.RegularGen
-        PatchCache.buildNextPatch()
-        return true
+
+        const promise = new Promise(resolve => {
+          PatchCache.buildNextPatch(resolve)
+        })
+
+        return promise
       }
     }
-    return false
+    return null
   }
 
-  static buildNextPatch() {
+  static buildNextPatch(onCacheUpdated: any) {
     const { batch } = PatchCache
     switch (batch.currentStep) {
-      case BatchProcessStep.RegularGen:
-        {
-          const nextPatch = batch.regular.shift()
-          if (nextPatch) {
-            nextPatch.genPatchBlocks()
-            batch.count++
-          } else {
-            const elapsedTime = Date.now() - batch.startTime
-            const avgTime = Math.round(elapsedTime / batch.count)
-            console.log(`processed ${batch.count} regular patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `)
-            batch.totalElapsedTime += elapsedTime
-            batch.totalCount += batch.count
-            batch.count = 0
-            batch.startTime = Date.now()
-            batch.currentStep = BatchProcessStep.PreTransitionGen
-          }
-          break;
+      case BatchProcessStep.RegularGen: {
+        const nextPatch = batch.regular.shift()
+        if (nextPatch) {
+          nextPatch.genPatchBlocks()
+          batch.count++
+        } else {
+          const elapsedTime = Date.now() - batch.startTime
+          const avgTime = Math.round(elapsedTime / batch.count)
+          console.log(
+            `processed ${batch.count} regular patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
+          )
+          batch.totalElapsedTime += elapsedTime
+          batch.totalCount += batch.count
+          batch.count = 0
+          batch.startTime = Date.now()
+          batch.currentStep = BatchProcessStep.PreTransitionGen
         }
-      case BatchProcessStep.PreTransitionGen:
+        break
+      }
+      case BatchProcessStep.PreTransitionGen: {
         batch.transition.forEach(patch => {
           patch.isCloseToRefPatch = !!patch
             .getNearPatches()
@@ -453,37 +463,43 @@ export class PatchCache {
         })
         // console.log(`switch state from PreTransitionGen to TransitionGen`)
         batch.currentStep = BatchProcessStep.TransitionGen
-        break;
-      case BatchProcessStep.TransitionGen:
-        {
-          const nextPatch = batch.transition.shift()
-          if (nextPatch) {
-            nextPatch.genPatchBlocks()
-            batch.count++
-          } else {
-            const elapsedTime = Date.now() - batch.startTime
-            const avgTime = Math.round(elapsedTime / batch.count)
-            console.log(`processed ${batch.count} transition patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `)
-            batch.totalElapsedTime += elapsedTime
-            batch.totalCount += batch.count
-            batch.count = 0
-            batch.startTime = Date.now()
-            batch.currentStep = BatchProcessStep.PostProcessEntities
-          }
-          break;
+        break
+      }
+      case BatchProcessStep.TransitionGen: {
+        const nextPatch = batch.transition.shift()
+        if (nextPatch) {
+          nextPatch.genPatchBlocks()
+          batch.count++
+        } else {
+          const elapsedTime = Date.now() - batch.startTime
+          const avgTime = Math.round(elapsedTime / batch.count)
+          console.log(
+            `processed ${batch.count} transition patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
+          )
+          batch.totalElapsedTime += elapsedTime
+          batch.totalCount += batch.count
+          batch.count = 0
+          batch.startTime = Date.now()
+          batch.currentStep = BatchProcessStep.PostProcessEntities
         }
-      case BatchProcessStep.PostProcessEntities:
+        break
+      }
+      case BatchProcessStep.PostProcessEntities: {
         const count = PatchCache.cacheExtEntities()
         const elapsedTime = Date.now() - batch.startTime
         console.log(`postprocessed ${count} patches in ${elapsedTime}ms`)
         batch.totalElapsedTime += elapsedTime
         const avgTime = Math.round(batch.totalElapsedTime / batch.totalCount)
-        console.log(`[PatchCache:buildNextPatch] DONE processed ${batch.totalCount} patches in ${batch.totalElapsedTime} ms (avg ${avgTime} ms per patch) `)
+        console.log(
+          `[PatchCache:buildNextPatch] DONE processed ${batch.totalCount} patches in ${batch.totalElapsedTime} ms (avg ${avgTime} ms per patch) `,
+        )
+        onCacheUpdated()
         batch.currentStep = BatchProcessStep.Done
-        break;
+        break
+      }
     }
     if (batch.currentStep !== BatchProcessStep.Done)
-      setTimeout(() => PatchCache.buildNextPatch(), 0)
+      setTimeout(() => PatchCache.buildNextPatch(onCacheUpdated), 0)
   }
 
   static cacheExtEntities() {
