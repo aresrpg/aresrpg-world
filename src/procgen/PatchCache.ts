@@ -14,7 +14,7 @@ export class PatchCache {
     const bmin = new Vector3(patchOrigin.x, 0, patchOrigin.y)
     const bmax = new Vector3(
       patchOrigin.x + patchSize,
-      255,
+      512,
       patchOrigin.y + patchSize,
     )
     this.bbox = new Box3(bmin, bmax)
@@ -63,6 +63,8 @@ export class PatchCache {
     )
     return res
   }
+
+  getPatchCoords() {}
 
   getNearPatches(patchCache: PatchCache[]) {
     const dim = this.dimensions

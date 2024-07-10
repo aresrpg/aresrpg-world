@@ -33,15 +33,17 @@ enum BatchProcessStep {
   Done,
 }
 
-const cacheSyncProvider = (batch) => {
-  batch.kept?.length > 0 && PatchBlocksCache.cleanDeprecated(kept)
-  batch.created?.forEach((blocksCache: PatchBlocksCache) => PatchBlocksCache.instances.push(blocksCache))
+const cacheSyncProvider = (batch: any) => {
+  batch.kept?.length > 0 && PatchBlocksCache.cleanDeprecated(batch.kept)
+  batch.created?.forEach((blocksPatch: PatchBlocksCache) =>
+    PatchBlocksCache.instances.push(blocksPatch),
+  )
 }
 
 export class PatchBaseCache extends PatchCache {
   // eslint-disable-next-line no-use-before-define
   static instances: PatchBaseCache[] = []
-  static bbox = new Box3()
+  static override bbox = new Box3()
   static cacheRadius = 20
   static batch: {
     currentStep: BatchProcessStep
@@ -56,15 +58,15 @@ export class PatchBaseCache extends PatchCache {
     // eslint-disable-next-line no-use-before-define
     skipped: PatchBaseCache[]
   } = {
-      currentStep: BatchProcessStep.RegularGen,
-      startTime: 0,
-      totalElapsedTime: 0,
-      count: 0,
-      totalCount: 0,
-      regular: [],
-      transition: [],
-      skipped: [],
-    }
+    currentStep: BatchProcessStep.RegularGen,
+    startTime: 0,
+    totalElapsedTime: 0,
+    count: 0,
+    totalCount: 0,
+    regular: [],
+    transition: [],
+    skipped: [],
+  }
 
   spawnedEntities: EntityData[] = []
   extEntities: EntityData[] = []
@@ -85,15 +87,15 @@ export class PatchBaseCache extends PatchCache {
     )
   }
 
-  static getPatch(inputPoint: Vector2 | Vector3) {
+  static override getPatch(inputPoint: Vector2 | Vector3) {
     return super.getPatch(inputPoint, this.instances) as PatchBaseCache
   }
 
-  static getPatches(inputBbox: Box3) {
+  static override getPatches(inputBbox: Box3) {
     return super.getPatches(inputBbox, this.instances) as PatchBaseCache[]
   }
 
-  getNearPatches() {
+  override getNearPatches(): PatchBaseCache[] {
     return super.getNearPatches(PatchBaseCache.instances) as PatchBaseCache[]
   }
 
@@ -132,7 +134,7 @@ export class PatchBaseCache extends PatchCache {
   }
 
   static updateCache(center: Vector3, syncCache = cacheSyncProvider) {
-    const {patchSize} = PatchCache
+    const { patchSize } = PatchCache
     const { batch, cacheRadius } = PatchBaseCache
     const cacheSize = patchSize * cacheRadius
     const bbox = new Box3().setFromCenterAndSize(
@@ -207,7 +209,8 @@ export class PatchBaseCache extends PatchCache {
         batch.totalElapsedTime = 0
         batch.currentStep = BatchProcessStep.RegularGen
         const promise = new Promise(resolve => {
-          const wrapper = (batch) => batch.created || batch.kept ? syncCache(batch) : resolve(true)
+          const wrapper = (batch: any) =>
+            batch.created || batch.kept ? syncCache(batch) : resolve(true)
           PatchBaseCache.buildNextPatch(wrapper)
         })
 
@@ -223,8 +226,8 @@ export class PatchBaseCache extends PatchCache {
       case BatchProcessStep.RegularGen: {
         const nextPatch = batch.regular.shift()
         if (nextPatch) {
-          const blocksCache = nextPatch.genGroundBlocks()
-          syncCache({ created: [blocksCache] })
+          const blocksPatch = nextPatch.genGroundBlocks()
+          syncCache({ created: [blocksPatch] })
           batch.count++
         } else {
           const elapsedTime = Date.now() - batch.startTime
@@ -253,8 +256,8 @@ export class PatchBaseCache extends PatchCache {
       case BatchProcessStep.TransitionGen: {
         const nextPatch = batch.transition.shift()
         if (nextPatch) {
-          const blocksCache = nextPatch.genGroundBlocks()
-          syncCache({ created: [blocksCache] })
+          const blocksPatch = nextPatch.genGroundBlocks()
+          syncCache({ created: [blocksPatch] })
           batch.count++
         } else {
           const elapsedTime = Date.now() - batch.startTime
@@ -381,7 +384,9 @@ export class PatchBaseCache extends PatchCache {
   *overBlocksIter() {
     const entities = this.getEntities()
     for (const entity of entities) {
-      const blocksIter = PatchBlocksCache.getPatch(this.bbox.getCenter(new Vector3())).getBlocks(entity.bbox)
+      const blocksIter = PatchBlocksCache.getPatch(
+        this.bbox.getCenter(new Vector3()),
+      ).getBlocks(entity.bbox)
       // let item: BlockIteratorRes = blocksIter.next()
       for (const block of blocksIter) {
         const overBlocksBuffer = Vegetation.singleton.fillBuffer(
@@ -409,12 +414,16 @@ export class PatchBaseCache extends PatchCache {
       patch
         .getEntities()
         .filter(entity => entity.bbox.containsPoint(pos))
-        .forEach(entity =>
-          Vegetation.singleton.fillBuffer(pos, entity, buffer),
-        )
+        .forEach(entity => Vegetation.singleton.fillBuffer(pos, entity, buffer))
     }
     return buffer
   }
+
+  // genOvergroundBlocks(){
+  //   const { min } = this.bbox
+  //   const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
+  //   const blocksPatchIter = blocksPatch.iterator()
+  // }
 
   /**
    * Gen blocks data that will be sent to external cache
@@ -424,13 +433,13 @@ export class PatchBaseCache extends PatchCache {
     const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
     const prng = alea(patchId)
     const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
-    const blocksCache = new PatchBlocksCache(new Vector2(min.x, min.z))
-    const blocksCacheIter = blocksCache.iterator()
-    min.y = 255
+    const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
+    const blocksPatchIter = blocksPatch.iterator()
+    min.y = 512
     max.y = 0
     let blockIndex = 0
 
-    for (const blockData of blocksCacheIter) {
+    for (const blockData of blocksPatchIter) {
       blockData.pos.y = 0
       // const patchCorner = points.find(pt => pt.distanceTo(blockData.pos) < 2)
       const biomeType = this.isBiomeTransition
@@ -478,13 +487,15 @@ export class PatchBaseCache extends PatchCache {
       // const levelMax = blockData.cache.level + blockData.cache.overground.length
       min.y = Math.min(min.y, blockData.pos.y)
       max.y = Math.max(max.y, blockData.pos.y)
-      blocksCache.writeBlockAtIndex(blockIndex, blockData.pos.y, blockData.type)
+      blocksPatch.writeBlockAtIndex(blockIndex, blockData.pos.y, blockData.type)
       blockIndex++
     }
+    blocksPatch.bbox.min = min
+    blocksPatch.bbox.max = max
     this?.bbox.getSize(this.dimensions)
     PatchBaseCache.bbox.union(this.bbox)
     PatchBlocksCache.bbox = PatchBaseCache.bbox
     this.state = PatchState.Filled
-    return blocksCache
+    return blocksPatch
   }
 }
