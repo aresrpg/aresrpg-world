@@ -1,4 +1,5 @@
 import { Box3, Vector2, Vector3 } from 'three'
+
 import { BlockType } from './Biome'
 import { PatchBaseCache } from './PatchBaseCache'
 import { PatchCache } from './PatchCache'
@@ -16,8 +17,9 @@ export type BlockIteratorRes = IteratorResult<BlockData, void>
  * Blocks cache
  */
 export class PatchBlocksCache extends PatchCache {
+  // eslint-disable-next-line no-use-before-define
   static instances: PatchBlocksCache[] = []
-  static bbox = new Box3()
+  static override bbox = new Box3()
   static cacheSize = PatchCache.patchSize * 5
   static patchCacheProvider: any
   // blocksCache: Uint16Array = new Uint16Array(Math.pow(PatchCache.patchSize, 2))
@@ -27,18 +29,23 @@ export class PatchBlocksCache extends PatchCache {
   }
 
   constructor(input: Vector2 | PatchBlocksCache) {
-    super(input instanceof Vector2 ? input : new Vector2(input.bbox.min.x, input.bbox.min.z))
-    if (input.blocksCache) {
-      const bmin = new Vector3(...Object.values(input.bbox.min))
-      const bmax = new Vector3(...Object.values(input.bbox.max))
+    super(
+      input instanceof Vector2
+        ? input
+        : new Vector2(input.bbox.min.x, input.bbox.min.z),
+    )
+    if ((input as any).blocksCache) {
+      const { bbox, dimensions, blocksCache } = input as any
+      const bmin = new Vector3(...(Object.values(bbox.min) as any))
+      const bmax = new Vector3(...(Object.values(bbox.max) as any))
       this.bbox = new Box3(bmin, bmax)
-      this.dimensions = new Vector3(...Object.values(input.dimensions))
-      this.blocksCache = input.blocksCache
+      this.dimensions = new Vector3(...(Object.values(dimensions) as any))
+      this.blocksCache = blocksCache
     }
     PatchBlocksCache.bbox.union(this.bbox)
   }
 
-  static getPatch(inputPoint) {
+  static override getPatch(inputPoint: Vector3 | Vector2) {
     return super.getPatch(inputPoint, this.instances) as PatchBlocksCache
     // const patchRes = this.patchCache.find(patch =>
     //   patch.bbox.min.x === patchBbox.min.x
@@ -49,12 +56,14 @@ export class PatchBlocksCache extends PatchCache {
     // return patchRes
   }
 
-  static getPatches(inputBbox: Box3) {
+  static override getPatches(inputBbox: Box3) {
     return super.getPatches(inputBbox, this.instances) as PatchBlocksCache[]
   }
 
-  getNearPatches() {
-    return super.getNearPatches(PatchBlocksCache.instances) as PatchBlocksCache[]
+  override getNearPatches(): PatchBlocksCache[] {
+    return super.getNearPatches(
+      PatchBlocksCache.instances,
+    ) as PatchBlocksCache[]
   }
 
   static getGroundBlock(globalPos: Vector3) {
@@ -204,12 +213,7 @@ export class PatchBlocksCache extends PatchCache {
     }
   }
 
-  fromImport() {
+  fromImport() {}
 
-  }
-
-  toExport() {
-
-  }
-
+  toExport() {}
 }
