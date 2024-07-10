@@ -11,6 +11,11 @@ export type BlockData = {
   buffer?: BlockType[]
 }
 
+export type EntityChunk = {
+  bbox: Box3
+  data: string[]
+}
+
 export type BlockIteratorRes = IteratorResult<BlockData, void>
 
 /**
@@ -22,11 +27,13 @@ export class PatchBlocksCache extends PatchCache {
   static override bbox = new Box3()
   static cacheSize = PatchCache.patchSize * 5
   static patchCacheProvider: any
-  // blocksCache: Uint16Array = new Uint16Array(Math.pow(PatchCache.patchSize, 2))
-  blocksCache = {
+  // groundBlocks: Uint16Array = new Uint16Array(Math.pow(PatchCache.patchSize, 2))
+  groundBlocks = {
     type: new Uint16Array(Math.pow(PatchCache.patchSize, 2)),
     level: new Uint16Array(Math.pow(PatchCache.patchSize, 2)),
   }
+
+  entitiesChunks: EntityChunk[] = []
 
   constructor(input: Vector2 | PatchBlocksCache) {
     super(
@@ -34,14 +41,17 @@ export class PatchBlocksCache extends PatchCache {
         ? input
         : new Vector2(input.bbox.min.x, input.bbox.min.z),
     )
-    if ((input as any).blocksCache) {
-      const { bbox, dimensions, blocksCache } = input as any
+    if ((input as any).groundBlocks) {
+      const { bbox, dimensions, groundBlocks } = input as any
       const bmin = new Vector3(...(Object.values(bbox.min) as any))
       const bmax = new Vector3(...(Object.values(bbox.max) as any))
       this.bbox = new Box3(bmin, bmax)
       this.dimensions = new Vector3(...(Object.values(dimensions) as any))
-      this.blocksCache = blocksCache
+      this.groundBlocks = groundBlocks
     }
+    ;(input as any).entitiesChunks?.forEach((entityChunk: EntityChunk) =>
+      this.entitiesChunks.push(entityChunk),
+    )
     PatchBlocksCache.bbox.union(this.bbox)
   }
 
@@ -121,7 +131,7 @@ export class PatchBlocksCache extends PatchCache {
   static async fill(batch: PatchBlocksCache[]) {
     for (const patch of batch) {
       const res = await PatchBlocksCache.patchCacheProvider(patch.bbox)
-      patch.blocksCache = res.data
+      patch.groundBlocks = res.data
     }
   }
 
@@ -130,15 +140,15 @@ export class PatchBlocksCache extends PatchCache {
     blockLevel: number,
     blockType: BlockType,
   ) {
-    this.blocksCache.level[blockIndex] = blockLevel
-    this.blocksCache.type[blockIndex] = blockType
+    this.groundBlocks.level[blockIndex] = blockLevel
+    this.groundBlocks.type[blockIndex] = blockType
   }
 
   getBlock(localPos: Vector3) {
     const blockIndex = localPos.x * this.dimensions.x + localPos.z
     const pos = localPos.clone()
-    pos.y = this.blocksCache.level[blockIndex] || 0
-    const type = this.blocksCache.type[blockIndex]
+    pos.y = this.groundBlocks.level[blockIndex] || 0
+    const type = this.groundBlocks.type[blockIndex]
     const block = {
       pos,
       type,
@@ -171,8 +181,8 @@ export class PatchBlocksCache extends PatchCache {
         const pos = new Vector3(x, 0, z)
         const localPos = pos.clone().sub(this.bbox.min)
         const index = localPos.x * this.dimensions.x + localPos.z
-        const type = this.blocksCache.type[index] || BlockType.NONE
-        const level = this.blocksCache.level[index] || 0
+        const type = this.groundBlocks.type[index] || BlockType.NONE
+        const level = this.groundBlocks.level[index] || 0
         pos.y = level
         localPos.y = level
         const blockData: BlockData = {
@@ -199,8 +209,8 @@ export class PatchBlocksCache extends PatchCache {
         // blockType = x === bbox.max.x - 1 ? BlockType.ROCK : blockType
         // blockType = z === bbox.min.z ? BlockType.MUD : blockType
         // blockType = z === bbox.max.z - 1 ? BlockType.ROCK : blockType
-        const type = this.blocksCache.type[index] || BlockType.NONE
-        const level = this.blocksCache?.level[index] || 0
+        const type = this.groundBlocks.type[index] || BlockType.NONE
+        const level = this.groundBlocks?.level[index] || 0
         pos.y = level
         const blockData = {
           index,
@@ -212,8 +222,4 @@ export class PatchBlocksCache extends PatchCache {
       }
     }
   }
-
-  fromImport() {}
-
-  toExport() {}
 }

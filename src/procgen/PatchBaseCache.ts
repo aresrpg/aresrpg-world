@@ -6,7 +6,7 @@ import { Heightmap, PatchCache } from '../index'
 import { TreeType } from '../tools/TreeGenerator'
 
 import { Biome, BiomeType, BlockType } from './Biome'
-import { PatchBlocksCache } from './PatchBlocksCache'
+import { EntityChunk, PatchBlocksCache } from './PatchBlocksCache'
 import { EntityData, Vegetation } from './Vegetation'
 
 export type BlockData = {
@@ -227,6 +227,7 @@ export class PatchBaseCache extends PatchCache {
         const nextPatch = batch.regular.shift()
         if (nextPatch) {
           const blocksPatch = nextPatch.genGroundBlocks()
+          nextPatch.genEntitiesBlocks(blocksPatch, nextPatch.spawnedEntities)
           syncCache({ created: [blocksPatch] })
           batch.count++
         } else {
@@ -257,6 +258,7 @@ export class PatchBaseCache extends PatchCache {
         const nextPatch = batch.transition.shift()
         if (nextPatch) {
           const blocksPatch = nextPatch.genGroundBlocks()
+          nextPatch.genEntitiesBlocks(blocksPatch, nextPatch.spawnedEntities)
           syncCache({ created: [blocksPatch] })
           batch.count++
         } else {
@@ -389,7 +391,7 @@ export class PatchBaseCache extends PatchCache {
       ).getBlocks(entity.bbox)
       // let item: BlockIteratorRes = blocksIter.next()
       for (const block of blocksIter) {
-        const overBlocksBuffer = Vegetation.singleton.fillBuffer(
+        const overBlocksBuffer = Vegetation.instance.fillBuffer(
           block.pos,
           entity,
           [],
@@ -414,19 +416,44 @@ export class PatchBaseCache extends PatchCache {
       patch
         .getEntities()
         .filter(entity => entity.bbox.containsPoint(pos))
-        .forEach(entity => Vegetation.singleton.fillBuffer(pos, entity, buffer))
+        .forEach(entity => Vegetation.instance.fillBuffer(pos, entity, buffer))
     }
     return buffer
   }
 
-  // genOvergroundBlocks(){
-  //   const { min } = this.bbox
-  //   const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
-  //   const blocksPatchIter = blocksPatch.iterator()
-  // }
+  genEntitiesBlocks(blocksPatch: PatchBlocksCache, entities: EntityData[]) {
+    blocksPatch.entitiesChunks = entities.map(entity => {
+      const blocksIter = blocksPatch.getBlocks(entity.bbox)
+      // let item: BlockIteratorRes = blocksIter.next()
+      const chunk: EntityChunk = {
+        bbox: new Box3(),
+        data: [],
+      }
+
+      for (const block of blocksIter) {
+        const blocksBuffer = Vegetation.instance.fillBuffer(
+          block.pos,
+          entity,
+          [],
+        )
+        this.bbox.max.y = Math.max(
+          this.bbox.max.y,
+          block.pos.y + blocksBuffer.length,
+        )
+        const serialized = blocksBuffer
+          .reduce((str, val) => str + ',' + val, '')
+          .slice(1)
+        chunk.data.push(serialized)
+        chunk.bbox.expandByPoint(block.pos)
+      }
+      blocksPatch.bbox.max.y = this.bbox.max.y
+      chunk.bbox = entity.bbox
+      return chunk
+    })
+  }
 
   /**
-   * Gen blocks data that will be sent to external cache
+   * Gen blocks data that will be sent to blocks cache
    */
   genGroundBlocks() {
     const { min, max } = this.bbox
