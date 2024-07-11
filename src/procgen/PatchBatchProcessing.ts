@@ -99,8 +99,8 @@ export class PatchBatchProcessing {
   finaliseBatch() {
     let elapsedTime = Date.now()
     // finalize patches skipping already
-    this.outputPatches.map(
-      patch => patch.initialPatchRef?.genEntitiesBlocks(patch),
+    this.outputPatches.map(patch =>
+      patch.initialPatchRef?.genEntitiesBlocks(patch),
     )
     elapsedTime = Date.now() - elapsedTime
     // console.log(`finalising batch took ${elapsedTime}ms for ${count} items`)
