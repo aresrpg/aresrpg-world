@@ -34,6 +34,7 @@ export class PatchBlocksCache extends PatchCache {
   }
 
   entitiesChunks: EntityChunk[] = []
+  initialPatchRef?: PatchBaseCache
 
   constructor(input: Vector2 | PatchBlocksCache) {
     super(

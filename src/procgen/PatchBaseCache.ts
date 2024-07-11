@@ -22,8 +22,7 @@ export type BlockIteratorRes = IteratorResult<BlockData, void>
 export enum PatchState {
   Empty,
   Filled,
-  Done,
-  Final,
+  Finalised,
 }
 
 const cacheSyncProvider = (batch: any) => {
@@ -77,7 +76,7 @@ export class PatchBaseCache extends PatchCache {
    * @returns
    */
   getEntities() {
-    this.finalise()
+    this.finalisePatches()
     return [...this.spawnedEntities, ...this.extEntities]
   }
 
@@ -106,7 +105,7 @@ export class PatchBaseCache extends PatchCache {
       PatchBaseCache.instances.length === 0 ||
       (!this.pendingUpdate && nextCenter.distanceTo(prevCenter) > patchSize)
     ) {
-      this.pendingUpdate = false
+      this.pendingUpdate = true
       PatchBaseCache.bbox = bbox
       const created: PatchBaseCache[] = []
       const existing: PatchBaseCache[] = []
@@ -115,7 +114,7 @@ export class PatchBaseCache extends PatchCache {
           const patchStart = new Vector2(xmin, zmin)
           // look for existing patch in current cache
           let patch = PatchBaseCache.getPatch(patchStart) // || new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
-          if (!patch || patch.state < PatchState.Final) {
+          if (!patch || patch.state < PatchState.Finalised) {
             patch = new PatchBaseCache(patchStart)
             created.push(patch)
           } else {
@@ -123,32 +122,38 @@ export class PatchBaseCache extends PatchCache {
           }
         }
       }
-      const updated = existing.filter(patch => patch.state < PatchState.Done)
+      // const updated = existing.filter(patch => patch.state < PatchState.Finalised)
       const removedCount = PatchBaseCache.instances.length - existing.length
       PatchBaseCache.instances = [...existing, ...created]
-
+      const batchPatches: PatchBlocksCache[] = []
       if (created.length > 0) {
         console.log(
           `[PatchBaseCache:update] enqueud ${created.length} new patches, kept ${existing.length}, removed ${removedCount} )`,
         )
         cacheSync({ kept: existing })
-        const patchBatch = new PatchBatchProcessing(created, updated)
+        const batchProcess = new PatchBatchProcessing(created)
 
         // const batchIterator = patchBatch.getBatchIterator();
-        const regularPatchIter = patchBatch.iterRegularPatches()
+        const regularPatchIter = batchProcess.iterRegularPatches()
         for await (const batchRes of regularPatchIter) {
+          batchPatches.push(batchRes)
           cacheSync({ created: [batchRes] })
         }
-        const transitPatchIter = patchBatch.iterTransitionPatches()
+        const transitPatchIter = batchProcess.iterTransitionPatches()
         for await (const batchRes of transitPatchIter) {
+          batchPatches.push(batchRes)
           cacheSync({ created: [batchRes] })
         }
-        patchBatch.finaliseBatch()
+        PatchBaseCache.instances
+          .filter(patch => patch.state < PatchState.Finalised)
+          .forEach(patch => patch.finalisePatches())
+        batchProcess.finaliseBatch()
+        cacheSync({ kept: existing, created: batchPatches })
         this.pendingUpdate = false
       }
-      return true
+      return { kept: existing, created: batchPatches }
     }
-    return false
+    return null
   }
 
   buildRefPoints() {
@@ -249,7 +254,10 @@ export class PatchBaseCache extends PatchCache {
     return buffer
   }
 
-  genEntitiesBlocks(blocksPatch: PatchBlocksCache, entities: EntityData[]) {
+  genEntitiesBlocks(
+    blocksPatch: PatchBlocksCache,
+    entities: EntityData[] = [...this.spawnedEntities, ...this.extEntities],
+  ) {
     blocksPatch.entitiesChunks = entities.map(entity => {
       const blocksIter = blocksPatch.getBlocks(entity.bbox)
       // let item: BlockIteratorRes = blocksIter.next()
@@ -280,7 +288,7 @@ export class PatchBaseCache extends PatchCache {
     })
   }
 
-  finalise() {
+  finalisePatches() {
     const nearPatches = this.getNearPatches()
     // skip patches with incomplete edge patches count
     if (nearPatches.length === 8) {
@@ -293,7 +301,7 @@ export class PatchBaseCache extends PatchCache {
           .filter(entity => entity.bbox.intersectsBox(this.bbox))
           .forEach(entity => this.extEntities.push(entity))
       })
-      this.state = PatchState.Final // isFinal ? PatchState.Final : PatchState.Done
+      this.state = PatchState.Finalised // isFinal ? PatchState.Final : PatchState.Done
       return true
     }
     // else {
