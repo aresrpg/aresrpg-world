@@ -80,7 +80,7 @@ export class PatchBaseCache extends PatchCache {
     return [...this.spawnedEntities, ...this.extEntities]
   }
 
-  static async updateCache(center: Vector3, cacheSync = cacheSyncProvider) {
+  static async updateCache(center: Vector3, cacheSync = cacheSyncProvider, asyncMode = false) {
     const { patchSize } = PatchCache
     const { cacheRadius } = PatchBaseCache
     const cacheSize = patchSize * cacheRadius
@@ -134,12 +134,12 @@ export class PatchBaseCache extends PatchCache {
         const batchProcess = new PatchBatchProcessing(created)
 
         // const batchIterator = patchBatch.getBatchIterator();
-        const regularPatchIter = batchProcess.iterRegularPatches()
+        const regularPatchIter = batchProcess.iterRegularPatches(asyncMode)
         for await (const batchRes of regularPatchIter) {
           batchPatches.push(batchRes)
           cacheSync({ created: [batchRes] })
         }
-        const transitPatchIter = batchProcess.iterTransitionPatches()
+        const transitPatchIter = batchProcess.iterTransitionPatches(asyncMode)
         for await (const batchRes of transitPatchIter) {
           batchPatches.push(batchRes)
           cacheSync({ created: [batchRes] })
