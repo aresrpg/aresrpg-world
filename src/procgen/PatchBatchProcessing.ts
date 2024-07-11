@@ -44,12 +44,12 @@ export class PatchBatchProcessing {
     )
   }
 
-  async *iterRegularPatches() {
+  async *iterRegularPatches(asyncMode = false) {
     let count = 0
     let elapsedTime = Date.now()
     const { inputPatches } = this
     for (const patch of inputPatches.regular) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      asyncMode && await new Promise(resolve => setTimeout(resolve, 0))
       const patchBlocks = patch.genGroundBlocks()
       patchBlocks.initialPatchRef = patch
       // patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
@@ -67,7 +67,7 @@ export class PatchBatchProcessing {
     this.count += count
   }
 
-  async *iterTransitionPatches() {
+  async *iterTransitionPatches(asyncMode = false) {
     let elapsedTime = Date.now()
     const { inputPatches } = this
     // prepare next pass
@@ -78,7 +78,7 @@ export class PatchBatchProcessing {
     })
     let count = 0
     for (const patch of inputPatches.transition) {
-      await new Promise(resolve => setTimeout(resolve, 0))
+      asyncMode && await new Promise(resolve => setTimeout(resolve, 0))
       const patchBlocks = patch.genGroundBlocks()
       patchBlocks.initialPatchRef = patch
       // patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
