@@ -7,6 +7,7 @@ import { TreeType } from '../tools/TreeGenerator'
 
 import { Biome, BiomeType, BlockType } from './Biome'
 import { EntityChunk, PatchBlocksCache } from './PatchBlocksCache'
+import { PatchBatchProcessing } from './PatchBatchProcessing'
 import { EntityData, Vegetation } from './Vegetation'
 
 export type BlockData = {
@@ -18,19 +19,11 @@ export type BlockData = {
 
 export type BlockIteratorRes = IteratorResult<BlockData, void>
 
-enum PatchState {
+export enum PatchState {
   Empty,
   Filled,
   Done,
   Final,
-}
-
-enum BatchProcessStep {
-  RegularGen,
-  PreTransitionGen,
-  TransitionGen,
-  PostProcessEntities,
-  Done,
 }
 
 const cacheSyncProvider = (batch: any) => {
@@ -45,28 +38,7 @@ export class PatchBaseCache extends PatchCache {
   static instances: PatchBaseCache[] = []
   static override bbox = new Box3()
   static cacheRadius = 20
-  static batch: {
-    currentStep: BatchProcessStep
-    startTime: number
-    totalElapsedTime: number
-    count: number
-    totalCount: number
-    // eslint-disable-next-line no-use-before-define
-    regular: PatchBaseCache[]
-    // eslint-disable-next-line no-use-before-define
-    transition: PatchBaseCache[]
-    // eslint-disable-next-line no-use-before-define
-    skipped: PatchBaseCache[]
-  } = {
-    currentStep: BatchProcessStep.RegularGen,
-    startTime: 0,
-    totalElapsedTime: 0,
-    count: 0,
-    totalCount: 0,
-    regular: [],
-    transition: [],
-    skipped: [],
-  }
+  static pendingUpdate = false
 
   spawnedEntities: EntityData[] = []
   extEntities: EntityData[] = []
@@ -105,37 +77,13 @@ export class PatchBaseCache extends PatchCache {
    * @returns
    */
   getEntities() {
-    this.cacheExtEntities()
+    this.finalise()
     return [...this.spawnedEntities, ...this.extEntities]
   }
 
-  cacheExtEntities() {
-    if (this.state < PatchState.Done) {
-      const nearPatches = this.getNearPatches()
-      // skip patches with incomplete edge patches count or already processed
-      if (nearPatches.length === 8) {
-        let isFinal = true
-        // extEntities
-        nearPatches.forEach(patch => {
-          isFinal = isFinal && patch.state >= PatchState.Filled
-          patch.spawnedEntities
-            // .filter(entity => entity.edgesOverlaps)
-            .filter(entity => entity.bbox.intersectsBox(this.bbox))
-            .forEach(entity => this.extEntities.push(entity))
-        })
-        this.state = PatchState.Final // isFinal ? PatchState.Final : PatchState.Done
-        return true
-      }
-      // else {
-      //   console.log(`incomplete patch edges count: ${nearPatches.length}`)
-      // }
-    }
-    return false
-  }
-
-  static updateCache(center: Vector3, syncCache = cacheSyncProvider) {
+  static async updateCache(center: Vector3, cacheSync = cacheSyncProvider) {
     const { patchSize } = PatchCache
-    const { batch, cacheRadius } = PatchBaseCache
+    const { cacheRadius } = PatchBaseCache
     const cacheSize = patchSize * cacheRadius
     const bbox = new Box3().setFromCenterAndSize(
       center,
@@ -156,9 +104,9 @@ export class PatchBaseCache extends PatchCache {
 
     if (
       PatchBaseCache.instances.length === 0 ||
-      (batch.currentStep === BatchProcessStep.Done &&
-        nextCenter.distanceTo(prevCenter) > patchSize)
+      (!this.pendingUpdate && nextCenter.distanceTo(prevCenter) > patchSize)
     ) {
+      this.pendingUpdate = false
       PatchBaseCache.bbox = bbox
       const created: PatchBaseCache[] = []
       const existing: PatchBaseCache[] = []
@@ -175,129 +123,32 @@ export class PatchBaseCache extends PatchCache {
           }
         }
       }
+      const updated = existing.filter(patch => patch.state < PatchState.Done)
       const removedCount = PatchBaseCache.instances.length - existing.length
       PatchBaseCache.instances = [...existing, ...created]
-      const { batch } = PatchBaseCache
 
-      // sort created patches depending on their type
-      for (const patch of created) {
-        const nearPatches = patch.getNearPatches()
-        const isEdgePatch = nearPatches.length !== 8
-        if (!isEdgePatch) {
-          patch.isTransitionPatch =
-            patch.isBiomeTransition ||
-            !!nearPatches.find(edgePatch => edgePatch.isBiomeTransition)
-          patch.isTransitionPatch
-            ? batch.transition.push(patch)
-            : batch.regular.push(patch)
-        } else {
-          batch.skipped.push(patch)
-        }
-      }
-
-      // batch.sort((p1, p2) => p1.bbox.getCenter(new Vector3()).distanceTo(center) - p2.bbox.getCenter(new Vector3()).distanceTo(center))
-      // PatchBaseCache.processBatch(batch)
-      // PatchBaseCache.cacheExtEntities()
       if (created.length > 0) {
         console.log(
-          `[PatchBaseCache:update] START patch cache updating: enqueud ${created.length}, kept ${existing.length}, removed ${removedCount} )`,
+          `[PatchBaseCache:update] enqueud ${created.length} new patches, kept ${existing.length}, removed ${removedCount} )`,
         )
-        syncCache({ kept: existing })
-        batch.count = 0
-        batch.totalCount = 0
-        batch.startTime = Date.now()
-        batch.totalElapsedTime = 0
-        batch.currentStep = BatchProcessStep.RegularGen
-        const promise = new Promise(resolve => {
-          const wrapper = (batch: any) =>
-            batch.created || batch.kept ? syncCache(batch) : resolve(true)
-          PatchBaseCache.buildNextPatch(wrapper)
-        })
+        cacheSync({ kept: existing })
+        const patchBatch = new PatchBatchProcessing(created, updated)
 
-        return promise
-      }
-    }
-    return null
-  }
-
-  static buildNextPatch(syncCache: any) {
-    const { batch } = PatchBaseCache
-    switch (batch.currentStep) {
-      case BatchProcessStep.RegularGen: {
-        const nextPatch = batch.regular.shift()
-        if (nextPatch) {
-          const blocksPatch = nextPatch.genGroundBlocks()
-          nextPatch.genEntitiesBlocks(blocksPatch, nextPatch.spawnedEntities)
-          syncCache({ created: [blocksPatch] })
-          batch.count++
-        } else {
-          const elapsedTime = Date.now() - batch.startTime
-          const avgTime = Math.round(elapsedTime / batch.count)
-          console.log(
-            `processed ${batch.count} regular patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
-          )
-          batch.totalElapsedTime += elapsedTime
-          batch.totalCount += batch.count
-          batch.count = 0
-          batch.startTime = Date.now()
-          batch.currentStep = BatchProcessStep.PreTransitionGen
+        // const batchIterator = patchBatch.getBatchIterator();
+        const regularPatchIter = patchBatch.iterRegularPatches()
+        for await (const batchRes of regularPatchIter) {
+          cacheSync({ created: [batchRes] })
         }
-        break
-      }
-      case BatchProcessStep.PreTransitionGen: {
-        batch.transition.forEach(patch => {
-          patch.isCloseToRefPatch = !!patch
-            .getNearPatches()
-            .find(p => !p.isTransitionPatch && p.state >= PatchState.Filled)
-        })
-        // console.log(`switch state from PreTransitionGen to TransitionGen`)
-        batch.currentStep = BatchProcessStep.TransitionGen
-        break
-      }
-      case BatchProcessStep.TransitionGen: {
-        const nextPatch = batch.transition.shift()
-        if (nextPatch) {
-          const blocksPatch = nextPatch.genGroundBlocks()
-          nextPatch.genEntitiesBlocks(blocksPatch, nextPatch.spawnedEntities)
-          syncCache({ created: [blocksPatch] })
-          batch.count++
-        } else {
-          const elapsedTime = Date.now() - batch.startTime
-          const avgTime = Math.round(elapsedTime / batch.count)
-          console.log(
-            `processed ${batch.count} transition patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
-          )
-          batch.totalElapsedTime += elapsedTime
-          batch.totalCount += batch.count
-          batch.count = 0
-          batch.startTime = Date.now()
-          batch.currentStep = BatchProcessStep.PostProcessEntities
+        const transitPatchIter = patchBatch.iterTransitionPatches()
+        for await (const batchRes of transitPatchIter) {
+          cacheSync({ created: [batchRes] })
         }
-        break
+        patchBatch.finaliseBatch()
+        this.pendingUpdate = false
       }
-      case BatchProcessStep.PostProcessEntities: {
-        const count = PatchBaseCache.cacheExtEntities()
-        const elapsedTime = Date.now() - batch.startTime
-        console.log(`postprocessed ${count} patches in ${elapsedTime}ms`)
-        batch.totalElapsedTime += elapsedTime
-        const avgTime = Math.round(batch.totalElapsedTime / batch.totalCount)
-        console.log(
-          `[PatchBaseCache:buildNextPatch] DONE processed ${batch.totalCount} patches in ${batch.totalElapsedTime} ms (avg ${avgTime} ms per patch) `,
-        )
-        syncCache({})
-        batch.currentStep = BatchProcessStep.Done
-        break
-      }
+      return true
     }
-    if (batch.currentStep !== BatchProcessStep.Done)
-      setTimeout(() => PatchBaseCache.buildNextPatch(syncCache), 0)
-  }
-
-  static cacheExtEntities() {
-    const patchCount = PatchBaseCache.instances
-      .map(patch => patch.cacheExtEntities())
-      .filter(val => val).length
-    return patchCount
+    return false
   }
 
   buildRefPoints() {
@@ -383,29 +234,6 @@ export class PatchBaseCache extends PatchCache {
     return Math.round(h)
   }
 
-  *overBlocksIter() {
-    const entities = this.getEntities()
-    for (const entity of entities) {
-      const blocksIter = PatchBlocksCache.getPatch(
-        this.bbox.getCenter(new Vector3()),
-      ).getBlocks(entity.bbox)
-      // let item: BlockIteratorRes = blocksIter.next()
-      for (const block of blocksIter) {
-        const overBlocksBuffer = Vegetation.instance.fillBuffer(
-          block.pos,
-          entity,
-          [],
-        )
-        this.bbox.max.y = Math.max(
-          this.bbox.max.y,
-          block.pos.y + overBlocksBuffer.length,
-        )
-        block.buffer = overBlocksBuffer
-        yield block
-      }
-    }
-  }
-
   static genOvergroundBlocks(baseBlock: BlockData) {
     // find patch containing point in cache
     const patch = this.getPatch(baseBlock.pos)
@@ -450,6 +278,28 @@ export class PatchBaseCache extends PatchCache {
       chunk.bbox = entity.bbox
       return chunk
     })
+  }
+
+  finalise() {
+    const nearPatches = this.getNearPatches()
+    // skip patches with incomplete edge patches count
+    if (nearPatches.length === 8) {
+      let isFinal = true
+      // extEntities
+      nearPatches.forEach(patch => {
+        isFinal = isFinal && patch.state >= PatchState.Filled
+        patch.spawnedEntities
+          // .filter(entity => entity.edgesOverlaps)
+          .filter(entity => entity.bbox.intersectsBox(this.bbox))
+          .forEach(entity => this.extEntities.push(entity))
+      })
+      this.state = PatchState.Final // isFinal ? PatchState.Final : PatchState.Done
+      return true
+    }
+    // else {
+    //   console.log(`incomplete patch edges count: ${nearPatches.length}`)
+    // }
+    return false
   }
 
   /**
