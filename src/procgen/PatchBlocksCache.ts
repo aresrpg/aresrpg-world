@@ -110,19 +110,26 @@ export class PatchBlocksCache extends PatchCache {
   }
 
   static cleanDeprecated(keep: PatchCache[]) {
+    const missingPatches: PatchCache[] = []
     const kept = keep
       .map(intPatch => {
         const patchStart = new Vector3(...Object.values(intPatch.bbox.min))
         const extPatch = PatchBlocksCache.getPatch(patchStart)
+        if (!extPatch) {
+          missingPatches.push(intPatch)
+        }
         return extPatch
       })
       .filter(extPatch => {
-        if (!extPatch) {
-          console.warn(`External cache sync issue: existing patch not found`)
-        }
         return !!extPatch
       })
     this.instances = kept
+    if (missingPatches.length > 0) {
+      console.warn(
+        `External cache sync issue: ${missingPatches.length} existing patch not found`,
+        missingPatches,
+      )
+    }
   }
 
   /**
