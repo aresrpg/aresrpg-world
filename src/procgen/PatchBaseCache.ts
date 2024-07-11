@@ -80,7 +80,11 @@ export class PatchBaseCache extends PatchCache {
     return [...this.spawnedEntities, ...this.extEntities]
   }
 
-  static async updateCache(center: Vector3, cacheSync = cacheSyncProvider, asyncMode = false) {
+  static async updateCache(
+    center: Vector3,
+    cacheSync = cacheSyncProvider,
+    asyncMode = false,
+  ) {
     const { patchSize } = PatchCache
     const { cacheRadius } = PatchBaseCache
     const cacheSize = patchSize * cacheRadius

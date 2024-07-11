@@ -49,7 +49,7 @@ export class PatchBatchProcessing {
     let elapsedTime = Date.now()
     const { inputPatches } = this
     for (const patch of inputPatches.regular) {
-      asyncMode && await new Promise(resolve => setTimeout(resolve, 0))
+      asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
       const patchBlocks = patch.genGroundBlocks()
       patchBlocks.initialPatchRef = patch
       // patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
@@ -78,7 +78,7 @@ export class PatchBatchProcessing {
     })
     let count = 0
     for (const patch of inputPatches.transition) {
-      asyncMode && await new Promise(resolve => setTimeout(resolve, 0))
+      asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
       const patchBlocks = patch.genGroundBlocks()
       patchBlocks.initialPatchRef = patch
       // patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
@@ -99,8 +99,8 @@ export class PatchBatchProcessing {
   finaliseBatch() {
     let elapsedTime = Date.now()
     // finalize patches skipping already
-    this.outputPatches.map(patch =>
-      patch.initialPatchRef?.genEntitiesBlocks(patch),
+    this.outputPatches.map(
+      patch => patch.initialPatchRef?.genEntitiesBlocks(patch),
     )
     elapsedTime = Date.now() - elapsedTime
     // console.log(`finalising batch took ${elapsedTime}ms for ${count} items`)
