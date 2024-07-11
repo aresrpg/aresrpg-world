@@ -39,9 +39,9 @@ export class PatchBatchProcessing {
         inputPatches.skipped.push(patch)
       }
     }
-    console.log(
-      `[BatchProcessing] START processing ${createdPatches.length} patches`,
-    )
+    // console.log(
+    //   `[BatchProcessing] START processing ${createdPatches.length} patches`,
+    // )
   }
 
   async *iterRegularPatches(asyncMode = false) {
@@ -59,10 +59,10 @@ export class PatchBatchProcessing {
     }
 
     elapsedTime = Date.now() - elapsedTime
-    const avgTime = Math.round(elapsedTime / count)
-    console.log(
-      `processed ${count} regular patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
-    )
+    // const avgTime = Math.round(elapsedTime / count)
+    // console.debug(
+    //   `processed ${count} regular patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
+    // )
     this.elapsedTime += elapsedTime
     this.count += count
   }
@@ -88,10 +88,10 @@ export class PatchBatchProcessing {
     }
 
     elapsedTime = Date.now() - elapsedTime
-    const avgTime = Math.round(elapsedTime / count)
-    console.log(
-      `processed ${count} transition patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
-    )
+    // const avgTime = Math.round(elapsedTime / count)
+    // console.debug(
+    //   `processed ${count} transition patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
+    // )
     this.elapsedTime += elapsedTime
     this.count += count
   }
@@ -106,8 +106,8 @@ export class PatchBatchProcessing {
     // console.log(`finalising batch took ${elapsedTime}ms for ${count} items`)
     this.elapsedTime += elapsedTime
     const avgTime = Math.round(this.elapsedTime / this.count)
-    console.log(
-      `[BatchProcessing] DONE processed ${this.count} patches in ${this.elapsedTime} ms (avg ${avgTime} ms per patch) `,
+    console.debug(
+      `[BatchProcessing] processed ${this.count} patches in ${this.elapsedTime} ms (avg ${avgTime} ms per patch) `,
     )
   }
 }
