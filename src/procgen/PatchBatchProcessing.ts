@@ -1,27 +1,29 @@
 import { PatchBaseCache, PatchState } from './PatchBaseCache'
+import { PatchBlocksCache } from './PatchBlocksCache'
 
 enum PatchCategory {
   Regular = 'regular',
   Transition = 'transition',
-  Pending = 'pending',
   Skipped = 'skipped',
 }
 export class PatchBatchProcessing {
   startTime = Date.now()
   elapsedTime = 0
   count = 0
-  patches: Record<PatchCategory, PatchBaseCache[]> = {
+  inputPatches: Record<PatchCategory, PatchBaseCache[]> = {
     [PatchCategory.Regular]: [],
     [PatchCategory.Transition]: [],
     [PatchCategory.Skipped]: [],
-    [PatchCategory.Pending]: [],
   }
+
+  outputPatches: PatchBlocksCache[] = []
 
   constructor(
     createdPatches: PatchBaseCache[],
-    updatedPatches: PatchBaseCache[],
+    // updatedPatches: PatchBaseCache[],
   ) {
-    this.patches.pending.push(...updatedPatches)
+    const { inputPatches } = this
+    // this.outputPatches.push(...updatedPatches)
     // sort patches in categories
     for (const patch of createdPatches) {
       const nearPatches = patch.getNearPatches()
@@ -31,26 +33,28 @@ export class PatchBatchProcessing {
           patch.isBiomeTransition ||
           !!nearPatches.find(edgePatch => edgePatch.isBiomeTransition)
         patch.isTransitionPatch
-          ? this.patches.transition.push(patch)
-          : this.patches.regular.push(patch)
+          ? inputPatches.transition.push(patch)
+          : inputPatches.regular.push(patch)
       } else {
-        this.patches.skipped.push(patch)
+        inputPatches.skipped.push(patch)
       }
     }
     console.log(
-      `[BatchProcessing] START filling ${createdPatches.length} pacthes, updating ${updatedPatches} patches)`,
+      `[BatchProcessing] START processing ${createdPatches.length} patches`,
     )
   }
 
   async *iterRegularPatches() {
     let count = 0
     let elapsedTime = Date.now()
-    for (const patch of this.patches.regular) {
+    const { inputPatches } = this
+    for (const patch of inputPatches.regular) {
       await new Promise(resolve => setTimeout(resolve, 0))
       const patchBlocks = patch.genGroundBlocks()
-      patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
+      patchBlocks.initialPatchRef = patch
+      // patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
       count++
-      this.patches.pending.push(patch)
+      this.outputPatches.push(patchBlocks)
       yield patchBlocks
     }
 
@@ -65,26 +69,28 @@ export class PatchBatchProcessing {
 
   async *iterTransitionPatches() {
     let elapsedTime = Date.now()
+    const { inputPatches } = this
     // prepare next pass
-    this.patches.transition.forEach(patch => {
+    inputPatches.transition.forEach(patch => {
       patch.isCloseToRefPatch = !!patch
         .getNearPatches()
         .find(p => !p.isTransitionPatch && p.state >= PatchState.Filled)
     })
     let count = 0
-    for (const patch of this.patches.transition) {
+    for (const patch of inputPatches.transition) {
       await new Promise(resolve => setTimeout(resolve, 0))
       const patchBlocks = patch.genGroundBlocks()
-      patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
+      patchBlocks.initialPatchRef = patch
+      // patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
       count++
-      this.patches.pending.push(patch)
+      this.outputPatches.push(patchBlocks)
       yield patchBlocks
     }
 
     elapsedTime = Date.now() - elapsedTime
-    const avgTime = Math.round(elapsedTime / this.count)
+    const avgTime = Math.round(elapsedTime / count)
     console.log(
-      `processed ${this.count} transition patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
+      `processed ${count} transition patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
     )
     this.elapsedTime += elapsedTime
     this.count += count
@@ -93,11 +99,11 @@ export class PatchBatchProcessing {
   finaliseBatch() {
     let elapsedTime = Date.now()
     // finalize patches skipping already
-    const count = this.patches.pending
-      .map(patch => patch.finalise())
-      .filter(val => val)
+    this.outputPatches.map(
+      patch => patch.initialPatchRef?.genEntitiesBlocks(patch),
+    )
     elapsedTime = Date.now() - elapsedTime
-    console.log(`finalising batch took ${elapsedTime}ms for ${count} items`)
+    // console.log(`finalising batch took ${elapsedTime}ms for ${count} items`)
     this.elapsedTime += elapsedTime
     const avgTime = Math.round(this.elapsedTime / this.count)
     console.log(
