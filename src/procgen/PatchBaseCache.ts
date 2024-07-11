@@ -131,9 +131,9 @@ export class PatchBaseCache extends PatchCache {
       PatchBaseCache.instances = [...existing, ...created]
       const batchPatches: PatchBlocksCache[] = []
       if (created.length > 0) {
-        console.log(
-          `[PatchBaseCache:update] enqueud ${created.length} new patches, kept ${existing.length}, removed ${removedCount} )`,
-        )
+        // console.log(
+        //   `[PatchBaseCache:update] enqueud ${created.length} new patches, kept ${existing.length}, removed ${removedCount} )`,
+        // )
         cacheSync({ kept: existing })
         const batchProcess = new PatchBatchProcessing(created)
 
