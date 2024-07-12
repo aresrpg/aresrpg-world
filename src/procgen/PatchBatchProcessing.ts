@@ -1,54 +1,55 @@
 import { PatchBaseCache, PatchState } from './PatchBaseCache'
 import { PatchBlocksCache } from './PatchBlocksCache'
 
-enum PatchCategory {
-  Regular = 'regular',
-  Transition = 'transition',
-  Skipped = 'skipped',
-}
+// enum PatchCategory {
+//   Regular = 'regular',
+//   Transition = 'transition',
+//   Skipped = 'skipped',
+// }
 export class PatchBatchProcessing {
   startTime = Date.now()
   elapsedTime = 0
   count = 0
-  inputPatches: Record<PatchCategory, PatchBaseCache[]> = {
-    [PatchCategory.Regular]: [],
-    [PatchCategory.Transition]: [],
-    [PatchCategory.Skipped]: [],
-  }
+  // inputPatches: Record<PatchCategory, PatchBaseCache[]> = {
+  //   [PatchCategory.Regular]: [],
+  //   [PatchCategory.Transition]: [],
+  //   [PatchCategory.Skipped]: [],
+  // }
 
+  inputPatches: PatchBaseCache[] = []
   outputPatches: PatchBlocksCache[] = []
 
   constructor(
     createdPatches: PatchBaseCache[],
     // updatedPatches: PatchBaseCache[],
   ) {
-    const { inputPatches } = this
+    this.inputPatches = createdPatches
+    // const { inputPatches } = this
     // this.outputPatches.push(...updatedPatches)
     // sort patches in categories
-    for (const patch of createdPatches) {
-      const nearPatches = patch.getNearPatches()
-      const isEdgePatch = nearPatches.length !== 8
-      if (!isEdgePatch) {
-        patch.isTransitionPatch =
-          patch.isBiomeTransition ||
-          !!nearPatches.find(edgePatch => edgePatch.isBiomeTransition)
-        patch.isTransitionPatch
-          ? inputPatches.transition.push(patch)
-          : inputPatches.regular.push(patch)
-      } else {
-        inputPatches.skipped.push(patch)
-      }
-    }
+    // for (const patch of createdPatches) {
+    //   const nearPatches = patch.getNearPatches()
+    //   const isEdgePatch = nearPatches.length !== 8
+    //   if (!isEdgePatch) {
+    //     patch.isTransitionPatch =
+    //       patch.isBiomeTransition ||
+    //       !!nearPatches.find(edgePatch => edgePatch.isBiomeTransition)
+    //     patch.isTransitionPatch
+    //       ? inputPatches.transition.push(patch)
+    //       : inputPatches.regular.push(patch)
+    //   } else {
+    //     inputPatches.skipped.push(patch)
+    //   }
+    // }
     // console.log(
     //   `[BatchProcessing] START processing ${createdPatches.length} patches`,
     // )
   }
 
-  async *iterRegularPatches(asyncMode = false) {
+  async *iterPatches(asyncMode = false) {
     let count = 0
     let elapsedTime = Date.now()
-    const { inputPatches } = this
-    for (const patch of inputPatches.regular) {
+    for (const patch of this.inputPatches) {
       asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
       const patchBlocks = patch.genGroundBlocks()
       patchBlocks.initialPatchRef = patch
@@ -67,34 +68,34 @@ export class PatchBatchProcessing {
     this.count += count
   }
 
-  async *iterTransitionPatches(asyncMode = false) {
-    let elapsedTime = Date.now()
-    const { inputPatches } = this
-    // prepare next pass
-    inputPatches.transition.forEach(patch => {
-      patch.isCloseToRefPatch = !!patch
-        .getNearPatches()
-        .find(p => !p.isTransitionPatch && p.state >= PatchState.Filled)
-    })
-    let count = 0
-    for (const patch of inputPatches.transition) {
-      asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
-      const patchBlocks = patch.genGroundBlocks()
-      patchBlocks.initialPatchRef = patch
-      // patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
-      count++
-      this.outputPatches.push(patchBlocks)
-      yield patchBlocks
-    }
+  // async *iterTransitionPatches(asyncMode = false) {
+  //   let elapsedTime = Date.now()
+  //   const { inputPatches } = this
+  //   // prepare next pass
+  //   inputPatches.transition.forEach(patch => {
+  //     patch.isCloseToRefPatch = !!patch
+  //       .getNearPatches()
+  //       .find(p => !p.isTransitionPatch && p.state >= PatchState.Filled)
+  //   })
+  //   let count = 0
+  //   for (const patch of inputPatches.transition) {
+  //     asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
+  //     const patchBlocks = patch.genGroundBlocks()
+  //     patchBlocks.initialPatchRef = patch
+  //     // patch.genEntitiesBlocks(patchBlocks, patch.spawnedEntities)
+  //     count++
+  //     this.outputPatches.push(patchBlocks)
+  //     yield patchBlocks
+  //   }
 
-    elapsedTime = Date.now() - elapsedTime
-    // const avgTime = Math.round(elapsedTime / count)
-    // console.debug(
-    //   `processed ${count} transition patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
-    // )
-    this.elapsedTime += elapsedTime
-    this.count += count
-  }
+  //   elapsedTime = Date.now() - elapsedTime
+  //   // const avgTime = Math.round(elapsedTime / count)
+  //   // console.debug(
+  //   //   `processed ${count} transition patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
+  //   // )
+  //   this.elapsedTime += elapsedTime
+  //   this.count += count
+  // }
 
   finaliseBatch() {
     let elapsedTime = Date.now()
