@@ -5,7 +5,7 @@ import { getPatchPoints } from '../common/utils'
 import { Heightmap, PatchCache } from '../index'
 import { TreeType } from '../tools/TreeGenerator'
 
-import { Biome, BiomeType, BlockType } from './Biome'
+import { Biome, BiomeInfluence, BlockType } from './Biome'
 import { EntityChunk, PatchBlocksCache } from './PatchBlocksCache'
 import { PatchBatchProcessing } from './PatchBatchProcessing'
 import { EntityData, Vegetation } from './Vegetation'
@@ -36,26 +36,26 @@ export class PatchBaseCache extends PatchCache {
   // eslint-disable-next-line no-use-before-define
   static instances: PatchBaseCache[] = []
   static override bbox = new Box3()
-  static cacheRadius = 20
+  static cachePowRadius = 3
   static pendingUpdate = false
 
   spawnedEntities: EntityData[] = []
   extEntities: EntityData[] = []
-  biomeType: BiomeType // biome value at patch center
+  biomeInfluence: BiomeInfluence // biome value at patch center
 
   state = PatchState.Empty
-  isBiomeTransition = false
-  isTransitionPatch = false
-  isCloseToRefPatch = false
+  // isBiomeTransition = false
+  // isTransitionPatch = false
+  // isCloseToRefPatch = false
 
   constructor(patchOrigin: Vector2) {
     super(patchOrigin)
     // init patch biome
     const patchCenter = this.bbox.getCenter(new Vector3())
-    this.biomeType = Biome.instance.getBiomeType(patchCenter)
-    this.isBiomeTransition = !!getPatchPoints(this.bbox).find(
-      point => Biome.instance.getBiomeType(point) !== this.biomeType,
-    )
+    this.biomeInfluence = Biome.instance.getBiomeInfluence(patchCenter)
+    // this.isBiomeTransition = !!getPatchPoints(this.bbox).find(
+    //   point => Biome.instance.getBiomeContribs(point) !== this.biomeInfluence,
+    // )
   }
 
   static override getPatch(inputPoint: Vector2 | Vector3) {
@@ -86,8 +86,8 @@ export class PatchBaseCache extends PatchCache {
     asyncMode = false,
   ) {
     const { patchSize } = PatchCache
-    const { cacheRadius } = PatchBaseCache
-    const cacheSize = patchSize * cacheRadius
+    const { cachePowRadius } = PatchBaseCache
+    const cacheSize = patchSize * Math.pow(2, cachePowRadius)
     const bbox = new Box3().setFromCenterAndSize(
       center,
       new Vector3(cacheSize, 0, cacheSize),
@@ -138,16 +138,16 @@ export class PatchBaseCache extends PatchCache {
         const batchProcess = new PatchBatchProcessing(created)
 
         // const batchIterator = patchBatch.getBatchIterator();
-        const regularPatchIter = batchProcess.iterRegularPatches(asyncMode)
+        const regularPatchIter = batchProcess.iterPatches(asyncMode)
         for await (const batchRes of regularPatchIter) {
           batchPatches.push(batchRes)
           cacheSync({ created: [batchRes] })
         }
-        const transitPatchIter = batchProcess.iterTransitionPatches(asyncMode)
-        for await (const batchRes of transitPatchIter) {
-          batchPatches.push(batchRes)
-          cacheSync({ created: [batchRes] })
-        }
+        // const transitPatchIter = batchProcess.iterTransitionPatches(asyncMode)
+        // for await (const batchRes of transitPatchIter) {
+        //   batchPatches.push(batchRes)
+        //   cacheSync({ created: [batchRes] })
+        // }
         PatchBaseCache.instances
           .filter(patch => patch.state < PatchState.Finalised)
           .forEach(patch => patch.finalisePatches())
@@ -160,88 +160,88 @@ export class PatchBaseCache extends PatchCache {
     return null
   }
 
-  buildRefPoints() {
-    const refPatches: PatchBaseCache[] = []
-    const refPoints: any[] = []
-    const nearPatches = this.getNearPatches()
-    const transitionPatches = nearPatches.filter(
-      patch => patch.isTransitionPatch,
-    )
-    transitionPatches.forEach(patch => {
-      if (patch.isCloseToRefPatch) {
-        refPatches.push(patch)
-      } else {
-        patch
-          .getNearPatches()
-          .filter(
-            patch2 =>
-              patch2.isTransitionPatch &&
-              patch2.isCloseToRefPatch &&
-              !refPatches.find(refPatch => refPatch.bbox.equals(patch2.bbox)),
-          )
-          .forEach(patch2 => refPatches.push(patch2))
-      }
-    })
-    refPatches.forEach(patch => {
-      const nearPatches = patch.getNearPatches()
-      getPatchPoints(patch.bbox)
-        .filter(point => !refPoints.find(item => item.pos.equals(point)))
-        .forEach(pos => {
-          const matching = nearPatches.filter(
-            patch =>
-              !patch.isTransitionPatch &&
-              patch.bbox.min.x <= pos.x &&
-              patch.bbox.min.z <= pos.z &&
-              patch.bbox.max.x >= pos.x &&
-              patch.bbox.max.z >= pos.z,
-          )
-          const biome = matching[0]?.biomeType
-          if (matching.length > 0) refPoints.push({ pos, biome })
-        })
-    })
-    refPoints.forEach(point => {
-      point.pos.y = Heightmap.instance.getGroundLevel(point.pos)
-    })
-    // if (refPoints.length > 8)
-    //   console.log(refPoints)
-    return refPoints
-  }
+  // buildRefPoints() {
+  //   const refPatches: PatchBaseCache[] = []
+  //   const refPoints: any[] = []
+  //   const nearPatches = this.getNearPatches()
+  //   const transitionPatches = nearPatches.filter(
+  //     patch => patch.isTransitionPatch,
+  //   )
+  //   transitionPatches.forEach(patch => {
+  //     if (patch.isCloseToRefPatch) {
+  //       refPatches.push(patch)
+  //     } else {
+  //       patch
+  //         .getNearPatches()
+  //         .filter(
+  //           patch2 =>
+  //             patch2.isTransitionPatch &&
+  //             patch2.isCloseToRefPatch &&
+  //             !refPatches.find(refPatch => refPatch.bbox.equals(patch2.bbox)),
+  //         )
+  //         .forEach(patch2 => refPatches.push(patch2))
+  //     }
+  //   })
+  //   refPatches.forEach(patch => {
+  //     const nearPatches = patch.getNearPatches()
+  //     getPatchPoints(patch.bbox)
+  //       .filter(point => !refPoints.find(item => item.pos.equals(point)))
+  //       .forEach(pos => {
+  //         const matching = nearPatches.filter(
+  //           patch =>
+  //             !patch.isTransitionPatch &&
+  //             patch.bbox.min.x <= pos.x &&
+  //             patch.bbox.min.z <= pos.z &&
+  //             patch.bbox.max.x >= pos.x &&
+  //             patch.bbox.max.z >= pos.z,
+  //         )
+  //         const biome = matching[0]?.biomeInfluence
+  //         if (matching.length > 0) refPoints.push({ pos, biome })
+  //       })
+  //   })
+  //   refPoints.forEach(point => {
+  //     point.pos.y = Heightmap.instance.getGroundLevel(point.pos)
+  //   })
+  //   // if (refPoints.length > 8)
+  //   //   console.log(refPoints)
+  //   return refPoints
+  // }
 
-  getInterpolatedBlock(pos: Vector3, refPoints: any[]) {
-    const rawVal = Heightmap.instance.getRawVal(pos)
-    const p = 4
-    let totalWeight = 0
-    const biomesWeights: Record<BiomeType, number> = {
-      [BiomeType.Temperate]: 0,
-      [BiomeType.Artic]: 0,
-      [BiomeType.Desert]: 0,
-    }
+  // getInterpolatedBlock(pos: Vector3, refPoints: any[]) {
+  //   const rawVal = Heightmap.instance.getRawVal(pos)
+  //   const p = 4
+  //   let totalWeight = 0
+  //   const biomesWeights: Record<BiomeType, number> = {
+  //     [BiomeType.Temperate]: 0,
+  //     [BiomeType.Artic]: 0,
+  //     [BiomeType.Desert]: 0,
+  //   }
 
-    for (const point of refPoints) {
-      point.pos.y = 0
-      pos.y = point.pos.y
-      const dist = pos.distanceTo(point.pos)
-      if (dist < 1) {
-        totalWeight = 1
-        Object.keys(biomesWeights).forEach(
-          k => (biomesWeights[k as BiomeType] = k === point.biome ? 1 : 0),
-        )
-        break
-      } else {
-        const w = Math.pow(1 / dist, p)
-        totalWeight += w
-        biomesWeights[point.biome as BiomeType] += w
-      }
-    }
-    let h = 0
-    const blockPos = pos.clone()
-    Object.entries(biomesWeights).forEach(([k, v]) => {
-      const w = v / totalWeight
-      h +=
-        w * Heightmap.instance.getGroundLevel(blockPos, rawVal, k as BiomeType)
-    })
-    return Math.round(h)
-  }
+  //   for (const point of refPoints) {
+  //     point.pos.y = 0
+  //     pos.y = point.pos.y
+  //     const dist = pos.distanceTo(point.pos)
+  //     if (dist < 1) {
+  //       totalWeight = 1
+  //       Object.keys(biomesWeights).forEach(
+  //         k => (biomesWeights[k as BiomeType] = k === point.biome ? 1 : 0),
+  //       )
+  //       break
+  //     } else {
+  //       const w = Math.pow(1 / dist, p)
+  //       totalWeight += w
+  //       biomesWeights[point.biome as BiomeType] += w
+  //     }
+  //   }
+  //   let h = 0
+  //   const blockPos = pos.clone()
+  //   Object.entries(biomesWeights).forEach(([k, v]) => {
+  //     const w = v / totalWeight
+  //     h +=
+  //       w * Heightmap.instance.getGroundLevel(blockPos, rawVal, k as BiomeType)
+  //   })
+  //   return Math.round(h)
+  // }
 
   static genOvergroundBlocks(baseBlock: BlockData) {
     // find patch containing point in cache
@@ -321,7 +321,7 @@ export class PatchBaseCache extends PatchCache {
     const { min, max } = this.bbox
     const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
     const prng = alea(patchId)
-    const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
+    // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
     const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
     const blocksPatchIter = blocksPatch.iterator()
     min.y = 512
@@ -331,14 +331,11 @@ export class PatchBaseCache extends PatchCache {
     for (const blockData of blocksPatchIter) {
       blockData.pos.y = 0
       // const patchCorner = points.find(pt => pt.distanceTo(blockData.pos) < 2)
-      const biomeType = this.isBiomeTransition
-        ? Biome.instance.getBiomeType(blockData.pos)
-        : this.biomeType
+      const biomeContribs = Biome.instance.getBiomeInfluence(blockData.pos)
+      const mainBiome = Biome.instance.getMainBiome(biomeContribs)
       const rawVal = Heightmap.instance.getRawVal(blockData.pos)
-      const blockTypes = Biome.instance.getBlockType(rawVal, biomeType)
-      blockData.pos.y = this.isTransitionPatch
-        ? this.getInterpolatedBlock(blockData.pos, refPoints)
-        : Heightmap.instance.getGroundLevel(blockData.pos, rawVal, biomeType)
+      const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
+      blockData.pos.y = Heightmap.instance.getGroundLevel(blockData.pos, rawVal, biomeContribs)
       blockData.type = blockTypes.grounds[0] as BlockType
 
       let allowSpawn
@@ -356,9 +353,7 @@ export class PatchBaseCache extends PatchCache {
         entity.type = blockTypes.entities[0] as TreeType
         const entityPos = entity.bbox.getCenter(new Vector3())
         const entityHeight = 10
-        entity.bbox.min.y = this.isTransitionPatch
-          ? this.getInterpolatedBlock(entityPos, refPoints)
-          : Heightmap.instance.getGroundLevel(entityPos)
+        entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
         // entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
         entity.bbox.max.y = entity.bbox.min.y // + entityHeight
         // check if it has an overlap with edge patch(es)
