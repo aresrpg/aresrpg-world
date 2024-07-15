@@ -34,10 +34,6 @@ export enum BiomeType {
   // Tropical = 'tropical',
 }
 
-type HeatContribs = Record<Heat, number>
-type RainContribs = Record<Rain, number>
-export type BiomeInfluence = Record<BiomeType, number>
-
 enum Heat {
   Cold = 'cold',
   Temperate = 'temperate',
@@ -49,6 +45,10 @@ enum Rain {
   Moderate = 'moderate',
   Wet = 'wet',
 }
+
+type HeatContribs = Record<Heat, number>
+type RainContribs = Record<Rain, number>
+export type BiomeInfluence = Record<BiomeType, number>
 
 const BiomesMapping: Record<Heat, Record<Rain, BiomeType>> = {
   [Heat.Cold]: {
@@ -83,11 +83,11 @@ export class Biome {
   mappings = {} as BiomeMappings
   posRandomizer: ProcLayer
   transitionLevels = {
-    low: 0.30,
-    mid_low: 0.40,
-    mid: 0.50,
+    low: 0.3,
+    mid_low: 0.4,
+    mid: 0.5,
     mid_high: 60,
-    high: 0.70
+    high: 0.7,
   }
 
   params = {
@@ -115,16 +115,17 @@ export class Biome {
   }
 
   /**
-   * 
+   *
    * @param input either blocks position, or pre-requested biome contributions
-   * @returns 
+   * @returns
    */
   getMainBiome(input: Vector3 | BiomeInfluence): BiomeType {
-    const biomeContribs = input instanceof Vector3 ? this.getBiomeInfluence(input) : input
+    const biomeContribs =
+      input instanceof Vector3 ? this.getBiomeInfluence(input) : input
     const mainBiome = Object.entries(biomeContribs).sort(
       (a, b) => b[1] - a[1],
     )[0]?.[0]
-    return mainBiome
+    return mainBiome as BiomeType
   }
 
   getBiomeInfluence(pos: Vector3): BiomeInfluence {
@@ -132,41 +133,44 @@ export class Biome {
       [Heat.Cold]: 0,
       [Heat.Temperate]: 0,
       [Heat.Hot]: 0,
-
     }
     const rainContribs: RainContribs = {
       [Rain.Dry]: 0,
       [Rain.Moderate]: 0,
-      [Rain.Wet]: 0
+      [Rain.Wet]: 0,
     }
     const biomeContribs: BiomeInfluence = {
       [BiomeType.Temperate]: 0,
       [BiomeType.Artic]: 0,
-      [BiomeType.Desert]: 0
+      [BiomeType.Desert]: 0,
     }
     const { transitionLevels } = this
-    const heatVal = this.heatmap.eval(pos)//Utils.roundToDec(this.heatmap.eval(pos), 2)
-    const rainVal = this.rainmap.eval(pos)//Utils.roundToDec(this.rainmap.eval(pos), 2)
+    const heatVal = this.heatmap.eval(pos) // Utils.roundToDec(this.heatmap.eval(pos), 2)
+    const rainVal = this.rainmap.eval(pos) // Utils.roundToDec(this.rainmap.eval(pos), 2)
 
     // TEMPERATURE
     // cold
     if (heatVal <= transitionLevels.low) {
       heatContribs.cold = 1
-    } 
+    }
     // cold to temperate transition
     else if (heatVal <= transitionLevels.mid_low) {
-      heatContribs.temperate = (heatVal - transitionLevels.low) / (transitionLevels.mid_low - transitionLevels.low)
+      heatContribs.temperate =
+        (heatVal - transitionLevels.low) /
+        (transitionLevels.mid_low - transitionLevels.low)
       heatContribs.cold = 1 - heatContribs.temperate
-    } 
+    }
     // temperate
     else if (heatVal <= transitionLevels.mid_high) {
       heatContribs.temperate = 1
     }
     // temperate to hot transition
     else if (heatVal <= transitionLevels.high) {
-      heatContribs.hot = (heatVal - transitionLevels.mid_high) / (transitionLevels.high - transitionLevels.mid_high)
+      heatContribs.hot =
+        (heatVal - transitionLevels.mid_high) /
+        (transitionLevels.high - transitionLevels.mid_high)
       heatContribs.temperate = 1 - heatContribs.hot
-    } 
+    }
     // hot
     else {
       heatContribs.hot = 1
@@ -176,21 +180,25 @@ export class Biome {
     // dry
     if (rainVal <= transitionLevels.low) {
       rainContribs.dry = 1
-    } 
+    }
     // dry => moderate transition
     else if (rainVal <= transitionLevels.mid_low) {
-      rainContribs.moderate = (rainVal - transitionLevels.low) / (transitionLevels.mid_low - transitionLevels.low)
+      rainContribs.moderate =
+        (rainVal - transitionLevels.low) /
+        (transitionLevels.mid_low - transitionLevels.low)
       rainContribs.dry = 1 - rainContribs.moderate
-    } 
+    }
     // moderate
     else if (rainVal <= transitionLevels.mid_high) {
       rainContribs.moderate = 1
     }
     // moderate to wet transition
     else if (rainVal <= transitionLevels.high) {
-      rainContribs.wet = (rainVal - transitionLevels.mid_high) / (transitionLevels.high - transitionLevels.mid_high)
+      rainContribs.wet =
+        (rainVal - transitionLevels.mid_high) /
+        (transitionLevels.high - transitionLevels.mid_high)
       rainContribs.moderate = 1 - rainContribs.wet
-    } 
+    }
     // wet
     else {
       rainContribs.wet = 1
@@ -202,8 +210,13 @@ export class Biome {
         biomeContribs[biomeType] += v1 * v2
       })
     })
-    Object.keys(biomeContribs).forEach(k =>
-      biomeContribs[k as BiomeType] = Utils.roundToDec(biomeContribs[k as BiomeType], 2))
+    Object.keys(biomeContribs).forEach(
+      k =>
+        (biomeContribs[k as BiomeType] = Utils.roundToDec(
+          biomeContribs[k as BiomeType],
+          2,
+        )),
+    )
 
     // biomeContribs[BiomeType.Artic] = 1
     // biomeContribs[BiomeType.Desert] = 0
@@ -284,11 +297,16 @@ export class Biome {
     return interpolated // includeSea ? Math.max(interpolated, seaLevel) : interpolated
   }
 
-  getBlockLevelInterpolated = (rawVal: number, biomeContribs: BiomeInfluence) => {
+  getBlockLevelInterpolated = (
+    rawVal: number,
+    biomeContribs: BiomeInfluence,
+  ) => {
     // sum weighted contributions from all biome types
-    const blockLevel = Object.entries(biomeContribs).reduce((res, [biome, weight]) =>
-      res + weight * this.getBlockLevel(rawVal, biome as BiomeType)
-      , 0)
+    const blockLevel = Object.entries(biomeContribs).reduce(
+      (res, [biome, weight]) =>
+        res + weight * this.getBlockLevel(rawVal, biome as BiomeType),
+      0,
+    )
     return blockLevel
   }
 

@@ -1,7 +1,7 @@
 import { Vector3 } from 'three'
 
 import { ProcLayer } from './ProcLayer'
-import { Biome, BiomeInfluence, BiomeType } from './Biome'
+import { Biome, BiomeInfluence } from './Biome'
 import { BlendMode, getCompositor } from './NoiseComposition'
 
 const MODULATION_THRESHOLD = 0.318
@@ -74,8 +74,7 @@ export class Heightmap {
     biomeInfluence = Biome.instance.getBiomeInfluence(blockPos)
     // (blockData as BlockIterData).cache.type = Biome.instance.getBlockType(blockPos, noiseVal)
     // noiseVal = includeSea ? Math.max(noiseVal, Biome.instance.params.seaLevel) : noiseVal
-    const initialVal = 
-    Biome.instance.getBlockLevelInterpolated(
+    const initialVal = Biome.instance.getBlockLevelInterpolated(
       rawVal,
       biomeInfluence,
     )
