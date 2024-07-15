@@ -1,4 +1,4 @@
-import { PatchBaseCache, PatchState } from './PatchBaseCache'
+import { PatchBaseCache } from './PatchBaseCache'
 import { PatchBlocksCache } from './PatchBlocksCache'
 
 // enum PatchCategory {

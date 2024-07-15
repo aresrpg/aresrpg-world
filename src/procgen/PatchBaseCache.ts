@@ -127,7 +127,7 @@ export class PatchBaseCache extends PatchCache {
         }
       }
       // const updated = existing.filter(patch => patch.state < PatchState.Finalised)
-      const removedCount = PatchBaseCache.instances.length - existing.length
+      // const removedCount = PatchBaseCache.instances.length - existing.length
       PatchBaseCache.instances = [...existing, ...created]
       const batchPatches: PatchBlocksCache[] = []
       if (created.length > 0) {
@@ -335,7 +335,11 @@ export class PatchBaseCache extends PatchCache {
       const mainBiome = Biome.instance.getMainBiome(biomeContribs)
       const rawVal = Heightmap.instance.getRawVal(blockData.pos)
       const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
-      blockData.pos.y = Heightmap.instance.getGroundLevel(blockData.pos, rawVal, biomeContribs)
+      blockData.pos.y = Heightmap.instance.getGroundLevel(
+        blockData.pos,
+        rawVal,
+        biomeContribs,
+      )
       blockData.type = blockTypes.grounds[0] as BlockType
 
       let allowSpawn
