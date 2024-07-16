@@ -86,7 +86,7 @@ export class Biome {
     low: 0.3,
     mid_low: 0.4,
     mid: 0.5,
-    mid_high: 60,
+    mid_high: 0.6,
     high: 0.7,
   }
 
