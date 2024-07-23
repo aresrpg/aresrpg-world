@@ -4,7 +4,7 @@ import { TreeType } from '../tools/TreeGenerator'
 import { Biome, BlockType } from './Biome'
 import { BlocksPatch, EntityChunk } from './BlocksPatch'
 import { Heightmap } from './Heightmap'
-import { EntityData, Vegetation } from './Vegetation'
+import { EntitiesMap, EntityData } from './EntitiesMap'
 
 
 export class PatchProcessing {
@@ -25,10 +25,11 @@ export class PatchProcessing {
   async *iterBatch(asyncMode = false) {
     let count = 0
     let elapsedTime = Date.now()
-    const patchesStubs = this.inputKeys.map(patchOrigin=>new BlocksPatch(patchOrigin))
+    const patchesStubs = this.inputKeys.map(patchOrigin => new BlocksPatch(patchOrigin))
     for (const patch of patchesStubs) {
       asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
       PatchProcessing.genGroundBlocks(patch)
+      PatchProcessing.genEntitiesBlocks(patch)
       count++
       yield patch
     }
@@ -42,39 +43,43 @@ export class PatchProcessing {
     this.count += count
   }
 
-  // genEntitiesBlocks(
-  //   patch: BlocksPatch,
-  //   entities: EntityData[],
-  // ) {
-  //   patch.entitiesChunks = entities.map(entity => {
-  //     const blocksIter = patch.getBlocks(entity.bbox)
-  //     // let item: BlockIteratorRes = blocksIter.next()
-  //     const chunk: EntityChunk = {
-  //       bbox: new Box3(),
-  //       data: [],
-  //     }
+  static genEntitiesBlocks(
+    patch: BlocksPatch,
+  ) {
+    const entitiesIter = EntitiesMap.iterPatchEntities(patch.coords)
+    for (const entity of entitiesIter) {
+      const entityPos = entity.bbox.getCenter(new Vector3())
+      const entityCenterBlock = patch.getBlock(entityPos)
+      entity.bbox.min.y = entityCenterBlock.pos.y
+      entity.bbox.max.y = entity.bbox.min.y + 10
+      const blocksIter = patch.getBlocks(entity.bbox, true)
+      // let item: BlockIteratorRes = blocksIter.next()
+      const chunk: EntityChunk = {
+        bbox: new Box3(),
+        data: [],
+      }
 
-  //     for (const block of blocksIter) {
-  //       const blocksBuffer = Vegetation.instance.fillBuffer(
-  //         block.pos,
-  //         entity,
-  //         [],
-  //       )
-  //       patch.bbox.max.y = Math.max(
-  //         patch.bbox.max.y,
-  //         block.pos.y + blocksBuffer.length,
-  //       )
-  //       const serialized = blocksBuffer
-  //         .reduce((str, val) => str + ',' + val, '')
-  //         .slice(1)
-  //       chunk.data.push(serialized)
-  //       chunk.bbox.expandByPoint(block.pos)
-  //     }
-  //     patch.bbox.max.y = patch.bbox.max.y
-  //     chunk.bbox = entity.bbox
-  //     return chunk
-  //   })
-  // }
+      for (const block of blocksIter) {
+        const blocksBuffer = EntitiesMap.fillBlockBuffer(
+          block.pos,
+          entity,
+          [],
+        )
+        patch.bbox.max.y = Math.max(
+          patch.bbox.max.y,
+          block.pos.y + blocksBuffer.length,
+        )
+        const serialized = blocksBuffer
+          .reduce((str, val) => str + ',' + val, '')
+          .slice(1)
+        chunk.data.push(serialized)
+        chunk.bbox.expandByPoint(block.pos)
+      }
+      patch.bbox.max.y = patch.bbox.max.y
+      chunk.bbox = entity.bbox
+      patch.entitiesChunks.push(chunk)
+    }
+  }
 
   /**
    * Gen blocks data that will be sent to blocks cache

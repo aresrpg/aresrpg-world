@@ -2,11 +2,12 @@ import { Box3, Vector2, Vector3 } from 'three'
 import { BlockType } from './Biome'
 
 export type PatchStub = {
-  indexKey: string,
+  key: string,
   groundBlocks: {
     type: Uint16Array,
     level: Uint16Array,
-  }
+  },
+  entitiesChunks: EntityChunk[]
 }
 
 export type BlockData = {
@@ -29,8 +30,8 @@ export class BlocksPatch {
   static patchSize = Math.pow(2, 6)
   static bbox = new Box3()
 
-  origin: Vector3
-  indexKey: string
+  coords: Vector2
+  key: string
   bbox: Box3
   dimensions = new Vector3()
 
@@ -39,14 +40,16 @@ export class BlocksPatch {
     level: new Uint16Array(Math.pow(BlocksPatch.patchSize, 2)),
   }
 
-  constructor(indexKey: string) {
+  entitiesChunks = []
+
+  constructor(patchKey: string) {
     const { patchSize } = BlocksPatch
-    const patchOrigin = new Vector3(parseInt(indexKey.split('_')[1]), 0, parseInt(indexKey.split('_')[2]))
-    this.origin = patchOrigin
+    const patchOrigin = new Vector3(parseInt(patchKey.split('_')[1]), 0, parseInt(patchKey.split('_')[2]))
+    this.coords = new Vector2(patchOrigin.x, patchOrigin.z)
     const bmin = patchOrigin.clone().multiplyScalar(patchSize)
     const bmax = patchOrigin.clone().addScalar(1).multiplyScalar(patchSize)
     bmax.y = 512
-    this.indexKey = indexKey
+    this.key = patchKey
     this.bbox = new Box3(bmin, bmax)
     this.bbox.getSize(this.dimensions)
   }
@@ -81,21 +84,22 @@ export class BlocksPatch {
     // bbox.max.y = Math.max(bbox.max.y, levelMax)
   }
 
-  *getBlocks(bbox: Box3) {
+  *getBlocks(bbox: Box3, useLocalPos = false) {
+    const { patchSize } = BlocksPatch
     const bmin = new Vector3(
-      Math.max(bbox.min.x, this.bbox.min.x),
+      Math.max(bbox.min.x, useLocalPos ? 0 : this.bbox.min.x),
       0,
-      Math.max(bbox.min.z, this.bbox.min.z),
+      Math.max(bbox.min.z, useLocalPos ? 0 : this.bbox.min.z),
     )
     const bmax = new Vector3(
-      Math.min(bbox.max.x, this.bbox.max.x),
+      Math.min(bbox.max.x, useLocalPos ? patchSize : this.bbox.max.x),
       0,
-      Math.min(bbox.max.z, this.bbox.max.z),
+      Math.min(bbox.max.z, useLocalPos ? patchSize : this.bbox.max.z),
     )
     for (let { x } = bmin; x < bmax.x; x++) {
       for (let { z } = bmin; z < bmax.z; z++) {
         const pos = new Vector3(x, 0, z)
-        const localPos = pos.clone().sub(this.bbox.min)
+        const localPos = useLocalPos ? pos : pos.clone().sub(this.bbox.min)
         const index = localPos.x * this.dimensions.x + localPos.z
         const type = this.groundBlocks.type[index] || BlockType.NONE
         const level = this.groundBlocks.level[index] || 0
@@ -142,17 +146,18 @@ export class BlocksPatch {
   getPatchCoords() { }
 
   toStub() {
-    const { indexKey, } = this
+    const { key, } = this
     return {
-      indexKey,
+      key,
 
     }
   }
 
   static fromStub(patchStub: PatchStub) {
-    const { indexKey, groundBlocks } = patchStub
-    const patch = new BlocksPatch(indexKey)
+    const { key, groundBlocks, entitiesChunks } = patchStub
+    const patch = new BlocksPatch(key)
     patch.groundBlocks = groundBlocks
+    patch.entitiesChunks = entitiesChunks
     // patchStub.entitiesChunks?.forEach((entityChunk: EntityChunk) =>
     //   patch.entitiesChunks.push(entityChunk),
     // )
