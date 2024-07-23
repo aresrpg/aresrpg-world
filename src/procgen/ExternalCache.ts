@@ -64,11 +64,11 @@ export class ExternalCache {
       // const updated = existing.filter(patch => patch.state < PatchState.Finalised)
       const removedCount = Object.keys(ExternalCache.patchLookupIndex).length - existing.length
       ExternalCache.patchLookupIndex = {}
-      existing.forEach(patch => ExternalCache.patchLookupIndex[patch.indexKey] = patch)
+      existing.forEach(patch => ExternalCache.patchLookupIndex[patch.key] = patch)
       const batchIter = batchProcess.iterBatch(asyncMode)
       for await (const batchRes of batchIter) {
         const patch = BlocksPatch.fromStub(batchRes)
-        ExternalCache.patchLookupIndex[patch.indexKey] = patch
+        ExternalCache.patchLookupIndex[patch.key] = patch
         ExternalCache.bbox.union(patch.bbox)
       }
       this.pendingRefresh = false
