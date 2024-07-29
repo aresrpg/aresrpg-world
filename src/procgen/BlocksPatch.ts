@@ -1,14 +1,6 @@
 import { Box3, Vector2, Vector3 } from 'three'
-import { BlockType } from './Biome'
 
-export type PatchStub = {
-  key: string,
-  groundBlocks: {
-    type: Uint16Array,
-    level: Uint16Array,
-  },
-  entitiesChunks: EntityChunk[]
-}
+import { BlockType } from './Biome'
 
 export type BlockData = {
   pos: Vector3
@@ -20,6 +12,15 @@ export type BlockData = {
 export type EntityChunk = {
   bbox: Box3
   data: string[]
+}
+
+export type PatchStub = {
+  key: string
+  groundBlocks: {
+    type: Uint16Array
+    level: Uint16Array
+  }
+  entitiesChunks: EntityChunk[]
 }
 
 export type BlockIteratorRes = IteratorResult<BlockData, void>
@@ -40,11 +41,15 @@ export class BlocksPatch {
     level: new Uint16Array(Math.pow(BlocksPatch.patchSize, 2)),
   }
 
-  entitiesChunks = []
+  entitiesChunks: EntityChunk[] = []
 
   constructor(patchKey: string) {
     const { patchSize } = BlocksPatch
-    const patchOrigin = new Vector3(parseInt(patchKey.split('_')[1]), 0, parseInt(patchKey.split('_')[2]))
+    const patchOrigin = new Vector3(
+      parseInt(patchKey.split('_')[1] as string),
+      0,
+      parseInt(patchKey.split('_')[2] as string),
+    )
     this.coords = new Vector2(patchOrigin.x, patchOrigin.z)
     const bmin = patchOrigin.clone().multiplyScalar(patchSize)
     const bmax = patchOrigin.clone().addScalar(1).multiplyScalar(patchSize)
@@ -65,8 +70,12 @@ export class BlocksPatch {
 
   getBlock(localPos: Vector3) {
     let block
-    if (localPos.x >= 0 && localPos.x < this.dimensions.x
-      && localPos.z >= 0 && localPos.z < this.dimensions.z) {
+    if (
+      localPos.x >= 0 &&
+      localPos.x < this.dimensions.x &&
+      localPos.z >= 0 &&
+      localPos.z < this.dimensions.z
+    ) {
       const blockIndex = localPos.x * this.dimensions.x + localPos.z
       const pos = localPos.clone()
       pos.y = this.groundBlocks.level[blockIndex] || 0
@@ -147,13 +156,12 @@ export class BlocksPatch {
     }
   }
 
-  getPatchCoords() { }
+  getPatchCoords() {}
 
   toStub() {
-    const { key, } = this
+    const { key } = this
     return {
       key,
-
     }
   }
 
@@ -185,5 +193,4 @@ export class BlocksPatch {
     const patchOrigin = new Vector2(minx, minz)
     return patchOrigin
   }
-
 }

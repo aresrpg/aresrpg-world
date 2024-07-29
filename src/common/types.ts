@@ -18,7 +18,7 @@ export enum Adjacent2dPos {
   topleft,
   topright,
   bottomleft,
-  bottomright
+  bottomright,
 }
 
 export enum Adjacent3dPos {
@@ -104,6 +104,6 @@ export type BiomeMappings = Record<BiomeType, MappingRanges>
 
 export enum EntityType {
   NONE = '',
-  TREE_APPLE = "apple_tree",
-  TREE_PINE = "pine_tree"
+  TREE_APPLE = 'apple_tree',
+  TREE_PINE = 'pine_tree',
 }
