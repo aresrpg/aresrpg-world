@@ -1,4 +1,3 @@
-
 export { Heightmap } from './procgen/Heightmap'
 export { NoiseSampler } from './procgen/NoiseSampler'
 export { ProcLayer } from './procgen/ProcLayer'

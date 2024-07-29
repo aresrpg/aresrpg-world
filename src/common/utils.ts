@@ -1,6 +1,11 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { Adjacent2dPos, Adjacent3dPos, MappingRange, MappingRanges } from './types'
+import {
+  Adjacent2dPos,
+  Adjacent3dPos,
+  MappingRange,
+  MappingRanges,
+} from './types'
 
 // Clamp number between two values:
 const clamp = (num: number, min: number, max: number) =>

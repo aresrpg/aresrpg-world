@@ -1,9 +1,11 @@
 import { Box3, Vector3 } from 'three'
+
+import { EntityType } from '../index'
+
 import { Biome, BlockType } from './Biome'
 import { BlocksPatch, EntityChunk } from './BlocksPatch'
 import { Heightmap } from './Heightmap'
 import { EntitiesMap, EntityData, RepeatableEntitiesMap } from './EntitiesMap'
-
 
 export class PatchProcessing {
   static pendingTask = false
@@ -23,7 +25,9 @@ export class PatchProcessing {
   async *iterBatch(asyncMode = false) {
     let count = 0
     let elapsedTime = Date.now()
-    const patchesStubs = this.inputKeys.map(patchOrigin => new BlocksPatch(patchOrigin))
+    const patchesStubs = this.inputKeys.map(
+      patchOrigin => new BlocksPatch(patchOrigin),
+    )
     for (const patch of patchesStubs) {
       asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
       PatchProcessing.genGroundBlocks(patch)
@@ -48,11 +52,7 @@ export class PatchProcessing {
     }
     const blocksIter = patch.getBlocks(entity.bbox, true)
     for (const block of blocksIter) {
-      const blocksBuffer = EntitiesMap.fillBlockBuffer(
-        block.pos,
-        entity,
-        [],
-      )
+      const blocksBuffer = EntitiesMap.fillBlockBuffer(block.pos, entity, [])
       patch.bbox.max.y = Math.max(
         patch.bbox.max.y,
         block.pos.y + blocksBuffer.length,
@@ -67,9 +67,7 @@ export class PatchProcessing {
     return entityChunk
   }
 
-  static genEntitiesBlocks(
-    patch: BlocksPatch,
-  ) {
+  static genEntitiesBlocks(patch: BlocksPatch) {
     const entitiesIter = RepeatableEntitiesMap.instance.iterate(patch.bbox)
     for (const entity of entitiesIter) {
       // use global coords in case entity center is from adjacent patch
@@ -77,7 +75,7 @@ export class PatchProcessing {
       const biome = Biome.instance.getMainBiome(entityPos)
       const rawVal = Heightmap.instance.getRawVal(entityPos)
       const blockTypes = Biome.instance.getBlockType(rawVal, biome)
-      const entityType = blockTypes.entities?.[0]
+      const entityType = blockTypes.entities?.[0] as EntityType
       // const patchLocalBmin = new Vector3(min.x % patch.dimensions.x + min.x >= 0 ? 0 : patch.dimensions.x,
       //   0,
       //   max.z % patch.dimensions.z + max.z >= 0 ? 0 : patch.dimensions.z)
@@ -118,7 +116,11 @@ export class PatchProcessing {
       const mainBiome = Biome.instance.getMainBiome(biomeContribs)
       const rawVal = Heightmap.instance.getRawVal(blockData.pos)
       const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
-      blockData.pos.y = Heightmap.instance.getGroundLevel(blockData.pos, rawVal, biomeContribs)
+      blockData.pos.y = Heightmap.instance.getGroundLevel(
+        blockData.pos,
+        rawVal,
+        biomeContribs,
+      )
       blockData.type = blockTypes.grounds[0] as BlockType
       min.y = Math.min(min.y, blockData.pos.y)
       max.y = Math.max(max.y, blockData.pos.y)
@@ -133,5 +135,4 @@ export class PatchProcessing {
     // patch.state = PatchState.Filled
     return patch
   }
-
 }

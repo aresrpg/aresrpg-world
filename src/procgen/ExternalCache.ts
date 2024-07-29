@@ -8,14 +8,13 @@ import { PatchProcessing } from './PatchProcessing'
  */
 export class ExternalCache {
   static patchLookupIndex: Record<string, BlocksPatch> = {}
-  static bbox = new Box3()  // global cache extent
+  static bbox = new Box3() // global cache extent
   static pendingRefresh = false
   static cacheCenter = new Vector2(0, 0)
   static cachePowRadius = 3
   static cacheSize = BlocksPatch.patchSize * 5
 
   // groundBlocks: Uint16Array = new Uint16Array(Math.pow(PatchBase.patchSize, 2))
-
 
   entitiesChunks: EntityChunk[] = []
 
@@ -50,7 +49,7 @@ export class ExternalCache {
           // const patchStart = new Vector2(xmin, zmin)
           const patchIndexKey = 'patch_' + xmin + '_' + zmin
           // look for existing patch in current cache
-          let patch = this.patchLookupIndex[patchIndexKey] // || new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
+          const patch = this.patchLookupIndex[patchIndexKey] // || new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
           if (!patch) {
             // patch = new BlocksPatch(patchStart)
             // add all patch needing to be filled up
@@ -62,9 +61,11 @@ export class ExternalCache {
       }
       const batchProcess = new PatchProcessing(batchContent)
       // const updated = existing.filter(patch => patch.state < PatchState.Finalised)
-      const removedCount = Object.keys(ExternalCache.patchLookupIndex).length - existing.length
+      // const removedCount = Object.keys(ExternalCache.patchLookupIndex).length - existing.length
       ExternalCache.patchLookupIndex = {}
-      existing.forEach(patch => ExternalCache.patchLookupIndex[patch.key] = patch)
+      existing.forEach(
+        patch => (ExternalCache.patchLookupIndex[patch.key] = patch),
+      )
       const batchIter = batchProcess.iterBatch(asyncMode)
       for await (const batchRes of batchIter) {
         const patch = BlocksPatch.fromStub(batchRes)
@@ -98,8 +99,9 @@ export class ExternalCache {
     const bbox = inputBbox.clone()
     bbox.min.y = 0
     bbox.max.y = 512
-    const res = Object.values(this.patchLookupIndex)
-      .filter(patch => patch.bbox.intersectsBox(bbox))
+    const res = Object.values(this.patchLookupIndex).filter(patch =>
+      patch.bbox.intersectsBox(bbox),
+    )
     return res
   }
 
@@ -162,5 +164,4 @@ export class ExternalCache {
     }
     return block
   }
-
 }
