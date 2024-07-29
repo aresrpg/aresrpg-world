@@ -1,6 +1,6 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { BlockNeighbour, MappingRange, MappingRanges } from './types'
+import { Adjacent2dPos, Adjacent3dPos, MappingRange, MappingRanges } from './types'
 
 // Clamp number between two values:
 const clamp = (num: number, min: number, max: number) =>
@@ -40,20 +40,44 @@ const interpolatePoints = (p1: Vector2, p2: Vector2, t: number) => {
   const slope = range.x > 0 ? range.y / range.x : 0
   return p1.y + slope * (t - p1.x)
 }
+
 /**
  * Direct neighbours e.g.
  * - FRONT/BACK,
  * - TOP/BOTTOM,
  * - LEFT/RIGHT
  */
-const AdjacentNeighbours = [
-  BlockNeighbour.xPy0z0,
-  BlockNeighbour.xMy0z0, // right, left
-  BlockNeighbour.x0yPz0,
-  BlockNeighbour.x0yMz0, // top, bottom
-  BlockNeighbour.x0y0zP,
-  BlockNeighbour.x0y0zM, // front, back
+const AdjacentNeighbours3d = [
+  Adjacent3dPos.xPy0z0,
+  Adjacent3dPos.xMy0z0, // right, left
+  Adjacent3dPos.x0yPz0,
+  Adjacent3dPos.x0yMz0, // top, bottom
+  Adjacent3dPos.x0y0zP,
+  Adjacent3dPos.x0y0zM, // front, back
 ]
+
+const getAdjacent2dCoords = (pos: Vector2, dir: Adjacent2dPos): Vector2 => {
+  switch (dir) {
+    case Adjacent2dPos.center:
+      return pos.clone()
+    case Adjacent2dPos.left:
+      return pos.clone().add(new Vector2(-1, 0))
+    case Adjacent2dPos.right:
+      return pos.clone().add(new Vector2(1, 0))
+    case Adjacent2dPos.top:
+      return pos.clone().add(new Vector2(0, 1))
+    case Adjacent2dPos.bottom:
+      return pos.clone().add(new Vector2(0, -1))
+    case Adjacent2dPos.topleft:
+      return pos.clone().add(new Vector2(-1, 1))
+    case Adjacent2dPos.topright:
+      return pos.clone().add(new Vector2(1, 1))
+    case Adjacent2dPos.bottomright:
+      return pos.clone().add(new Vector2(-1, -1))
+    case Adjacent2dPos.bottomleft:
+      return pos.clone().add(new Vector2(1, -1))
+  }
+}
 
 /**
  *
@@ -61,67 +85,74 @@ const AdjacentNeighbours = [
  * @param dir neighbour identifier
  * @returns
  */
-const getNeighbour = (pos: Vector3, dir: BlockNeighbour): Vector3 => {
+const getAdjacent3dCoords = (pos: Vector3, dir: Adjacent3dPos): Vector3 => {
   switch (dir) {
-    case BlockNeighbour.xMyMzM:
+    case Adjacent3dPos.xMyMzM:
       return pos.clone().add(new Vector3(-1, -1, -1))
-    case BlockNeighbour.xMyMz0:
+    case Adjacent3dPos.xMyMz0:
       return pos.clone().add(new Vector3(-1, -1, 0))
-    case BlockNeighbour.xMyMzP:
+    case Adjacent3dPos.xMyMzP:
       return pos.clone().add(new Vector3(-1, -1, 1))
-    case BlockNeighbour.xMy0zM:
+    case Adjacent3dPos.xMy0zM:
       return pos.clone().add(new Vector3(-1, 0, -1))
-    case BlockNeighbour.xMy0z0:
+    case Adjacent3dPos.xMy0z0:
       return pos.clone().add(new Vector3(-1, 0, 0))
-    case BlockNeighbour.xMy0zP:
+    case Adjacent3dPos.xMy0zP:
       return pos.clone().add(new Vector3(-1, 0, 1))
-    case BlockNeighbour.xMyPzM:
+    case Adjacent3dPos.xMyPzM:
       return pos.clone().add(new Vector3(-1, 1, -1))
-    case BlockNeighbour.xMyPz0:
+    case Adjacent3dPos.xMyPz0:
       return pos.clone().add(new Vector3(-1, 1, 0))
-    case BlockNeighbour.xMyPzP:
+    case Adjacent3dPos.xMyPzP:
       return pos.clone().add(new Vector3(-1, 1, 1))
-    case BlockNeighbour.x0yMzM:
+    case Adjacent3dPos.x0yMzM:
       return pos.clone().add(new Vector3(0, -1, -1))
-    case BlockNeighbour.x0yMz0:
+    case Adjacent3dPos.x0yMz0:
       return pos.clone().add(new Vector3(0, -1, 0))
-    case BlockNeighbour.x0yMzP:
+    case Adjacent3dPos.x0yMzP:
       return pos.clone().add(new Vector3(0, -1, 1))
-    case BlockNeighbour.x0y0zM:
+    case Adjacent3dPos.x0y0zM:
       return pos.clone().add(new Vector3(0, 0, -1))
-    case BlockNeighbour.x0y0zP:
+    case Adjacent3dPos.x0y0zP:
       return pos.clone().add(new Vector3(0, 0, 1))
-    case BlockNeighbour.x0yPzM:
+    case Adjacent3dPos.x0yPzM:
       return pos.clone().add(new Vector3(0, 1, -1))
-    case BlockNeighbour.x0yPz0:
+    case Adjacent3dPos.x0yPz0:
       return pos.clone().add(new Vector3(0, 1, 0))
-    case BlockNeighbour.x0yPzP:
+    case Adjacent3dPos.x0yPzP:
       return pos.clone().add(new Vector3(0, 1, 1))
-    case BlockNeighbour.xPyMzM:
+    case Adjacent3dPos.xPyMzM:
       return pos.clone().add(new Vector3(1, -1, -1))
-    case BlockNeighbour.xPyMz0:
+    case Adjacent3dPos.xPyMz0:
       return pos.clone().add(new Vector3(1, -1, 0))
-    case BlockNeighbour.xPyMzP:
+    case Adjacent3dPos.xPyMzP:
       return pos.clone().add(new Vector3(1, -1, 1))
-    case BlockNeighbour.xPy0zM:
+    case Adjacent3dPos.xPy0zM:
       return pos.clone().add(new Vector3(1, 0, -1))
-    case BlockNeighbour.xPy0z0:
+    case Adjacent3dPos.xPy0z0:
       return pos.clone().add(new Vector3(1, 0, 0))
-    case BlockNeighbour.xPy0zP:
+    case Adjacent3dPos.xPy0zP:
       return pos.clone().add(new Vector3(1, 0, 1))
-    case BlockNeighbour.xPyPzM:
+    case Adjacent3dPos.xPyPzM:
       return pos.clone().add(new Vector3(1, 1, -1))
-    case BlockNeighbour.xPyPz0:
+    case Adjacent3dPos.xPyPz0:
       return pos.clone().add(new Vector3(1, 1, 0))
-    case BlockNeighbour.xPyPzP:
+    case Adjacent3dPos.xPyPzP:
       return pos.clone().add(new Vector3(1, 1, 1))
   }
 }
 
-const getAllNeighbours = (pos: Vector3): Vector3[] => {
-  const neighbours = Object.values(BlockNeighbour)
+const getAllNeighbours2dCoords = (pos: Vector2): Vector2[] => {
+  const neighbours = Object.values(Adjacent3dPos)
     .filter(v => !isNaN(Number(v)))
-    .map(type => getNeighbour(pos, type as number))
+    .map(type => getAdjacent2dCoords(pos, type as number))
+  return neighbours
+}
+
+const getAllNeighbours3dCoords = (pos: Vector3): Vector3[] => {
+  const neighbours = Object.values(Adjacent3dPos)
+    .filter(v => !isNaN(Number(v)))
+    .map(type => getAdjacent3dCoords(pos, type as number))
   return neighbours
 }
 
@@ -153,9 +184,11 @@ export {
   clamp,
   findMatchingRange,
   interpolatePoints,
-  getAllNeighbours,
-  AdjacentNeighbours,
-  getNeighbour,
+  AdjacentNeighbours3d,
+  getAdjacent2dCoords,
+  getAdjacent3dCoords,
+  getAllNeighbours2dCoords,
+  getAllNeighbours3dCoords,
   bboxContainsPointXZ,
   getPatchPoints,
 }
