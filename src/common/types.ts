@@ -9,7 +9,19 @@ export type Block = {
   type: BlockType
 }
 
-export enum BlockNeighbour {
+export enum Adjacent2dPos {
+  center,
+  left,
+  right,
+  top,
+  bottom,
+  topleft,
+  topright,
+  bottomleft,
+  bottomright
+}
+
+export enum Adjacent3dPos {
   xMyMzM,
   xMyMz0,
   xMyMzP,
@@ -89,3 +101,9 @@ export type MappingConf = Record<string, MappingRange>
 export type MappingRanges = LinkedList<MappingRange>
 export type BiomeConf = Record<BiomeType, MappingConf>
 export type BiomeMappings = Record<BiomeType, MappingRanges>
+
+export enum EntityType {
+  NONE = '',
+  TREE_APPLE = "apple_tree",
+  TREE_PINE = "pine_tree"
+}

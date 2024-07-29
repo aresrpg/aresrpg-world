@@ -1,10 +1,8 @@
-import { Box3, Vector2, Vector3 } from 'three'
-import { getPatchPoints } from '../common/utils'
-import { TreeType } from '../tools/TreeGenerator'
+import { Box3, Vector3 } from 'three'
 import { Biome, BlockType } from './Biome'
 import { BlocksPatch, EntityChunk } from './BlocksPatch'
 import { Heightmap } from './Heightmap'
-import { EntitiesMap, EntityData } from './EntitiesMap'
+import { EntitiesMap, EntityData, RepeatableEntitiesMap } from './EntitiesMap'
 
 
 export class PatchProcessing {
@@ -43,41 +41,59 @@ export class PatchProcessing {
     this.count += count
   }
 
+  static buildEntityChunk(patch: BlocksPatch, entity: EntityData) {
+    const entityChunk: EntityChunk = {
+      bbox: new Box3(),
+      data: [],
+    }
+    const blocksIter = patch.getBlocks(entity.bbox, true)
+    for (const block of blocksIter) {
+      const blocksBuffer = EntitiesMap.fillBlockBuffer(
+        block.pos,
+        entity,
+        [],
+      )
+      patch.bbox.max.y = Math.max(
+        patch.bbox.max.y,
+        block.pos.y + blocksBuffer.length,
+      )
+      const serialized = blocksBuffer
+        .reduce((str, val) => str + ',' + val, '')
+        .slice(1)
+      entityChunk.data.push(serialized)
+      entityChunk.bbox.expandByPoint(block.pos)
+    }
+    entityChunk.bbox = entity.bbox
+    return entityChunk
+  }
+
   static genEntitiesBlocks(
     patch: BlocksPatch,
   ) {
-    const entitiesIter = EntitiesMap.iterPatchEntities(patch.coords)
+    const entitiesIter = RepeatableEntitiesMap.instance.iterate(patch.bbox)
     for (const entity of entitiesIter) {
+      // use global coords in case entity center is from adjacent patch
       const entityPos = entity.bbox.getCenter(new Vector3())
-      const entityCenterBlock = patch.getBlock(entityPos)
-      entity.bbox.min.y = entityCenterBlock.pos.y
-      entity.bbox.max.y = entity.bbox.min.y + 10
-      const blocksIter = patch.getBlocks(entity.bbox, true)
-      // let item: BlockIteratorRes = blocksIter.next()
-      const chunk: EntityChunk = {
-        bbox: new Box3(),
-        data: [],
+      const biome = Biome.instance.getMainBiome(entityPos)
+      const rawVal = Heightmap.instance.getRawVal(entityPos)
+      const blockTypes = Biome.instance.getBlockType(rawVal, biome)
+      const entityType = blockTypes.entities?.[0]
+      // const patchLocalBmin = new Vector3(min.x % patch.dimensions.x + min.x >= 0 ? 0 : patch.dimensions.x,
+      //   0,
+      //   max.z % patch.dimensions.z + max.z >= 0 ? 0 : patch.dimensions.z)
+      if (entityType) {
+        const dims = entity.bbox.getSize(new Vector3())
+        dims.y = 10
+        const localBmin = entity.bbox.min.clone().sub(patch.bbox.min)
+        localBmin.y = Heightmap.instance.getGroundLevel(entityPos)
+        const localBmax = localBmin.clone().add(dims)
+        const localBbox = new Box3(localBmin, localBmax)
+        entity.bbox = localBbox
+        entity.type = entityType
+        const entityChunk = PatchProcessing.buildEntityChunk(patch, entity)
+        patch.entitiesChunks.push(entityChunk)
+        // let item: BlockIteratorRes = blocksIter.next()
       }
-
-      for (const block of blocksIter) {
-        const blocksBuffer = EntitiesMap.fillBlockBuffer(
-          block.pos,
-          entity,
-          [],
-        )
-        patch.bbox.max.y = Math.max(
-          patch.bbox.max.y,
-          block.pos.y + blocksBuffer.length,
-        )
-        const serialized = blocksBuffer
-          .reduce((str, val) => str + ',' + val, '')
-          .slice(1)
-        chunk.data.push(serialized)
-        chunk.bbox.expandByPoint(block.pos)
-      }
-      patch.bbox.max.y = patch.bbox.max.y
-      chunk.bbox = entity.bbox
-      patch.entitiesChunks.push(chunk)
     }
   }
 
@@ -86,7 +102,7 @@ export class PatchProcessing {
    */
   static genGroundBlocks(patch: BlocksPatch) {
     const { min, max } = patch.bbox
-    const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
+    // const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
     // const prng = alea(patchId)
     // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
     // const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
@@ -104,38 +120,6 @@ export class PatchProcessing {
       const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
       blockData.pos.y = Heightmap.instance.getGroundLevel(blockData.pos, rawVal, biomeContribs)
       blockData.type = blockTypes.grounds[0] as BlockType
-
-      // let allowSpawn
-      // if (blockTypes.entities?.[0]) {
-      //   const ent = patch.spawnedEntities.find(entity => {
-      //     const entityPos = entity.bbox.getCenter(new Vector3())
-      //     return blockData.pos.distanceTo(entityPos) < 10
-      //   })
-      //   allowSpawn = !ent
-      // }
-
-      // const entity =
-      //   allowSpawn && Vegetation.instance.spawnEntity(blockData.pos, prng)
-      // if (entity) {
-      //   entity.type = blockTypes.entities[0] as TreeType
-      //   const entityPos = entity.bbox.getCenter(new Vector3())
-      //   const entityHeight = 10
-      //   entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
-      //   // entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
-      //   entity.bbox.max.y = entity.bbox.min.y // + entityHeight
-      //   // check if it has an overlap with edge patch(es)
-      //   // e.g. check if current patch don't fully contain entity
-      //   if (!patch.bbox.containsBox(entity.bbox)) {
-      //     // find edge points that don't belongs to current patch
-      //     const edgePoints = getPatchPoints(entity.bbox)
-      //     entity.edgesOverlaps = edgePoints.filter(
-      //       p => !patch.bbox.containsPoint(p),
-      //     )
-      //   }
-      //   entity.bbox.max.y += entityHeight
-      //   patch.spawnedEntities.push(entity)
-      // }
-      // const levelMax = blockData.cache.level + blockData.cache.overground.length
       min.y = Math.min(min.y, blockData.pos.y)
       max.y = Math.max(max.y, blockData.pos.y)
       patch.writeBlockAtIndex(blockIndex, blockData.pos.y, blockData.type)

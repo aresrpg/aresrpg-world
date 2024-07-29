@@ -64,13 +64,17 @@ export class BlocksPatch {
   }
 
   getBlock(localPos: Vector3) {
-    const blockIndex = localPos.x * this.dimensions.x + localPos.z
-    const pos = localPos.clone()
-    pos.y = this.groundBlocks.level[blockIndex] || 0
-    const type = this.groundBlocks.type[blockIndex]
-    const block = {
-      pos,
-      type,
+    let block
+    if (localPos.x >= 0 && localPos.x < this.dimensions.x
+      && localPos.z >= 0 && localPos.z < this.dimensions.z) {
+      const blockIndex = localPos.x * this.dimensions.x + localPos.z
+      const pos = localPos.clone()
+      pos.y = this.groundBlocks.level[blockIndex] || 0
+      const type = this.groundBlocks.type[blockIndex]
+      block = {
+        pos,
+        type,
+      }
     }
     return block
   }
