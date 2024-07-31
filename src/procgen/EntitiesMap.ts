@@ -4,10 +4,10 @@ import { Box3, Vector2, Vector3 } from 'three'
 
 import { TreeGenerators } from '../tools/TreeGenerator'
 import { EntityType } from '../index'
+import { BlocksPatch } from '../world/WorldPatch'
 
 import { ProcLayer } from './ProcLayer'
 import { BlockType } from './Biome'
-import { BlocksPatch } from './BlocksPatch'
 // import { Adjacent2dPos } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
 
@@ -27,7 +27,7 @@ const probabilityThreshold = Math.pow(2, 8)
 
 /**
  * Common interface for querying/iterating entities at block or patch level
- * Underlying implementation is left to child class
+ * Custom implementation left to child class
  */
 export class EntitiesMap {
   static density = new ProcLayer('treemap')
