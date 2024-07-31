@@ -1,18 +1,19 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { BlockData, BlocksPatch, EntityChunk, PatchStub } from './BlocksPatch'
-import { PatchProcessing } from './PatchProcessing'
+import { WorldApi } from './WorldApi'
+import { BlockData, BlocksPatch, EntityChunk, PatchStub } from './WorldPatch'
 
 /**
  * Blocks cache
  */
-export class ExternalCache {
+export class WorldCache {
   static patchLookupIndex: Record<string, BlocksPatch> = {}
   static bbox = new Box3() // global cache extent
   static pendingRefresh = false
   static cacheCenter = new Vector2(0, 0)
   static cachePowRadius = 3
   static cacheSize = BlocksPatch.patchSize * 5
+  static worldApi = new WorldApi()
 
   // groundBlocks: Uint16Array = new Uint16Array(Math.pow(PatchBase.patchSize, 2))
 
@@ -20,13 +21,13 @@ export class ExternalCache {
 
   addPatch(patchStub: PatchStub) {
     const patch = BlocksPatch.fromStub(patchStub)
-    ExternalCache.bbox.union(patch.bbox)
+    WorldCache.bbox.union(patch.bbox)
   }
 
   static async refreshCache(
     center: Vector3,
     // worldProxy: WorldProxy = PatchProcessing,
-    asyncMode = false,
+    // asyncMode = false,
   ) {
     const { patchSize } = BlocksPatch
     const { cachePowRadius } = this
@@ -37,8 +38,8 @@ export class ExternalCache {
     const cachePatchCount = Object.keys(this.patchLookupIndex).length
     const batchContent: string[] = []
     if (
-      cachePatchCount === 0 ||
-      (!this.pendingRefresh && !cacheCenter.equals(this.cacheCenter))
+      !this.pendingRefresh &&
+      (!cacheCenter.equals(this.cacheCenter) || cachePatchCount === 0)
     ) {
       this.pendingRefresh = true
       this.cacheCenter = cacheCenter
@@ -59,18 +60,19 @@ export class ExternalCache {
           }
         }
       }
-      const batchProcess = new PatchProcessing(batchContent)
+
       // const updated = existing.filter(patch => patch.state < PatchState.Finalised)
-      // const removedCount = Object.keys(ExternalCache.patchLookupIndex).length - existing.length
-      ExternalCache.patchLookupIndex = {}
+      // const removedCount = Object.keys(WorldCache.patchLookupIndex).length - existing.length
+      WorldCache.patchLookupIndex = {}
       existing.forEach(
-        patch => (ExternalCache.patchLookupIndex[patch.key] = patch),
+        patch => (WorldCache.patchLookupIndex[patch.key] = patch),
       )
-      const batchIter = batchProcess.iterBatch(asyncMode)
-      for await (const batchRes of batchIter) {
-        const patch = BlocksPatch.fromStub(batchRes)
-        ExternalCache.patchLookupIndex[patch.key] = patch
-        ExternalCache.bbox.union(patch.bbox)
+
+      const batchIter = WorldCache.worldApi.iterBatchProcess(batchContent)
+      for await (const patchStub of batchIter) {
+        const patch = BlocksPatch.fromStub(patchStub)
+        WorldCache.patchLookupIndex[patch.key] = patch
+        WorldCache.bbox.union(patch.bbox)
       }
       this.pendingRefresh = false
       return batchContent
@@ -127,16 +129,16 @@ export class ExternalCache {
       maxXmaxZ,
     ]
     const patchNeighbours: BlocksPatch[] = neighboursCenters
-      .map(patchCenter => ExternalCache.getPatch(patchCenter))
+      .map(patchCenter => WorldCache.getPatch(patchCenter))
       .filter(patch => patch) as BlocksPatch[]
     return patchNeighbours
   }
 
   static getGroundBlock(globalPos: Vector3) {
     let baseBlock
-    globalPos.y = ExternalCache.bbox.getCenter(new Vector3()).y
-    if (ExternalCache.bbox.containsPoint(globalPos)) {
-      const patch = ExternalCache.getPatch(globalPos)
+    globalPos.y = WorldCache.bbox.getCenter(new Vector3()).y
+    if (WorldCache.bbox.containsPoint(globalPos)) {
+      const patch = WorldCache.getPatch(globalPos)
       if (patch) {
         const localPos = globalPos.clone().sub(patch.bbox.min)
         baseBlock = patch.getBlock(localPos) as BlockData
@@ -146,7 +148,7 @@ export class ExternalCache {
   }
 
   static getBlock(globalPos: Vector3) {
-    const block = ExternalCache.getGroundBlock(globalPos)
+    const block = WorldCache.getGroundBlock(globalPos)
     // if (block) {
     //   block.buffer = PatchBaseCache.genOvergroundBlocks(block)
     // }

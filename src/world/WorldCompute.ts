@@ -1,13 +1,17 @@
 import { Box3, Vector3 } from 'three'
 
 import { EntityType } from '../index'
+import { Biome, BlockType } from '../procgen/Biome'
+import { Heightmap } from '../procgen/Heightmap'
+import {
+  EntitiesMap,
+  EntityData,
+  RepeatableEntitiesMap,
+} from '../procgen/EntitiesMap'
 
-import { Biome, BlockType } from './Biome'
-import { BlocksPatch, EntityChunk } from './BlocksPatch'
-import { Heightmap } from './Heightmap'
-import { EntitiesMap, EntityData, RepeatableEntitiesMap } from './EntitiesMap'
+import { BlocksPatch, EntityChunk } from './WorldPatch'
 
-export class PatchProcessing {
+export class WorldCompute {
   static pendingTask = false
   startTime = Date.now()
   elapsedTime = 0
@@ -30,8 +34,8 @@ export class PatchProcessing {
     )
     for (const patch of patchesStubs) {
       asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
-      PatchProcessing.genGroundBlocks(patch)
-      PatchProcessing.genEntitiesBlocks(patch)
+      WorldCompute.buildGroundPatch(patch)
+      WorldCompute.buildEntitiesChunks(patch)
       count++
       yield patch
     }
@@ -39,10 +43,18 @@ export class PatchProcessing {
     elapsedTime = Date.now() - elapsedTime
     // const avgTime = Math.round(elapsedTime / count)
     // console.debug(
-    //   `[BatchProcessing] processed ${count} patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
+    //   `[WorldCompute] processed ${count} patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
     // )
     this.elapsedTime += elapsedTime
     this.count += count
+  }
+
+  static buildPatch(patchKey: string) {
+    const patch = new BlocksPatch(patchKey)
+    // asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
+    WorldCompute.buildGroundPatch(patch)
+    WorldCompute.buildEntitiesChunks(patch)
+    return patch
   }
 
   static buildEntityChunk(patch: BlocksPatch, entity: EntityData) {
@@ -67,7 +79,7 @@ export class PatchProcessing {
     return entityChunk
   }
 
-  static genEntitiesBlocks(patch: BlocksPatch) {
+  static buildEntitiesChunks(patch: BlocksPatch) {
     const entitiesIter = RepeatableEntitiesMap.instance.iterate(patch.bbox)
     for (const entity of entitiesIter) {
       // use global coords in case entity center is from adjacent patch
@@ -88,7 +100,7 @@ export class PatchProcessing {
         const localBbox = new Box3(localBmin, localBmax)
         entity.bbox = localBbox
         entity.type = entityType
-        const entityChunk = PatchProcessing.buildEntityChunk(patch, entity)
+        const entityChunk = WorldCompute.buildEntityChunk(patch, entity)
         patch.entitiesChunks.push(entityChunk)
         // let item: BlockIteratorRes = blocksIter.next()
       }
@@ -98,7 +110,7 @@ export class PatchProcessing {
   /**
    * Gen blocks data that will be sent to blocks cache
    */
-  static genGroundBlocks(patch: BlocksPatch) {
+  static buildGroundPatch(patch: BlocksPatch) {
     const { min, max } = patch.bbox
     // const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
     // const prng = alea(patchId)

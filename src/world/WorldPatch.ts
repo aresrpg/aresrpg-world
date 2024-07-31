@@ -1,6 +1,6 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { BlockType } from './Biome'
+import { BlockType } from '../procgen/Biome'
 
 export type BlockData = {
   pos: Vector3
