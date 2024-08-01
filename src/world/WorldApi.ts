@@ -22,7 +22,7 @@ export class WorldApi {
   // call<T>(api: WorldApiName, args: any[]): T | Promise<T>
 
   async call(apiName: WorldApiName, args: any) {
-    return await WorldCompute[apiName](...args)
+    return await WorldCompute[apiName](args[0])
   }
 }
 
