@@ -1,7 +1,15 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { WorldApi } from './WorldApi'
-import { BlockData, BlocksPatch, EntityChunk, PatchStub } from './WorldPatch'
+import { BlockType } from '../index'
+
+import { WorldApi, WorldApiName } from './WorldApi'
+import {
+  BlockData,
+  BlocksPatch,
+  BlockStub,
+  EntityChunk,
+  PatchStub,
+} from './WorldPatch'
 
 /**
  * Blocks cache
@@ -13,7 +21,7 @@ export class WorldCache {
   static cacheCenter = new Vector2(0, 0)
   static cachePowRadius = 3
   static cacheSize = BlocksPatch.patchSize * 5
-  static worldApi = new WorldApi()
+  // static worldApi = new WorldApi()
 
   // groundBlocks: Uint16Array = new Uint16Array(Math.pow(PatchBase.patchSize, 2))
 
@@ -24,7 +32,17 @@ export class WorldCache {
     WorldCache.bbox.union(patch.bbox)
   }
 
-  static async refreshCache(
+  static async *processBatchItems(batchContent: string[]) {
+    for (const patchKey of batchContent) {
+      const patchStub = await WorldApi.instance.call(
+        WorldApiName.PatchCompute,
+        [patchKey],
+      )
+      yield patchStub as PatchStub
+    }
+  }
+
+  static async refresh(
     center: Vector3,
     // worldProxy: WorldProxy = PatchProcessing,
     // asyncMode = false,
@@ -68,7 +86,7 @@ export class WorldCache {
         patch => (WorldCache.patchLookupIndex[patch.key] = patch),
       )
 
-      const batchIter = WorldCache.worldApi.iterBatchProcess(batchContent)
+      const batchIter = WorldCache.processBatchItems(batchContent)
       for await (const patchStub of batchIter) {
         const patch = BlocksPatch.fromStub(patchStub)
         WorldCache.patchLookupIndex[patch.key] = patch
@@ -135,23 +153,48 @@ export class WorldCache {
   }
 
   static getGroundBlock(globalPos: Vector3) {
-    let baseBlock
+    let res
     globalPos.y = WorldCache.bbox.getCenter(new Vector3()).y
     if (WorldCache.bbox.containsPoint(globalPos)) {
       const patch = WorldCache.getPatch(globalPos)
       if (patch) {
         const localPos = globalPos.clone().sub(patch.bbox.min)
-        baseBlock = patch.getBlock(localPos) as BlockData
+        res = patch.getBlock(localPos) as BlockData
+      }
+    } else {
+      res = WorldApi.instance
+        .call(WorldApiName.GroundBlockCompute, [globalPos])
+        .then(blockStub => {
+          const block = {
+            pos: new Vector3(
+              globalPos.x,
+              (blockStub as BlockStub).level,
+              globalPos.z,
+            ),
+            type: (blockStub as BlockStub).type,
+          }
+          return block
+        })
+      if (!res) {
+        console.log(res)
       }
     }
-    return baseBlock
+    return res
   }
 
-  static getBlock(globalPos: Vector3) {
-    const block = WorldCache.getGroundBlock(globalPos)
-    // if (block) {
-    //   block.buffer = PatchBaseCache.genOvergroundBlocks(block)
-    // }
+  static async getOvergroundBlock(globalPos: Vector3) {
+    const block = await WorldCache.getGroundBlock(globalPos)
+    if (block) {
+      const blocksBuffer = (await WorldApi.instance.call(
+        WorldApiName.OvergroundBlocksCompute,
+        [block.pos],
+      )) as BlockType[]
+      const lastBlockIndex = blocksBuffer.findLastIndex(elt => elt)
+      if (lastBlockIndex >= 0) {
+        block.pos.y += lastBlockIndex
+        block.type = blocksBuffer[lastBlockIndex] as BlockType
+      }
+    }
     return block
   }
 
