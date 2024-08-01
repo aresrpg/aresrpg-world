@@ -26,27 +26,52 @@ export class WorldCompute {
     this.inputKeys = inputKeys
   }
 
-  async *iterBatch(asyncMode = false) {
-    let count = 0
-    let elapsedTime = Date.now()
-    const patchesStubs = this.inputKeys.map(
-      patchOrigin => new BlocksPatch(patchOrigin),
-    )
-    for (const patch of patchesStubs) {
-      asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
-      WorldCompute.buildGroundPatch(patch)
-      WorldCompute.buildEntitiesChunks(patch)
-      count++
-      yield patch
+  static computeOvergroundBlocks(blockPos: Vector3) {
+    let blocksBuffer: BlockType[] = []
+    // query entities at current block
+    const entitiesIter = RepeatableEntitiesMap.instance.iterate(blockPos)
+    for (const entity of entitiesIter) {
+      // use global coords in case entity center is from adjacent patch
+      const entityPos = entity.bbox.getCenter(new Vector3())
+      const rawVal = Heightmap.instance.getRawVal(entityPos)
+      const mainBiome = Biome.instance.getMainBiome(entityPos)
+      const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
+      const entityType = blockTypes.entities?.[0] as EntityType
+      if (entityType) {
+        const entityLevel = Heightmap.instance.getGroundLevel(entityPos, rawVal)
+        entity.bbox.min.y = entityLevel
+        entity.bbox.max.y = entityLevel + 10
+        entity.type = entityType
+        blocksBuffer = EntitiesMap.fillBlockBuffer(
+          blockPos,
+          entity,
+          blocksBuffer,
+        )
+      }
     }
+    return blocksBuffer
+  }
 
-    elapsedTime = Date.now() - elapsedTime
-    // const avgTime = Math.round(elapsedTime / count)
-    // console.debug(
-    //   `[WorldCompute] processed ${count} patches in ${elapsedTime} ms (avg ${avgTime} ms per patch) `,
-    // )
-    this.elapsedTime += elapsedTime
-    this.count += count
+  static computeGroundBlock(blockPos: Vector3) {
+    const biomeContribs = Biome.instance.getBiomeInfluence(blockPos)
+    const mainBiome = Biome.instance.getMainBiome(biomeContribs)
+    const rawVal = Heightmap.instance.getRawVal(blockPos)
+    const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
+    const level = Heightmap.instance.getGroundLevel(
+      blockPos,
+      rawVal,
+      biomeContribs,
+    )
+    // const pos = new Vector3(blockPos.x, level, blockPos.z)
+    const type = blockTypes.grounds[0] as BlockType
+    // const entityType = blockTypes.entities?.[0] as EntityType
+    // let offset = 0
+    // if (lastBlock && entityType) {
+
+    // }
+    // level += offset
+    const block = { level, type }
+    return block
   }
 
   static buildPatch(patchKey: string) {
@@ -122,21 +147,12 @@ export class WorldCompute {
     let blockIndex = 0
 
     for (const blockData of blocksPatchIter) {
-      blockData.pos.y = 0
+      const blockPos = blockData.pos
       // const patchCorner = points.find(pt => pt.distanceTo(blockData.pos) < 2)
-      const biomeContribs = Biome.instance.getBiomeInfluence(blockData.pos)
-      const mainBiome = Biome.instance.getMainBiome(biomeContribs)
-      const rawVal = Heightmap.instance.getRawVal(blockData.pos)
-      const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
-      blockData.pos.y = Heightmap.instance.getGroundLevel(
-        blockData.pos,
-        rawVal,
-        biomeContribs,
-      )
-      blockData.type = blockTypes.grounds[0] as BlockType
-      min.y = Math.min(min.y, blockData.pos.y)
-      max.y = Math.max(max.y, blockData.pos.y)
-      patch.writeBlockAtIndex(blockIndex, blockData.pos.y, blockData.type)
+      const block = this.computeGroundBlock(blockPos)
+      min.y = Math.min(min.y, block.level)
+      max.y = Math.max(max.y, block.level)
+      patch.writeBlockAtIndex(blockIndex, block.level, block.type)
       blockIndex++
     }
     patch.bbox.min = min

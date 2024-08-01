@@ -1,34 +1,36 @@
 import { WorldCompute } from './WorldCompute'
-import { PatchStub } from './WorldPatch'
 
-export enum WorldApiMethods {
-  PatchCompute = 'patchCompute',
-}
-
-export interface WorldApiProvider {
-  iterBatchProcess(
-    batchContent: string[],
-  ): AsyncGenerator<PatchStub, void, unknown>
+export enum WorldApiName {
+  PatchCompute = 'buildPatch',
+  GroundBlockCompute = 'computeGroundBlock',
+  OvergroundBlocksCompute = 'computeOvergroundBlocks',
 }
 
 /**
  * Frontend to access world api defaulting to using local world instance
  * can be overriden to provide custom implementation
  */
-export class WorldApi implements WorldApiProvider {
-  async *iterBatchProcess(batchContent: string[]) {
-    for (const patchKey of batchContent) {
-      const patchStub = WorldCompute.buildPatch(patchKey)
-      yield patchStub
-    }
+export class WorldApi {
+  // eslint-disable-next-line no-use-before-define
+  static usedApi: WorldApi
+
+  static get instance() {
+    WorldApi.usedApi = WorldApi.usedApi || new WorldApi()
+    return WorldApi.usedApi
+  }
+
+  // call<T>(api: WorldApiName, args: any[]): T | Promise<T>
+
+  async call(apiName: WorldApiName, args: any) {
+    return await WorldCompute[apiName](...args)
   }
 }
 
 /**
  * World api provider to access worker instance
  */
-export class WorldWorkerApi implements WorldApiProvider {
-  // static singleton: WorldWorkerApi
+export class WorldWorkerApi extends WorldApi {
+  // static usedApi: WorldWorkerApi
   // eslint-disable-next-line no-undef
   worker: Worker
   count = 0
@@ -36,10 +38,11 @@ export class WorldWorkerApi implements WorldApiProvider {
 
   // eslint-disable-next-line no-undef
   constructor(worker: Worker) {
+    super()
     this.worker = worker
     this.worker.onmessage = ({ data }) => {
       if (data.id !== undefined) {
-        this.resolvers[data.id]?.(data)
+        this.resolvers[data.id]?.(data.data)
         delete this.resolvers[data.id]
       } else {
         if (data) {
@@ -62,24 +65,15 @@ export class WorldWorkerApi implements WorldApiProvider {
     }
   }
 
-  async *iterBatchProcess(batchContent: string[]) {
-    for (const patchKey of batchContent) {
-      const res: any = await this.callApi(WorldApiMethods.PatchCompute, [
-        patchKey,
-      ])
-      yield res.data as PatchStub
-    }
+  override call(apiName: WorldApiName, args: any[]) {
+    const id = this.count++
+    this.worker.postMessage({ id, apiName, args })
+    return new Promise<any>(resolve => (this.resolvers[id] = resolve))
   }
 
   // static get instance() {
-  //     WorldWorkerApi.singleton =
-  //         WorldWorkerApi.singleton || new WorldWorkerApi()
-  //     return WorldWorkerApi.singleton
+  //     WorldWorkerApi.usedApi =
+  //         WorldWorkerApi.usedApi || new WorldWorkerApi()
+  //     return WorldWorkerApi.usedApi
   // }
-
-  callApi(api: WorldApiMethods, args: any[]) {
-    const id = this.count++
-    this.worker.postMessage({ id, api, args })
-    return new Promise(resolve => (this.resolvers[id] = resolve))
-  }
 }

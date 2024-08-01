@@ -240,21 +240,23 @@ export class RepeatableEntitiesMap extends EntitiesMap {
       0,
       Math.floor(pos.z / period),
     ).multiplyScalar(period)
-    let mapBox: Box3
+
     // find virtual map coords
-    if (input instanceof Box3) {
-      const dims = input.getSize(new Vector3())
-      const mapOffset = new Vector3(
-        input.min.x % this.period,
-        0,
-        input.min.z % this.period,
-      )
-      mapOffset.x += mapOffset.x < 0 ? this.period : 0
-      mapOffset.z += mapOffset.z < 0 ? this.period : 0
-      const mapEnd = mapOffset.clone().add(dims)
-      mapEnd.y = 512
-      mapBox = new Box3(mapOffset, mapEnd)
-    }
+    const dims =
+      input instanceof Box3
+        ? input.getSize(new Vector3())
+        : new Vector3(1, 1, 1)
+    const point = input instanceof Box3 ? input.min : input
+    const mapPoint = new Vector3(
+      point.x % this.period,
+      0,
+      point.z % this.period,
+    )
+    mapPoint.x += mapPoint.x < 0 ? this.period : 0
+    mapPoint.z += mapPoint.z < 0 ? this.period : 0
+    const mapEnd = mapPoint.clone().add(dims)
+    mapEnd.y = 512
+    const mapBox = new Box3(mapPoint, mapEnd)
 
     const entities = this.entities.filter(entity =>
       mapBox

@@ -9,6 +9,11 @@ export type BlockData = {
   buffer?: BlockType[]
 }
 
+export type BlockStub = {
+  level: number
+  type: BlockType
+}
+
 export type EntityChunk = {
   bbox: Box3
   data: string[]
