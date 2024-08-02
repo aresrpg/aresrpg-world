@@ -42,6 +42,14 @@ export class WorldCache {
     }
   }
 
+  static async processBlocksBatch(batchContent: Vector3[]) {
+    const batchRes = await WorldApi.instance.call(
+      WorldApiName.BlocksBatchCompute,
+      [batchContent],
+    )
+    return batchRes
+  }
+
   static async refresh(
     center: Vector3,
     // worldProxy: WorldProxy = PatchProcessing,

@@ -21,6 +21,7 @@ export type EntityChunk = {
 
 export type PatchStub = {
   key: string
+  bbox: Box3
   groundBlocks: {
     type: Uint16Array
     level: Uint16Array
@@ -175,6 +176,8 @@ export class BlocksPatch {
     const patch = new BlocksPatch(key)
     patch.groundBlocks = groundBlocks
     patch.entitiesChunks = entitiesChunks
+    patch.bbox.min.y = patchStub.bbox.min.y
+    patch.bbox.max.y = patchStub.bbox.max.y
     // patchStub.entitiesChunks?.forEach((entityChunk: EntityChunk) =>
     //   patch.entitiesChunks.push(entityChunk),
     // )

@@ -2,6 +2,7 @@ import { WorldCompute } from './WorldCompute'
 
 export enum WorldApiName {
   PatchCompute = 'buildPatch',
+  BlocksBatchCompute = 'computeBlocksBatch',
   GroundBlockCompute = 'computeGroundBlock',
   OvergroundBlocksCompute = 'computeOvergroundBlocks',
 }
