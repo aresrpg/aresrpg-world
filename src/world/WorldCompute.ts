@@ -74,6 +74,23 @@ export class WorldCompute {
     return block
   }
 
+  static computeBlocksBatch(batchContent: [], includeEntities = true) {
+    const batchRes = batchContent.map(({ x, z }) => {
+      const block_pos = new Vector3(x, 0, z)
+      const block = WorldCompute.computeGroundBlock(block_pos)
+      if (includeEntities) {
+        const blocksBuffer = WorldCompute.computeOvergroundBlocks(block_pos)
+        const lastBlockIndex = blocksBuffer.findLastIndex(elt => elt)
+        if (lastBlockIndex >= 0) {
+          block.level += lastBlockIndex
+          block.type = blocksBuffer[lastBlockIndex] as BlockType
+        }
+      }
+      return block
+    })
+    return batchRes
+  }
+
   static buildPatch(patchKey: string) {
     const patch = new BlocksPatch(patchKey)
     // asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
