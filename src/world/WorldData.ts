@@ -1,5 +1,5 @@
 import { Box3, Vector2, Vector3 } from 'three'
-import { parseThreeStub } from '../common/utils'
+import { asVect3, parseThreeStub } from '../common/utils'
 
 import { BlockType } from '../procgen/Biome'
 
@@ -260,4 +260,64 @@ export class BlocksPatch extends BlocksContainer {
     const patchKey = `patch_${x}_${y}`
     return patchKey
   }
+}
+
+export class PatchContainer {
+  bbox: Box3
+  patchRange: Box3
+  patchLookup: Record<string, BlocksPatch | null> = {}
+
+  constructor(bbox: Box3) {
+    this.bbox = bbox
+    const rangeMin = BlocksPatch.asPatchCoords(bbox.min)
+    const rangeMax = BlocksPatch.asPatchCoords(bbox.max)
+    this.patchRange = new Box3(asVect3(rangeMin), asVect3(rangeMax))
+    this.init()
+  }
+
+  init() {
+    // const halfDimensions = this.bbox.getSize(new Vector3()).divideScalar(2)
+    // const range = BlocksPatch.asPatchCoords(halfDimensions)
+    // const center = this.bbox.getCenter(new Vector3())
+    // const origin = BlocksPatch.asPatchCoords(center)
+    const { min, max } = this.patchRange
+    for (let x = min.x; x < max.x; x++) {
+      for (let z = min.z; z < max.z; z++) {
+        const patchKey = 'patch_' + x + '_' + z;
+        this.patchLookup[patchKey] = null
+      }
+    }
+  }
+
+  get availablePatches() {
+    return Object.values(this.patchLookup).filter(val => val) as BlocksPatch[]
+  }
+
+  get missingPatchKeys() {
+    return Object.keys(this.patchLookup).filter(key => !this.patchLookup[key])
+  }
+
+  get count() {
+    return Object.keys(this.patchLookup).length
+  }
+
+  fillFromExistingContainer(otherContainer: PatchContainer) {
+    Object.keys(this.patchLookup)
+      .filter(patchKey => otherContainer.patchLookup[patchKey])
+      .forEach(patchKey => this.patchLookup[patchKey] = otherContainer.patchLookup[patchKey] as BlocksPatch)
+  }
+
+  diffWithOtherContainer(otherContainer: PatchContainer) {
+    const patchKeysDiff: Record<string, boolean> = {}
+    // added keys e.g. keys in current container but not found in other
+    Object.keys(this.patchLookup)
+      .filter(patchKey => otherContainer.patchLookup[patchKey] === undefined)
+      .forEach(patchKey => patchKeysDiff[patchKey] = true)
+    // missing keys e.g. found in other container but not in current
+    Object.keys(otherContainer.patchLookup)
+      .filter(patchKey => this.patchLookup[patchKey] === undefined)
+      .forEach(patchKey => patchKeysDiff[patchKey] = false)
+    return patchKeysDiff
+  }
+
 }

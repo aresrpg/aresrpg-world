@@ -48,7 +48,7 @@ export class WorldCompute {
     return block
   }
 
-  static computeOvergroundBlocks(blockPos: Vector3) {
+  static computeOvergroundBuffer(blockPos: Vector3) {
     let blocksBuffer: BlockType[] = []
     // query entities at current block
     const entitiesIter = RepeatableEntitiesMap.instance.iterate(blockPos)
@@ -79,7 +79,7 @@ export class WorldCompute {
       const block_pos = new Vector3(x, 0, z)
       const block = WorldCompute.computeGroundBlock(block_pos)
       if (includeEntities) {
-        const blocksBuffer = WorldCompute.computeOvergroundBlocks(block_pos)
+        const blocksBuffer = WorldCompute.computeOvergroundBuffer(block_pos)
         const lastBlockIndex = blocksBuffer.findLastIndex(elt => elt)
         if (lastBlockIndex >= 0) {
           block.level += lastBlockIndex

@@ -4,7 +4,7 @@ export enum WorldApiName {
   PatchCompute = 'computePatch',
   BlocksBatchCompute = 'computeBlocksBatch',
   GroundBlockCompute = 'computeGroundBlock',
-  OvergroundBlocksCompute = 'computeOvergroundBlocks',
+  OvergroundBufferCompute = 'computeOvergroundBuffer',
 }
 
 /**
