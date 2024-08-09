@@ -1,7 +1,7 @@
 export { Heightmap } from './procgen/Heightmap'
 export { NoiseSampler } from './procgen/NoiseSampler'
 export { ProcLayer } from './procgen/ProcLayer'
-export { BlocksPatch } from './world/WorldPatch'
+export { BlocksPatch } from './world/WorldData'
 export { Biome, BlockType } from './procgen/Biome'
 export { EntitiesMap, RepeatableEntitiesMap } from './procgen/EntitiesMap'
 export { EntityType } from './common/types'
