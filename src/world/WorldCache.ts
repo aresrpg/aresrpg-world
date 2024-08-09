@@ -9,6 +9,7 @@ import {
   BlocksPatch,
   BlockStub,
   EntityChunk,
+  PatchContainer,
   PatchStub,
 } from './WorldData'
 
@@ -16,22 +17,17 @@ import {
  * Blocks cache
  */
 export class WorldCache {
-  static patchLookupIndex: Record<string, BlocksPatch> = {}
   static bbox = new Box3() // global cache extent
-  static lastCacheBox = new Box3()
+  // static lastCacheBox = new Box3()
   static pendingRefresh = false
   static cachePowRadius = 2
   static cacheSize = BlocksPatch.patchSize * 5
+  static patchContainer = new PatchContainer(new Box3())
   // static worldApi = new WorldApi()
 
   // groundBlocks: Uint16Array = new Uint16Array(Math.pow(PatchBase.patchSize, 2))
 
   entitiesChunks: EntityChunk[] = []
-
-  addPatch(patchStub: PatchStub) {
-    const patch = BlocksPatch.fromStub(patchStub)
-    WorldCache.bbox.union(patch.bbox)
-  }
 
   static async *processBatchItems(batchContent: string[]) {
     for (const patchKey of batchContent) {
@@ -52,73 +48,55 @@ export class WorldCache {
     return batchRes
   }
 
-  static genPatchKeys(bbox: Box3) {
-    const batchKeys: Record<string, any> = {};
-    const halfDimensions = bbox.getSize(new Vector3()).divideScalar(2)
-    const range = BlocksPatch.asPatchCoords(halfDimensions)
-    const center = bbox.getCenter(new Vector3())
-    const origin = BlocksPatch.asPatchCoords(center)
-    for (let xmin = origin.x - range.x; xmin < origin.x + range.x; xmin += 1) {
-      for (let zmin = origin.y - range.y; zmin < origin.y + range.y; zmin += 1) {
-        const patch_key = 'patch_' + xmin + '_' + zmin;
-        batchKeys[patch_key] = true
-      }
-    }
-    return batchKeys
-  }
-
-  static genDiffBatch(bbox: Box3) {
-    const prevBatchKeys = WorldCache.genPatchKeys(bbox)
-    const currBatchKeys = WorldCache.genPatchKeys(WorldCache.lastCacheBox)
-    const batchKeysDiff: Record<string, any> = {}
-    // Object.keys(currBatchKeys).forEach(batchKey=>currBatchKeys[batchKey] = !prevBatchKeys[batchKey])
-    Object.keys(currBatchKeys)
-      .filter(batchKey => !prevBatchKeys[batchKey])
-      .forEach(batchKey => batchKeysDiff[batchKey] = true)
-    WorldCache.lastCacheBox = bbox
-    return batchKeysDiff
-  }
-
-  static async refresh(
-    center: Vector3,
-    // worldProxy: WorldProxy = PatchProcessing,
-    // asyncMode = false,
-  ) {
-    const { patchSize } = BlocksPatch
-    const { cachePowRadius } = this
-    // const cachePatchCount = Object.keys(this.patchLookupIndex).length
-    const range = Math.pow(2, cachePowRadius)
-    const origin = BlocksPatch.asPatchCoords(center)
-    const boxCenter = asVect3(origin).multiplyScalar(patchSize)
-    const boxDims = new Vector3(range, 0, range).multiplyScalar(2 * patchSize)
-    const bbox = new Box3().setFromCenterAndSize(boxCenter, boxDims)
-    const required = this.genPatchKeys(bbox)
-    Object.keys(required)
-      .forEach(patchKey => required[patchKey] = this.patchLookupIndex[patchKey])
-    // exclude cached items from batch  
-    const batchContent = this.pendingRefresh ? [] : Object.entries(required)
-      .filter(([, v]) => !v)
-      .map(([k,]) => k)
-    // (!cacheCenter.equals(this.cacheCenter) || cachePatchCount === 0)
-    if (batchContent.length > 0) {
+  static async populate(patchContainer: PatchContainer, dryRun = false) {
+    const batchContent = patchContainer.missingPatchKeys
+    if (!dryRun && batchContent.length > 0) {
       this.pendingRefresh = true
-      // this.cacheCenter = origin
-      // clear cache
-      WorldCache.patchLookupIndex = {}
-      const remaining = Object.values(required).filter(val => val)
-      // restore remaining items in cache
-      remaining.forEach(
-        patch => (WorldCache.patchLookupIndex[patch.key] = patch),
-      )
+
       const batchIter = WorldCache.processBatchItems(batchContent)
+      // populate cache
       for await (const patchStub of batchIter) {
         const patch = BlocksPatch.fromStub(patchStub)
-        WorldCache.patchLookupIndex[patch.key] = patch
-        WorldCache.bbox.union(patch.bbox)
+        patchContainer.patchLookup[patch.key] = patch
+        patchContainer.bbox.union(patch.bbox)
       }
       this.pendingRefresh = false
     }
     return batchContent
+  }
+
+  /**
+   * 
+   * @param center 
+   * @param dryRun 
+   * @returns true if cache was update, false otherwise
+   */
+  static async refresh(
+    center: Vector3,
+    dryRun = false
+    // worldProxy: WorldProxy = PatchProcessing,
+    // asyncMode = false,
+  ) {
+    if (!this.pendingRefresh) {
+      const { patchSize } = BlocksPatch
+      const { cachePowRadius } = this
+      // const cachePatchCount = Object.keys(this.patchLookupIndex).length
+      const range = Math.pow(2, cachePowRadius)
+      const origin = BlocksPatch.asPatchCoords(center)
+      const boxCenter = asVect3(origin).multiplyScalar(patchSize)
+      const boxDims = new Vector3(range, 0, range).multiplyScalar(2 * patchSize)
+      const bbox = new Box3().setFromCenterAndSize(boxCenter, boxDims)
+      const patchContainer = new PatchContainer(bbox)
+      const patchDiff = patchContainer.diffWithOtherContainer(this.patchContainer)
+      // (!cacheCenter.equals(this.cacheCenter) || cachePatchCount === 0)
+      if (Object.keys(patchDiff).length) {
+        patchContainer.fillFromExistingContainer(this.patchContainer)
+        this.patchContainer = patchContainer
+        const batchContent = await this.populate(patchContainer, dryRun)
+        return batchContent
+      }
+    }
+    return []
   }
 
   static getPatch(inputPoint: Vector2 | Vector3) {
@@ -128,7 +106,7 @@ export class WorldCache {
       inputPoint instanceof Vector3 ? inputPoint.z : inputPoint.y,
     )
 
-    const res = Object.values(this.patchLookupIndex).find(
+    const res = this.patchContainer.availablePatches.find(
       patch =>
         point.x >= patch.bbox.min.x &&
         point.z >= patch.bbox.min.z &&
@@ -142,7 +120,7 @@ export class WorldCache {
     const bbox = inputBbox.clone()
     bbox.min.y = 0
     bbox.max.y = 512
-    const res = Object.values(this.patchLookupIndex).filter(patch =>
+    const res = this.patchContainer.availablePatches.filter(patch =>
       patch.bbox.intersectsBox(bbox),
     )
     return res
@@ -176,9 +154,10 @@ export class WorldCache {
   }
 
   static getGroundBlock(globalPos: Vector3) {
+    const { bbox } = this.patchContainer
     let res
-    globalPos.y = WorldCache.bbox.getCenter(new Vector3()).y
-    if (WorldCache.bbox.containsPoint(globalPos)) {
+    globalPos.y = bbox.getCenter(new Vector3()).y
+    if (bbox.containsPoint(globalPos)) {
       const patch = WorldCache.getPatch(globalPos)
       if (patch) {
         const localPos = globalPos.clone().sub(patch.bbox.min)
@@ -205,11 +184,11 @@ export class WorldCache {
     return res
   }
 
-  static async getOvergroundBlock(globalPos: Vector3) {
+  static async getTopLevelBlock(globalPos: Vector3) {
     const block = await WorldCache.getGroundBlock(globalPos)
     if (block) {
       const blocksBuffer = (await WorldApi.instance.call(
-        WorldApiName.OvergroundBlocksCompute,
+        WorldApiName.OvergroundBufferCompute,
         [block.pos],
       )) as BlockType[]
       const lastBlockIndex = blocksBuffer.findLastIndex(elt => elt)
@@ -234,7 +213,7 @@ export class WorldCache {
   }
 
   static buildPlateau(patchKeys: string[]) {
-    const patches = patchKeys.map(patchKey => this.patchLookupIndex[patchKey])
+    const patches = this.patchContainer.availablePatches
     const bbox = patches.reduce(
       (bbox, patch) => bbox.union(patch?.bbox || new Box3()),
       new Box3(),
