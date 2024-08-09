@@ -4,7 +4,7 @@ import { Box3, Vector2, Vector3 } from 'three'
 
 import { TreeGenerators } from '../tools/TreeGenerator'
 import { EntityType } from '../index'
-import { BlocksPatch } from '../world/WorldPatch'
+import { BlocksPatch } from '../world/WorldData'
 
 import { ProcLayer } from './ProcLayer'
 import { BlockType } from './Biome'
