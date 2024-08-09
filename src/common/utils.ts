@@ -1,4 +1,4 @@
-import { Box3, Vector2, Vector3 } from 'three'
+import { Box3, Vector2, Vector3, Vector3Like } from 'three'
 
 import {
   Adjacent2dPos,
@@ -184,6 +184,36 @@ const bboxContainsPointXZ = (bbox: Box3, point: Vector3) => {
   )
 }
 
+const asVect3 = (vect2: Vector2) => {
+  return new Vector3(vect2.x, 0, vect2.y)
+}
+
+const parseVect3Stub = (stub: Vector3Like) => {
+  let res
+  if (isVect3Stub(stub)) {
+    res = new Vector3(...Object.values(stub))
+  }
+  return res
+}
+
+const parseBox3Stub = (stub: Box3) => {
+  let res
+  if (isVect3Stub(stub.min) && isVect3Stub(stub.max)) {
+    const min = parseVect3Stub(stub.min)
+    const max = parseVect3Stub(stub.max)
+    res = new Box3(min, max)
+  }
+  return res
+}
+
+const isVect3Stub = (stub: Vector3Like){
+  return stub !== undefined && stub.x !== undefined && stub.y !== undefined && stub.z !== undefined
+}
+
+const parseThreeStub = (stub: any) => {
+  return parseBox3Stub(stub) || parseVect3Stub(stub) || stub
+}
+
 export {
   roundToDec,
   clamp,
@@ -196,4 +226,6 @@ export {
   getAllNeighbours3dCoords,
   bboxContainsPointXZ,
   getPatchPoints,
+  parseThreeStub,
+  asVect3
 }

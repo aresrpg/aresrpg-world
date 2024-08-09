@@ -9,7 +9,7 @@ import {
   RepeatableEntitiesMap,
 } from '../procgen/EntitiesMap'
 
-import { BlocksPatch, EntityChunk } from './WorldPatch'
+import { BlocksContainer, BlocksPatch, EntityChunk } from './WorldData'
 
 export class WorldCompute {
   static pendingTask = false
@@ -24,6 +24,28 @@ export class WorldCompute {
 
   constructor(inputKeys: string[]) {
     this.inputKeys = inputKeys
+  }
+
+  static computeGroundBlock(blockPos: Vector3) {
+    const biomeContribs = Biome.instance.getBiomeInfluence(blockPos)
+    const mainBiome = Biome.instance.getMainBiome(biomeContribs)
+    const rawVal = Heightmap.instance.getRawVal(blockPos)
+    const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
+    const level = Heightmap.instance.getGroundLevel(
+      blockPos,
+      rawVal,
+      biomeContribs,
+    )
+    // const pos = new Vector3(blockPos.x, level, blockPos.z)
+    const type = blockTypes.grounds[0] as BlockType
+    // const entityType = blockTypes.entities?.[0] as EntityType
+    // let offset = 0
+    // if (lastBlock && entityType) {
+
+    // }
+    // level += offset
+    const block = { level, type }
+    return block
   }
 
   static computeOvergroundBlocks(blockPos: Vector3) {
@@ -52,28 +74,6 @@ export class WorldCompute {
     return blocksBuffer
   }
 
-  static computeGroundBlock(blockPos: Vector3) {
-    const biomeContribs = Biome.instance.getBiomeInfluence(blockPos)
-    const mainBiome = Biome.instance.getMainBiome(biomeContribs)
-    const rawVal = Heightmap.instance.getRawVal(blockPos)
-    const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
-    const level = Heightmap.instance.getGroundLevel(
-      blockPos,
-      rawVal,
-      biomeContribs,
-    )
-    // const pos = new Vector3(blockPos.x, level, blockPos.z)
-    const type = blockTypes.grounds[0] as BlockType
-    // const entityType = blockTypes.entities?.[0] as EntityType
-    // let offset = 0
-    // if (lastBlock && entityType) {
-
-    // }
-    // level += offset
-    const block = { level, type }
-    return block
-  }
-
   static computeBlocksBatch(batchContent: [], includeEntities = true) {
     const batchRes = batchContent.map(({ x, z }) => {
       const block_pos = new Vector3(x, 0, z)
@@ -91,15 +91,14 @@ export class WorldCompute {
     return batchRes
   }
 
-  static buildPatch(patchKey: string) {
-    const patch = new BlocksPatch(patchKey)
-    // asyncMode && (await new Promise(resolve => setTimeout(resolve, 0)))
-    WorldCompute.buildGroundPatch(patch)
-    WorldCompute.buildEntitiesChunks(patch)
+  static computePatch(bbox: Box3) {
+    const patch = new BlocksContainer(bbox)
+    WorldCompute.genGroundBlocks(patch)
+    WorldCompute.genEntitiesBlocks(patch)
     return patch
   }
 
-  static buildEntityChunk(patch: BlocksPatch, entity: EntityData) {
+  static buildEntityChunk(patch: BlocksContainer, entity: EntityData) {
     const entityChunk: EntityChunk = {
       bbox: new Box3(),
       data: [],
@@ -121,8 +120,8 @@ export class WorldCompute {
     return entityChunk
   }
 
-  static buildEntitiesChunks(patch: BlocksPatch) {
-    const entitiesIter = RepeatableEntitiesMap.instance.iterate(patch.bbox)
+  static genEntitiesBlocks(blocksContainer: BlocksContainer) {
+    const entitiesIter = RepeatableEntitiesMap.instance.iterate(blocksContainer.bbox)
     for (const entity of entitiesIter) {
       // use global coords in case entity center is from adjacent patch
       const entityPos = entity.bbox.getCenter(new Vector3())
@@ -136,29 +135,29 @@ export class WorldCompute {
       if (entityType) {
         const dims = entity.bbox.getSize(new Vector3())
         dims.y = 10
-        const localBmin = entity.bbox.min.clone().sub(patch.bbox.min)
+        const localBmin = entity.bbox.min.clone().sub(blocksContainer.bbox.min)
         localBmin.y = Heightmap.instance.getGroundLevel(entityPos)
         const localBmax = localBmin.clone().add(dims)
         const localBbox = new Box3(localBmin, localBmax)
         entity.bbox = localBbox
         entity.type = entityType
-        const entityChunk = WorldCompute.buildEntityChunk(patch, entity)
-        patch.entitiesChunks.push(entityChunk)
+        const entityChunk = WorldCompute.buildEntityChunk(blocksContainer, entity)
+        blocksContainer.entitiesChunks.push(entityChunk)
         // let item: BlockIteratorRes = blocksIter.next()
       }
     }
   }
 
   /**
-   * Gen blocks data that will be sent to blocks cache
+   * Fill container with ground blocks 
    */
-  static buildGroundPatch(patch: BlocksPatch) {
-    const { min, max } = patch.bbox
+  static genGroundBlocks(blocksContainer: BlocksContainer) {
+    const { min, max } = blocksContainer.bbox
     // const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
     // const prng = alea(patchId)
     // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
     // const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
-    const blocksPatchIter = patch.iterBlocks()
+    const blocksPatchIter = blocksContainer.iterBlocks(false, false)
     min.y = 512
     max.y = 0
     let blockIndex = 0
@@ -169,15 +168,16 @@ export class WorldCompute {
       const block = this.computeGroundBlock(blockPos)
       min.y = Math.min(min.y, block.level)
       max.y = Math.max(max.y, block.level)
-      patch.writeBlockAtIndex(blockIndex, block.level, block.type)
+      // blocksContainer.writeBlockAtIndex(blockIndex, block.level, block.type)
+      blocksContainer.writeBlockAtIndex(blockIndex, block.level, block.type)
       blockIndex++
     }
-    patch.bbox.min = min
-    patch.bbox.max = max
-    patch.bbox.getSize(patch.dimensions)
-    // PatchBlocksCache.bbox.union(patch.bbox)
+    blocksContainer.bbox.min = min
+    blocksContainer.bbox.max = max
+    blocksContainer.bbox.getSize(blocksContainer.dimensions)
+    // PatchBlocksCache.bbox.union(blocksContainer.bbox)
 
-    // patch.state = PatchState.Filled
-    return patch
+    // blocksContainer.state = PatchState.Filled
+    return blocksContainer
   }
 }

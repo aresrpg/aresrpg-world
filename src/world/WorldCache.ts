@@ -1,4 +1,5 @@
 import { Box3, Vector2, Vector3 } from 'three'
+import { asVect3 } from '../common/utils'
 
 import { BlockType } from '../index'
 
@@ -9,7 +10,7 @@ import {
   BlockStub,
   EntityChunk,
   PatchStub,
-} from './WorldPatch'
+} from './WorldData'
 
 /**
  * Blocks cache
@@ -17,9 +18,9 @@ import {
 export class WorldCache {
   static patchLookupIndex: Record<string, BlocksPatch> = {}
   static bbox = new Box3() // global cache extent
+  static lastCacheBox = new Box3()
   static pendingRefresh = false
-  static cacheCenter = new Vector2(0, 0)
-  static cachePowRadius = 3
+  static cachePowRadius = 2
   static cacheSize = BlocksPatch.patchSize * 5
   // static worldApi = new WorldApi()
 
@@ -34,9 +35,10 @@ export class WorldCache {
 
   static async *processBatchItems(batchContent: string[]) {
     for (const patchKey of batchContent) {
+      const emptyPatch = new BlocksPatch(patchKey)
       const patchStub = await WorldApi.instance.call(
         WorldApiName.PatchCompute,
-        [patchKey],
+        [emptyPatch.bbox]//[patchKey],
       )
       yield patchStub as PatchStub
     }
@@ -50,6 +52,33 @@ export class WorldCache {
     return batchRes
   }
 
+  static genPatchKeys(bbox: Box3) {
+    const batchKeys: Record<string, any> = {};
+    const halfDimensions = bbox.getSize(new Vector3()).divideScalar(2)
+    const range = BlocksPatch.asPatchCoords(halfDimensions)
+    const center = bbox.getCenter(new Vector3())
+    const origin = BlocksPatch.asPatchCoords(center)
+    for (let xmin = origin.x - range.x; xmin < origin.x + range.x; xmin += 1) {
+      for (let zmin = origin.y - range.y; zmin < origin.y + range.y; zmin += 1) {
+        const patch_key = 'patch_' + xmin + '_' + zmin;
+        batchKeys[patch_key] = true
+      }
+    }
+    return batchKeys
+  }
+
+  static genDiffBatch(bbox: Box3) {
+    const prevBatchKeys = WorldCache.genPatchKeys(bbox)
+    const currBatchKeys = WorldCache.genPatchKeys(WorldCache.lastCacheBox)
+    const batchKeysDiff: Record<string, any> = {}
+    // Object.keys(currBatchKeys).forEach(batchKey=>currBatchKeys[batchKey] = !prevBatchKeys[batchKey])
+    Object.keys(currBatchKeys)
+      .filter(batchKey => !prevBatchKeys[batchKey])
+      .forEach(batchKey => batchKeysDiff[batchKey] = true)
+    WorldCache.lastCacheBox = bbox
+    return batchKeysDiff
+  }
+
   static async refresh(
     center: Vector3,
     // worldProxy: WorldProxy = PatchProcessing,
@@ -57,43 +86,30 @@ export class WorldCache {
   ) {
     const { patchSize } = BlocksPatch
     const { cachePowRadius } = this
+    // const cachePatchCount = Object.keys(this.patchLookupIndex).length
     const range = Math.pow(2, cachePowRadius)
-    const center_x = Math.floor(center.x / patchSize)
-    const center_z = Math.floor(center.z / patchSize)
-    const cacheCenter = new Vector2(center_x, center_z)
-    const cachePatchCount = Object.keys(this.patchLookupIndex).length
-    const batchContent: string[] = []
-    if (
-      !this.pendingRefresh &&
-      (!cacheCenter.equals(this.cacheCenter) || cachePatchCount === 0)
-    ) {
+    const origin = BlocksPatch.asPatchCoords(center)
+    const boxCenter = asVect3(origin).multiplyScalar(patchSize)
+    const boxDims = new Vector3(range, 0, range).multiplyScalar(2 * patchSize)
+    const bbox = new Box3().setFromCenterAndSize(boxCenter, boxDims)
+    const required = this.genPatchKeys(bbox)
+    Object.keys(required)
+      .forEach(patchKey => required[patchKey] = this.patchLookupIndex[patchKey])
+    // exclude cached items from batch  
+    const batchContent = this.pendingRefresh ? [] : Object.entries(required)
+      .filter(([, v]) => !v)
+      .map(([k,]) => k)
+    // (!cacheCenter.equals(this.cacheCenter) || cachePatchCount === 0)
+    if (batchContent.length > 0) {
       this.pendingRefresh = true
-      this.cacheCenter = cacheCenter
-
-      const existing: BlocksPatch[] = []
-      for (let xmin = center_x - range; xmin < center_x + range; xmin += 1) {
-        for (let zmin = center_z - range; zmin < center_z + range; zmin += 1) {
-          // const patchStart = new Vector2(xmin, zmin)
-          const patchIndexKey = 'patch_' + xmin + '_' + zmin
-          // look for existing patch in current cache
-          const patch = this.patchLookupIndex[patchIndexKey] // || new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
-          if (!patch) {
-            // patch = new BlocksPatch(patchStart)
-            // add all patch needing to be filled up
-            batchContent.push(patchIndexKey)
-          } else {
-            existing.push(patch)
-          }
-        }
-      }
-
-      // const updated = existing.filter(patch => patch.state < PatchState.Finalised)
-      // const removedCount = Object.keys(WorldCache.patchLookupIndex).length - existing.length
+      // this.cacheCenter = origin
+      // clear cache
       WorldCache.patchLookupIndex = {}
-      existing.forEach(
+      const remaining = Object.values(required).filter(val => val)
+      // restore remaining items in cache
+      remaining.forEach(
         patch => (WorldCache.patchLookupIndex[patch.key] = patch),
       )
-
       const batchIter = WorldCache.processBatchItems(batchContent)
       for await (const patchStub of batchIter) {
         const patch = BlocksPatch.fromStub(patchStub)
@@ -101,7 +117,6 @@ export class WorldCache {
         WorldCache.bbox.union(patch.bbox)
       }
       this.pendingRefresh = false
-      return batchContent
     }
     return batchContent
   }
@@ -216,5 +231,14 @@ export class WorldCache {
       console.log(globalPos)
     }
     return block
+  }
+
+  static buildPlateau(patchKeys: string[]) {
+    const patches = patchKeys.map(patchKey => this.patchLookupIndex[patchKey])
+    const bbox = patches.reduce(
+      (bbox, patch) => bbox.union(patch?.bbox || new Box3()),
+      new Box3(),
+    )
+    console.log(patchKeys)
   }
 }
