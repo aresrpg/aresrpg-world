@@ -19,7 +19,7 @@ export class WorldCache {
   static bbox = new Box3() // global cache extent
   static pendingRefresh = false
   static cacheCenter = new Vector2(0, 0)
-  static cachePowRadius = 3
+  static cachePowRadius = 1
   static cacheSize = BlocksPatch.patchSize * 5
   // static worldApi = new WorldApi()
 
@@ -50,60 +50,56 @@ export class WorldCache {
     return batchRes
   }
 
-  static async refresh(
-    center: Vector3,
-    // worldProxy: WorldProxy = PatchProcessing,
-    // asyncMode = false,
-  ) {
-    const { patchSize } = BlocksPatch
-    const { cachePowRadius } = this
-    const range = Math.pow(2, cachePowRadius)
-    const center_x = Math.floor(center.x / patchSize)
-    const center_z = Math.floor(center.z / patchSize)
-    const cacheCenter = new Vector2(center_x, center_z)
-    const cachePatchCount = Object.keys(this.patchLookupIndex).length
-    const batchContent: string[] = []
-    if (
-      !this.pendingRefresh &&
-      (!cacheCenter.equals(this.cacheCenter) || cachePatchCount === 0)
-    ) {
-      this.pendingRefresh = true
-      this.cacheCenter = cacheCenter
-
-      const existing: BlocksPatch[] = []
-      for (let xmin = center_x - range; xmin < center_x + range; xmin += 1) {
-        for (let zmin = center_z - range; zmin < center_z + range; zmin += 1) {
+  static async refresh(bbox: Box3) {
+    const changes: any = {
+      batch: [],
+      count: 0,
+    }
+    if (!this.pendingRefresh) {
+      const range_min = BlocksPatch.asPatchCoords(bbox.min)
+      const range_max = BlocksPatch.asPatchCoords(bbox.max)
+      this.bbox = bbox
+      const backup = []
+      for (let {x} = range_min; x < range_max.x + 1; x += 1) {
+        for (let {y} = range_min; y < range_max.y + 1; y += 1) {
           // const patchStart = new Vector2(xmin, zmin)
-          const patchIndexKey = 'patch_' + xmin + '_' + zmin
+          const patchIndexKey = 'patch_' + x + '_' + y
           // look for existing patch in current cache
           const patch = this.patchLookupIndex[patchIndexKey] // || new BlocksPatch(patchStart) //BlocksPatch.getPatch(patchBbox, true) as BlocksPatch
           if (!patch) {
             // patch = new BlocksPatch(patchStart)
             // add all patch needing to be filled up
-            batchContent.push(patchIndexKey)
+            changes.batch.push(patchIndexKey)
           } else {
-            existing.push(patch)
+            backup.push(patch)
           }
         }
       }
 
-      // const updated = existing.filter(patch => patch.state < PatchState.Finalised)
-      // const removedCount = Object.keys(WorldCache.patchLookupIndex).length - existing.length
-      WorldCache.patchLookupIndex = {}
-      existing.forEach(
-        patch => (WorldCache.patchLookupIndex[patch.key] = patch),
-      )
+      changes.count =
+        changes.batch.length +
+        Object.keys(WorldCache.patchLookupIndex).length -
+        backup.length
+      // update required
+      if (changes.count > 0) {
+        this.pendingRefresh = true
+        // const updated = existing.filter(patch => patch.state < PatchState.Finalised)
+        // const removedCount = Object.keys(WorldCache.patchLookupIndex).length - existing.length
+        WorldCache.patchLookupIndex = {}
+        backup.forEach(
+          patch => (WorldCache.patchLookupIndex[patch.key] = patch),
+        )
 
-      const batchIter = WorldCache.processBatchItems(batchContent)
-      for await (const patchStub of batchIter) {
-        const patch = BlocksPatch.fromStub(patchStub)
-        WorldCache.patchLookupIndex[patch.key] = patch
-        WorldCache.bbox.union(patch.bbox)
+        const batchIter = WorldCache.processBatchItems(changes.batch)
+        for await (const patchStub of batchIter) {
+          const patch = BlocksPatch.fromStub(patchStub)
+          WorldCache.patchLookupIndex[patch.key] = patch
+          // WorldCache.bbox.union(patch.bbox)
+        }
+        this.pendingRefresh = false
       }
-      this.pendingRefresh = false
-      return batchContent
     }
-    return batchContent
+    return changes
   }
 
   static getPatch(inputPoint: Vector2 | Vector3) {

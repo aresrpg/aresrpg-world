@@ -162,8 +162,6 @@ export class BlocksPatch {
     }
   }
 
-  getPatchCoords() {}
-
   toStub() {
     const { key } = this
     return {
@@ -182,6 +180,14 @@ export class BlocksPatch {
     //   patch.entitiesChunks.push(entityChunk),
     // )
     return patch
+  }
+
+  static asPatchCoords = (position: Vector3) => {
+    const { patchSize } = this
+    const orig_x = Math.floor(position.x / patchSize)
+    const orig_z = Math.floor(position.z / patchSize)
+    const patchCoords = new Vector2(orig_x, orig_z)
+    return patchCoords
   }
 
   static getPatchOrigin(input: Box3 | Vector3 | Vector2) {
