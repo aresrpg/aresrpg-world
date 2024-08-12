@@ -6,6 +6,7 @@ import { BlockType } from '../procgen/Biome'
 export type BlockData = {
   pos: Vector3
   type: BlockType
+  index?: number
   localPos?: Vector3
   buffer?: BlockType[]
 }
@@ -45,7 +46,7 @@ export class BlocksContainer {
   entitiesChunks: EntityChunk[] = []
 
   constructor(bbox: Box3, margin = 1) {
-    this.bbox = bbox
+    this.bbox = bbox.clone()
     this.bbox.getSize(this.dimensions)
     this.margin = margin
     const { extendedDims } = this
@@ -53,6 +54,13 @@ export class BlocksContainer {
       type: new Uint16Array(extendedDims.x * extendedDims.z),
       level: new Uint16Array(extendedDims.x * extendedDims.z),
     }
+  }
+
+  duplicate() {
+    const duplicate = new BlocksContainer(this.bbox)
+    this.groundBlocks.level.forEach((v, i) => duplicate.groundBlocks.level[i] = v)
+    this.groundBlocks.type.forEach((v, i) => duplicate.groundBlocks.type[i] = v)
+    return duplicate
   }
 
   writeBlockAtIndex(
@@ -72,6 +80,26 @@ export class BlocksContainer {
     return this.extendedBox.getSize(new Vector3())
   }
 
+  get localExtendedBox() {
+    const bbox = new Box3(new Vector3(0), this.dimensions.clone()).expandByScalar(this.margin)
+    return bbox
+  }
+
+  adaptCustomBox(bbox: Box3, useLocalPos = false) {
+    const { patchSize } = BlocksPatch
+    const bmin = new Vector3(
+      Math.max(Math.floor(bbox.min.x), useLocalPos ? 0 : this.bbox.min.x),
+      0,
+      Math.max(Math.floor(bbox.min.z), useLocalPos ? 0 : this.bbox.min.z),
+    )
+    const bmax = new Vector3(
+      Math.min(Math.floor(bbox.max.x), useLocalPos ? patchSize : this.bbox.max.x),
+      0,
+      Math.min(Math.floor(bbox.max.z), useLocalPos ? patchSize : this.bbox.max.z),
+    )
+    return new Box3(bmin, bmax)
+  }
+
   getBlockIndex(localPos: Vector3) {
     return (localPos.x + this.margin) * this.extendedDims.x + localPos.z + this.margin
   }
@@ -80,7 +108,8 @@ export class BlocksContainer {
     return pos.clone().sub(this.bbox.min)
   }
 
-  getBlock(localPos: Vector3) {
+  getBlock(pos: Vector3, useLocalPos = true) {
+    const localPos = useLocalPos ? pos : this.getLocalPos(pos)
     let block
     if (
       localPos.x >= 0 &&
@@ -109,62 +138,28 @@ export class BlocksContainer {
     // bbox.max.y = Math.max(bbox.max.y, levelMax)
   }
 
-  *getBlocks(bbox: Box3, useLocalPos = false) {
-    const { patchSize } = BlocksPatch
-    const bmin = new Vector3(
-      Math.max(bbox.min.x, useLocalPos ? 0 : this.bbox.min.x),
-      0,
-      Math.max(bbox.min.z, useLocalPos ? 0 : this.bbox.min.z),
-    )
-    const bmax = new Vector3(
-      Math.min(bbox.max.x, useLocalPos ? patchSize : this.bbox.max.x),
-      0,
-      Math.min(bbox.max.z, useLocalPos ? patchSize : this.bbox.max.z),
-    )
+  *iterOverBlocks(customBox?: Box3, useLocalPos = false, skipMargin = true) {
+    const bbox = customBox ? this.adaptCustomBox(customBox, useLocalPos) :
+      useLocalPos ? this.localExtendedBox : this.extendedBox
 
-    for (let { x } = bmin; x < bmax.x; x++) {
-      for (let { z } = bmin; z < bmax.z; z++) {
-        const pos = new Vector3(x, 0, z)
-        const localPos = useLocalPos ? pos : this.getLocalPos(pos)
-        const index = this.getBlockIndex(localPos)
-        const type = this.groundBlocks.type[index] || BlockType.NONE
-        const level = this.groundBlocks.level[index] || 0
-        pos.y = level
-        localPos.y = level
-        const blockData: BlockData = {
-          pos,
-          localPos,
-          type,
-        }
-        yield blockData
-      }
-    }
-  }
-
-  *iterBlocks(useLocalCoords?: boolean, skipMargins = true) {
-    const bbox = useLocalCoords
-      ? new Box3(new Vector3(0), this.dimensions.clone())
-      : this.bbox.clone()
-    bbox.expandByScalar(this.margin)
+    const isMarginBlock = ({ x, z }: { x: number, z: number }) => !customBox && this.margin > 0
+      && (x === bbox.min.x || x === bbox.max.x - 1 || z === bbox.min.z || z === bbox.max.z - 1)
 
     let index = 0
-    const isMargin = (x: number, z: number) => this.margin > 0 && (x === bbox.min.x || x === bbox.max.x - 1 || z === bbox.min.z || z === bbox.max.z - 1)
-
-    for (let x = bbox.min.x; x < bbox.max.x; x++) {
-      for (let z = bbox.min.z; z < bbox.max.z; z++) {
-        if (!skipMargins || !isMargin(x, z)) {
-          const pos = new Vector3(x, 0, z)
-          // highlight patch edges
-          // blockType = x === bbox.min.x ? BlockType.MUD : blockType
-          // blockType = x === bbox.max.x - 1 ? BlockType.ROCK : blockType
-          // blockType = z === bbox.min.z ? BlockType.MUD : blockType
-          // blockType = z === bbox.max.z - 1 ? BlockType.ROCK : blockType
+    for (let { x } = bbox.min; x < bbox.max.x; x++) {
+      for (let { z } = bbox.min; z < bbox.max.z; z++) {
+        const pos = new Vector3(x, 0, z)
+        if (!skipMargin || !isMarginBlock(pos)) {
+          const localPos = useLocalPos ? pos : this.getLocalPos(pos)
+          index = customBox ? this.getBlockIndex(localPos) : index
           const type = this.groundBlocks.type[index] || BlockType.NONE
-          const level = this.groundBlocks?.level[index] || 0
+          const level = this.groundBlocks.level[index] || 0
           pos.y = level
-          const blockData = {
+          localPos.y = level
+          const blockData: BlockData = {
             index,
             pos,
+            localPos,
             type,
           }
           yield blockData
@@ -176,7 +171,7 @@ export class BlocksContainer {
 
   static fromStub(stub: BlocksContainer) {
     const { groundBlocks, entitiesChunks } = stub
-    const blocksContainer = new BlocksContainer(stub.bbox)
+    const blocksContainer = new BlocksContainer(parseThreeStub(stub.bbox))
     blocksContainer.groundBlocks = groundBlocks
     blocksContainer.entitiesChunks = entitiesChunks
     // patchStub.entitiesChunks?.forEach((entityChunk: EntityChunk) =>
@@ -201,6 +196,13 @@ export class BlocksPatch extends BlocksContainer {
     this.key = patchKey
     const patchCoords = BlocksPatch.parsePatchKey(patchKey)
     this.coords = new Vector2(patchCoords.x, patchCoords.z)
+  }
+
+  override duplicate() {
+    const duplicate = new BlocksPatch(this.key)
+    this.groundBlocks.level.forEach((v, i) => duplicate.groundBlocks.level[i] = v)
+    this.groundBlocks.type.forEach((v, i) => duplicate.groundBlocks.type[i] = v)
+    return duplicate
   }
 
   static override fromStub(patchStub: BlocksPatch) {
@@ -270,7 +272,7 @@ export class PatchContainer {
   constructor(bbox: Box3) {
     this.bbox = bbox
     const rangeMin = BlocksPatch.asPatchCoords(bbox.min)
-    const rangeMax = BlocksPatch.asPatchCoords(bbox.max)
+    const rangeMax = BlocksPatch.asPatchCoords(bbox.max).addScalar(1)
     this.patchRange = new Box3(asVect3(rangeMin), asVect3(rangeMax))
     this.init()
   }
@@ -301,13 +303,43 @@ export class PatchContainer {
     return Object.keys(this.patchLookup).length
   }
 
-  fillFromExistingContainer(otherContainer: PatchContainer) {
-    Object.keys(this.patchLookup)
-      .filter(patchKey => otherContainer.patchLookup[patchKey])
-      .forEach(patchKey => this.patchLookup[patchKey] = otherContainer.patchLookup[patchKey] as BlocksPatch)
+  get patchKeys() {
+    return Object.keys(this.patchLookup)
   }
 
-  diffWithOtherContainer(otherContainer: PatchContainer) {
+  // autoFill(fillingVal=0){
+  //   this.patchKeys.forEach(key=>this.patchLookup[key] = new BlocksPatch(key))
+  //   this.availablePatches.forEach(patch=>patch.iterOverBlocks)
+  // }
+
+  fillFromPatches(patches: BlocksPatch[], cloneObjects = false) {
+    const { min, max } = this.bbox
+    patches.filter(patch => this.patchLookup[patch.key] !== undefined)
+      .forEach(patch => {
+        this.patchLookup[patch.key] = cloneObjects ? patch.duplicate() : patch
+        min.y = Math.min(patch.bbox.min.y, min.y)
+        max.y = Math.max(patch.bbox.max.y, max.y)
+      })
+  }
+
+  mergeBlocks(blocksContainer: BlocksContainer) {
+    // for each patch override with blocks from blocks container
+    this.availablePatches.forEach(patch => {
+      const blocksIter = patch.iterOverBlocks(blocksContainer.bbox)
+      for (const target_block of blocksIter) {
+        const source_block = blocksContainer.getBlock(target_block.pos, false)
+        if (source_block && source_block.pos.y > 0 && target_block.index) {
+          let block_type = source_block.type ? BlockType.SAND : BlockType.NONE
+          block_type = source_block.type === BlockType.TREE_TRUNK ? BlockType.TREE_TRUNK : block_type
+          const block_level = blocksContainer.bbox.min.y//source_block?.pos.y
+          patch.writeBlockAtIndex(target_block.index, block_level, block_type)
+          // console.log(source_block?.pos.y)
+        }
+      }
+    })
+  }
+
+  diffWithPatchContainer(otherContainer: PatchContainer) {
     const patchKeysDiff: Record<string, boolean> = {}
     // added keys e.g. keys in current container but not found in other
     Object.keys(this.patchLookup)
@@ -319,5 +351,4 @@ export class PatchContainer {
       .forEach(patchKey => patchKeysDiff[patchKey] = false)
     return patchKeysDiff
   }
-
 }

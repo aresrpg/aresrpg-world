@@ -9,7 +9,7 @@ import {
   RepeatableEntitiesMap,
 } from '../procgen/EntitiesMap'
 
-import { BlocksContainer, BlocksPatch, EntityChunk } from './WorldData'
+import { BlocksContainer, BlocksPatch, EntityChunk } from '../data/Patches'
 
 export class WorldCompute {
   static pendingTask = false
@@ -103,7 +103,7 @@ export class WorldCompute {
       bbox: new Box3(),
       data: [],
     }
-    const blocksIter = patch.getBlocks(entity.bbox, true)
+    const blocksIter = patch.iterOverBlocks(entity.bbox, true)
     for (const block of blocksIter) {
       const blocksBuffer = EntitiesMap.fillBlockBuffer(block.pos, entity, [])
       patch.bbox.max.y = Math.max(
@@ -157,7 +157,7 @@ export class WorldCompute {
     // const prng = alea(patchId)
     // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
     // const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
-    const blocksPatchIter = blocksContainer.iterBlocks(false, false)
+    const blocksPatchIter = blocksContainer.iterOverBlocks(undefined, false, false)
     min.y = 512
     max.y = 0
     let blockIndex = 0

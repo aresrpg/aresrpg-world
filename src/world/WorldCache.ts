@@ -1,6 +1,4 @@
 import { Box3, Vector2, Vector3 } from 'three'
-import { asVect3 } from '../common/utils'
-
 import { BlockType } from '../index'
 
 import { WorldApi, WorldApiName } from './WorldApi'
@@ -11,7 +9,7 @@ import {
   EntityChunk,
   PatchContainer,
   PatchStub,
-} from './WorldData'
+} from '../data/Patches'
 
 /**
  * Blocks cache
@@ -62,6 +60,7 @@ export class WorldCache {
       }
       this.pendingRefresh = false
     }
+    return batchContent
   }
 
   /**
@@ -74,18 +73,22 @@ export class WorldCache {
     bbox: Box3,
     dryRun = false
   ) {
+    const changes: any = {
+      count: 0,
+      batch: []
+    }
     if (!this.pendingRefresh) {
       const patchContainer = new PatchContainer(bbox)
-      const patchDiff = patchContainer.diffWithOtherContainer(this.patchContainer)
+      const patchDiff = patchContainer.diffWithPatchContainer(this.patchContainer)
+      changes.count = Object.keys(patchDiff).length
       // (!cacheCenter.equals(this.cacheCenter) || cachePatchCount === 0)
-      if (Object.keys(patchDiff).length) {
-        patchContainer.fillFromExistingContainer(this.patchContainer)
+      if (changes.count) {
+        patchContainer.fillFromPatches(this.patchContainer.availablePatches)
         this.patchContainer = patchContainer
-        const batchContent = await this.populate(patchContainer, dryRun)
-        return batchContent
+        changes.batch = await this.populate(patchContainer, dryRun)
       }
     }
-    return []
+    return changes
   }
 
   static getPatch(inputPoint: Vector2 | Vector3) {
