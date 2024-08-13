@@ -111,7 +111,7 @@ export class EntitiesMap {
         new Array(count + treeRadius - Math.floor(treeSize * 0.4))
           .fill(BlockType.TREE_TRUNK)
           .forEach(item => treeBuffer.push(item))
-      } catch (error) {
+      } catch {
         // console.log(error)
       }
     }
