@@ -1,9 +1,10 @@
 import { Box3, MathUtils, Vector3 } from "three"
+import { ChunkId, WorldChunk } from "../common/types"
+import { getChunkBboxFromId, serializeChunkId } from "../common/utils"
 import {
   BlocksContainer,
   BlocksPatch,
   BlockType,
-  WorldUtils
 } from '../index'
 
 const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.SAND
@@ -19,7 +20,7 @@ const writeChunkBlocks = (
   chunkBbox: Box3,
   blockLocalPos: Vector3,
   groundType: BlockType,
-  bufferOver = [],
+  bufferOver: any[] = [],
 ) => {
   const chunk_size = Math.round(Math.pow(chunkData.length, 1 / 3))
 
@@ -92,9 +93,9 @@ const fillEntitiesData = (blocksContainer: BlocksContainer, chunkData: Uint16Arr
     for (const block of blocks_iter) {
       const bufferStr = entity_chunk.data[chunk_index]
       const buffer =
-        bufferStr.length > 0 &&
+        bufferStr &&
         bufferStr.split(',').map(char => parseInt(char))
-      if (buffer.length > 0) {
+      if (buffer && block.localPos) {
         block.buffer = buffer
         block.localPos.x += 1
         block.localPos.z += 1
@@ -113,25 +114,21 @@ const fillEntitiesData = (blocksContainer: BlocksContainer, chunkData: Uint16Arr
   return written_blocks_count
 }
 
-export const getChunkBbox = (chunk_id: Vector3) => {
-  const bmin = chunk_id.clone().multiplyScalar(BlocksPatch.patchSize)
-  const bmax = chunk_id.clone().addScalar(1).multiplyScalar(BlocksPatch.patchSize)
-  const chunkBbox = new Box3(bmin, bmax)
-  chunkBbox.expandByScalar(1)
-  return chunkBbox
+export function makeChunkFromId(blocksContainer: BlocksContainer, chunkId: ChunkId) {
+  const chunkBox = getChunkBboxFromId(chunkId, BlocksPatch.patchSize)
+  const chunk = makeChunkFromBox(blocksContainer, chunkBox)
+  const regularChunk: WorldChunk = {
+    key: serializeChunkId(chunkId),
+    data: chunk.data
+  }
+  return regularChunk
 }
 
-export function makeChunk(blocksContainer: BlocksContainer, chunk_id: Vector3) {
-  const chunkBox = getChunkBbox(chunk_id)
-  const final_chunk = makeCustomChunk(blocksContainer, chunkBox)
-  final_chunk.id = chunk_id
-  return final_chunk
-}
-
-export function makeCustomChunk(blocksContainer: BlocksContainer, chunkBox: Box3) {
-  const chunk_dims = chunkBox.getSize(new Vector3())
-  const chunkData = new Uint16Array(chunk_dims.x * chunk_dims.y * chunk_dims.z)
-  let total_written_blocks_count = 0
+export function makeChunkFromBox(blocksContainer: BlocksContainer, _chunkBox?: Box3) {
+  const chunkBox = _chunkBox || blocksContainer.bbox
+  const chunkDims = chunkBox.getSize(new Vector3())
+  const chunkData = new Uint16Array(chunkDims.x * chunkDims.y * chunkDims.z)
+  let totalWrittenBlocks = 0
   // const debug_mode = true
 
   // const is_edge = (row, col, h, patch_size) =>
@@ -151,13 +148,13 @@ export function makeCustomChunk(blocksContainer: BlocksContainer, chunkBox: Box3
   // multi-pass chunk filling
   if (blocksContainer) {
     // ground pass
-    total_written_blocks_count += fillGroundData(
+    totalWrittenBlocks += fillGroundData(
       blocksContainer,
       chunkData,
       chunkBox,
     )
     // overground entities pass
-    total_written_blocks_count += fillEntitiesData(
+    totalWrittenBlocks += fillEntitiesData(
       blocksContainer,
       chunkData,
       chunkBox,
@@ -166,22 +163,11 @@ export function makeCustomChunk(blocksContainer: BlocksContainer, chunkBox: Box3
   // const size = Math.round(Math.pow(chunk.data.length, 1 / 3))
   // const dimensions = new Vector3(size, size, size)
   const chunk = {
-    data: chunkData,
-    size: chunk_dims,
-    isEmpty: total_written_blocks_count === 0,
+    bbox: chunkBox,
+    data: totalWrittenBlocks ? chunkData : null,
+    // isEmpty: totalWrittenBlocks === 0,
   }
   return chunk
-}
-
-export function genChunkIds(patch: BlocksPatch, ymin: number, ymax: number) {
-  const chunk_ids = []
-  if (patch) {
-    for (let y = ymax; y >= ymin; y--) {
-      const chunk_coords = WorldUtils.asVect3(patch.coords, y)
-      chunk_ids.push(chunk_coords)
-    }
-  }
-  return chunk_ids
 }
 
 // const plateau_ground_pass = (blocksContainer, chunk) => {

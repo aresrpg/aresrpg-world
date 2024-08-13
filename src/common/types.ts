@@ -1,4 +1,4 @@
-import { Vector3 } from 'three'
+import { Vector2, Vector3 } from 'three'
 
 import { BiomeType, BlockType } from '../procgen/Biome'
 
@@ -106,4 +106,14 @@ export enum EntityType {
   NONE = '',
   TREE_APPLE = 'apple_tree',
   TREE_PINE = 'pine_tree',
+}
+
+export type PatchKey = string
+export type PatchId = Vector2
+export type ChunkKey = string
+export type ChunkId = Vector3
+
+export type WorldChunk = {
+  key: ChunkKey,
+  data: Uint16Array | null
 }

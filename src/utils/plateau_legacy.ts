@@ -2,8 +2,8 @@
 // import { voxelmapDataPacking, type IVoxelMap } from '../i-voxelmap';
 
 import { Box3, Vector3, Vector3Like } from 'three'
-import { ChunkTools, WorldApi, WorldApiName } from '../index'
-import { BlocksContainer } from '../data/Patches'
+import { ChunkTools } from '../index'
+import { BlocksContainer } from '../data/DataContainers'
 
 enum EPlateauSquareType {
     FLAT = 0,
@@ -101,12 +101,9 @@ async function computePlateau(
     const dataFromWorld = new Vector3().copy(originWorld).subScalar(dataMargin)
     const dataToWorld = new Vector3().copy(originWorld).addScalar(dataMargin)
     const dataBbox = new Box3(dataFromWorld, dataToWorld)
-    const containerStub = await WorldApi.instance.call(
-        WorldApiName.PatchCompute,
-        [dataBbox]//[patchKey],
-    )
+    const containerStub: any = null //await WorldCompute.instance.iterPatchCompute()
     const blocksContainer = BlocksContainer.fromStub(containerStub)
-    const chunk = ChunkTools.makeCustomChunk(blocksContainer, dataBbox)
+    const chunk = ChunkTools.makeChunkFromBox(blocksContainer, dataBbox)
     const data = chunk//await map.getLocalMapData(dataFromWorld, dataToWorld)
     const dataSize = dataToWorld.clone().sub(dataFromWorld)
 

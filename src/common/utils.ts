@@ -3,8 +3,11 @@ import { Box3, Vector2, Vector3, Vector3Like } from 'three'
 import {
   Adjacent2dPos,
   Adjacent3dPos,
+  ChunkId,
+  ChunkKey,
   MappingRange,
   MappingRanges,
+  PatchId,
 } from './types'
 
 // Clamp number between two values:
@@ -184,8 +187,12 @@ const bboxContainsPointXZ = (bbox: Box3, point: Vector3) => {
   )
 }
 
-const asVect3 = (vect2: Vector2, yVal = 0) => {
-  return new Vector3(vect2.x, yVal, vect2.y)
+const vect3ToVect2 = (v3: Vector3) => {
+  return new Vector2(v3.x, v3.z)
+}
+
+const vect2ToVect3 = (v2: Vector2, yVal = 0) => {
+  return new Vector3(v2.x, yVal, v2.y)
 }
 
 const parseVect3Stub = (stub: Vector3Like) => {
@@ -219,6 +226,36 @@ const parseThreeStub = (stub: any) => {
   return parseBox3Stub(stub) || parseVect3Stub(stub) || stub
 }
 
+const parseChunkKey = (chunkKey: ChunkKey) => {
+  const chunkId = new Vector3(
+    parseInt(chunkKey.split('_')[1] as string),
+    parseInt(chunkKey.split('_')[2] as string),
+    parseInt(chunkKey.split('_')[3] as string),
+  )
+  return chunkId
+}
+
+const serializeChunkId = (chunkId: Vector3) => {
+  return `chunk_${chunkId.x}_${chunkId.y}_${chunkId.z}`
+}
+
+function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
+  const chunk_ids = []
+  for (let y = ymax; y >= ymin; y--) {
+    const chunk_coords = vect2ToVect3(patchId, y)
+    chunk_ids.push(chunk_coords)
+  }
+  return chunk_ids
+}
+
+const getChunkBboxFromId = (chunkId: ChunkId, patchSize: number) => {
+  const bmin = chunkId.clone().multiplyScalar(patchSize)
+  const bmax = chunkId.clone().addScalar(1).multiplyScalar(patchSize)
+  const chunkBbox = new Box3(bmin, bmax)
+  chunkBbox.expandByScalar(1)
+  return chunkBbox
+}
+
 export {
   roundToDec,
   clamp,
@@ -232,5 +269,10 @@ export {
   bboxContainsPointXZ,
   getPatchPoints,
   parseThreeStub,
-  asVect3,
+  vect2ToVect3,
+  vect3ToVect2,
+  parseChunkKey,
+  serializeChunkId,
+  genChunkIds,
+  getChunkBboxFromId
 }
