@@ -12,6 +12,7 @@ export class CacheContainer extends PatchContainer {
   // eslint-disable-next-line no-use-before-define
   static singleton: CacheContainer
   pendingRefresh = false
+  builtInCache = false // specify whether cache is managed internally or separately
   static cachePowRadius = 2
   static cacheSize = BlocksPatch.patchSize * 5
   // static worldApi = new WorldApi()
@@ -45,7 +46,7 @@ export class CacheContainer extends PatchContainer {
    * @param dryRun
    * @returns true if cache was update, false otherwise
    */
-  async refresh(bbox: Box3, dryRun = false) {
+  async refresh(bbox: Box3) {
     let changesDiff
     if (!this.pendingRefresh) {
       const emptyContainer = new PatchContainer()
@@ -61,7 +62,7 @@ export class CacheContainer extends PatchContainer {
         super.init(bbox)
         // restore remaining patches backup
         this.populateFromExisting(backup)
-        !dryRun && (await this.populate(this.missingPatchKeys))
+        this.builtInCache && (await this.populate(this.missingPatchKeys))
       }
     }
     // return patch keys changes
