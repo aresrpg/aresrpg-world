@@ -8,16 +8,39 @@ import {
   EntityData,
   RepeatableEntitiesMap,
 } from '../procgen/EntitiesMap'
-
-import { BlockData, BlocksContainer, BlocksPatch, EntityChunk } from '../data/DataContainers'
+import {
+  BlockData,
+  BlocksContainer,
+  BlocksPatch,
+  EntityChunk,
+} from '../data/DataContainers'
 import { PatchKey } from '../common/types'
 
-
- export const computePatch = (patchKey: PatchKey) => {
+export const computePatch = (patchKey: PatchKey) => {
   const patch = new BlocksPatch(patchKey)
   genGroundBlocks(patch)
   genEntitiesBlocks(patch)
   return patch
+}
+
+export const computeBlocksBatch = (
+  blockPosBatch: Vector3[],
+  params = { includeEntitiesBlocks: true },
+) => {
+  const blocksBatch = blockPosBatch.map(({ x, z }) => {
+    const block_pos = new Vector3(x, 0, z)
+    const block = computeGroundBlock(block_pos)
+    if (params.includeEntitiesBlocks) {
+      const blocksBuffer = computeBlocksBuffer(block_pos)
+      const lastBlockIndex = blocksBuffer.findLastIndex(elt => elt)
+      if (lastBlockIndex >= 0) {
+        block.pos.y += lastBlockIndex
+        block.type = blocksBuffer[lastBlockIndex] as BlockType
+      }
+    }
+    return block
+  })
+  return blocksBatch
 }
 
 export const computeGroundBlock = (blockPos: Vector3) => {
@@ -60,11 +83,7 @@ export const computeBlocksBuffer = (blockPos: Vector3) => {
       entity.bbox.min.y = entityLevel
       entity.bbox.max.y = entityLevel + 10
       entity.type = entityType
-      blocksBuffer = EntitiesMap.fillBlockBuffer(
-        blockPos,
-        entity,
-        blocksBuffer,
-      )
+      blocksBuffer = EntitiesMap.fillBlockBuffer(blockPos, entity, blocksBuffer)
     }
   }
   return blocksBuffer
@@ -93,7 +112,9 @@ const buildEntityChunk = (patch: BlocksContainer, entity: EntityData) => {
 }
 
 const genEntitiesBlocks = (blocksContainer: BlocksContainer) => {
-  const entitiesIter = RepeatableEntitiesMap.instance.iterate(blocksContainer.bbox)
+  const entitiesIter = RepeatableEntitiesMap.instance.iterate(
+    blocksContainer.bbox,
+  )
   for (const entity of entitiesIter) {
     // use global coords in case entity center is from adjacent patch
     const entityPos = entity.bbox.getCenter(new Vector3())
@@ -121,7 +142,7 @@ const genEntitiesBlocks = (blocksContainer: BlocksContainer) => {
 }
 
 /**
- * Fill container with ground blocks 
+ * Fill container with ground blocks
  */
 const genGroundBlocks = (blocksContainer: BlocksContainer) => {
   const { min, max } = blocksContainer.bbox
@@ -129,7 +150,11 @@ const genGroundBlocks = (blocksContainer: BlocksContainer) => {
   // const prng = alea(patchId)
   // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
   // const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
-  const blocksPatchIter = blocksContainer.iterOverBlocks(undefined, false, false)
+  const blocksPatchIter = blocksContainer.iterOverBlocks(
+    undefined,
+    false,
+    false,
+  )
   min.y = 512
   max.y = 0
   let blockIndex = 0

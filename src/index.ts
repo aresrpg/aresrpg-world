@@ -1,7 +1,11 @@
 export { Heightmap } from './procgen/Heightmap'
 export { NoiseSampler } from './procgen/NoiseSampler'
 export { ProcLayer } from './procgen/ProcLayer'
-export { BlocksContainer, BlocksPatch, PatchContainer } from './data/DataContainers'
+export {
+  BlocksContainer,
+  BlocksPatch,
+  PatchContainer,
+} from './data/DataContainers'
 export { BoardContainer } from './data/BoardContainer'
 export { Biome, BlockType } from './procgen/Biome'
 export { EntitiesMap, RepeatableEntitiesMap } from './procgen/EntitiesMap'

@@ -114,6 +114,6 @@ export type ChunkKey = string
 export type ChunkId = Vector3
 
 export type WorldChunk = {
-  key: ChunkKey,
+  key: ChunkKey
   data: Uint16Array | null
 }
