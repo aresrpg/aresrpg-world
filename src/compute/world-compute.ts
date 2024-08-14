@@ -25,7 +25,7 @@ export const computePatch = (patchKey: PatchKey) => {
 
 export const computeBlocksBatch = (
   blockPosBatch: Vector3[],
-  params = { includeEntitiesBlocks: true },
+  params = { includeEntitiesBlocks: false },
 ) => {
   const blocksBatch = blockPosBatch.map(({ x, z }) => {
     const block_pos = new Vector3(x, 0, z)
