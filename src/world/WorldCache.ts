@@ -82,8 +82,8 @@ export class WorldCache {
       const { cachePowRadius } = this
       // const cachePatchCount = Object.keys(this.patchLookupIndex).length
       const range = Math.pow(2, cachePowRadius)
-      const origin = BlocksPatch.asPatchCoords(center)
-      const boxCenter = asVect3(origin).multiplyScalar(patchSize)
+      const origin = BlocksPatch.parsePatchKey(BlocksPatch.computePatchKey(center))
+      const boxCenter = origin.multiplyScalar(patchSize)
       const boxDims = new Vector3(range, 0, range).multiplyScalar(2 * patchSize)
       const bbox = new Box3().setFromCenterAndSize(boxCenter, boxDims)
       const patchContainer = new PatchContainer(bbox)
