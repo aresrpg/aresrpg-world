@@ -8,6 +8,7 @@ import {
   MappingRange,
   MappingRanges,
   PatchId,
+  PatchKey,
 } from './types'
 
 // Clamp number between two values:
@@ -223,7 +224,52 @@ const isVect3Stub = (stub: Vector3Like) => {
 }
 
 const parseThreeStub = (stub: any) => {
-  return parseBox3Stub(stub) || parseVect3Stub(stub) || stub
+  return stub ? parseBox3Stub(stub) || parseVect3Stub(stub) || stub : stub
+}
+
+const parsePatchKey = (patchKey: PatchKey) => {
+  const patchId = new Vector2(
+    parseInt(patchKey.split('_')[1] as string),
+    parseInt(patchKey.split('_')[2] as string),
+  )
+  return patchId
+}
+
+const convertPosToPatchId = (position: Vector3, patchSize: number) => {
+  const orig_x = Math.floor(position.x / patchSize)
+  const orig_z = Math.floor(position.z / patchSize)
+  const patchCoords = new Vector2(orig_x, orig_z)
+  return patchCoords
+}
+
+const computePatchKey = (
+  patchId: Box3 | Vector3 | Vector2,
+  patchSize: number,
+) => {
+  const inputCopy: Vector3 | Box3 =
+    patchId instanceof Vector2
+      ? new Vector3(patchId.x, 0, patchId.y)
+      : patchId.clone()
+  const point =
+    inputCopy instanceof Box3
+      ? (inputCopy as Box3).getCenter(new Vector3())
+      : (inputCopy as Vector3).clone()
+
+  const patchOrigin = convertPosToPatchId(point, patchSize)
+  const { x, y } = patchOrigin
+  const patchKey = `patch_${x}_${y}`
+  return patchKey
+}
+
+const getBboxFromPatchKey = (patchKey: string, patchSize: number) => {
+  const patchCoords = parsePatchKey(patchKey)
+  const bmin = vect2ToVect3(patchCoords.clone().multiplyScalar(patchSize))
+  const bmax = vect2ToVect3(
+    patchCoords.clone().addScalar(1).multiplyScalar(patchSize),
+  )
+  bmax.y = 512
+  const bbox = new Box3(bmin, bmax)
+  return bbox
 }
 
 const parseChunkKey = (chunkKey: ChunkKey) => {
@@ -248,7 +294,7 @@ function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
   return chunk_ids
 }
 
-const getChunkBboxFromId = (chunkId: ChunkId, patchSize: number) => {
+const getBboxFromChunkId = (chunkId: ChunkId, patchSize: number) => {
   const bmin = chunkId.clone().multiplyScalar(patchSize)
   const bmax = chunkId.clone().addScalar(1).multiplyScalar(patchSize)
   const chunkBbox = new Box3(bmin, bmax)
@@ -271,8 +317,12 @@ export {
   parseThreeStub,
   vect2ToVect3,
   vect3ToVect2,
+  parsePatchKey,
+  convertPosToPatchId,
+  computePatchKey,
+  getBboxFromPatchKey,
   parseChunkKey,
   serializeChunkId,
+  getBboxFromChunkId,
   genChunkIds,
-  getChunkBboxFromId
 }

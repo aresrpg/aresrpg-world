@@ -1,18 +1,16 @@
-import { Box3, MathUtils, Vector3 } from "three"
-import { ChunkId, WorldChunk } from "../common/types"
-import { getChunkBboxFromId, serializeChunkId } from "../common/utils"
-import {
-  BlocksContainer,
-  BlocksPatch,
-  BlockType,
-} from '../index'
+import { Box3, MathUtils, Vector3 } from 'three'
+
+import { ChunkId, WorldChunk } from '../common/types'
+import { getBboxFromChunkId, serializeChunkId } from '../common/utils'
+import { BlocksContainer, BlocksPatch, BlockType } from '../index'
 
 const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.SAND
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
-  return DBG_BORDERS_HIGHLIGHT_COLOR && (localPos.x === 1 || localPos.z === 1) ?
-    DBG_BORDERS_HIGHLIGHT_COLOR : blockType
+  return DBG_BORDERS_HIGHLIGHT_COLOR && (localPos.x === 1 || localPos.z === 1)
+    ? DBG_BORDERS_HIGHLIGHT_COLOR
+    : blockType
 }
 
 const writeChunkBlocks = (
@@ -59,7 +57,11 @@ const writeChunkBlocks = (
   return written_blocks_count
 }
 
-const fillGroundData = (blocksContainer: BlocksContainer, chunkData: Uint16Array, chunkBox: Box3) => {
+const fillGroundData = (
+  blocksContainer: BlocksContainer,
+  chunkData: Uint16Array,
+  chunkBox: Box3,
+) => {
   let written_blocks_count = 0
   const blocks_iter = blocksContainer.iterOverBlocks(undefined, true, false)
   for (const block of blocks_iter) {
@@ -67,7 +69,8 @@ const fillGroundData = (blocksContainer: BlocksContainer, chunkData: Uint16Array
     blockLocalPos.x += 1
     // blockLocalPos.y = patch.bbox.max.y
     blockLocalPos.z += 1
-    const blockType = highlightPatchBorders(blockLocalPos, block.type) || block.type
+    const blockType =
+      highlightPatchBorders(blockLocalPos, block.type) || block.type
     written_blocks_count += writeChunkBlocks(
       chunkData,
       chunkBox,
@@ -78,7 +81,11 @@ const fillGroundData = (blocksContainer: BlocksContainer, chunkData: Uint16Array
   return written_blocks_count
 }
 
-const fillEntitiesData = (blocksContainer: BlocksContainer, chunkData: Uint16Array, chunkBox: Box3) => {
+const fillEntitiesData = (
+  blocksContainer: BlocksContainer,
+  chunkData: Uint16Array,
+  chunkBox: Box3,
+) => {
   let written_blocks_count = 0
   // iter over container entities
   for (const entity_chunk of blocksContainer.entitiesChunks) {
@@ -93,8 +100,7 @@ const fillEntitiesData = (blocksContainer: BlocksContainer, chunkData: Uint16Arr
     for (const block of blocks_iter) {
       const bufferStr = entity_chunk.data[chunk_index]
       const buffer =
-        bufferStr &&
-        bufferStr.split(',').map(char => parseInt(char))
+        bufferStr && bufferStr.split(',').map(char => parseInt(char))
       if (buffer && block.localPos) {
         block.buffer = buffer
         block.localPos.x += 1
@@ -114,17 +120,23 @@ const fillEntitiesData = (blocksContainer: BlocksContainer, chunkData: Uint16Arr
   return written_blocks_count
 }
 
-export function makeChunkFromId(blocksContainer: BlocksContainer, chunkId: ChunkId) {
-  const chunkBox = getChunkBboxFromId(chunkId, BlocksPatch.patchSize)
+export function makeChunkFromId(
+  blocksContainer: BlocksContainer,
+  chunkId: ChunkId,
+) {
+  const chunkBox = getBboxFromChunkId(chunkId, BlocksPatch.patchSize)
   const chunk = makeChunkFromBox(blocksContainer, chunkBox)
   const regularChunk: WorldChunk = {
     key: serializeChunkId(chunkId),
-    data: chunk.data
+    data: chunk.data,
   }
   return regularChunk
 }
 
-export function makeChunkFromBox(blocksContainer: BlocksContainer, _chunkBox?: Box3) {
+export function makeChunkFromBox(
+  blocksContainer: BlocksContainer,
+  _chunkBox?: Box3,
+) {
   const chunkBox = _chunkBox || blocksContainer.bbox
   const chunkDims = chunkBox.getSize(new Vector3())
   const chunkData = new Uint16Array(chunkDims.x * chunkDims.y * chunkDims.z)
@@ -148,17 +160,9 @@ export function makeChunkFromBox(blocksContainer: BlocksContainer, _chunkBox?: B
   // multi-pass chunk filling
   if (blocksContainer) {
     // ground pass
-    totalWrittenBlocks += fillGroundData(
-      blocksContainer,
-      chunkData,
-      chunkBox,
-    )
+    totalWrittenBlocks += fillGroundData(blocksContainer, chunkData, chunkBox)
     // overground entities pass
-    totalWrittenBlocks += fillEntitiesData(
-      blocksContainer,
-      chunkData,
-      chunkBox,
-    )
+    totalWrittenBlocks += fillEntitiesData(blocksContainer, chunkData, chunkBox)
   }
   // const size = Math.round(Math.pow(chunk.data.length, 1 / 3))
   // const dimensions = new Vector3(size, size, size)

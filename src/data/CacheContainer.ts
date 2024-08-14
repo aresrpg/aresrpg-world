@@ -1,17 +1,15 @@
 import { Box3, Vector3 } from 'three'
+
 import { PatchKey } from '../common/types'
 import { WorldComputeApi } from '../index'
 
-import {
-  BlocksPatch,
-  EntityChunk,
-  PatchContainer,
-} from './DataContainers'
+import { BlocksPatch, EntityChunk, PatchContainer } from './DataContainers'
 
 /**
  * Blocks cache
  */
 export class CacheContainer extends PatchContainer {
+  // eslint-disable-next-line no-use-before-define
   static singleton: CacheContainer
   pendingRefresh = false
   static cachePowRadius = 2
@@ -42,38 +40,32 @@ export class CacheContainer extends PatchContainer {
   }
 
   /**
-   * 
-   * @param center 
-   * @param dryRun 
+   *
+   * @param center
+   * @param dryRun
    * @returns true if cache was update, false otherwise
    */
-  async refresh(
-    bbox: Box3,
-    dryRun = false
-  ) {
-    const changes: any = {
-      count: 0,
-      batch: []
-    }
+  async refresh(bbox: Box3, dryRun = false) {
+    let changesDiff
     if (!this.pendingRefresh) {
       const emptyContainer = new PatchContainer()
       emptyContainer.init(bbox)
-      const diff = emptyContainer.diffWithPatchContainer(CacheContainer.instance)
-      changes.count = Object.keys(diff).length
+      changesDiff = emptyContainer.compareWith(CacheContainer.instance)
+      const hasChanged = Object.keys(changesDiff).length > 0
 
       // (!cacheCenter.equals(this.cacheCenter) || cachePatchCount === 0)
-      if (changes.count) {
+      if (hasChanged) {
         // backup patches that will remain in cache
         const backup = this.availablePatches.filter(patch => patch)
         // reinit cache
         super.init(bbox)
         // restore remaining patches backup
         this.populateFromExisting(backup)
-        // return patch keys needing to be retrieved
-        changes.batch = dryRun ? this.missingPatchKeys : await this.populate(this.missingPatchKeys)
+        !dryRun && (await this.populate(this.missingPatchKeys))
       }
     }
-    return changes
+    // return patch keys changes
+    return changesDiff
   }
 
   getPatches(inputBbox: Box3) {

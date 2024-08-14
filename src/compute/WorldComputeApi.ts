@@ -1,7 +1,8 @@
-import { Vector3 } from "three"
-import { PatchKey } from "../common/types"
-import { BlockData, BlocksPatch } from "../data/DataContainers"
-import { BlockType, WorldCompute } from "../index"
+import { Vector3 } from 'three'
+
+import { PatchKey } from '../common/types'
+import { BlockData, BlocksPatch } from '../data/DataContainers'
+import { WorldCompute } from '../index'
 
 export enum ComputeApiCall {
   PatchCompute = 'computePatch',
@@ -11,9 +12,16 @@ export enum ComputeApiCall {
 }
 
 interface ComputeApiInterface {
-  computeBlocksBatch(blockPosBatch: Vector3[], params?: any): BlockData[] | Promise<BlockData[]>
+  computeBlocksBatch(
+    blockPosBatch: Vector3[],
+    params?: any,
+  ): BlockData[] | Promise<BlockData[]>
   // computePatch(patchKey: PatchKey): BlocksPatch | Promise<BlocksPatch>
-  iterPatchCompute(patchKeysBatch: PatchKey[]): Generator<BlocksPatch, void, unknown> | AsyncGenerator<BlocksPatch, void, unknown>
+  iterPatchCompute(
+    patchKeysBatch: PatchKey[],
+  ):
+    | Generator<BlocksPatch, void, unknown>
+    | AsyncGenerator<BlocksPatch, void, unknown>
 }
 
 export class WorldComputeApi implements ComputeApiInterface {
@@ -29,25 +37,16 @@ export class WorldComputeApi implements ComputeApiInterface {
     return this.singleton
   }
 
-  static set worker(worker: Worker) {
+  // eslint-disable-next-line no-undef
+  static useWorker(worker: Worker) {
     this.singleton = new WorldComputeProxy(worker)
   }
 
-  computeBlocksBatch(blockPosBatch: Vector3[], params = { includeEntitiesBlocks: true }) {
-    const blocksBatch = blockPosBatch.map(({ x, z }) => {
-      const block_pos = new Vector3(x, 0, z)
-      const block = WorldCompute.computeGroundBlock(block_pos)
-      if (params.includeEntitiesBlocks) {
-        const blocksBuffer = WorldCompute.computeBlocksBuffer(block_pos)
-        const lastBlockIndex = blocksBuffer.findLastIndex(elt => elt)
-        if (lastBlockIndex >= 0) {
-          block.pos.y += lastBlockIndex
-          block.type = blocksBuffer[lastBlockIndex] as BlockType
-        }
-      }
-      return block
-    })
-    return blocksBatch
+  computeBlocksBatch(
+    blockPosBatch: Vector3[],
+    params = { includeEntitiesBlocks: true },
+  ) {
+    return WorldCompute.computeBlocksBatch(blockPosBatch, params)
   }
 
   *iterPatchCompute(patchKeysBatch: PatchKey[]) {
@@ -62,6 +61,7 @@ export class WorldComputeApi implements ComputeApiInterface {
  * Proxying requests to worker instead of internal world compute
  */
 export class WorldComputeProxy implements ComputeApiInterface {
+  // eslint-disable-next-line no-undef
   worker: Worker
   count = 0
   resolvers: Record<number, any> = {}
@@ -114,7 +114,7 @@ export class WorldComputeProxy implements ComputeApiInterface {
       // const emptyPatch = new BlocksPatch(patchKey)
       const patchStub = await this.workerCall(
         ComputeApiCall.PatchCompute,
-        [patchKey] //[emptyPatch.bbox]
+        [patchKey], // [emptyPatch.bbox]
       )
       const patch = BlocksPatch.fromStub(patchStub)
       yield patch
