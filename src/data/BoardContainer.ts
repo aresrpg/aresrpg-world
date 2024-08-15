@@ -1,6 +1,7 @@
 import { Vector3 } from 'three'
 
 import { vect3ToVect2 } from '../common/utils'
+import { BlockType } from '../index'
 
 import { PatchContainer } from './DataContainers'
 
@@ -14,7 +15,7 @@ export class BoardContainer extends PatchContainer {
     this.boardCenter = vect3ToVect2(center).floor()
     const board_dims = new Vector3(radius, 0, radius).multiplyScalar(2)
     this.bbox.setFromCenterAndSize(center.clone().floor(), board_dims)
-    this.init(this.bbox)
+    this.initFromBoxAndMask(this.bbox)
   }
 
   getMinMax() {
@@ -47,7 +48,7 @@ export class BoardContainer extends PatchContainer {
         const dist = vect3ToVect2(block.pos).distanceTo(boardCenter)
         const y_diff = Math.abs(block.pos.y - avg)
         if (dist <= boardRadius && y_diff <= 5 && block.index !== undefined) {
-          patch.writeBlockAtIndex(block.index, avg, block.type)
+          patch.writeBlockAtIndex(block.index, block.pos.y, BlockType.MUD)
         }
       }
     })

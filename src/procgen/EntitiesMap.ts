@@ -3,8 +3,7 @@ import alea from 'alea'
 import { Box3, Vector2, Vector3 } from 'three'
 
 import { TreeGenerators } from '../tools/TreeGenerator'
-import { EntityType } from '../index'
-import { BlocksPatch } from '../data/DataContainers'
+import { EntityType, WorldConfig } from '../index'
 
 import { ProcLayer } from './ProcLayer'
 import { BlockType } from './Biome'
@@ -158,7 +157,7 @@ export class RepeatableEntitiesMap extends EntitiesMap {
   period
   constructor() {
     super()
-    this.period = BlocksPatch.patchSize * 2
+    this.period = WorldConfig.patchSize * 2
   }
 
   // one time init of repeatable pattern

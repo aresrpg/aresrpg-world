@@ -12,6 +12,7 @@ import {
   BlockData,
   BlocksContainer,
   BlocksPatch,
+  BlockStub,
   EntityChunk,
 } from '../data/DataContainers'
 import { PatchKey } from '../common/types'
@@ -28,15 +29,19 @@ export const computeBlocksBatch = (
   params = { includeEntitiesBlocks: false },
 ) => {
   const blocksBatch = blockPosBatch.map(({ x, z }) => {
-    const block_pos = new Vector3(x, 0, z)
-    const block = computeGroundBlock(block_pos)
+    const blockPos = new Vector3(x, 0, z)
+    const blockStub = computeGroundBlock(blockPos)
     if (params.includeEntitiesBlocks) {
-      const blocksBuffer = computeBlocksBuffer(block_pos)
+      const blocksBuffer = computeBlocksBuffer(blockPos)
       const lastBlockIndex = blocksBuffer.findLastIndex(elt => elt)
       if (lastBlockIndex >= 0) {
-        block.pos.y += lastBlockIndex
-        block.type = blocksBuffer[lastBlockIndex] as BlockType
+        blockStub.level += lastBlockIndex
+        blockStub.type = blocksBuffer[lastBlockIndex] as BlockType
       }
+    }
+    const block: BlockData = {
+      pos: blockPos,
+      type: blockStub.type
     }
     return block
   })
@@ -61,9 +66,7 @@ export const computeGroundBlock = (blockPos: Vector3) => {
 
   // }
   // level += offset
-  const pos = blockPos.clone()
-  pos.y = level
-  const block: BlockData = { pos, type }
+  const block: BlockStub = { level, type }
   return block
 }
 
@@ -162,11 +165,11 @@ const genGroundBlocks = (blocksContainer: BlocksContainer) => {
   for (const blockData of blocksPatchIter) {
     const blockPos = blockData.pos
     // const patchCorner = points.find(pt => pt.distanceTo(blockData.pos) < 2)
-    const block = computeGroundBlock(blockPos)
-    min.y = Math.min(min.y, block.pos.y)
-    max.y = Math.max(max.y, block.pos.y)
+    const blockRes = computeGroundBlock(blockPos)
+    min.y = Math.min(min.y, blockRes.level)
+    max.y = Math.max(max.y, blockRes.level)
     // blocksContainer.writeBlockAtIndex(blockIndex, block.level, block.type)
-    blocksContainer.writeBlockAtIndex(blockIndex, block.pos.y, block.type)
+    blocksContainer.writeBlockAtIndex(blockIndex, blockRes.level, blockRes.type)
     blockIndex++
   }
   blocksContainer.bbox.min = min

@@ -2,7 +2,7 @@ import { Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
 import { BlockData, BlocksPatch } from '../data/DataContainers'
-import { WorldCompute } from '../index'
+import { WorldCompute, WorldUtils } from '../index'
 
 export enum ComputeApiCall {
   PatchCompute = 'computePatch',
@@ -106,7 +106,11 @@ export class WorldComputeProxy implements ComputeApiInterface {
       ComputeApiCall.BlocksBatchCompute,
       [blockPosBatch, params],
     )
-    return blockStubs as BlockData[]
+    const blocks = blockStubs.map((blockStub: BlockData) => {
+      blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
+      return blockStub
+    })
+    return blocks as BlockData[]
   }
 
   async *iterPatchCompute(patchKeysBatch: PatchKey[]) {

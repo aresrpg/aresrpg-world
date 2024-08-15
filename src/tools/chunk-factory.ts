@@ -2,7 +2,7 @@ import { Box3, MathUtils, Vector3 } from 'three'
 
 import { ChunkId, WorldChunk } from '../common/types'
 import { getBboxFromChunkId, serializeChunkId } from '../common/utils'
-import { BlocksContainer, BlocksPatch, BlockType } from '../index'
+import { BlocksContainer, BlockType, WorldConfig } from '../index'
 
 const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.SAND
 
@@ -124,7 +124,7 @@ export function makeChunkFromId(
   blocksContainer: BlocksContainer,
   chunkId: ChunkId,
 ) {
-  const chunkBox = getBboxFromChunkId(chunkId, BlocksPatch.patchSize)
+  const chunkBox = getBboxFromChunkId(chunkId, WorldConfig.patchSize)
   const chunk = makeChunkFromBox(blocksContainer, chunkBox)
   const regularChunk: WorldChunk = {
     key: serializeChunkId(chunkId),
