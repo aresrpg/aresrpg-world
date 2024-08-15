@@ -39,6 +39,7 @@ export const computeBlocksBatch = (
         blockStub.type = blocksBuffer[lastBlockIndex] as BlockType
       }
     }
+    blockPos.y = blockStub.level
     const block: BlockData = {
       pos: blockPos,
       type: blockStub.type
