@@ -1,4 +1,5 @@
 import { Box3, Vector2, Vector3, Vector3Like } from 'three'
+import { WorldConfig } from '../config/WorldConfig'
 
 import {
   Adjacent2dPos,
@@ -18,6 +19,15 @@ const clamp = (num: number, min: number, max: number) =>
 const roundToDec = (val: number, n_pow: number) => {
   const num = Math.pow(10, n_pow)
   return Math.round(val * num) / num
+}
+
+const vectRoundToDec = (input: Vector2 | Vector3, n_pow: number) => {
+  let { x, y } = input
+  x = roundToDec(x, n_pow)
+  y = roundToDec(y, n_pow)
+  const output = input instanceof Vector3 ? new Vector3(x, y, roundToDec(input.z, n_pow)) :
+    new Vector2(x, y)
+  return output
 }
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
@@ -229,13 +239,13 @@ const parseThreeStub = (stub: any) => {
 
 const parsePatchKey = (patchKey: PatchKey) => {
   const patchId = new Vector2(
-    parseInt(patchKey.split('_')[1] as string),
-    parseInt(patchKey.split('_')[2] as string),
+    parseInt(patchKey.split(':')[0] as string),
+    parseInt(patchKey.split(':')[1] as string),
   )
   return patchId
 }
 
-const convertPosToPatchId = (position: Vector3, patchSize: number) => {
+const convertPosToPatchId = (position: Vector3, patchSize: number = WorldConfig.patchSize) => {
   const orig_x = Math.floor(position.x / patchSize)
   const orig_z = Math.floor(position.z / patchSize)
   const patchCoords = new Vector2(orig_x, orig_z)
@@ -244,7 +254,7 @@ const convertPosToPatchId = (position: Vector3, patchSize: number) => {
 
 const computePatchKey = (
   patchId: Box3 | Vector3 | Vector2,
-  patchSize: number,
+  patchSize: number = WorldConfig.patchSize,
 ) => {
   const inputCopy: Vector3 | Box3 =
     patchId instanceof Vector2
@@ -257,11 +267,11 @@ const computePatchKey = (
 
   const patchOrigin = convertPosToPatchId(point, patchSize)
   const { x, y } = patchOrigin
-  const patchKey = `patch_${x}_${y}`
+  const patchKey = `${x}:${y}`
   return patchKey
 }
 
-const getBboxFromPatchKey = (patchKey: string, patchSize: number) => {
+const getBboxFromPatchKey = (patchKey: string, patchSize: number = WorldConfig.patchSize) => {
   const patchCoords = parsePatchKey(patchKey)
   const bmin = vect2ToVect3(patchCoords.clone().multiplyScalar(patchSize))
   const bmax = vect2ToVect3(
@@ -294,7 +304,7 @@ function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
   return chunk_ids
 }
 
-const getBboxFromChunkId = (chunkId: ChunkId, patchSize: number) => {
+const getBboxFromChunkId = (chunkId: ChunkId, patchSize: number = WorldConfig.patchSize) => {
   const bmin = chunkId.clone().multiplyScalar(patchSize)
   const bmax = chunkId.clone().addScalar(1).multiplyScalar(patchSize)
   const chunkBbox = new Box3(bmin, bmax)
@@ -304,6 +314,7 @@ const getBboxFromChunkId = (chunkId: ChunkId, patchSize: number) => {
 
 export {
   roundToDec,
+  vectRoundToDec,
   clamp,
   findMatchingRange,
   interpolatePoints,

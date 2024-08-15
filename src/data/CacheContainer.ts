@@ -1,6 +1,7 @@
 import { Box3, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
+import { WorldConfig } from '../config/WorldConfig'
 import { WorldComputeApi } from '../index'
 
 import { BlocksPatch, EntityChunk, PatchContainer } from './DataContainers'
@@ -14,7 +15,7 @@ export class CacheContainer extends PatchContainer {
   pendingRefresh = false
   builtInCache = false // specify whether cache is managed internally or separately
   static cachePowRadius = 2
-  static cacheSize = BlocksPatch.patchSize * 5
+  static cacheSize = WorldConfig.patchSize * 5
   // static worldApi = new WorldApi()
 
   // groundBlocks: Uint16Array = new Uint16Array(Math.pow(PatchBase.patchSize, 2))
@@ -46,11 +47,11 @@ export class CacheContainer extends PatchContainer {
    * @param dryRun
    * @returns true if cache was update, false otherwise
    */
-  async refresh(bbox: Box3) {
+  async refresh(bbox: Box3){//, patchMask = () => true) {
     let changesDiff
     if (!this.pendingRefresh) {
       const emptyContainer = new PatchContainer()
-      emptyContainer.init(bbox)
+      emptyContainer.initFromBoxAndMask(bbox)
       changesDiff = emptyContainer.compareWith(CacheContainer.instance)
       const hasChanged = Object.keys(changesDiff).length > 0
 
@@ -59,7 +60,7 @@ export class CacheContainer extends PatchContainer {
         // backup patches that will remain in cache
         const backup = this.availablePatches.filter(patch => patch)
         // reinit cache
-        super.init(bbox)
+        super.initFromBoxAndMask(bbox)
         // restore remaining patches backup
         this.populateFromExisting(backup)
         this.builtInCache && (await this.populate(this.missingPatchKeys))

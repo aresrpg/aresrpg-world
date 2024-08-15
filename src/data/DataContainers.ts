@@ -10,8 +10,9 @@ import {
   parseThreeStub,
   vect2ToVect3,
 } from '../common/utils'
-import { ChunkTools } from '../index'
 import { BlockType } from '../procgen/Biome'
+import { WorldConfig } from '../config/WorldConfig'
+import { ChunkFactory } from '../index'
 
 export type BlockData = {
   pos: Vector3
@@ -107,7 +108,7 @@ export class BlocksContainer {
   }
 
   adaptCustomBox(bbox: Box3, useLocalPos = false) {
-    const { patchSize } = BlocksPatch
+    const { patchSize } = WorldConfig
     const bmin = new Vector3(
       Math.max(Math.floor(bbox.min.x), useLocalPos ? 0 : this.bbox.min.x),
       0,
@@ -218,7 +219,7 @@ export class BlocksContainer {
   }
 
   toChunk() {
-    return ChunkTools.makeChunkFromBox(this, this.bbox)
+    return ChunkFactory.makeChunkFromBox(this, this.bbox)
   }
 
   static fromStub(stub: any) {
@@ -237,18 +238,13 @@ export class BlocksContainer {
  * Patch
  */
 export class BlocksPatch extends BlocksContainer {
-  // eslint-disable-next-line no-use-before-define
-  // static cache: BlocksPatch[] = []
-  static patchSize = Math.pow(2, 6)
-  static bbox = new Box3()
-
-  coords: Vector2
+  id: Vector2
   key: string
 
   constructor(patchKey: string) {
-    super(getBboxFromPatchKey(patchKey, BlocksPatch.patchSize)) // .expandByScalar(1))
+    super(getBboxFromPatchKey(patchKey)) // .expandByScalar(1))
     this.key = patchKey
-    this.coords = parsePatchKey(patchKey)
+    this.id = parsePatchKey(patchKey)
   }
 
   override duplicate() {
@@ -266,7 +262,7 @@ export class BlocksPatch extends BlocksContainer {
     const { groundBlocks, entitiesChunks } = patchStub
     const bbox = parseThreeStub(patchStub.bbox)
     const patchKey =
-      patchStub.key || computePatchKey(bbox, BlocksPatch.patchSize)
+      patchStub.key || computePatchKey(bbox)
     const patch = new BlocksPatch(patchKey)
     patch.groundBlocks = groundBlocks
     patch.entitiesChunks = entitiesChunks
@@ -279,9 +275,9 @@ export class BlocksPatch extends BlocksContainer {
   }
 
   toChunks(yMin: number, yMax: number) {
-    const chunkIds = genChunkIds(this.coords, yMin, yMax)
+    const chunkIds = genChunkIds(this.id, yMin, yMax)
     const chunks = chunkIds.map(chunkId =>
-      ChunkTools.makeChunkFromId(this, chunkId),
+      ChunkFactory.makeChunkFromId(this, chunkId),
     )
     return chunks
   }
@@ -292,9 +288,8 @@ export class PatchContainer {
   patchLookup: Record<string, BlocksPatch | null> = {}
 
   get patchIdsRange() {
-    const { patchSize } = BlocksPatch
-    const rangeMin = convertPosToPatchId(this.bbox.min, patchSize)
-    const rangeMax = convertPosToPatchId(this.bbox.max, patchSize).addScalar(1)
+    const rangeMin = convertPosToPatchId(this.bbox.min)
+    const rangeMax = convertPosToPatchId(this.bbox.max).addScalar(1)
     const patchIdsRange = new Box3(
       vect2ToVect3(rangeMin),
       vect2ToVect3(rangeMax),
@@ -302,7 +297,7 @@ export class PatchContainer {
     return patchIdsRange
   }
 
-  init(bbox: Box3) {
+  initFromBoxAndMask(bbox: Box3, patchBboxMask = (patchBbox: Box3) => patchBbox) {
     this.bbox = bbox
     this.patchLookup = {}
     // const halfDimensions = this.bbox.getSize(new Vector3()).divideScalar(2)
@@ -312,8 +307,11 @@ export class PatchContainer {
     const { min, max } = this.patchIdsRange
     for (let { x } = min; x < max.x; x++) {
       for (let { z } = min; z < max.z; z++) {
-        const patchKey = 'patch_' + x + '_' + z
-        this.patchLookup[patchKey] = null
+        const patchKey = `${x}:${z}`
+        const patchBox = getBboxFromPatchKey(patchKey)
+        if (patchBboxMask(patchBox)) {
+          this.patchLookup[patchKey] = null
+        }
       }
     }
   }
