@@ -47,7 +47,8 @@ export class CacheContainer extends PatchContainer {
    * @param dryRun
    * @returns true if cache was update, false otherwise
    */
-  async refresh(bbox: Box3){//, patchMask = () => true) {
+  async refresh(bbox: Box3) {
+    //, patchMask = () => true) {
     let changesDiff
     if (!this.pendingRefresh) {
       const emptyContainer = new PatchContainer()

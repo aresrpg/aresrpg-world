@@ -2,13 +2,12 @@ import { Box3, Vector2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
 import {
+  asVect3,
   computePatchKey,
   convertPosToPatchId,
-  genChunkIds,
   getBboxFromPatchKey,
   parsePatchKey,
   parseThreeStub,
-  vect2ToVect3,
 } from '../common/utils'
 import { BlockType } from '../procgen/Biome'
 import { WorldConfig } from '../config/WorldConfig'
@@ -219,7 +218,7 @@ export class BlocksContainer {
   }
 
   toChunk() {
-    return ChunkFactory.makeChunkFromBox(this, this.bbox)
+    return ChunkFactory.default.makeChunkFromBox(this, this.bbox)
   }
 
   static fromStub(stub: any) {
@@ -261,8 +260,7 @@ export class BlocksPatch extends BlocksContainer {
   static override fromStub(patchStub: any) {
     const { groundBlocks, entitiesChunks } = patchStub
     const bbox = parseThreeStub(patchStub.bbox)
-    const patchKey =
-      patchStub.key || computePatchKey(bbox)
+    const patchKey = patchStub.key || computePatchKey(bbox)
     const patch = new BlocksPatch(patchKey)
     patch.groundBlocks = groundBlocks
     patch.entitiesChunks = entitiesChunks
@@ -274,12 +272,8 @@ export class BlocksPatch extends BlocksContainer {
     return patch
   }
 
-  toChunks(yMin: number, yMax: number) {
-    const chunkIds = genChunkIds(this.id, yMin, yMax)
-    const chunks = chunkIds.map(chunkId =>
-      ChunkFactory.makeChunkFromId(this, chunkId),
-    )
-    return chunks
+  toChunks() {
+    return ChunkFactory.default.genChunksFromPatch(this)
   }
 }
 
@@ -290,14 +284,14 @@ export class PatchContainer {
   get patchIdsRange() {
     const rangeMin = convertPosToPatchId(this.bbox.min)
     const rangeMax = convertPosToPatchId(this.bbox.max).addScalar(1)
-    const patchIdsRange = new Box3(
-      vect2ToVect3(rangeMin),
-      vect2ToVect3(rangeMax),
-    )
+    const patchIdsRange = new Box3(asVect3(rangeMin), asVect3(rangeMax))
     return patchIdsRange
   }
 
-  initFromBoxAndMask(bbox: Box3, patchBboxMask = (patchBbox: Box3) => patchBbox) {
+  initFromBoxAndMask(
+    bbox: Box3,
+    patchBboxMask = (patchBbox: Box3) => patchBbox,
+  ) {
     this.bbox = bbox
     this.patchLookup = {}
     // const halfDimensions = this.bbox.getSize(new Vector3()).divideScalar(2)
@@ -383,11 +377,11 @@ export class PatchContainer {
     return patchKeysDiff
   }
 
-  toChunks(yMin: number, yMax: number) {
-    const chunksExport = this.availablePatches
-      .map(patch => patch.toChunks(yMin, yMax))
+  toChunks() {
+    const exportedChunks = this.availablePatches
+      .map(patch => patch.toChunks())
       .flat()
-    return chunksExport
+    return exportedChunks
   }
 
   findPatch(blockPos: Vector3) {
