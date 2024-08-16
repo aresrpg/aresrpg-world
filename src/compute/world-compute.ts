@@ -42,7 +42,7 @@ export const computeBlocksBatch = (
     blockPos.y = blockStub.level
     const block: BlockData = {
       pos: blockPos,
-      type: blockStub.type
+      type: blockStub.type,
     }
     return block
   })

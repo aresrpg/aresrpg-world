@@ -1,4 +1,5 @@
 import { Box3, Vector2, Vector3, Vector3Like } from 'three'
+
 import { WorldConfig } from '../config/WorldConfig'
 
 import {
@@ -25,8 +26,10 @@ const vectRoundToDec = (input: Vector2 | Vector3, n_pow: number) => {
   let { x, y } = input
   x = roundToDec(x, n_pow)
   y = roundToDec(y, n_pow)
-  const output = input instanceof Vector3 ? new Vector3(x, y, roundToDec(input.z, n_pow)) :
-    new Vector2(x, y)
+  const output =
+    input instanceof Vector3
+      ? new Vector3(x, y, roundToDec(input.z, n_pow))
+      : new Vector2(x, y)
   return output
 }
 
@@ -198,11 +201,11 @@ const bboxContainsPointXZ = (bbox: Box3, point: Vector3) => {
   )
 }
 
-const vect3ToVect2 = (v3: Vector3) => {
+const asVect2 = (v3: Vector3) => {
   return new Vector2(v3.x, v3.z)
 }
 
-const vect2ToVect3 = (v2: Vector2, yVal = 0) => {
+const asVect3 = (v2: Vector2, yVal = 0) => {
   return new Vector3(v2.x, yVal, v2.y)
 }
 
@@ -245,7 +248,10 @@ const parsePatchKey = (patchKey: PatchKey) => {
   return patchId
 }
 
-const convertPosToPatchId = (position: Vector3, patchSize: number = WorldConfig.patchSize) => {
+const convertPosToPatchId = (
+  position: Vector3,
+  patchSize: number = WorldConfig.patchSize,
+) => {
   const orig_x = Math.floor(position.x / patchSize)
   const orig_z = Math.floor(position.z / patchSize)
   const patchCoords = new Vector2(orig_x, orig_z)
@@ -271,10 +277,13 @@ const computePatchKey = (
   return patchKey
 }
 
-const getBboxFromPatchKey = (patchKey: string, patchSize: number = WorldConfig.patchSize) => {
+const getBboxFromPatchKey = (
+  patchKey: string,
+  patchSize: number = WorldConfig.patchSize,
+) => {
   const patchCoords = parsePatchKey(patchKey)
-  const bmin = vect2ToVect3(patchCoords.clone().multiplyScalar(patchSize))
-  const bmax = vect2ToVect3(
+  const bmin = asVect3(patchCoords.clone().multiplyScalar(patchSize))
+  const bmax = asVect3(
     patchCoords.clone().addScalar(1).multiplyScalar(patchSize),
   )
   bmax.y = 512
@@ -298,13 +307,16 @@ const serializeChunkId = (chunkId: Vector3) => {
 function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
   const chunk_ids = []
   for (let y = ymax; y >= ymin; y--) {
-    const chunk_coords = vect2ToVect3(patchId, y)
+    const chunk_coords = asVect3(patchId, y)
     chunk_ids.push(chunk_coords)
   }
   return chunk_ids
 }
 
-const getBboxFromChunkId = (chunkId: ChunkId, patchSize: number = WorldConfig.patchSize) => {
+const getBboxFromChunkId = (
+  chunkId: ChunkId,
+  patchSize: number = WorldConfig.patchSize,
+) => {
   const bmin = chunkId.clone().multiplyScalar(patchSize)
   const bmax = chunkId.clone().addScalar(1).multiplyScalar(patchSize)
   const chunkBbox = new Box3(bmin, bmax)
@@ -326,8 +338,8 @@ export {
   bboxContainsPointXZ,
   getPatchPoints,
   parseThreeStub,
-  vect2ToVect3,
-  vect3ToVect2,
+  asVect2,
+  asVect3,
   parsePatchKey,
   convertPosToPatchId,
   computePatchKey,
