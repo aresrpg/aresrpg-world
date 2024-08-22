@@ -12,10 +12,9 @@ import {
   BlockData,
   BlocksContainer,
   BlocksPatch,
-  BlockStub,
   EntityChunk,
 } from '../data/DataContainers'
-import { PatchKey } from '../common/types'
+import { Block, PatchKey } from '../common/types'
 
 export const computePatch = (patchKey: PatchKey) => {
   const patch = new BlocksPatch(patchKey)
@@ -40,7 +39,7 @@ export const computeBlocksBatch = (
       }
     }
     blockPos.y = blockStub.level
-    const block: BlockData = {
+    const block: Block = {
       pos: blockPos,
       type: blockStub.type,
     }
@@ -67,7 +66,7 @@ export const computeGroundBlock = (blockPos: Vector3) => {
 
   // }
   // level += offset
-  const block: BlockStub = { level, type }
+  const block: BlockData = { level, type }
   return block
 }
 
@@ -163,14 +162,12 @@ const genGroundBlocks = (blocksContainer: BlocksContainer) => {
   max.y = 0
   let blockIndex = 0
 
-  for (const blockData of blocksPatchIter) {
-    const blockPos = blockData.pos
+  for (const block of blocksPatchIter) {
     // const patchCorner = points.find(pt => pt.distanceTo(blockData.pos) < 2)
-    const blockRes = computeGroundBlock(blockPos)
-    min.y = Math.min(min.y, blockRes.level)
-    max.y = Math.max(max.y, blockRes.level)
-    // blocksContainer.writeBlockAtIndex(blockIndex, block.level, block.type)
-    blocksContainer.writeBlockAtIndex(blockIndex, blockRes.level, blockRes.type)
+    const blockData = computeGroundBlock(block.pos)
+    min.y = Math.min(min.y, blockData.level)
+    max.y = Math.max(max.y, blockData.level)
+    blocksContainer.writeBlockData(blockIndex, blockData)
     blockIndex++
   }
   blocksContainer.bbox.min = min
