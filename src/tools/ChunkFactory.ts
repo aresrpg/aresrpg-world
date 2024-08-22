@@ -2,7 +2,8 @@ import { Box3, MathUtils, Vector3 } from 'three'
 
 import { ChunkId, PatchId, WorldChunk } from '../common/types'
 import { asVect3, getBboxFromChunkId, serializeChunkId } from '../common/utils'
-import { BlocksContainer, BlocksPatch, BlockType, WorldConfig } from '../index'
+import { BlockData } from '../data/DataContainers'
+import { BlockMode, BlocksContainer, BlocksPatch, BlockType, WorldConfig } from '../index'
 
 const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // disabled if NONE
 
@@ -16,7 +17,7 @@ const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
 export class ChunkFactory {
   // eslint-disable-next-line no-use-before-define
   static defaultInstance: ChunkFactory
-  voxelDataEncoder = (blockType: BlockType) => blockType || BlockType.NONE
+  voxelDataEncoder = (blockType: BlockType, blockMode?: BlockMode) => blockType || BlockType.NONE
   chunksRange = {
     ymin: 0,
     ymax: 5,
@@ -33,13 +34,13 @@ export class ChunkFactory {
   }
 
   writeChunkBlocks(
-    chunkData: Uint16Array,
+    chunkDataContainer: Uint16Array,
     chunkBbox: Box3,
     blockLocalPos: Vector3,
-    groundType: BlockType,
+    blockData: BlockData,
     bufferOver: any[] = [],
   ) {
-    const chunk_size = Math.round(Math.pow(chunkData.length, 1 / 3))
+    const chunk_size = chunkBbox.getSize(new Vector3()).x //Math.round(Math.pow(chunkDataContainer.length, 1 / 3))
 
     let written_blocks_count = 0
 
@@ -59,13 +60,13 @@ export class ChunkFactory {
         blockLocalPos.z * Math.pow(chunk_size, 2) +
         h * chunk_size +
         blockLocalPos.x
-      const blockType = buff_index > 0 ? bufferOver[buff_index] : groundType
+      const blockType = buff_index > 0 ? bufferOver[buff_index] : blockData.type
       const skip =
         buff_index > 0 &&
-        chunkData[blocksIndex] !== undefined &&
+        chunkDataContainer[blocksIndex] !== undefined &&
         !bufferOver[buff_index]
       if (!skip) {
-        chunkData[blocksIndex] = this.voxelDataEncoder(blockType)
+        chunkDataContainer[blocksIndex] = this.voxelDataEncoder(blockType, blockData.mode)
         blockType && written_blocks_count++
       }
       buff_index--
@@ -76,23 +77,26 @@ export class ChunkFactory {
 
   fillGroundData(
     blocksContainer: BlocksContainer,
-    chunkData: Uint16Array,
+    chunkDataContainer: Uint16Array,
     chunkBox: Box3,
   ) {
     let written_blocks_count = 0
     const blocks_iter = blocksContainer.iterOverBlocks(undefined, true, false)
     for (const block of blocks_iter) {
       const blockLocalPos = block.pos
+      const blockData = block.data
+      const blockType = block.data.type
       blockLocalPos.x += 1
       // blockLocalPos.y = patch.bbox.max.y
       blockLocalPos.z += 1
-      const blockType =
-        highlightPatchBorders(blockLocalPos, block.type) || block.type
+      blockData.type =
+        highlightPatchBorders(blockLocalPos, blockType) || blockType
       written_blocks_count += this.writeChunkBlocks(
-        chunkData,
+        chunkDataContainer,
         chunkBox,
         blockLocalPos,
-        blockType,
+        blockData,
+        block.buffer
       )
     }
     return written_blocks_count
@@ -130,7 +134,7 @@ export class ChunkFactory {
             chunkData,
             chunkBox,
             block.localPos,
-            block.type,
+            block.data,
             block.buffer,
           )
         }

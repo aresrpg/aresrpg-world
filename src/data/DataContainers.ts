@@ -1,6 +1,6 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { PatchKey } from '../common/types'
+import { Block, PatchKey } from '../common/types'
 import {
   asVect3,
   computePatchKey,
@@ -14,16 +14,14 @@ import { WorldConfig } from '../config/WorldConfig'
 import { ChunkFactory } from '../index'
 
 export type BlockData = {
-  pos: Vector3
-  type: BlockType
-  index?: number
-  localPos?: Vector3
-  buffer?: BlockType[]
-}
-
-export type BlockStub = {
   level: number
   type: BlockType
+  mode?: BlockMode
+}
+
+export enum BlockMode {
+  DEFAULT,
+  BOARD_CONTAINER
 }
 
 export type EntityChunk = {
@@ -34,14 +32,19 @@ export type EntityChunk = {
 export type PatchStub = {
   key: string
   bbox: Box3
-  groundBlocks: {
-    type: Uint16Array
-    level: Uint16Array
-  }
+  groundBlocks: Uint32Array
   entitiesChunks: EntityChunk[]
 }
 
-export type BlockIteratorRes = IteratorResult<BlockData, void>
+// bits allocated per block data type
+// total bits required to store a block: 9+10+3 = 22 bits
+const BlockDataBitAllocation = {
+  level: 9,  // support level values ranging from 0 to 512
+  type: 10,   // support up to 1024 different block types
+  mode: 3,    // support for 8 different block mode
+}
+
+export type BlockIteratorRes = IteratorResult<Block, void>
 
 /**
  * GenericBlocksContainer
@@ -52,11 +55,7 @@ export class BlocksContainer {
   dimensions = new Vector3()
   margin = 0
 
-  groundBlocks: {
-    type: Uint16Array
-    level: Uint16Array
-  }
-
+  groundBlocks: Uint32Array
   entitiesChunks: EntityChunk[] = []
 
   constructor(bbox: Box3, margin = 1) {
@@ -64,30 +63,48 @@ export class BlocksContainer {
     this.bbox.getSize(this.dimensions)
     this.margin = margin
     const { extendedDims } = this
-    this.groundBlocks = {
-      type: new Uint16Array(extendedDims.x * extendedDims.z),
-      level: new Uint16Array(extendedDims.x * extendedDims.z),
-    }
+    this.groundBlocks = new Uint32Array(extendedDims.x * extendedDims.z)
   }
 
   duplicate() {
     const duplicate = new BlocksContainer(this.bbox)
-    this.groundBlocks.level.forEach(
-      (v, i) => (duplicate.groundBlocks.level[i] = v),
-    )
-    this.groundBlocks.type.forEach(
-      (v, i) => (duplicate.groundBlocks.type[i] = v),
+    this.groundBlocks.forEach(
+      (v, i) => (duplicate.groundBlocks[i] = v),
     )
     return duplicate
   }
 
-  writeBlockAtIndex(
+  decodeBlockData(rawData: number): BlockData {
+    const shift = BlockDataBitAllocation
+    const level = (rawData >> (shift.type + shift.mode)) & ((1 << shift.level) - 1);  // Extract 9 bits for level
+    const type = (rawData >> shift.mode) & ((1 << shift.type) - 1);  // Extract 10 bits for type
+    const mode = rawData & ((1 << shift.mode) - 1);  // Extract 3 bits for mode
+    const blockData: BlockData = {
+      level, type, mode
+    }
+    return blockData
+  }
+
+  encodeBlockData(blockData: BlockData): number {
+    const { level, type, mode } = blockData
+    const shift = BlockDataBitAllocation
+    let blockRawVal = level
+    blockRawVal = blockRawVal << shift.type | type
+    blockRawVal = blockRawVal << shift.mode | (mode || BlockMode.DEFAULT)
+    return blockRawVal
+  }
+
+  readBlockData(blockIndex: number): BlockData {
+    const blockRawData = this.groundBlocks[blockIndex]
+    const blockData = this.decodeBlockData(blockRawData)
+    return blockData
+  }
+
+  writeBlockData(
     blockIndex: number,
-    blockLevel: number,
-    blockType: BlockType,
+    blockData: BlockData
   ) {
-    this.groundBlocks.level[blockIndex] = blockLevel
-    this.groundBlocks.type[blockIndex] = blockType
+    this.groundBlocks[blockIndex] = this.encodeBlockData(blockData)
   }
 
   get extendedBox() {
@@ -150,8 +167,8 @@ export class BlocksContainer {
     ) {
       const blockIndex = this.getBlockIndex(localPos)
       const pos = localPos.clone()
-      pos.y = this.groundBlocks.level[blockIndex] || 0
-      const type = this.groundBlocks.type[blockIndex]
+      const { level, type } = this.readBlockData(blockIndex)
+      pos.y = level
       block = {
         pos,
         type,
@@ -162,8 +179,11 @@ export class BlocksContainer {
 
   setBlock(localPos: Vector3, blockType: BlockType) {
     const blockIndex = localPos.x * this.dimensions.x + localPos.z
-    const blockLevel = localPos.y
-    this.writeBlockAtIndex(blockIndex, blockLevel, blockType)
+    const block = {
+      level: localPos.y,
+      type: blockType
+    }
+    this.writeBlockData(blockIndex, block)
     // const levelMax = blockLevel + blockData.over.length
     // bbox.min.y = Math.min(bbox.min.y, levelMax)
     // bbox.max.y = Math.max(bbox.max.y, levelMax)
@@ -191,17 +211,16 @@ export class BlocksContainer {
         if (!skipMargin || !isMarginBlock(pos)) {
           const localPos = useLocalPos ? pos : this.getLocalPos(pos)
           index = customBox ? this.getBlockIndex(localPos) : index
-          const type = this.groundBlocks.type[index] || BlockType.NONE
-          const level = this.groundBlocks.level[index] || 0
-          pos.y = level
-          localPos.y = level
-          const blockData: BlockData = {
+          const blockData = this.readBlockData(index) || BlockType.NONE
+          pos.y = blockData.level
+          localPos.y = blockData.level
+          const block: Block = {
             index,
             pos,
             localPos,
-            type,
+            data: blockData,
           }
-          yield blockData
+          yield block
         }
         index++
       }
@@ -247,14 +266,9 @@ export class BlocksPatch extends BlocksContainer {
   }
 
   override duplicate() {
-    const duplicate = new BlocksPatch(this.key)
-    this.groundBlocks.level.forEach(
-      (v, i) => (duplicate.groundBlocks.level[i] = v),
-    )
-    this.groundBlocks.type.forEach(
-      (v, i) => (duplicate.groundBlocks.type[i] = v),
-    )
-    return duplicate
+    const copy = new BlocksPatch(this.key)
+    this.groundBlocks.forEach((rawVal, i) => copy.groundBlocks[i] = rawVal)
+    return copy
   }
 
   static override fromStub(patchStub: any) {
@@ -345,23 +359,23 @@ export class PatchContainer {
   }
 
   mergeBlocks(blocksContainer: BlocksContainer) {
-    // for each patch override with blocks from blocks container
-    this.availablePatches.forEach(patch => {
-      const blocksIter = patch.iterOverBlocks(blocksContainer.bbox)
-      for (const target_block of blocksIter) {
-        const source_block = blocksContainer.getBlock(target_block.pos, false)
-        if (source_block && source_block.pos.y > 0 && target_block.index) {
-          let block_type = source_block.type ? BlockType.SAND : BlockType.NONE
-          block_type =
-            source_block.type === BlockType.TREE_TRUNK
-              ? BlockType.TREE_TRUNK
-              : block_type
-          const block_level = blocksContainer.bbox.min.y // source_block?.pos.y
-          patch.writeBlockAtIndex(target_block.index, block_level, block_type)
-          // console.log(source_block?.pos.y)
-        }
-      }
-    })
+    // // for each patch override with blocks from blocks container
+    // this.availablePatches.forEach(patch => {
+    //   const blocksIter = patch.iterOverBlocks(blocksContainer.bbox)
+    //   for (const target_block of blocksIter) {
+    //     const source_block = blocksContainer.getBlock(target_block.pos, false)
+    //     if (source_block && source_block.pos.y > 0 && target_block.index) {
+    //       let block_type = source_block.type ? BlockType.SAND : BlockType.NONE
+    //       block_type =
+    //         source_block.type === BlockType.TREE_TRUNK
+    //           ? BlockType.TREE_TRUNK
+    //           : block_type
+    //       const block_level = blocksContainer.bbox.min.y // source_block?.pos.y
+    //       patch.writeBlock(target_block.index, block_level, block_type)
+    //       // console.log(source_block?.pos.y)
+    //     }
+    //   }
+    // })
   }
 
   compareWith(otherContainer: PatchContainer) {
@@ -397,3 +411,4 @@ export class PatchContainer {
     return res
   }
 }
+

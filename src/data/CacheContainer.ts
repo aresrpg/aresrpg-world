@@ -27,18 +27,15 @@ export class CacheContainer extends PatchContainer {
     return this.singleton
   }
 
-  async populate(batch: PatchKey[], dryRun = false) {
-    if (!dryRun && batch.length > 0) {
-      this.pendingRefresh = true
-      const batchIter = WorldComputeApi.instance.iterPatchCompute(batch)
-      // populate cache without blocking execution
-      for await (const patch of batchIter) {
-        this.patchLookup[patch.key] = patch
-        this.bbox.union(patch.bbox)
-      }
-      this.pendingRefresh = false
+  async populate(batch: PatchKey[]) {
+    this.pendingRefresh = true
+    const batchIter = WorldComputeApi.instance.iterPatchCompute(batch)
+    // populate cache without blocking execution
+    for await (const patch of batchIter) {
+      this.patchLookup[patch.key] = patch
+      this.bbox.union(patch.bbox)
     }
-    return batch
+    this.pendingRefresh = false
   }
 
   /**

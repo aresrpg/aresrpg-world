@@ -3,7 +3,7 @@ import { Vector3 } from 'three'
 import { asVect2 } from '../common/utils'
 import { BlockType } from '../index'
 
-import { PatchContainer } from './DataContainers'
+import { BlockData, BlockMode, PatchContainer } from './DataContainers'
 
 export class BoardContainer extends PatchContainer {
   boardCenter
@@ -12,9 +12,9 @@ export class BoardContainer extends PatchContainer {
   constructor(center: Vector3, radius: number) {
     super()
     this.boardRadius = radius
-    this.boardCenter = asVect2(center).floor()
+    this.boardCenter = center.clone().floor()
     const board_dims = new Vector3(radius, 0, radius).multiplyScalar(2)
-    this.bbox.setFromCenterAndSize(center.clone().floor(), board_dims)
+    this.bbox.setFromCenterAndSize(this.boardCenter, board_dims)
     this.initFromBoxAndMask(this.bbox)
   }
 
@@ -26,7 +26,7 @@ export class BoardContainer extends PatchContainer {
       const blocks = patch.iterOverBlocks(this.bbox)
       for (const block of blocks) {
         // discard blocs not included in board shape
-        const dist = asVect2(block.pos).distanceTo(boardCenter)
+        const dist = asVect2(block.pos).distanceTo(asVect2(boardCenter))
         if (dist <= boardRadius) {
           const block_level = block.pos.y
           ymin = Math.min(block_level, ymin)
@@ -38,17 +38,21 @@ export class BoardContainer extends PatchContainer {
   }
 
   shapeBoard() {
+    const maxHeightDiff = 5
     const { boardCenter, boardRadius } = this
-    const { ymin, ymax } = this.getMinMax()
-    const avg = Math.round(ymin + (ymax - ymin) / 2)
+    // const { ymin, ymax } = this.getMinMax()
+    // const avg = Math.round(ymin + (ymax - ymin) / 2)
     this.availablePatches.forEach(patch => {
       const blocks = patch.iterOverBlocks(this.bbox)
       for (const block of blocks) {
         // discard blocs not included in board shape
-        const dist = asVect2(block.pos).distanceTo(boardCenter)
-        const y_diff = Math.abs(block.pos.y - avg)
-        if (dist <= boardRadius && y_diff <= 5 && block.index !== undefined) {
-          patch.writeBlockAtIndex(block.index, block.pos.y, BlockType.MUD)
+        const dist = asVect2(block.pos).distanceTo(asVect2(boardCenter))
+        const blockData = block.data
+        blockData.level = boardCenter.y
+        blockData.mode = BlockMode.BOARD_CONTAINER
+        const heightDiff = Math.abs(block.pos.y - boardCenter.y)
+        if (dist <= boardRadius && heightDiff <= maxHeightDiff && block.index !== undefined) {
+          patch.writeBlockData(block.index, blockData)
         }
       }
     })
@@ -71,5 +75,5 @@ export class BoardContainer extends PatchContainer {
   //     })
   // }
 
-  smoothEdges() {}
+  smoothEdges() { }
 }

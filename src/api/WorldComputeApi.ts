@@ -1,7 +1,7 @@
 import { Vector3 } from 'three'
 
-import { PatchKey } from '../common/types'
-import { BlockData, BlocksPatch } from '../data/DataContainers'
+import { Block, PatchKey } from '../common/types'
+import { BlocksPatch } from '../data/DataContainers'
 import { WorldCompute, WorldUtils } from '../index'
 
 export enum ComputeApiCall {
@@ -15,7 +15,7 @@ interface ComputeApiInterface {
   computeBlocksBatch(
     blockPosBatch: Vector3[],
     params?: any,
-  ): BlockData[] | Promise<BlockData[]>
+  ): Block[] | Promise<Block[]>
   // computePatch(patchKey: PatchKey): BlocksPatch | Promise<BlocksPatch>
   iterPatchCompute(
     patchKeysBatch: PatchKey[],
@@ -44,7 +44,7 @@ export class WorldComputeApi implements ComputeApiInterface {
 
   computeBlocksBatch(
     blockPosBatch: Vector3[],
-    params = { includeEntitiesBlocks: true },
+    params: ComputeApiParams = { includeEntitiesBlocks: true },
   ) {
     return WorldCompute.computeBlocksBatch(blockPosBatch, params)
   }
@@ -106,11 +106,12 @@ export class WorldComputeProxy implements ComputeApiInterface {
       ComputeApiCall.BlocksBatchCompute,
       [blockPosBatch, params],
     )
-    const blocks = blockStubs.map((blockStub: BlockData) => {
+    // parse worker's data to recreate original objects
+    const blocks: Block[] = blockStubs.map((blockStub: Block) => {
       blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
       return blockStub
     })
-    return blocks as BlockData[]
+    return blocks
   }
 
   async *iterPatchCompute(patchKeysBatch: PatchKey[]) {

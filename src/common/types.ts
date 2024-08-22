@@ -1,4 +1,5 @@
 import { Vector2, Vector3 } from 'three'
+import { BlockData } from '../data/DataContainers'
 
 import { BiomeType, BlockType } from '../procgen/Biome'
 
@@ -6,7 +7,10 @@ import { LinkedList } from './misc'
 
 export type Block = {
   pos: Vector3
-  type: BlockType
+  data: BlockData
+  index?: number
+  localPos?: Vector3
+  buffer?: BlockType[]
 }
 
 export enum Adjacent2dPos {
