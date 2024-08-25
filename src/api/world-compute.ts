@@ -99,16 +99,16 @@ const buildEntityChunk = (patch: BlocksContainer, entity: EntityData) => {
   }
   const blocksIter = patch.iterOverBlocks(entity.bbox, true)
   for (const block of blocksIter) {
-    const blocksBuffer = EntitiesMap.fillBlockBuffer(block.pos, entity, [])
+    const blocksBuffer = EntitiesMap.fillBlockBuffer(block.localPos, entity, [])
     patch.bbox.max.y = Math.max(
       patch.bbox.max.y,
-      block.pos.y + blocksBuffer.length,
+      block.localPos.y + blocksBuffer.length,
     )
     const serialized = blocksBuffer
       .reduce((str, val) => str + ',' + val, '')
       .slice(1)
     entityChunk.data.push(serialized)
-    entityChunk.bbox.expandByPoint(block.pos)
+    entityChunk.bbox.expandByPoint(block.localPos)
   }
   entityChunk.bbox = entity.bbox
   return entityChunk
