@@ -1,13 +1,15 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { Block, PatchKey } from '../common/types'
+import { Block, PatchKey, WorldChunk } from '../common/types'
 import {
   asVect3,
   computePatchKey,
   convertPosToPatchId,
+  getBboxFromChunkId,
   getBboxFromPatchKey,
   parsePatchKey,
   parseThreeStub,
+  serializeChunkId,
 } from '../common/utils'
 import { BlockType } from '../procgen/Biome'
 import { WorldConfig } from '../config/WorldConfig'
@@ -67,11 +69,12 @@ export class BlocksContainer {
   }
 
   duplicate() {
-    const duplicate = new BlocksContainer(this.bbox)
+    const copy = new BlocksContainer(this.bbox)
     this.groundBlocks.forEach(
-      (v, i) => (duplicate.groundBlocks[i] = v),
+      (v, i) => (copy.groundBlocks[i] = v),
     )
-    return duplicate
+    copy.entitiesChunks = this.entitiesChunks
+    return copy
   }
 
   decodeBlockData(rawData: number): BlockData {
@@ -152,12 +155,16 @@ export class BlocksContainer {
     )
   }
 
-  getLocalPos(pos: Vector3) {
+  toLocalPos(pos: Vector3) {
     return pos.clone().sub(this.bbox.min)
   }
 
+  toGlobalPos(pos: Vector3) {
+    return this.bbox.min.clone().add(pos)
+  }
+
   getBlock(pos: Vector3, useLocalPos = true) {
-    const localPos = useLocalPos ? pos : this.getLocalPos(pos)
+    const localPos = useLocalPos ? pos : this.toLocalPos(pos)
     let block
     if (
       localPos.x >= 0 &&
@@ -189,6 +196,17 @@ export class BlocksContainer {
     // bbox.max.y = Math.max(bbox.max.y, levelMax)
   }
 
+  getBlocksRow(zRowIndex: number) {
+    const rowStart = zRowIndex * this.dimensions.z
+    const rowEnd = rowStart + this.dimensions.x
+    const rowRawData = this.groundBlocks.slice(rowStart, rowEnd)
+    return rowRawData
+  }
+
+  getBlocksCol(xColIndex: number) {
+
+  }
+
   *iterOverBlocks(customBox?: Box3, useLocalPos = false, skipMargin = true) {
     const bbox = customBox
       ? this.adaptCustomBox(customBox, useLocalPos)
@@ -209,7 +227,7 @@ export class BlocksContainer {
       for (let { z } = bbox.min; z < bbox.max.z; z++) {
         const pos = new Vector3(x, 0, z)
         if (!skipMargin || !isMarginBlock(pos)) {
-          const localPos = useLocalPos ? pos : this.getLocalPos(pos)
+          const localPos = useLocalPos ? pos : this.toLocalPos(pos)
           index = customBox ? this.getBlockIndex(localPos) : index
           const blockData = this.readBlockData(index) || BlockType.NONE
           pos.y = blockData.level
@@ -227,6 +245,26 @@ export class BlocksContainer {
     }
   }
 
+  *iterEntityBlocks(entity: EntityChunk) {
+
+    // find overlapping blocks between entity and container
+    const blocks_iter = this.iterOverBlocks(
+      entity.bbox,
+      true,
+    )
+    let chunk_index = 0
+    // iter over entity blocks
+    for (const block of blocks_iter) {
+      const bufferStr = entity.data[chunk_index++]
+      const buffer =
+        bufferStr && bufferStr.split(',').map(char => parseInt(char))
+      const entityBlockData = block
+      entityBlockData.buffer = buffer || []
+      yield entityBlockData
+    }
+    // }
+  }
+
   containsBlock(blockPos: Vector3) {
     return (
       blockPos.x >= this.bbox.min.x &&
@@ -236,8 +274,55 @@ export class BlocksContainer {
     )
   }
 
-  toChunk() {
-    return ChunkFactory.default.makeChunkFromBox(this, this.bbox)
+  toChunk(chunkBox: Box3) {
+    chunkBox = chunkBox || this.bbox
+    const chunkDims = chunkBox.getSize(new Vector3())
+    const chunkData = new Uint16Array(chunkDims.x * chunkDims.y * chunkDims.z)
+    let totalWrittenBlocks = 0
+    // const debug_mode = true
+
+    // const is_edge = (row, col, h, patch_size) =>
+    //   row === 1 || row === patch_size || col === 1 || col === patch_size
+    // || h === 1
+    // || h === patch_size - 2
+
+    // const patch = PatchBlocksCache.instances.find(
+    //   patch =>
+    //     patch.bbox.min.x === bbox.min.x + 1 &&
+    //     patch.bbox.min.z === bbox.min.z + 1 &&
+    //     patch.bbox.max.x === bbox.max.x - 1 &&
+    //     patch.bbox.max.z === bbox.max.z - 1 &&
+    //     patch.bbox.intersectsBox(bbox),
+    // )
+
+    // multi-pass chunk filling
+
+    const blockIterator = this.iterOverBlocks(undefined, true, false)
+    // ground blocks pass
+    totalWrittenBlocks += ChunkFactory.default.fillGroundData(
+      blockIterator,
+      chunkData,
+      chunkBox,
+    )
+    // entities blocks pass
+    for (const entity of this.entitiesChunks) {
+      const entityBlocksIterator = this.iterEntityBlocks(entity)
+      // overground entities pass
+      totalWrittenBlocks += ChunkFactory.default.fillEntitiesData(
+        entityBlocksIterator,
+        chunkData,
+        chunkBox,
+      )
+    }
+
+    // const size = Math.round(Math.pow(chunk.data.length, 1 / 3))
+    // const dimensions = new Vector3(size, size, size)
+    const chunk = {
+      bbox: chunkBox,
+      data: totalWrittenBlocks ? chunkData : null,
+      // isEmpty: totalWrittenBlocks === 0,
+    }
+    return chunk
   }
 
   static fromStub(stub: any) {
@@ -268,6 +353,7 @@ export class BlocksPatch extends BlocksContainer {
   override duplicate() {
     const copy = new BlocksPatch(this.key)
     this.groundBlocks.forEach((rawVal, i) => copy.groundBlocks[i] = rawVal)
+    copy.entitiesChunks = this.entitiesChunks
     return copy
   }
 
@@ -277,7 +363,13 @@ export class BlocksPatch extends BlocksContainer {
     const patchKey = patchStub.key || computePatchKey(bbox)
     const patch = new BlocksPatch(patchKey)
     patch.groundBlocks = groundBlocks
-    patch.entitiesChunks = entitiesChunks
+    patch.entitiesChunks = entitiesChunks.map((stub: EntityChunk) => {
+      const entityChunk: EntityChunk = {
+        bbox: parseThreeStub(stub.bbox),
+        data: stub.data
+      }
+      return entityChunk
+    })
     patch.bbox.min.y = patchStub.bbox.min.y
     patch.bbox.max.y = patchStub.bbox.max.y
     // patchStub.entitiesChunks?.forEach((entityChunk: EntityChunk) =>
@@ -287,7 +379,17 @@ export class BlocksPatch extends BlocksContainer {
   }
 
   toChunks() {
-    return ChunkFactory.default.genChunksFromPatch(this)
+    const chunkIds = ChunkFactory.default.genChunksIdsFromPatchId(this.id)
+    const chunks = chunkIds.map(chunkId => {
+      const chunkBox = getBboxFromChunkId(chunkId, WorldConfig.patchSize)
+      const chunk = super.toChunk(chunkBox)
+      const worldChunk: WorldChunk = {
+        key: serializeChunkId(chunkId),
+        data: chunk.data,
+      }
+      return worldChunk
+    })
+    return chunks
   }
 }
 
@@ -295,11 +397,11 @@ export class PatchContainer {
   bbox: Box3 = new Box3()
   patchLookup: Record<string, BlocksPatch | null> = {}
 
-  get patchIdsRange() {
+  get patchRange() {
     const rangeMin = convertPosToPatchId(this.bbox.min)
     const rangeMax = convertPosToPatchId(this.bbox.max).addScalar(1)
-    const patchIdsRange = new Box3(asVect3(rangeMin), asVect3(rangeMax))
-    return patchIdsRange
+    const patchRange = new Box3(asVect3(rangeMin), asVect3(rangeMax))
+    return patchRange
   }
 
   initFromBoxAndMask(
@@ -312,7 +414,7 @@ export class PatchContainer {
     // const range = BlocksPatch.asPatchCoords(halfDimensions)
     // const center = this.bbox.getCenter(new Vector3())
     // const origin = BlocksPatch.asPatchCoords(center)
-    const { min, max } = this.patchIdsRange
+    const { min, max } = this.patchRange
     for (let { x } = min; x < max.x; x++) {
       for (let { z } = min; z < max.z; z++) {
         const patchKey = `${x}:${z}`
@@ -390,6 +492,53 @@ export class PatchContainer {
       .forEach(patchKey => (patchKeysDiff[patchKey] = false))
     return patchKeysDiff
   }
+
+  getMergedRows(zRowIndex: number) {
+    const sortedPatchesRows = this.availablePatches
+      .filter(patch => zRowIndex >= patch.bbox.min.z && zRowIndex <= patch.bbox.min.z)
+      .sort((p1, p2) => p1.bbox.min.x - p2.bbox.min.x)
+      .map(patch => patch.getBlocksRow(zRowIndex))
+    const mergedRows = sortedPatchesRows.reduce((arr1, arr2) => {
+      const mergedArray = new Uint32Array(arr1.length + arr2.length)
+      mergedArray.set(arr1)
+      mergedArray.set(arr2, arr1.length)
+      return mergedArray
+    })
+    return mergedRows
+  }
+
+  iterMergedRows() {
+    const { min, max } = this.patchRange
+    for (let zPatchIndex = min.z; zPatchIndex <= max.z; zPatchIndex++) {
+      for (let zRowIndex = min.z; zRowIndex < max.z; zRowIndex++) {
+
+      }
+    }
+  }
+
+  getMergedCols(xColIndex: number) {
+
+  }
+
+  mergedLinesIteration() {
+    const { min, max } = this.bbox
+    for (let x = min.x; x < max.x; x++) {
+      for (let z = min.z; z < max.z; z++) {
+
+      }
+    }
+  }
+
+  toMergedContainer() {
+    const mergedBox = this.availablePatches.map(patch => patch.bbox)
+      .reduce((merge, bbox) => merge.union(bbox), new Box3())
+    // const mergedContainer = 
+  }
+
+  static fromMergedContainer() {
+
+  }
+
 
   toChunks() {
     const exportedChunks = this.availablePatches

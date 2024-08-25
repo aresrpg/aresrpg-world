@@ -1,14 +1,14 @@
 import { Vector3 } from 'three'
 
 import { asVect2 } from '../common/utils'
-import { BlockType } from '../index'
 
-import { BlockData, BlockMode, PatchContainer } from './DataContainers'
+import { BlockMode, EntityChunk, PatchContainer } from './DataContainers'
 
 export class BoardContainer extends PatchContainer {
   boardCenter
   boardRadius
-
+  innerEntities: EntityChunk[] = []
+  outerEntities: EntityChunk[] = []
   constructor(center: Vector3, radius: number) {
     super()
     this.boardRadius = radius
@@ -25,7 +25,7 @@ export class BoardContainer extends PatchContainer {
     this.availablePatches.forEach(patch => {
       const blocks = patch.iterOverBlocks(this.bbox)
       for (const block of blocks) {
-        // discard blocs not included in board shape
+        // discard blocks not included in board shape
         const dist = asVect2(block.pos).distanceTo(asVect2(boardCenter))
         if (dist <= boardRadius) {
           const block_level = block.pos.y
@@ -56,6 +56,21 @@ export class BoardContainer extends PatchContainer {
         }
       }
     })
+  }
+
+  sortEntities() {
+    this.availablePatches.forEach(patch => {
+      patch.entitiesChunks.forEach(entity => {
+        const localCenter = entity.bbox.getCenter(new Vector3())
+        const entityCenter = patch.toGlobalPos(localCenter)
+        const isWithinBoard = this.bbox.containsPoint(entityCenter)
+        isWithinBoard ? this.innerEntities.push(entity) : this.outerEntities.push(entity)
+      })
+    })
+  }
+
+  trimEntities(){
+    this.sortEntities()
   }
 
   // mergeBoardBlocks(blocksContainer: BlocksContainer) {
