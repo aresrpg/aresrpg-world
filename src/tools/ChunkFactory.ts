@@ -82,18 +82,17 @@ export class ChunkFactory {
   ) {
     let written_blocks_count = 0
     for (const block of blockIterator) {
-      const blockLocalPos = block.pos
       const blockData = block.data
       const blockType = block.data.type
-      blockLocalPos.x += 1
-      // blockLocalPos.y = patch.bbox.max.y
-      blockLocalPos.z += 1
+      block.localPos.x += 1
+      // block.localPos.y = patch.bbox.max.y
+      block.localPos.z += 1
       blockData.type =
-        highlightPatchBorders(blockLocalPos, blockType) || blockType
+        highlightPatchBorders(block.localPos, blockType) || blockType
       written_blocks_count += this.writeChunkBlocks(
         chunkDataContainer,
         chunkBox,
-        blockLocalPos,
+        block.localPos,
         blockData,
         block.buffer
       )

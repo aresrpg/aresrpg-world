@@ -163,9 +163,9 @@ export class BlocksContainer {
     return this.bbox.min.clone().add(pos)
   }
 
-  getBlock(pos: Vector3, useLocalPos = true) {
-    const localPos = useLocalPos ? pos : this.toLocalPos(pos)
-    let block
+  getBlock(pos: Vector3, isLocalPos = true) {
+    const localPos = isLocalPos ? pos : this.toLocalPos(pos)
+    let block: Block | undefined
     if (
       localPos.x >= 0 &&
       localPos.x < this.dimensions.x &&
@@ -173,12 +173,12 @@ export class BlocksContainer {
       localPos.z < this.dimensions.z
     ) {
       const blockIndex = this.getBlockIndex(localPos)
-      const pos = localPos.clone()
-      const { level, type } = this.readBlockData(blockIndex)
-      pos.y = level
+      const pos = isLocalPos ? localPos.clone() : this.toGlobalPos(localPos)
+      const data = this.readBlockData(blockIndex)
+      pos.y = data.level
       block = {
         pos,
-        type,
+        data
       }
     }
     return block
@@ -234,7 +234,7 @@ export class BlocksContainer {
           localPos.y = blockData.level
           const block: Block = {
             index,
-            pos,
+            pos: useLocalPos ? this.toGlobalPos(pos) : pos,
             localPos,
             data: blockData,
           }
@@ -246,7 +246,6 @@ export class BlocksContainer {
   }
 
   *iterEntityBlocks(entity: EntityChunk) {
-
     // find overlapping blocks between entity and container
     const blocks_iter = this.iterOverBlocks(
       entity.bbox,
@@ -256,10 +255,10 @@ export class BlocksContainer {
     // iter over entity blocks
     for (const block of blocks_iter) {
       const bufferStr = entity.data[chunk_index++]
-      const buffer =
-        bufferStr && bufferStr.split(',').map(char => parseInt(char))
+      const buffer = bufferStr?.split(',').map(char => parseInt(char))
+      const maxHeightDiff = entity.bbox.max.y - block.localPos.y
       const entityBlockData = block
-      entityBlockData.buffer = buffer || []
+      entityBlockData.buffer = buffer?.slice(0, maxHeightDiff) || []
       yield entityBlockData
     }
     // }
@@ -353,7 +352,13 @@ export class BlocksPatch extends BlocksContainer {
   override duplicate() {
     const copy = new BlocksPatch(this.key)
     this.groundBlocks.forEach((rawVal, i) => copy.groundBlocks[i] = rawVal)
-    copy.entitiesChunks = this.entitiesChunks
+    copy.entitiesChunks = this.entitiesChunks.map(entity => {
+      const entityCopy: EntityChunk = {
+        bbox: entity.bbox.clone(),
+        data: entity.data.slice()
+      }
+      return entityCopy
+    })
     return copy
   }
 
@@ -378,9 +383,12 @@ export class BlocksPatch extends BlocksContainer {
     return patch
   }
 
+  get chunkIds() {
+    return ChunkFactory.default.genChunksIdsFromPatchId(this.id)
+  }
+
   toChunks() {
-    const chunkIds = ChunkFactory.default.genChunksIdsFromPatchId(this.id)
-    const chunks = chunkIds.map(chunkId => {
+    const chunks = this.chunkIds.map(chunkId => {
       const chunkBox = getBboxFromChunkId(chunkId, WorldConfig.patchSize)
       const chunk = super.toChunk(chunkBox)
       const worldChunk: WorldChunk = {
@@ -396,13 +404,6 @@ export class BlocksPatch extends BlocksContainer {
 export class PatchContainer {
   bbox: Box3 = new Box3()
   patchLookup: Record<string, BlocksPatch | null> = {}
-
-  get patchRange() {
-    const rangeMin = convertPosToPatchId(this.bbox.min)
-    const rangeMax = convertPosToPatchId(this.bbox.max).addScalar(1)
-    const patchRange = new Box3(asVect3(rangeMin), asVect3(rangeMax))
-    return patchRange
-  }
 
   initFromBoxAndMask(
     bbox: Box3,
@@ -426,14 +427,11 @@ export class PatchContainer {
     }
   }
 
-  get availablePatches() {
-    return Object.values(this.patchLookup).filter(val => val) as BlocksPatch[]
-  }
-
-  get missingPatchKeys() {
-    return Object.keys(this.patchLookup).filter(
-      key => !this.patchLookup[key],
-    ) as PatchKey[]
+  get patchRange() {
+    const rangeMin = convertPosToPatchId(this.bbox.min)
+    const rangeMax = convertPosToPatchId(this.bbox.max).addScalar(1)
+    const patchRange = new Box3(asVect3(rangeMin), asVect3(rangeMax))
+    return patchRange
   }
 
   get count() {
@@ -442,6 +440,22 @@ export class PatchContainer {
 
   get patchKeys() {
     return Object.keys(this.patchLookup)
+  }
+
+  get chunkIds() {
+    return this.availablePatches
+      .map(patch => patch.chunkIds)
+      .flat()
+  }
+
+  get availablePatches() {
+    return Object.values(this.patchLookup).filter(val => val) as BlocksPatch[]
+  }
+
+  get missingPatchKeys() {
+    return Object.keys(this.patchLookup).filter(
+      key => !this.patchLookup[key],
+    ) as PatchKey[]
   }
 
   // autoFill(fillingVal=0){
@@ -460,26 +474,6 @@ export class PatchContainer {
       })
   }
 
-  mergeBlocks(blocksContainer: BlocksContainer) {
-    // // for each patch override with blocks from blocks container
-    // this.availablePatches.forEach(patch => {
-    //   const blocksIter = patch.iterOverBlocks(blocksContainer.bbox)
-    //   for (const target_block of blocksIter) {
-    //     const source_block = blocksContainer.getBlock(target_block.pos, false)
-    //     if (source_block && source_block.pos.y > 0 && target_block.index) {
-    //       let block_type = source_block.type ? BlockType.SAND : BlockType.NONE
-    //       block_type =
-    //         source_block.type === BlockType.TREE_TRUNK
-    //           ? BlockType.TREE_TRUNK
-    //           : block_type
-    //       const block_level = blocksContainer.bbox.min.y // source_block?.pos.y
-    //       patch.writeBlock(target_block.index, block_level, block_type)
-    //       // console.log(source_block?.pos.y)
-    //     }
-    //   }
-    // })
-  }
-
   compareWith(otherContainer: PatchContainer) {
     const patchKeysDiff: Record<string, boolean> = {}
     // added keys e.g. keys in current container but not found in other
@@ -491,6 +485,30 @@ export class PatchContainer {
       .filter(patchKey => this.patchLookup[patchKey] === undefined)
       .forEach(patchKey => (patchKeysDiff[patchKey] = false))
     return patchKeysDiff
+  }
+
+  toChunks() {
+    const exportedChunks = this.availablePatches
+      .map(patch => patch.toChunks())
+      .flat()
+    return exportedChunks
+  }
+
+  findPatch(blockPos: Vector3) {
+    // const point = new Vector3(
+    //   inputPoint.x,
+    //   0,
+    //   inputPoint instanceof Vector3 ? inputPoint.z : inputPoint.y,
+    // )
+
+    const res = this.availablePatches.find(patch =>
+      patch.containsBlock(blockPos),
+    )
+    return res
+  }
+
+  getBlock(blockPos: Vector3) {
+    return this.findPatch(blockPos)?.getBlock(blockPos, false)
   }
 
   getMergedRows(zRowIndex: number) {
@@ -538,26 +556,24 @@ export class PatchContainer {
   static fromMergedContainer() {
 
   }
-
-
-  toChunks() {
-    const exportedChunks = this.availablePatches
-      .map(patch => patch.toChunks())
-      .flat()
-    return exportedChunks
-  }
-
-  findPatch(blockPos: Vector3) {
-    // const point = new Vector3(
-    //   inputPoint.x,
-    //   0,
-    //   inputPoint instanceof Vector3 ? inputPoint.z : inputPoint.y,
-    // )
-
-    const res = this.availablePatches.find(patch =>
-      patch.containsBlock(blockPos),
-    )
-    return res
+  mergeBlocks(blocksContainer: BlocksContainer) {
+    // // for each patch override with blocks from blocks container
+    // this.availablePatches.forEach(patch => {
+    //   const blocksIter = patch.iterOverBlocks(blocksContainer.bbox)
+    //   for (const target_block of blocksIter) {
+    //     const source_block = blocksContainer.getBlock(target_block.pos, false)
+    //     if (source_block && source_block.pos.y > 0 && target_block.index) {
+    //       let block_type = source_block.type ? BlockType.SAND : BlockType.NONE
+    //       block_type =
+    //         source_block.type === BlockType.TREE_TRUNK
+    //           ? BlockType.TREE_TRUNK
+    //           : block_type
+    //       const block_level = blocksContainer.bbox.min.y // source_block?.pos.y
+    //       patch.writeBlock(target_block.index, block_level, block_type)
+    //       // console.log(source_block?.pos.y)
+    //     }
+    //   }
+    // })
   }
 }
 
