@@ -29,19 +29,19 @@ export const computeBlocksBatch = (
 ) => {
   const blocksBatch = blockPosBatch.map(({ x, z }) => {
     const blockPos = new Vector3(x, 0, z)
-    const blockStub = computeGroundBlock(blockPos)
+    const blockData = computeGroundBlock(blockPos)
     if (params.includeEntitiesBlocks) {
       const blocksBuffer = computeBlocksBuffer(blockPos)
       const lastBlockIndex = blocksBuffer.findLastIndex(elt => elt)
       if (lastBlockIndex >= 0) {
-        blockStub.level += lastBlockIndex
-        blockStub.type = blocksBuffer[lastBlockIndex] as BlockType
+        blockData.level += lastBlockIndex
+        blockData.type = blocksBuffer[lastBlockIndex] as BlockType
       }
     }
-    blockPos.y = blockStub.level
+    blockPos.y = blockData.level
     const block: Block = {
       pos: blockPos,
-      type: blockStub.type,
+      data: blockData,
     }
     return block
   })
@@ -99,16 +99,20 @@ const buildEntityChunk = (patch: BlocksContainer, entity: EntityData) => {
   }
   const blocksIter = patch.iterOverBlocks(entity.bbox, true)
   for (const block of blocksIter) {
-    const blocksBuffer = EntitiesMap.fillBlockBuffer(block.localPos, entity, [])
+    const blocksBuffer = EntitiesMap.fillBlockBuffer(
+      block.localPos as Vector3,
+      entity,
+      [],
+    )
     patch.bbox.max.y = Math.max(
       patch.bbox.max.y,
-      block.localPos.y + blocksBuffer.length,
+      (block.localPos as Vector3).y + blocksBuffer.length,
     )
     const serialized = blocksBuffer
       .reduce((str, val) => str + ',' + val, '')
       .slice(1)
     entityChunk.data.push(serialized)
-    entityChunk.bbox.expandByPoint(block.localPos)
+    entityChunk.bbox.expandByPoint(block.localPos as Vector3)
   }
   entityChunk.bbox = entity.bbox
   return entityChunk

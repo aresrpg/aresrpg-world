@@ -5,7 +5,7 @@ export {
   BlocksContainer,
   BlocksPatch,
   PatchContainer,
-  BlockMode
+  BlockMode,
 } from './data/DataContainers'
 export { BoardContainer } from './data/BoardContainer'
 export { Biome, BlockType } from './procgen/Biome'
@@ -17,7 +17,6 @@ export { WorldConfig } from './config/WorldConfig'
 export { WorldComputeApi } from './api/WorldComputeApi'
 export * as WorldCompute from './api/world-compute'
 export * as WorldUtils from './common/utils'
-export * as PlateauLegacy from './utils/plateau_legacy'
 
 // export type { MappingConf, MappingData, MappingRanges } from "./common/types"
 // export { DevHacks } from './tools/DevHacks'

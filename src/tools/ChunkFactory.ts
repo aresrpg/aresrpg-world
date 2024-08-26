@@ -17,7 +17,10 @@ const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
 export class ChunkFactory {
   // eslint-disable-next-line no-use-before-define
   static defaultInstance: ChunkFactory
-  voxelDataEncoder = (blockType: BlockType, blockMode?: BlockMode) => blockType || BlockType.NONE
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  voxelDataEncoder = (blockType: BlockType, _blockMode?: BlockMode) =>
+    blockType || BlockType.NONE
+
   chunksRange = {
     ymin: 0,
     ymax: 5,
@@ -40,7 +43,7 @@ export class ChunkFactory {
     blockData: BlockData,
     bufferOver: any[] = [],
   ) {
-    const chunk_size = chunkBbox.getSize(new Vector3()).x //Math.round(Math.pow(chunkDataContainer.length, 1 / 3))
+    const chunk_size = chunkBbox.getSize(new Vector3()).x // Math.round(Math.pow(chunkDataContainer.length, 1 / 3))
 
     let written_blocks_count = 0
 
@@ -66,7 +69,10 @@ export class ChunkFactory {
         chunkDataContainer[blocksIndex] !== undefined &&
         !bufferOver[buff_index]
       if (!skip) {
-        chunkDataContainer[blocksIndex] = this.voxelDataEncoder(blockType, blockData.mode)
+        chunkDataContainer[blocksIndex] = this.voxelDataEncoder(
+          blockType,
+          blockData.mode,
+        )
         blockType && written_blocks_count++
       }
       buff_index--
@@ -84,17 +90,18 @@ export class ChunkFactory {
     for (const block of blockIterator) {
       const blockData = block.data
       const blockType = block.data.type
-      block.localPos.x += 1
+      const blockLocalPos = block.localPos as Vector3
+      blockLocalPos.x += 1
       // block.localPos.y = patch.bbox.max.y
-      block.localPos.z += 1
+      blockLocalPos.z += 1
       blockData.type =
-        highlightPatchBorders(block.localPos, blockType) || blockType
+        highlightPatchBorders(blockLocalPos, blockType) || blockType
       written_blocks_count += this.writeChunkBlocks(
         chunkDataContainer,
         chunkBox,
-        block.localPos,
+        blockLocalPos,
         blockData,
-        block.buffer
+        block.buffer,
       )
     }
     return written_blocks_count
