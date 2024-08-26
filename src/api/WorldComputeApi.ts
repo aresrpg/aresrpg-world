@@ -11,6 +11,12 @@ export enum ComputeApiCall {
   OvergroundBufferCompute = 'computeOvergroundBuffer',
 }
 
+export type ComputeApiParams = Partial<{
+  rememberMe: boolean // allow for caching value
+  preCacheRadius: number // pre-caching next requests
+  includeEntitiesBlocks: boolean // skip or include entities blocks
+}>
+
 interface ComputeApiInterface {
   computeBlocksBatch(
     blockPosBatch: Vector3[],
@@ -44,7 +50,7 @@ export class WorldComputeApi implements ComputeApiInterface {
 
   computeBlocksBatch(
     blockPosBatch: Vector3[],
-    params: ComputeApiParams = { includeEntitiesBlocks: true },
+    params = { includeEntitiesBlocks: true },
   ) {
     return WorldCompute.computeBlocksBatch(blockPosBatch, params)
   }
