@@ -36,7 +36,7 @@ export class BoardContainer extends PatchContainer {
     // const { ymin, ymax } = this.getMinMax()
     // const avg = Math.round(ymin + (ymax - ymin) / 2)
     this.availablePatches.forEach(patch => {
-      const blocks = patch.iterOverBlocks(this.bbox)
+      const blocks = patch.iterOverBlocks(undefined, false, false)
       for (const block of blocks) {
         // discard blocs not included in board shape
         if (this.isInsideBoard(block) && block.index !== undefined) {
