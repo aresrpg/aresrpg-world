@@ -1,11 +1,11 @@
 import { Box3, MathUtils, Vector3 } from 'three'
 
-import { Block, ChunkId, PatchId, WorldChunk } from '../common/types'
-import { asVect3, getBboxFromChunkId, serializeChunkId } from '../common/utils'
+import { Block, PatchId } from '../common/types'
+import { asVect3 } from '../common/utils'
 import { BlockData } from '../data/DataContainers'
-import { BlockMode, BlocksContainer, BlocksPatch, BlockType, WorldConfig } from '../index'
+import { BlockMode, BlockType } from '../index'
 
-const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.SAND // disabled if NONE
+const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // disabled if NONE
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
