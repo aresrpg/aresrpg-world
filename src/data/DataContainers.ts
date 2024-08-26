@@ -34,7 +34,7 @@ export type EntityChunk = {
 export type PatchStub = {
   key: string
   bbox: Box3
-  groundBlocks: Uint32Array
+  rawDataContainer: Uint32Array
   entitiesChunks: EntityChunk[]
 }
 
@@ -57,7 +57,7 @@ export class BlocksContainer {
   dimensions = new Vector3()
   margin = 0
 
-  groundBlocks: Uint32Array
+  rawDataContainer: Uint32Array
   entitiesChunks: EntityChunk[] = []
 
   constructor(bbox: Box3, margin = 1) {
@@ -65,16 +65,16 @@ export class BlocksContainer {
     this.bbox.getSize(this.dimensions)
     this.margin = margin
     const { extendedDims } = this
-    this.groundBlocks = new Uint32Array(extendedDims.x * extendedDims.z)
+    this.rawDataContainer = new Uint32Array(extendedDims.x * extendedDims.z)
   }
 
   duplicate() {
     const copy = new BlocksContainer(this.bbox)
-    this.groundBlocks.forEach(
-      (v, i) => (copy.groundBlocks[i] = v),
-    )
-    copy.entitiesChunks = this.entitiesChunks
-    return copy
+      this.rawDataContainer.forEach(
+        (v, i) => (copy.rawDataContainer[i] = v),
+      )
+      copy.entitiesChunks = this.entitiesChunks
+      return copy
   }
 
   decodeBlockData(rawData: number): BlockData {
@@ -98,7 +98,7 @@ export class BlocksContainer {
   }
 
   readBlockData(blockIndex: number): BlockData {
-    const blockRawData = this.groundBlocks[blockIndex]
+    const blockRawData = this.rawDataContainer[blockIndex]
     const blockData = this.decodeBlockData(blockRawData)
     return blockData
   }
@@ -107,7 +107,7 @@ export class BlocksContainer {
     blockIndex: number,
     blockData: BlockData
   ) {
-    this.groundBlocks[blockIndex] = this.encodeBlockData(blockData)
+    this.rawDataContainer[blockIndex] = this.encodeBlockData(blockData)
   }
 
   get extendedBox() {
@@ -178,6 +178,7 @@ export class BlocksContainer {
       pos.y = data.level
       block = {
         pos,
+        localPos,
         data
       }
     }
@@ -199,7 +200,7 @@ export class BlocksContainer {
   getBlocksRow(zRowIndex: number) {
     const rowStart = zRowIndex * this.dimensions.z
     const rowEnd = rowStart + this.dimensions.x
-    const rowRawData = this.groundBlocks.slice(rowStart, rowEnd)
+    const rowRawData = this.rawDataContainer.slice(rowStart, rowEnd)
     return rowRawData
   }
 
@@ -325,9 +326,9 @@ export class BlocksContainer {
   }
 
   static fromStub(stub: any) {
-    const { groundBlocks, entitiesChunks } = stub
+    const { rawDataContainer, entitiesChunks } = stub
     const blocksContainer = new BlocksContainer(parseThreeStub(stub.bbox))
-    blocksContainer.groundBlocks = groundBlocks
+    blocksContainer.rawDataContainer = rawDataContainer
     blocksContainer.entitiesChunks = entitiesChunks
     // patchStub.entitiesChunks?.forEach((entityChunk: EntityChunk) =>
     //   patch.entitiesChunks.push(entityChunk),
@@ -351,7 +352,7 @@ export class BlocksPatch extends BlocksContainer {
 
   override duplicate() {
     const copy = new BlocksPatch(this.key)
-    this.groundBlocks.forEach((rawVal, i) => copy.groundBlocks[i] = rawVal)
+    this.rawDataContainer.forEach((rawVal, i) => copy.rawDataContainer[i] = rawVal)
     copy.entitiesChunks = this.entitiesChunks.map(entity => {
       const entityCopy: EntityChunk = {
         bbox: entity.bbox.clone(),
@@ -363,11 +364,11 @@ export class BlocksPatch extends BlocksContainer {
   }
 
   static override fromStub(patchStub: any) {
-    const { groundBlocks, entitiesChunks } = patchStub
+    const { rawDataContainer, entitiesChunks } = patchStub
     const bbox = parseThreeStub(patchStub.bbox)
     const patchKey = patchStub.key || computePatchKey(bbox)
     const patch = new BlocksPatch(patchKey)
-    patch.groundBlocks = groundBlocks
+    patch.rawDataContainer = rawDataContainer
     patch.entitiesChunks = entitiesChunks.map((stub: EntityChunk) => {
       const entityChunk: EntityChunk = {
         bbox: parseThreeStub(stub.bbox),

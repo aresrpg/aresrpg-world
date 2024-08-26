@@ -125,8 +125,9 @@ export class EntitiesMap {
         }
       })
     }
-
-    return sum > 0 ? treeBuffer : []
+    const res = sum > 0 ? treeBuffer : []
+    entity.bbox.max.y = entity.bbox.min.y + 20//res.length
+    return res
   }
 
   /**
