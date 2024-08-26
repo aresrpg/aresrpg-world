@@ -15,15 +15,15 @@ import { BlockType } from '../procgen/Biome'
 import { WorldConfig } from '../config/WorldConfig'
 import { ChunkFactory } from '../index'
 
+export enum BlockMode {
+  DEFAULT,
+  BOARD_CONTAINER,
+}
+
 export type BlockData = {
   level: number
   type: BlockType
   mode?: BlockMode
-}
-
-export enum BlockMode {
-  DEFAULT,
-  BOARD_CONTAINER
 }
 
 export type EntityChunk = {
@@ -41,9 +41,9 @@ export type PatchStub = {
 // bits allocated per block data type
 // total bits required to store a block: 9+10+3 = 22 bits
 const BlockDataBitAllocation = {
-  level: 9,  // support level values ranging from 0 to 512
-  type: 10,   // support up to 1024 different block types
-  mode: 3,    // support for 8 different block mode
+  level: 9, // support level values ranging from 0 to 512
+  type: 10, // support up to 1024 different block types
+  mode: 3, // support for 8 different block mode
 }
 
 export type BlockIteratorRes = IteratorResult<Block, void>
@@ -70,20 +70,21 @@ export class BlocksContainer {
 
   duplicate() {
     const copy = new BlocksContainer(this.bbox)
-      this.rawDataContainer.forEach(
-        (v, i) => (copy.rawDataContainer[i] = v),
-      )
-      copy.entitiesChunks = this.entitiesChunks
-      return copy
+    this.rawDataContainer.forEach((v, i) => (copy.rawDataContainer[i] = v))
+    copy.entitiesChunks = this.entitiesChunks
+    return copy
   }
 
   decodeBlockData(rawData: number): BlockData {
     const shift = BlockDataBitAllocation
-    const level = (rawData >> (shift.type + shift.mode)) & ((1 << shift.level) - 1);  // Extract 9 bits for level
-    const type = (rawData >> shift.mode) & ((1 << shift.type) - 1);  // Extract 10 bits for type
-    const mode = rawData & ((1 << shift.mode) - 1);  // Extract 3 bits for mode
+    const level =
+      (rawData >> (shift.type + shift.mode)) & ((1 << shift.level) - 1) // Extract 9 bits for level
+    const type = (rawData >> shift.mode) & ((1 << shift.type) - 1) // Extract 10 bits for type
+    const mode = rawData & ((1 << shift.mode) - 1) // Extract 3 bits for mode
     const blockData: BlockData = {
-      level, type, mode
+      level,
+      type,
+      mode,
     }
     return blockData
   }
@@ -92,21 +93,18 @@ export class BlocksContainer {
     const { level, type, mode } = blockData
     const shift = BlockDataBitAllocation
     let blockRawVal = level
-    blockRawVal = blockRawVal << shift.type | type
-    blockRawVal = blockRawVal << shift.mode | (mode || BlockMode.DEFAULT)
+    blockRawVal = (blockRawVal << shift.type) | type
+    blockRawVal = (blockRawVal << shift.mode) | (mode || BlockMode.DEFAULT)
     return blockRawVal
   }
 
   readBlockData(blockIndex: number): BlockData {
     const blockRawData = this.rawDataContainer[blockIndex]
-    const blockData = this.decodeBlockData(blockRawData)
+    const blockData = this.decodeBlockData(blockRawData as number)
     return blockData
   }
 
-  writeBlockData(
-    blockIndex: number,
-    blockData: BlockData
-  ) {
+  writeBlockData(blockIndex: number, blockData: BlockData) {
     this.rawDataContainer[blockIndex] = this.encodeBlockData(blockData)
   }
 
@@ -179,7 +177,7 @@ export class BlocksContainer {
       block = {
         pos,
         localPos,
-        data
+        data,
       }
     }
     return block
@@ -189,7 +187,7 @@ export class BlocksContainer {
     const blockIndex = localPos.x * this.dimensions.x + localPos.z
     const block = {
       level: localPos.y,
-      type: blockType
+      type: blockType,
     }
     this.writeBlockData(blockIndex, block)
     // const levelMax = blockLevel + blockData.over.length
@@ -204,9 +202,9 @@ export class BlocksContainer {
     return rowRawData
   }
 
-  getBlocksCol(xColIndex: number) {
+  // getBlocksCol(xColIndex: number) {
 
-  }
+  // }
 
   *iterOverBlocks(customBox?: Box3, useLocalPos = false, skipMargin = true) {
     const bbox = customBox
@@ -248,16 +246,13 @@ export class BlocksContainer {
 
   *iterEntityBlocks(entity: EntityChunk) {
     // find overlapping blocks between entity and container
-    const blocks_iter = this.iterOverBlocks(
-      entity.bbox,
-      true,
-    )
+    const blocks_iter = this.iterOverBlocks(entity.bbox, true)
     let chunk_index = 0
     // iter over entity blocks
     for (const block of blocks_iter) {
       const bufferStr = entity.data[chunk_index++]
       const buffer = bufferStr?.split(',').map(char => parseInt(char))
-      const maxHeightDiff = entity.bbox.max.y - block.localPos.y
+      const maxHeightDiff = entity.bbox.max.y - (block.localPos as Vector3).y
       const entityBlockData = block
       entityBlockData.buffer = buffer?.slice(0, maxHeightDiff) || []
       yield entityBlockData
@@ -352,11 +347,13 @@ export class BlocksPatch extends BlocksContainer {
 
   override duplicate() {
     const copy = new BlocksPatch(this.key)
-    this.rawDataContainer.forEach((rawVal, i) => copy.rawDataContainer[i] = rawVal)
+    this.rawDataContainer.forEach(
+      (rawVal, i) => (copy.rawDataContainer[i] = rawVal),
+    )
     copy.entitiesChunks = this.entitiesChunks.map(entity => {
       const entityCopy: EntityChunk = {
         bbox: entity.bbox.clone(),
-        data: entity.data.slice()
+        data: entity.data.slice(),
       }
       return entityCopy
     })
@@ -372,7 +369,7 @@ export class BlocksPatch extends BlocksContainer {
     patch.entitiesChunks = entitiesChunks.map((stub: EntityChunk) => {
       const entityChunk: EntityChunk = {
         bbox: parseThreeStub(stub.bbox),
-        data: stub.data
+        data: stub.data,
       }
       return entityChunk
     })
@@ -444,9 +441,7 @@ export class PatchContainer {
   }
 
   get chunkIds() {
-    return this.availablePatches
-      .map(patch => patch.chunkIds)
-      .flat()
+    return this.availablePatches.map(patch => patch.chunkIds).flat()
   }
 
   get availablePatches() {
@@ -511,70 +506,4 @@ export class PatchContainer {
   getBlock(blockPos: Vector3) {
     return this.findPatch(blockPos)?.getBlock(blockPos, false)
   }
-
-  getMergedRows(zRowIndex: number) {
-    const sortedPatchesRows = this.availablePatches
-      .filter(patch => zRowIndex >= patch.bbox.min.z && zRowIndex <= patch.bbox.min.z)
-      .sort((p1, p2) => p1.bbox.min.x - p2.bbox.min.x)
-      .map(patch => patch.getBlocksRow(zRowIndex))
-    const mergedRows = sortedPatchesRows.reduce((arr1, arr2) => {
-      const mergedArray = new Uint32Array(arr1.length + arr2.length)
-      mergedArray.set(arr1)
-      mergedArray.set(arr2, arr1.length)
-      return mergedArray
-    })
-    return mergedRows
-  }
-
-  iterMergedRows() {
-    const { min, max } = this.patchRange
-    for (let zPatchIndex = min.z; zPatchIndex <= max.z; zPatchIndex++) {
-      for (let zRowIndex = min.z; zRowIndex < max.z; zRowIndex++) {
-
-      }
-    }
-  }
-
-  getMergedCols(xColIndex: number) {
-
-  }
-
-  mergedLinesIteration() {
-    const { min, max } = this.bbox
-    for (let x = min.x; x < max.x; x++) {
-      for (let z = min.z; z < max.z; z++) {
-
-      }
-    }
-  }
-
-  toMergedContainer() {
-    const mergedBox = this.availablePatches.map(patch => patch.bbox)
-      .reduce((merge, bbox) => merge.union(bbox), new Box3())
-    // const mergedContainer = 
-  }
-
-  static fromMergedContainer() {
-
-  }
-  mergeBlocks(blocksContainer: BlocksContainer) {
-    // // for each patch override with blocks from blocks container
-    // this.availablePatches.forEach(patch => {
-    //   const blocksIter = patch.iterOverBlocks(blocksContainer.bbox)
-    //   for (const target_block of blocksIter) {
-    //     const source_block = blocksContainer.getBlock(target_block.pos, false)
-    //     if (source_block && source_block.pos.y > 0 && target_block.index) {
-    //       let block_type = source_block.type ? BlockType.SAND : BlockType.NONE
-    //       block_type =
-    //         source_block.type === BlockType.TREE_TRUNK
-    //           ? BlockType.TREE_TRUNK
-    //           : block_type
-    //       const block_level = blocksContainer.bbox.min.y // source_block?.pos.y
-    //       patch.writeBlock(target_block.index, block_level, block_type)
-    //       // console.log(source_block?.pos.y)
-    //     }
-    //   }
-    // })
-  }
 }
-

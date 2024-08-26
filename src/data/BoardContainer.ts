@@ -1,6 +1,6 @@
 import { Box3, Vector3 } from 'three'
-import { Block } from '../common/types'
 
+import { Block } from '../common/types'
 import { asVect2 } from '../common/utils'
 import { WorldCacheContainer } from '../index'
 
@@ -92,8 +92,5 @@ export class BoardContainer extends PatchContainer {
     return original_patches_container
   }
 
-  smoothEdges() {
-
-  }
-
+  smoothEdges() {}
 }
