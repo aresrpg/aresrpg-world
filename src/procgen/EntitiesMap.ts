@@ -231,55 +231,57 @@ export class RepeatableEntitiesMap extends EntitiesMap {
     })
   }
 
-  override *iterate(input: Box3 | Vector3) {
+  getEntityInstance(entityTemplate: EntityData, mapShifting: Vector3) {
+    const mapLocalPos = entityTemplate.bbox.min
+    // switch to global position
+    const entityDims = entityTemplate.bbox.getSize(new Vector3())
+    const bmin = mapShifting.clone().add(mapLocalPos.clone())
+    const bmax = bmin.clone().add(entityDims)
+    const bbox = new Box3(bmin, bmax)
+    const entityInstance = { ...entityTemplate }
+    entityInstance.bbox = bbox
+    return entityInstance
+  }
+
+  hasEntitySpawned(entityInstance: EntityData) {
+    const centerPos = entityInstance.bbox.getCenter(new Vector3())
+    // eval spawn probability at entity center
+    const spawnProbabilty = this.probabilityEval(centerPos)
+    const entityId = centerPos.x + '_' + centerPos.z
+    const prng = alea(entityId)
+    const hasSpawned = prng() * spawnProbabilty < probabilityThreshold
+    return hasSpawned
+  }
+
+  override *iterate(input: Box3 | Vector3, entityMask = (_entity: EntityData) => false) {
     if (this.entities.length === 0) RepeatableEntitiesMap.instance.populate()
     const { period } = this
-    const pos = input instanceof Box3 ? input.min : input
+    const realPos = input instanceof Box3 ? input.min : input
     const mapShift = new Vector3(
-      Math.floor(pos.x / period),
+      Math.floor(realPos.x / period),
       0,
-      Math.floor(pos.z / period),
+      Math.floor(realPos.z / period),
     ).multiplyScalar(period)
-
-    // find virtual map coords
-    const dims =
+    const mapDims =
       input instanceof Box3
         ? input.getSize(new Vector3())
         : new Vector3(1, 1, 1)
-    const point = input instanceof Box3 ? input.min : input
-    const mapPoint = new Vector3(
-      point.x % this.period,
-      0,
-      point.z % this.period,
-    )
-    mapPoint.x += mapPoint.x < 0 ? this.period : 0
-    mapPoint.z += mapPoint.z < 0 ? this.period : 0
-    const mapEnd = mapPoint.clone().add(dims)
-    mapEnd.y = 512
-    const mapBox = new Box3(mapPoint, mapEnd)
-
+    const mapVirtualStart = realPos.clone().sub(mapShift)
+    const mapVirtualEnd = mapVirtualStart.clone().add(mapDims)
+    mapVirtualStart.y = 0
+    mapVirtualEnd.y = 512
+    const mapVirtualBox = new Box3(mapVirtualStart, mapVirtualEnd)
+    // filter entities belonging to map area
     const entities = this.entities.filter(entity =>
-      mapBox
-        ? entity.bbox.intersectsBox(mapBox)
+      mapVirtualBox
+        ? entity.bbox.intersectsBox(mapVirtualBox)
         : entity.bbox.containsPoint(input as Vector3),
-    )
-    for (const entity of entities) {
-      const mapLocalPos = entity.bbox.min
-      // switch to global position
-      const entityDims = entity.bbox.getSize(new Vector3())
-      const bmin = mapShift.clone().add(mapLocalPos.clone())
-      const bmax = bmin.clone().add(entityDims)
-      const bbox = new Box3(bmin, bmax)
-      const centerPos = bbox.getCenter(new Vector3())
-      // eval spawn probability at entity center
-      const spawnProbabilty = this.probabilityEval(centerPos)
-      const entityId = centerPos.x + '_' + centerPos.z
-      const prng = alea(entityId)
-      const hasSpawned = prng() * spawnProbabilty < probabilityThreshold
-      if (hasSpawned) {
-        const entityCopy = { ...entity }
-        entityCopy.bbox = bbox
-        yield entityCopy
+    ).filter(entity => !entityMask(entity))// discard entitie according to optional provided mask
+
+    for (const entityTemplate of entities) {
+      const entityInstance = this.getEntityInstance(entityTemplate, mapShift)
+      if (this.hasEntitySpawned(entityInstance)) {
+        yield entityInstance
       }
     }
   }

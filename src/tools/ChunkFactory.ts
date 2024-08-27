@@ -115,14 +115,15 @@ export class ChunkFactory {
     let writtenBlocksCount = 0
     // iter over entity blocks
     for (const entityBlock of entityBlocksIterator) {
-      if (entityBlock.buffer && entityBlock.localPos) {
-        entityBlock.localPos.x += 1
-        entityBlock.localPos.z += 1
+      const entityLocalPos = entityBlock.localPos as Vector3
+      if (entityBlock.buffer) {
+        entityLocalPos.x += 1
+        entityLocalPos.z += 1
         // bmin.y = block.localPos.y
         writtenBlocksCount += this.writeChunkBlocks(
           chunkData,
           chunkBox,
-          entityBlock.localPos,
+          entityLocalPos,
           entityBlock.data,
           entityBlock.buffer,
         )

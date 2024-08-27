@@ -97,10 +97,10 @@ const buildEntityChunk = (patch: BlocksContainer, entity: EntityData) => {
     bbox: new Box3(),
     data: [],
   }
-  const blocksIter = patch.iterOverBlocks(entity.bbox, true)
+  const blocksIter = patch.iterOverBlocks(entity.bbox)
   for (const block of blocksIter) {
     const blocksBuffer = EntitiesMap.fillBlockBuffer(
-      block.localPos as Vector3,
+      block.pos,
       entity,
       [],
     )
@@ -112,7 +112,7 @@ const buildEntityChunk = (patch: BlocksContainer, entity: EntityData) => {
       .reduce((str, val) => str + ',' + val, '')
       .slice(1)
     entityChunk.data.push(serialized)
-    entityChunk.bbox.expandByPoint(block.localPos as Vector3)
+    entityChunk.bbox.expandByPoint(block.pos as Vector3)
   }
   entityChunk.bbox = entity.bbox
   return entityChunk
@@ -133,13 +133,8 @@ const genEntitiesBlocks = (blocksContainer: BlocksContainer) => {
     //   0,
     //   max.z % patch.dimensions.z + max.z >= 0 ? 0 : patch.dimensions.z)
     if (entityType) {
-      const dims = entity.bbox.getSize(new Vector3())
-      dims.y = 10
-      const localBmin = entity.bbox.min.clone().sub(blocksContainer.bbox.min)
-      localBmin.y = Heightmap.instance.getGroundLevel(entityPos)
-      const localBmax = localBmin.clone().add(dims)
-      const localBbox = new Box3(localBmin, localBmax)
-      entity.bbox = localBbox
+      entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
+      entity.bbox.max.y = entity.bbox.min.y + 10
       entity.type = entityType
       const entityChunk = buildEntityChunk(blocksContainer, entity)
       blocksContainer.entitiesChunks.push(entityChunk)
@@ -157,15 +152,10 @@ const genGroundBlocks = (blocksContainer: BlocksContainer) => {
   // const prng = alea(patchId)
   // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
   // const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
-  const blocksPatchIter = blocksContainer.iterOverBlocks(
-    undefined,
-    false,
-    false,
-  )
+  const blocksPatchIter = blocksContainer.iterOverBlocks(undefined, false,)
   min.y = 512
   max.y = 0
   let blockIndex = 0
-
   for (const block of blocksPatchIter) {
     // const patchCorner = points.find(pt => pt.distanceTo(blockData.pos) < 2)
     const blockData = computeGroundBlock(block.pos)

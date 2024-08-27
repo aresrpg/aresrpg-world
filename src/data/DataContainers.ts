@@ -116,33 +116,30 @@ export class BlocksContainer {
     return this.extendedBox.getSize(new Vector3())
   }
 
-  get localExtendedBox() {
-    const bbox = new Box3(
+  get localBox() {
+    const localBox = new Box3(
       new Vector3(0),
       this.dimensions.clone(),
-    ).expandByScalar(this.margin)
-    return bbox
+    )
+    return localBox
   }
 
-  adaptCustomBox(bbox: Box3, useLocalPos = false) {
-    const { patchSize } = WorldConfig
-    const bmin = new Vector3(
-      Math.max(Math.floor(bbox.min.x), useLocalPos ? 0 : this.bbox.min.x),
+  get localExtendedBox() {
+    return this.localBox.expandByScalar(this.margin)
+  }
+  adjustRangeBox(rangeBox: Box3, local = false) {
+    const { min, max } = local ? this.localBox : this.bbox
+    const rangeMin = new Vector3(
+      Math.max(Math.floor(rangeBox.min.x), min.x),
       0,
-      Math.max(Math.floor(bbox.min.z), useLocalPos ? 0 : this.bbox.min.z),
+      Math.max(Math.floor(rangeBox.min.z), min.z),
     )
-    const bmax = new Vector3(
-      Math.min(
-        Math.floor(bbox.max.x),
-        useLocalPos ? patchSize : this.bbox.max.x,
-      ),
+    const rangeMax = new Vector3(
+      Math.min(Math.floor(rangeBox.max.x), max.x),
       0,
-      Math.min(
-        Math.floor(bbox.max.z),
-        useLocalPos ? patchSize : this.bbox.max.z,
-      ),
+      Math.min(Math.floor(rangeBox.max.z), max.z),
     )
-    return new Box3(bmin, bmax)
+    return local ? new Box3(rangeMin, rangeMax) : new Box3(this.toLocalPos(rangeMin), this.toLocalPos(rangeMax))
   }
 
   getBlockIndex(localPos: Vector3) {
@@ -154,11 +151,15 @@ export class BlocksContainer {
   }
 
   toLocalPos(pos: Vector3) {
-    return pos.clone().sub(this.bbox.min)
+    const origin = this.bbox.min.clone()
+    origin.y = 0
+    return pos.clone().sub(origin)
   }
 
   toGlobalPos(pos: Vector3) {
-    return this.bbox.min.clone().add(pos)
+    const origin = this.bbox.min.clone()
+    origin.y = 0
+    return origin.add(pos)
   }
 
   getBlock(pos: Vector3, isLocalPos = true) {
@@ -206,34 +207,36 @@ export class BlocksContainer {
 
   // }
 
-  *iterOverBlocks(customBox?: Box3, useLocalPos = false, skipMargin = true) {
-    const bbox = customBox
-      ? this.adaptCustomBox(customBox, useLocalPos)
-      : useLocalPos
-        ? this.localExtendedBox
-        : this.extendedBox
+  /**
+   * 
+   * @param rangeBox iteration range as global coords
+   * @param skipMargin 
+   */
+  *iterOverBlocks(rangeBox?: Box3, skipMargin = true) {
+    // convert to local coords to speed up iteration
+    const localBbox = rangeBox
+      ? this.adjustRangeBox(rangeBox)
+      : this.localExtendedBox
 
     const isMarginBlock = ({ x, z }: { x: number; z: number }) =>
-      !customBox &&
+      !rangeBox &&
       this.margin > 0 &&
-      (x === bbox.min.x ||
-        x === bbox.max.x - 1 ||
-        z === bbox.min.z ||
-        z === bbox.max.z - 1)
+      (x === localBbox.min.x ||
+        x === localBbox.max.x - 1 ||
+        z === localBbox.min.z ||
+        z === localBbox.max.z - 1)
 
     let index = 0
-    for (let { x } = bbox.min; x < bbox.max.x; x++) {
-      for (let { z } = bbox.min; z < bbox.max.z; z++) {
-        const pos = new Vector3(x, 0, z)
-        if (!skipMargin || !isMarginBlock(pos)) {
-          const localPos = useLocalPos ? pos : this.toLocalPos(pos)
-          index = customBox ? this.getBlockIndex(localPos) : index
+    for (let { x } = localBbox.min; x < localBbox.max.x; x++) {
+      for (let { z } = localBbox.min; z < localBbox.max.z; z++) {
+        const localPos = new Vector3(x, 0, z)
+        if (!skipMargin || !isMarginBlock(localPos)) {
+          index = rangeBox ? this.getBlockIndex(localPos) : index
           const blockData = this.readBlockData(index) || BlockType.NONE
-          pos.y = blockData.level
           localPos.y = blockData.level
           const block: Block = {
             index,
-            pos: useLocalPos ? this.toGlobalPos(pos) : pos,
+            pos: this.toGlobalPos(localPos),
             localPos,
             data: blockData,
           }
@@ -246,14 +249,14 @@ export class BlocksContainer {
 
   *iterEntityBlocks(entity: EntityChunk) {
     // find overlapping blocks between entity and container
-    const blocks_iter = this.iterOverBlocks(entity.bbox, true)
+    const entityBlocks = this.iterOverBlocks(entity.bbox)
     let chunk_index = 0
     // iter over entity blocks
-    for (const block of blocks_iter) {
+    for (const entityBlock of entityBlocks) {
       const bufferStr = entity.data[chunk_index++]
       const buffer = bufferStr?.split(',').map(char => parseInt(char))
-      const maxHeightDiff = entity.bbox.max.y - (block.localPos as Vector3).y
-      const entityBlockData = block
+      const maxHeightDiff = entity.bbox.max.y - (entityBlock.pos as Vector3).y
+      const entityBlockData = entityBlock
       entityBlockData.buffer = buffer?.slice(0, maxHeightDiff) || []
       yield entityBlockData
     }
@@ -292,7 +295,7 @@ export class BlocksContainer {
 
     // multi-pass chunk filling
 
-    const blockIterator = this.iterOverBlocks(undefined, true, false)
+    const blockIterator = this.iterOverBlocks(undefined, false)
     // ground blocks pass
     totalWrittenBlocks += ChunkFactory.default.fillGroundData(
       blockIterator,
@@ -506,4 +509,90 @@ export class PatchContainer {
   getBlock(blockPos: Vector3) {
     return this.findPatch(blockPos)?.getBlock(blockPos, false)
   }
+
+  getAllPatchesEntities(skipDuplicate = true) {
+    const entities: EntityChunk[] = []
+    for (const patch of this.availablePatches) {
+      patch.entitiesChunks.forEach(entity => {
+        if (!skipDuplicate || !entities.find(ent => ent.bbox.equals(entity.bbox))) {
+          entities.push(entity)
+        }
+      })
+    }
+    return entities
+  }
+
+  // *iterAllPatchesBlocks() {
+  //   for (const patch of this.availablePatches) {
+  //     const blocks = patch.iterOverBlocks(undefined, false, false)
+  //     for (const block of blocks) {
+  //       yield block
+  //     }
+  //   }
+  // }
+
+  // getMergedRows(zRowIndex: number) {
+  //   const sortedPatchesRows = this.availablePatches
+  //     .filter(
+  //       patch => zRowIndex >= patch.bbox.min.z && zRowIndex <= patch.bbox.min.z,
+  //     )
+  //     .sort((p1, p2) => p1.bbox.min.x - p2.bbox.min.x)
+  //     .map(patch => patch.getBlocksRow(zRowIndex))
+  //   const mergedRows = sortedPatchesRows.reduce((arr1, arr2) => {
+  //     const mergedArray = new Uint32Array(arr1.length + arr2.length)
+  //     mergedArray.set(arr1)
+  //     mergedArray.set(arr2, arr1.length)
+  //     return mergedArray
+  //   })
+  //   return mergedRows
+  // }
+
+  // iterMergedRows() {
+  //   const { min, max } = this.patchRange
+  //   for (let zPatchIndex = min.z; zPatchIndex <= max.z; zPatchIndex++) {
+  //     for (let zRowIndex = min.z; zRowIndex < max.z; zRowIndex++) {}
+  //   }
+  // }
+
+  // getMergedCols(xColIndex: number) {
+
+  // }
+
+  // mergedLinesIteration() {
+  //   const { min, max } = this.bbox
+  //   for (let x = min.x; x < max.x; x++) {
+  //     for (let z = min.z; z < max.z; z++) {
+
+  //     }
+  //   }
+  // }
+
+  // toMergedContainer() {
+  //   const mergedBox = this.availablePatches.map(patch => patch.bbox)
+  //     .reduce((merge, bbox) => merge.union(bbox), new Box3())
+  //   // const mergedContainer =
+  // }
+
+  // static fromMergedContainer() {
+
+  // }
+  // mergeBlocks(blocksContainer: BlocksContainer) {
+  //   // // for each patch override with blocks from blocks container
+  //   this.availablePatches.forEach(patch => {
+  //     const blocksIter = patch.iterOverBlocks(blocksContainer.bbox)
+  //     for (const target_block of blocksIter) {
+  //       const source_block = blocksContainer.getBlock(target_block.pos, false)
+  //       if (source_block && source_block.pos.y > 0 && target_block.index) {
+  //         let block_type = source_block.type ? BlockType.SAND : BlockType.NONE
+  //         block_type =
+  //           source_block.type === BlockType.TREE_TRUNK
+  //             ? BlockType.TREE_TRUNK
+  //             : block_type
+  //         const block_level = blocksContainer.bbox.min.y // source_block?.pos.y
+  //         patch.writeBlock(target_block.index, block_level, block_type)
+  //         // console.log(source_block?.pos.y)
+  //       }
+  //     }
+  //   })
+  // }
 }
