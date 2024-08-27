@@ -4,7 +4,7 @@ import { Block } from '../common/types'
 import { asVect2 } from '../common/utils'
 import { WorldCacheContainer } from '../index'
 
-import { BlockMode, PatchContainer } from './DataContainers'
+import { BlockData, BlockMode, PatchContainer } from './DataContainers'
 
 export class BoardContainer extends PatchContainer {
   boardCenter
@@ -21,55 +21,71 @@ export class BoardContainer extends PatchContainer {
     this.initFromBoxAndMask(this.bbox)
   }
 
-  isInsideBoard(block: Block) {
-    // const block = input instanceof Vector3 ? this.getBlock(input) : input
-    let res = false
-    if (block) {
-      const heightDiff = Math.abs(block.pos.y - this.boardCenter.y)
-      const dist = asVect2(block.pos).distanceTo(asVect2(this.boardCenter))
-      res = dist <= this.boardRadius && heightDiff <= this.boardMaxHeightDiff
+  isInsideBoardFilter(blockPos: Vector3) {
+    let isInsideBoard = false
+    if (blockPos) {
+      const heightDiff = Math.abs(blockPos.y - this.boardCenter.y)
+      const dist = asVect2(blockPos).distanceTo(asVect2(this.boardCenter))
+      isInsideBoard = dist <= this.boardRadius && heightDiff <= this.boardMaxHeightDiff
     }
-    return res
+    return isInsideBoard
+  }
+
+  overrideBlock(block: Block) {
+    const blockData = block.data
+    blockData.level = this.boardCenter.y
+    blockData.mode = BlockMode.BOARD_CONTAINER
+    return block
   }
 
   shapeBoard() {
     // const { ymin, ymax } = this.getMinMax()
     // const avg = Math.round(ymin + (ymax - ymin) / 2)
-    this.availablePatches.forEach(patch => {
-      const blocks = patch.iterOverBlocks(undefined, false, false)
+    // reset bbox to refine bounds
+    this.bbox.min = this.boardCenter.clone()
+    this.bbox.max = this.boardCenter.clone()
+
+    for (const patch of this.availablePatches) {
+      const blocks = patch.iterOverBlocks(undefined, false)
+      // const blocks = this.iterPatchesBlocks()
       for (const block of blocks) {
         // discard blocs not included in board shape
-        if (this.isInsideBoard(block) && block.index !== undefined) {
-          const blockData = block.data
-          blockData.level = this.boardCenter.y
-          blockData.mode = BlockMode.BOARD_CONTAINER
-          patch.writeBlockData(block.index, blockData)
+        if (this.isInsideBoardFilter(block.pos)) {
+          const boardBlock = this.overrideBlock(block)
+          patch.writeBlockData(boardBlock.index, boardBlock.data)
+          this.bbox.expandByPoint(boardBlock.pos)
+          // yield boardBlock
         }
       }
-    })
+    }
   }
 
-  trimEntities() {
+  getBoardEntities() {
+    const boardEntities = this.getAllPatchesEntities()
+      .filter(ent => {
+        const entityCenter = ent.bbox.getCenter(new Vector3())
+        return this.isInsideBoardFilter(entityCenter)
+      })
+    return boardEntities
+  }
+
+  trimTrees() {
     this.availablePatches.forEach(patch => {
       patch.entitiesChunks.forEach(entity => {
-        const entityMin = patch.toGlobalPos(entity.bbox.min)
-        const entityMax = patch.toGlobalPos(entity.bbox.max)
-        const entityBox = new Box3(entityMin, entityMax)
-        const entityCenter = entityBox.getCenter(new Vector3())
-        // console.log(entityCenter)
+        const entityCenter = entity.bbox.getCenter(new Vector3())
         const entityCenterBlock = this.getBlock(entityCenter)
-        entityCenter.y = entityMin.y
+        entityCenter.y = entity.bbox.min.y
         const isEntityOverlappingBoard = () => {
           const entityBlocks = patch.iterEntityBlocks(entity)
           for (const block of entityBlocks) {
-            if (this.isInsideBoard(block)) {
+            if (this.isInsideBoardFilter(block.pos)) {
               return true
             }
           }
           return false
         }
 
-        if (entityCenterBlock && this.isInsideBoard(entityCenterBlock)) {
+        if (entityCenterBlock && this.isInsideBoardFilter(entityCenterBlock.pos)) {
           // trim entities belonging to board
           const diff = entityCenter.clone().sub(this.boardCenter)
           entity.bbox.max.y = entity.bbox.min.y - diff.y + 2
