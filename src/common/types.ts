@@ -115,6 +115,15 @@ export enum EntityType {
   TREE_PINE = 'pine_tree',
 }
 
+export type EntityData = {
+  type: EntityType
+  bbox: Box3
+  params: {
+    radius: 5
+    size: 10
+  }
+}
+
 export type PatchKey = string
 export type PatchId = Vector2
 export type ChunkKey = string

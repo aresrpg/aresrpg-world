@@ -1,18 +1,18 @@
-import { Vector3 } from 'three'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
 
-import { ChunkFactory, EntityType } from '../index'
+import { ChunkFactory, EntityType, PseudoRandomDistMap } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
-import {
-  EntityData,
-  RepeatableEntitiesMap,
-} from '../procgen/EntitiesMap'
 import {
   BlockData,
   BlocksContainer,
   BlocksPatch,
 } from '../data/DataContainers'
-import { Block, PatchKey } from '../common/types'
+import { Block, EntityData, PatchKey } from '../common/types'
+import { asBox2, asVect2, asVect3 } from '../common/utils'
+
+// TODO remove hardcoded entity dimensions to compute from entity type
+const entityDefaultDims = new Vector3(10, 20, 10)
 
 export const computePatch = (patchKey: PatchKey) => {
   const patch = new BlocksPatch(patchKey)
@@ -68,24 +68,38 @@ export const computeGroundBlock = (blockPos: Vector3) => {
   return block
 }
 
+const genEntity = (entityPos: Vector3) => {
+  let entity: EntityData | undefined
+  // use global coords in case entity center is from adjacent patch
+  const rawVal = Heightmap.instance.getRawVal(entityPos)
+  const mainBiome = Biome.instance.getMainBiome(entityPos)
+  const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
+  const entityType = blockTypes.entities?.[0] as EntityType
+  if (entityType) {
+    entityPos.y = Heightmap.instance.getGroundLevel(entityPos, rawVal) + entityDefaultDims.y / 2
+    const entityBox = new Box3().setFromCenterAndSize(entityPos, entityDefaultDims)
+    entity = {
+      type: entityType,
+      bbox: entityBox,
+      params: {
+        radius: 5,
+        size: 10
+      }
+    }
+  }
+  return entity
+}
+
 export const computeBlocksBuffer = (blockPos: Vector3) => {
   let blocksBuffer
   // query entities at current block
-  const entitiesIter = RepeatableEntitiesMap.instance.iterate(blockPos)
-  for (const entity of entitiesIter) {
-    // use global coords in case entity center is from adjacent patch
-    const entityPos = entity.bbox.getCenter(new Vector3())
-    const rawVal = Heightmap.instance.getRawVal(entityPos)
-    const mainBiome = Biome.instance.getMainBiome(entityPos)
-    const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
-    const entityType = blockTypes.entities?.[0] as EntityType
-    if (entityType) {
-      const entityLevel = Heightmap.instance.getGroundLevel(entityPos, rawVal)
-      entity.bbox.min.y = entityLevel
-      entity.bbox.max.y = entityLevel + 20
-      entity.type = entityType
-      blocksBuffer = ChunkFactory.chunkifyEntity(entity, blockPos).data
-    }
+  const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDefaultDims))
+  const mapPos = asVect2(blockPos)
+  const mapItems = PseudoRandomDistMap.instance.iterMapItems(entityShaper, mapPos)
+  for (const mapPos of mapItems) {
+    const entityPos = asVect3(mapPos)
+    const entity = genEntity(entityPos)
+    blocksBuffer = entity ? ChunkFactory.chunkifyEntity(entity, blockPos).data : blocksBuffer
   }
   return blocksBuffer || []
 }
@@ -95,27 +109,17 @@ export const bakeEntities = (_entities: EntityData) => {
 }
 
 const genEntities = (blocksContainer: BlocksContainer) => {
-  const entitiesIter = RepeatableEntitiesMap.instance.iterate(
-    blocksContainer.bbox,
-  )
-  for (const entity of entitiesIter) {
+  // query entities on patch range
+  const entityDims = new Vector3(10, 20, 10)  // TODO compute from entity type
+  const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDims))
+  const mapBox = asBox2(blocksContainer.bbox)
+  const entitiesIter = PseudoRandomDistMap.instance.iterMapItems(entityShaper, mapBox)
+  for (const mapPos of entitiesIter) {
     // use global coords in case entity center is from adjacent patch
-    const entityPos = entity.bbox.getCenter(new Vector3())
-    const biome = Biome.instance.getMainBiome(entityPos)
-    const rawVal = Heightmap.instance.getRawVal(entityPos)
-    const blockTypes = Biome.instance.getBlockType(rawVal, biome)
-    const entityType = blockTypes.entities?.[0] as EntityType
-    // const patchLocalBmin = new Vector3(min.x % patch.dimensions.x + min.x >= 0 ? 0 : patch.dimensions.x,
-    //   0,
-    //   max.z % patch.dimensions.z + max.z >= 0 ? 0 : patch.dimensions.z)
-    if (entityType) {
-      entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
-      entity.bbox.max.y = entity.bbox.min.y + 20
-      entity.type = entityType
+    const entityPos = asVect3(mapPos)
+    const entity = genEntity(entityPos)
+    if (entity) {
       blocksContainer.entities.push(entity)
-      // const entityChunk = buildEntityChunk(blocksContainer, entity)
-      // blocksContainer.entitiesChunks.push(entityChunk)
-      // let item: BlockIteratorRes = blocksIter.next()
     }
   }
 }

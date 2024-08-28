@@ -1,6 +1,6 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { Block, PatchBlock, PatchKey, WorldChunk, ChunkDataContainer, } from '../common/types'
+import { Block, PatchBlock, PatchKey, WorldChunk, ChunkDataContainer, EntityData, } from '../common/types'
 import {
   asVect3,
   computePatchKey,
@@ -14,7 +14,6 @@ import {
 import { BlockType } from '../procgen/Biome'
 import { WorldConfig } from '../config/WorldConfig'
 import { ChunkFactory } from '../index'
-import { EntityData } from '../procgen/EntitiesMap'
 
 export enum BlockMode {
   DEFAULT,

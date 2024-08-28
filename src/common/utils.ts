@@ -1,4 +1,4 @@
-import { Box3, Vector2, Vector3, Vector3Like } from 'three'
+import { Box2, Box3, Vector2, Vector3, Vector3Like } from 'three'
 
 import { WorldConfig } from '../config/WorldConfig'
 
@@ -209,6 +209,14 @@ const asVect3 = (v2: Vector2, yVal = 0) => {
   return new Vector3(v2.x, yVal, v2.y)
 }
 
+const asBox2 = (box3: Box3) => {
+  return new Box2(asVect2(box3.min), asVect2(box3.max))
+}
+
+const asBox3 = (box2: Box2) => {
+  return new Box3(asVect3(box2.min), asVect3(box2.max))
+}
+
 const parseVect3Stub = (stub: Vector3Like) => {
   let res
   if (isVect3Stub(stub)) {
@@ -340,6 +348,8 @@ export {
   parseThreeStub,
   asVect2,
   asVect3,
+  asBox2,
+  asBox3,
   parsePatchKey,
   convertPosToPatchId,
   computePatchKey,

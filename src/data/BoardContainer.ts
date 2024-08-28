@@ -1,10 +1,14 @@
 import { Box3, Vector3 } from 'three'
 
-import { Block } from '../common/types'
+import { EntityData, PatchBlock } from '../common/types'
 import { asVect2 } from '../common/utils'
+import { BlockData, BlockMode, PatchContainer } from './DataContainers'
 import { WorldCacheContainer } from '../index'
 
-import { BlockData, BlockMode, PatchContainer } from './DataContainers'
+export type BoardStub = {
+  bbox: Box3,
+  data: BlockData
+}
 
 export class BoardContainer extends PatchContainer {
   boardCenter
@@ -21,7 +25,17 @@ export class BoardContainer extends PatchContainer {
     this.initFromBoxAndMask(this.bbox)
   }
 
-  isInsideBoardFilter(blockPos: Vector3) {
+  restoreOriginalPatches() {
+    const original_patches_container = new PatchContainer()
+    original_patches_container.initFromBoxAndMask(this.bbox)
+    original_patches_container.populateFromExisting(
+      WorldCacheContainer.instance.availablePatches,
+      true,
+    )
+    return original_patches_container
+  }
+
+  filterBoardBlocks(blockPos: Vector3) {
     let isInsideBoard = false
     if (blockPos) {
       const heightDiff = Math.abs(blockPos.y - this.boardCenter.y)
@@ -31,7 +45,7 @@ export class BoardContainer extends PatchContainer {
     return isInsideBoard
   }
 
-  overrideBlock(block: Block) {
+  overrideBlock(block: PatchBlock) {
     const blockData = block.data
     blockData.level = this.boardCenter.y
     blockData.mode = BlockMode.BOARD_CONTAINER
@@ -50,7 +64,7 @@ export class BoardContainer extends PatchContainer {
       // const blocks = this.iterPatchesBlocks()
       for (const block of blocks) {
         // discard blocs not included in board shape
-        if (this.isInsideBoardFilter(block.pos)) {
+        if (this.filterBoardBlocks(block.pos)) {
           const boardBlock = this.overrideBlock(block)
           patch.writeBlockData(boardBlock.index, boardBlock.data)
           this.bbox.expandByPoint(boardBlock.pos)
@@ -64,31 +78,45 @@ export class BoardContainer extends PatchContainer {
     const boardEntities = this.getAllPatchesEntities()
       .filter(ent => {
         const entityCenter = ent.bbox.getCenter(new Vector3())
-        return this.isInsideBoardFilter(entityCenter)
+        return this.filterBoardBlocks(entityCenter)
       })
     return boardEntities
   }
 
   trimTrees() {
     this.availablePatches.forEach(patch => {
-      patch.entitiesChunks.forEach(entity => {
+      patch.entities.forEach(entity => {
         const entityCenter = entity.bbox.getCenter(new Vector3())
         const entityCenterBlock = this.getBlock(entityCenter)
         entityCenter.y = entity.bbox.min.y
         const isEntityOverlappingBoard = () => {
-          const entityBlocks = patch.iterEntityBlocks(entity)
+          const entityBlocks = patch.iterOverBlocks(entity.bbox)
           for (const block of entityBlocks) {
-            if (this.isInsideBoardFilter(block.pos)) {
+            if (this.filterBoardBlocks(block.pos)) {
               return true
             }
           }
           return false
         }
 
-        if (entityCenterBlock && this.isInsideBoardFilter(entityCenterBlock.pos)) {
+        if (entityCenterBlock && this.filterBoardBlocks(entityCenterBlock.pos)) {
           // trim entities belonging to board
           const diff = entityCenter.clone().sub(this.boardCenter)
-          entity.bbox.max.y = entity.bbox.min.y - diff.y + 2
+          // const radius = 3
+          // const entityCenterPos = entityCenterBlock.pos
+          // entity.bbox.min.x = entityCenterPos.x - radius
+          // entity.bbox.max.x = entityCenterPos.x + radius
+          // entity.bbox.min.z = entityCenterPos.z - radius
+          // entity.bbox.max.z = entityCenterPos.z + radius
+          entity.bbox.max.y = entity.bbox.min.y + 2 - Math.min(diff.y, 0)
+          // const entityBlocks = patch.iterEntityBlocks(entity)
+          // // check if a block is outside the board and belongs to another patch
+          // for (const block of entityBlocks) {
+          //   if (!this.isInsideBoard(block) && !this.findPatch(block.pos)?.bbox.equals(patch.bbox)) {
+          //     // discard entity
+          //     entity.bbox.makeEmpty()
+          //   }
+          // }
         } else if (isEntityOverlappingBoard()) {
           // discard outside entities having an overlap with the board
           entity.bbox.makeEmpty()
@@ -98,15 +126,38 @@ export class BoardContainer extends PatchContainer {
     })
   }
 
-  restoreOriginalPatches() {
-    const original_patches_container = new PatchContainer()
-    original_patches_container.initFromBoxAndMask(this.bbox)
-    original_patches_container.populateFromExisting(
-      WorldCacheContainer.instance.availablePatches,
-      true,
-    )
-    return original_patches_container
+  genStartPosEntities() {
+    const existingBoardEntities = this.getBoardEntities()
+    // discard entities from spawning over existing entities
+    const discardEntity = (entity: EntityData) => existingBoardEntities
+      .find(boardEntity => entity.bbox.intersectsBox(boardEntity.bbox))
+    // RepeatableEntitiesMap.instance.
   }
 
-  smoothEdges() {}
+  genHoleEntities() {
+
+  }
+
+  highlightStartPos() {
+
+  }
+
+  digHoles() {
+
+  }
+
+  exportStub() {
+    const origin = this.bbox.min.clone()
+    const dimensions = this.bbox.getSize(new Vector3())
+    const { x, z } = dimensions
+    const size = { x, z }
+    // const data = 
+    // const boardData = {
+    //   origin,
+    //   size,
+    //   data
+    // }
+  }
+
+  smoothEdges() { }
 }
