@@ -1,8 +1,6 @@
 import PoissonDiskSampling from 'poisson-disk-sampling'
 import alea from 'alea'
 import { Box3, Vector2, Vector3 } from 'three'
-
-import { TreeGenerators } from '../tools/TreeGenerator'
 import { EntityType, WorldConfig } from '../index'
 
 import { ProcLayer } from './ProcLayer'
@@ -65,69 +63,6 @@ export class EntitiesMap {
     for (const entity of entities) {
       yield entity
     }
-  }
-
-  /**
-   * Using precached tree data and block level to fill tree blocks buffer
-   * @param treeData
-   * @param blockLevel
-   * @param treeParams
-   * @returns
-   */
-  static fillBlockBuffer(
-    blockPos: Vector3,
-    entity: EntityData,
-    buffer: BlockType[],
-  ) {
-    // const { treeRadius, treeSize } = entity.params
-    const treeRadius = 5
-    const treeSize = 10
-    const entityPos = entity.bbox.getCenter(new Vector3())
-    entityPos.y = entity.bbox.min.y
-    const treeBuffer: BlockType[] = []
-    const vDiff = blockPos.clone().sub(entityPos)
-    const offset = vDiff.y
-    const count = treeSize - offset
-    vDiff.y = 0
-    const xzProj = vDiff.length()
-    if (xzProj && count > 0) {
-      // fill tree base
-      new Array(count)
-        .fill(BlockType.NONE)
-        .forEach(item => treeBuffer.push(item))
-      // tree foliage
-      for (let y = -treeRadius; y < treeRadius; y++) {
-        const blockType = TreeGenerators[entity.type as EntityType](
-          xzProj,
-          y,
-          treeRadius,
-        )
-        treeBuffer.push(blockType)
-      }
-    } else {
-      try {
-        // a bit of an hack for now => TODO: find good fix
-        new Array(count + treeRadius - Math.floor(treeSize * 0.4))
-          .fill(BlockType.TREE_TRUNK)
-          .forEach(item => treeBuffer.push(item))
-      } catch {
-        // console.log(error)
-      }
-    }
-    const sum = treeBuffer.reduce((sum, val) => sum + val, 0)
-    if (sum > 0) {
-      treeBuffer.forEach((elt, i) => {
-        const current = buffer[i]
-        if (current !== undefined) {
-          buffer[i] = !buffer[i] ? elt : current
-        } else {
-          buffer.push(elt)
-        }
-      })
-    }
-    const res = sum > 0 ? treeBuffer : []
-    entity.bbox.max.y = entity.bbox.min.y + 20 // res.length
-    return res
   }
 
   /**
@@ -276,7 +211,7 @@ export class RepeatableEntitiesMap extends EntitiesMap {
       mapVirtualBox
         ? entity.bbox.intersectsBox(mapVirtualBox)
         : entity.bbox.containsPoint(input as Vector3),
-    ).filter(entity => !entityMask(entity))// discard entitie according to optional provided mask
+    ).filter(entity => !entityMask(entity))// discard entities according to optional provided mask
 
     for (const entityTemplate of entities) {
       const entityInstance = this.getEntityInstance(entityTemplate, mapShift)

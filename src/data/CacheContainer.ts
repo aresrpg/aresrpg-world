@@ -4,7 +4,7 @@ import { PatchKey } from '../common/types'
 import { WorldConfig } from '../config/WorldConfig'
 import { WorldComputeApi } from '../index'
 
-import { BlocksPatch, EntityChunk, PatchContainer } from './DataContainers'
+import { BlocksPatch, PatchContainer } from './DataContainers'
 
 /**
  * Blocks cache
@@ -16,11 +16,6 @@ export class CacheContainer extends PatchContainer {
   builtInCache = false // specify whether cache is managed internally or separately
   static cachePowRadius = 2
   static cacheSize = WorldConfig.patchSize * 5
-  // static worldApi = new WorldApi()
-
-  // groundBlocks: Uint16Array = new Uint16Array(Math.pow(PatchBase.patchSize, 2))
-
-  entitiesChunks: EntityChunk[] = []
 
   static get instance() {
     this.singleton = this.singleton || new CacheContainer()

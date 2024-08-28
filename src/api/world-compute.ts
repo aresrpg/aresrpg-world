@@ -1,10 +1,9 @@
-import { Box3, Vector3 } from 'three'
+import { Vector3 } from 'three'
 
-import { EntityType } from '../index'
+import { ChunkFactory, EntityType } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
-  EntitiesMap,
   EntityData,
   RepeatableEntitiesMap,
 } from '../procgen/EntitiesMap'
@@ -12,14 +11,13 @@ import {
   BlockData,
   BlocksContainer,
   BlocksPatch,
-  EntityChunk,
 } from '../data/DataContainers'
 import { Block, PatchKey } from '../common/types'
 
 export const computePatch = (patchKey: PatchKey) => {
   const patch = new BlocksPatch(patchKey)
   genGroundBlocks(patch)
-  genEntitiesBlocks(patch)
+  genEntities(patch)
   return patch
 }
 
@@ -71,7 +69,7 @@ export const computeGroundBlock = (blockPos: Vector3) => {
 }
 
 export const computeBlocksBuffer = (blockPos: Vector3) => {
-  let blocksBuffer: BlockType[] = []
+  let blocksBuffer
   // query entities at current block
   const entitiesIter = RepeatableEntitiesMap.instance.iterate(blockPos)
   for (const entity of entitiesIter) {
@@ -84,41 +82,19 @@ export const computeBlocksBuffer = (blockPos: Vector3) => {
     if (entityType) {
       const entityLevel = Heightmap.instance.getGroundLevel(entityPos, rawVal)
       entity.bbox.min.y = entityLevel
-      entity.bbox.max.y = entityLevel + 10
+      entity.bbox.max.y = entityLevel + 20
       entity.type = entityType
-      blocksBuffer = EntitiesMap.fillBlockBuffer(blockPos, entity, blocksBuffer)
+      blocksBuffer = ChunkFactory.chunkifyEntity(entity, blockPos).data
     }
   }
-  return blocksBuffer
+  return blocksBuffer || []
 }
 
-const buildEntityChunk = (patch: BlocksContainer, entity: EntityData) => {
-  const entityChunk: EntityChunk = {
-    bbox: new Box3(),
-    data: [],
-  }
-  const blocksIter = patch.iterOverBlocks(entity.bbox)
-  for (const block of blocksIter) {
-    const blocksBuffer = EntitiesMap.fillBlockBuffer(
-      block.pos,
-      entity,
-      [],
-    )
-    patch.bbox.max.y = Math.max(
-      patch.bbox.max.y,
-      (block.localPos as Vector3).y + blocksBuffer.length,
-    )
-    const serialized = blocksBuffer
-      .reduce((str, val) => str + ',' + val, '')
-      .slice(1)
-    entityChunk.data.push(serialized)
-    entityChunk.bbox.expandByPoint(block.pos as Vector3)
-  }
-  entityChunk.bbox = entity.bbox
-  return entityChunk
+export const bakeEntities = (_entities: EntityData) => {
+  // TODO
 }
 
-const genEntitiesBlocks = (blocksContainer: BlocksContainer) => {
+const genEntities = (blocksContainer: BlocksContainer) => {
   const entitiesIter = RepeatableEntitiesMap.instance.iterate(
     blocksContainer.bbox,
   )
@@ -134,10 +110,11 @@ const genEntitiesBlocks = (blocksContainer: BlocksContainer) => {
     //   max.z % patch.dimensions.z + max.z >= 0 ? 0 : patch.dimensions.z)
     if (entityType) {
       entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos)
-      entity.bbox.max.y = entity.bbox.min.y + 10
+      entity.bbox.max.y = entity.bbox.min.y + 20
       entity.type = entityType
-      const entityChunk = buildEntityChunk(blocksContainer, entity)
-      blocksContainer.entitiesChunks.push(entityChunk)
+      blocksContainer.entities.push(entity)
+      // const entityChunk = buildEntityChunk(blocksContainer, entity)
+      // blocksContainer.entitiesChunks.push(entityChunk)
       // let item: BlockIteratorRes = blocksIter.next()
     }
   }
