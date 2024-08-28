@@ -1,10 +1,10 @@
 import { Box3, MathUtils, Vector2, Vector3 } from 'three'
 
-import { PatchBlock, PatchId } from '../common/types'
+import { EntityData, PatchBlock, PatchId } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import { BlockData, BlockMode } from '../data/DataContainers'
 import { BlockType } from '../index'
-import { EntityData } from '../procgen/EntitiesMap'
+
 import { TreeGenerators } from './TreeGenerator'
 
 const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // disabled if NONE
