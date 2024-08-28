@@ -1,6 +1,6 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { Block, PatchKey, WorldChunk } from '../common/types'
+import { Block, PatchBlock, PatchKey, WorldChunk, ChunkDataContainer, } from '../common/types'
 import {
   asVect3,
   computePatchKey,
@@ -14,6 +14,7 @@ import {
 import { BlockType } from '../procgen/Biome'
 import { WorldConfig } from '../config/WorldConfig'
 import { ChunkFactory } from '../index'
+import { EntityData } from '../procgen/EntitiesMap'
 
 export enum BlockMode {
   DEFAULT,
@@ -26,16 +27,11 @@ export type BlockData = {
   mode?: BlockMode
 }
 
-export type EntityChunk = {
-  bbox: Box3
-  data: string[]
-}
-
 export type PatchStub = {
   key: string
   bbox: Box3
   rawDataContainer: Uint32Array
-  entitiesChunks: EntityChunk[]
+  entities: EntityData[]
 }
 
 // bits allocated per block data type
@@ -58,7 +54,7 @@ export class BlocksContainer {
   margin = 0
 
   rawDataContainer: Uint32Array
-  entitiesChunks: EntityChunk[] = []
+  entities: EntityData[] = []
 
   constructor(bbox: Box3, margin = 1) {
     this.bbox = bbox.clone()
@@ -71,7 +67,7 @@ export class BlocksContainer {
   duplicate() {
     const copy = new BlocksContainer(this.bbox)
     this.rawDataContainer.forEach((v, i) => (copy.rawDataContainer[i] = v))
-    copy.entitiesChunks = this.entitiesChunks
+    // copy.entitiesChunks = this.entitiesChunks
     return copy
   }
 
@@ -127,7 +123,23 @@ export class BlocksContainer {
   get localExtendedBox() {
     return this.localBox.expandByScalar(this.margin)
   }
-  adjustRangeBox(rangeBox: Box3, local = false) {
+
+  isWithinLocalRange(localPos: Vector3) {
+    return localPos.x >= 0 &&
+      localPos.x < this.dimensions.x &&
+      localPos.z >= 0 &&
+      localPos.z < this.dimensions.z
+  }
+
+  isWithinGlobalRange(globalPos: Vector3) {
+    return globalPos.x >= this.bbox.min.x &&
+      globalPos.x < this.bbox.max.x &&
+      globalPos.z >= this.bbox.min.z &&
+      globalPos.z < this.bbox.max.z
+  }
+
+  adjustRangeBox(rangeBox: Box3 | Vector3, local = false) {
+    rangeBox = rangeBox instanceof Box3 ? rangeBox : new Box3(rangeBox, rangeBox)
     const { min, max } = local ? this.localBox : this.bbox
     const rangeMin = new Vector3(
       Math.max(Math.floor(rangeBox.min.x), min.x),
@@ -162,23 +174,22 @@ export class BlocksContainer {
     return origin.add(pos)
   }
 
-  getBlock(pos: Vector3, isLocalPos = true) {
-    const localPos = isLocalPos ? pos : this.toLocalPos(pos)
-    let block: Block | undefined
-    if (
-      localPos.x >= 0 &&
-      localPos.x < this.dimensions.x &&
-      localPos.z >= 0 &&
-      localPos.z < this.dimensions.z
-    ) {
+  getBlock(inputPos: Vector3, isLocalPos = true) {
+    const isWithingRange = isLocalPos ? this.isWithinLocalRange(inputPos) :
+      this.isWithinGlobalRange(inputPos)
+    let block: PatchBlock | undefined
+    if (isWithingRange) {
+      const localPos = isLocalPos ? inputPos : this.toLocalPos(inputPos)
+      const pos = isLocalPos ? this.toGlobalPos(inputPos) : inputPos
       const blockIndex = this.getBlockIndex(localPos)
-      const pos = isLocalPos ? localPos.clone() : this.toGlobalPos(localPos)
-      const data = this.readBlockData(blockIndex)
-      pos.y = data.level
+      const blockData = this.readBlockData(blockIndex) || BlockType.NONE
+      localPos.y = blockData.level
+      pos.y = blockData.level
       block = {
-        pos,
+        index: blockIndex,
+        pos: this.toGlobalPos(localPos),
         localPos,
-        data,
+        data: blockData,
       }
     }
     return block
@@ -212,7 +223,7 @@ export class BlocksContainer {
    * @param rangeBox iteration range as global coords
    * @param skipMargin 
    */
-  *iterOverBlocks(rangeBox?: Box3, skipMargin = true) {
+  *iterOverBlocks(rangeBox?: Box3 | Vector3, skipMargin = true) {
     // convert to local coords to speed up iteration
     const localBbox = rangeBox
       ? this.adjustRangeBox(rangeBox)
@@ -234,7 +245,7 @@ export class BlocksContainer {
           index = rangeBox ? this.getBlockIndex(localPos) : index
           const blockData = this.readBlockData(index) || BlockType.NONE
           localPos.y = blockData.level
-          const block: Block = {
+          const block: PatchBlock = {
             index,
             pos: this.toGlobalPos(localPos),
             localPos,
@@ -247,22 +258,6 @@ export class BlocksContainer {
     }
   }
 
-  *iterEntityBlocks(entity: EntityChunk) {
-    // find overlapping blocks between entity and container
-    const entityBlocks = this.iterOverBlocks(entity.bbox)
-    let chunk_index = 0
-    // iter over entity blocks
-    for (const entityBlock of entityBlocks) {
-      const bufferStr = entity.data[chunk_index++]
-      const buffer = bufferStr?.split(',').map(char => parseInt(char))
-      const maxHeightDiff = entity.bbox.max.y - (entityBlock.pos as Vector3).y
-      const entityBlockData = entityBlock
-      entityBlockData.buffer = buffer?.slice(0, maxHeightDiff) || []
-      yield entityBlockData
-    }
-    // }
-  }
-
   containsBlock(blockPos: Vector3) {
     return (
       blockPos.x >= this.bbox.min.x &&
@@ -272,42 +267,47 @@ export class BlocksContainer {
     )
   }
 
+  *iterEntityChunkBlocks(entityChunk: ChunkDataContainer) {
+    // return overlapping blocks between entity and container
+    const entityDims = entityChunk.bbox.getSize(new Vector3())
+    const blocks = this.iterOverBlocks(entityChunk.bbox)
+
+    for (const block of blocks) {
+      // const buffer = entityChunk.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
+      const chunkLocalPos = block.pos.clone().sub(entityChunk.bbox.min)
+      const buffIndex = chunkLocalPos.z * entityDims.x * entityDims.y + chunkLocalPos.x * entityDims.y
+      block.buffer = entityChunk.data.slice(buffIndex, buffIndex + entityDims.y)
+      const buffOffset = entityChunk.bbox.min.y - block.pos.y
+      const buffSrc = Math.abs(Math.min(0, buffOffset))
+      const buffDest = Math.max(buffOffset, 0)
+      block.buffer = block.buffer?.copyWithin(buffDest, buffSrc)
+      block.buffer = buffOffset < 0 ? block.buffer?.fill(BlockType.NONE, buffOffset) : block.buffer
+      // block.buffer = new Array(20).fill(BlockType.TREE_TRUNK)
+      yield block
+    }
+  }
+
+  // multi-pass chunk filling
   toChunk(chunkBox: Box3) {
+    let totalWrittenBlocks = 0
     chunkBox = chunkBox || this.bbox
     const chunkDims = chunkBox.getSize(new Vector3())
     const chunkData = new Uint16Array(chunkDims.x * chunkDims.y * chunkDims.z)
-    let totalWrittenBlocks = 0
-    // const debug_mode = true
-
-    // const is_edge = (row, col, h, patch_size) =>
-    //   row === 1 || row === patch_size || col === 1 || col === patch_size
-    // || h === 1
-    // || h === patch_size - 2
-
-    // const patch = PatchBlocksCache.instances.find(
-    //   patch =>
-    //     patch.bbox.min.x === bbox.min.x + 1 &&
-    //     patch.bbox.min.z === bbox.min.z + 1 &&
-    //     patch.bbox.max.x === bbox.max.x - 1 &&
-    //     patch.bbox.max.z === bbox.max.z - 1 &&
-    //     patch.bbox.intersectsBox(bbox),
-    // )
-
-    // multi-pass chunk filling
-
-    const blockIterator = this.iterOverBlocks(undefined, false)
+    // Ground pass
+    const groundBlocksIterator = this.iterOverBlocks(undefined, false)
     // ground blocks pass
     totalWrittenBlocks += ChunkFactory.default.fillGroundData(
-      blockIterator,
+      groundBlocksIterator,
       chunkData,
       chunkBox,
     )
-    // entities blocks pass
-    for (const entity of this.entitiesChunks) {
-      const entityBlocksIterator = this.iterEntityBlocks(entity)
-      // overground entities pass
-      totalWrittenBlocks += ChunkFactory.default.fillEntitiesData(
-        entityBlocksIterator,
+    // Entities pass
+    for (const entity of this.entities) {
+      // const entityChunk = this.buildEntityChunk(entity)
+      const entityChunk = ChunkFactory.chunkifyEntity(entity)
+      const entityDataIterator = this.iterEntityChunkBlocks(entityChunk) //this.iterEntityBlocks(entity)
+      totalWrittenBlocks += ChunkFactory.default.mergeEntitiesData(
+        entityDataIterator,
         chunkData,
         chunkBox,
       )
@@ -324,10 +324,14 @@ export class BlocksContainer {
   }
 
   static fromStub(stub: any) {
-    const { rawDataContainer, entitiesChunks } = stub
-    const blocksContainer = new BlocksContainer(parseThreeStub(stub.bbox))
+    const { rawDataContainer, entities, bbox } = stub
+    const blocksContainer = new BlocksContainer(parseThreeStub(bbox))
     blocksContainer.rawDataContainer = rawDataContainer
-    blocksContainer.entitiesChunks = entitiesChunks
+    blocksContainer.entities = entities
+      .map((stub: EntityData) => ({
+        ...stub,
+        bbox: parseThreeStub(stub.bbox),
+      }))
     // patchStub.entitiesChunks?.forEach((entityChunk: EntityChunk) =>
     //   patch.entitiesChunks.push(entityChunk),
     // )
@@ -353,29 +357,28 @@ export class BlocksPatch extends BlocksContainer {
     this.rawDataContainer.forEach(
       (rawVal, i) => (copy.rawDataContainer[i] = rawVal),
     )
-    copy.entitiesChunks = this.entitiesChunks.map(entity => {
-      const entityCopy: EntityChunk = {
-        bbox: entity.bbox.clone(),
-        data: entity.data.slice(),
-      }
-      return entityCopy
-    })
+    copy.entities = this.entities
+      .map(entity => {
+        const entityCopy: EntityData = {
+          ...entity,
+          bbox: entity.bbox.clone(),
+        }
+        return entityCopy
+      })
     return copy
   }
 
   static override fromStub(patchStub: any) {
-    const { rawDataContainer, entitiesChunks } = patchStub
+    const { rawDataContainer, entities } = patchStub
     const bbox = parseThreeStub(patchStub.bbox)
     const patchKey = patchStub.key || computePatchKey(bbox)
     const patch = new BlocksPatch(patchKey)
     patch.rawDataContainer = rawDataContainer
-    patch.entitiesChunks = entitiesChunks.map((stub: EntityChunk) => {
-      const entityChunk: EntityChunk = {
+    patch.entities = entities
+      .map((stub: EntityData) => ({
+        ...stub,
         bbox: parseThreeStub(stub.bbox),
-        data: stub.data,
-      }
-      return entityChunk
-    })
+      }))
     patch.bbox.min.y = patchStub.bbox.min.y
     patch.bbox.max.y = patchStub.bbox.max.y
     // patchStub.entitiesChunks?.forEach((entityChunk: EntityChunk) =>
@@ -511,9 +514,9 @@ export class PatchContainer {
   }
 
   getAllPatchesEntities(skipDuplicate = true) {
-    const entities: EntityChunk[] = []
+    const entities: EntityData[] = []
     for (const patch of this.availablePatches) {
-      patch.entitiesChunks.forEach(entity => {
+      patch.entities.forEach(entity => {
         if (!skipDuplicate || !entities.find(ent => ent.bbox.equals(entity.bbox))) {
           entities.push(entity)
         }

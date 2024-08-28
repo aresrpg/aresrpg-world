@@ -1,9 +1,11 @@
-import { Box3, MathUtils, Vector3 } from 'three'
+import { Box3, MathUtils, Vector2, Vector3 } from 'three'
 
-import { Block, PatchId } from '../common/types'
-import { asVect3 } from '../common/utils'
-import { BlockData } from '../data/DataContainers'
-import { BlockMode, BlockType } from '../index'
+import { PatchBlock, PatchId } from '../common/types'
+import { asVect2, asVect3 } from '../common/utils'
+import { BlockData, BlockMode } from '../data/DataContainers'
+import { BlockType } from '../index'
+import { EntityData } from '../procgen/EntitiesMap'
+import { TreeGenerators } from './TreeGenerator'
 
 const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // disabled if NONE
 
@@ -41,7 +43,7 @@ export class ChunkFactory {
     chunkBbox: Box3,
     blockLocalPos: Vector3,
     blockData: BlockData,
-    bufferOver: any[] = [],
+    bufferOver: Uint16Array | [],
   ) {
     const chunk_size = chunkBbox.getSize(new Vector3()).x // Math.round(Math.pow(chunkDataContainer.length, 1 / 3))
 
@@ -82,7 +84,7 @@ export class ChunkFactory {
   }
 
   fillGroundData(
-    blockIterator: Generator<Block, void, unknown>,
+    blockIterator: Generator<PatchBlock, void, unknown>,
     chunkDataContainer: Uint16Array,
     chunkBox: Box3,
   ) {
@@ -101,20 +103,20 @@ export class ChunkFactory {
         chunkBox,
         blockLocalPos,
         blockData,
-        block.buffer,
+        block.buffer || [],
       )
     }
     return written_blocks_count
   }
 
-  fillEntitiesData(
-    entityBlocksIterator: Generator<Block, void, unknown>,
+  mergeEntitiesData(
+    entityDataIterator: Generator<PatchBlock, void, unknown>,
     chunkData: Uint16Array,
     chunkBox: Box3,
   ) {
     let writtenBlocksCount = 0
     // iter over entity blocks
-    for (const entityBlock of entityBlocksIterator) {
+    for (const entityBlock of entityDataIterator) {
       const entityLocalPos = entityBlock.localPos as Vector3
       if (entityBlock.buffer) {
         entityLocalPos.x += 1
@@ -130,6 +132,49 @@ export class ChunkFactory {
       }
     }
     return writtenBlocksCount
+  }
+
+  static chunkifyEntity(entity: EntityData, blockPosOrRange?: Vector3 | Box3) {
+    if (blockPosOrRange instanceof Vector3) {
+      const blockStart = new Vector3(blockPosOrRange.x, entity.bbox.min.y, blockPosOrRange.z)
+      const blockEnd = blockStart.clone().add(new Vector3(1, entity.bbox.max.y - entity.bbox.min.y, 1))
+      blockPosOrRange = new Box3(blockStart, blockEnd)
+    }
+    const range = blockPosOrRange || entity.bbox
+    const dims = range.getSize(new Vector3())
+    const data = new Uint16Array(dims.z * dims.x * dims.y)
+    const { size: treeSize, radius: treeRadius } = entity.params
+    const entityPos = entity.bbox.getCenter(new Vector3())
+    let index = 0
+    for (let { z } = range.min; z < range.max.z; z++) {
+      for (let { x } = range.min; x < range.max.x; x++) {
+        for (let { y } = range.min; y < range.max.y; y++) {
+          const xzProj = new Vector2(x, z).sub(asVect2(entityPos))
+          if (xzProj.length() > 0) {
+            if (y < range.min.y + treeSize) {
+              // empty space around trunk between ground and trunk top
+              data[index++] = BlockType.NONE
+            } else {
+              // tree foliage
+              const blockType = TreeGenerators[entity.type](
+                xzProj.length(),
+                y - (range.min.y + treeSize + treeRadius),
+                treeRadius,
+              )
+              data[index++] = blockType
+            }
+          } else {
+            // tree trunk
+            data[index++] = BlockType.TREE_TRUNK
+          }
+        }
+      }
+    }
+    const entityChunk = {
+      bbox: range,
+      data
+    }
+    return entityChunk
   }
 
   genChunksIdsFromPatchId(patchId: PatchId) {

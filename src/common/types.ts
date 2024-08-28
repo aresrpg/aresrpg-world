@@ -1,4 +1,4 @@
-import { Vector2, Vector3 } from 'three'
+import { Box3, Vector2, Vector3 } from 'three'
 
 import { BlockData } from '../data/DataContainers'
 import { BiomeType, BlockType } from '../procgen/Biome'
@@ -8,9 +8,12 @@ import { LinkedList } from './misc'
 export type Block = {
   pos: Vector3
   data: BlockData
-  index?: number
-  localPos?: Vector3
-  buffer?: BlockType[]
+  buffer?: Uint16Array
+}
+
+export type PatchBlock = Block & {
+  index: number
+  localPos: Vector3
 }
 
 export enum Adjacent2dPos {
@@ -116,6 +119,11 @@ export type PatchKey = string
 export type PatchId = Vector2
 export type ChunkKey = string
 export type ChunkId = Vector3
+
+export type ChunkDataContainer = {
+  bbox: Box3
+  data: Uint16Array
+}
 
 export type WorldChunk = {
   key: ChunkKey
