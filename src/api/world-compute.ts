@@ -1,24 +1,22 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
 
-import { ChunkFactory, EntityType, PseudoRandomDistributionMap } from '../index'
+import { ChunkFactory, EntityType, PseudoDistributionMap } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
-  BlockData,
-  BlocksContainer,
-  BlocksPatch,
-} from '../data/BlocksContainers'
+  BlockData, BlocksPatchContainer,
+} from '../datacontainers/BlocksPatch'
 import { Block, EntityData, PatchKey } from '../common/types'
 import { asBox2, asVect2, asVect3 } from '../common/utils'
 
 // TODO remove hardcoded entity dimensions to compute from entity type
 const entityDefaultDims = new Vector3(10, 20, 10)
 // TODO move somewhere else
-const defaultDistMap = new PseudoRandomDistributionMap()
+const defaultDistMap = new PseudoDistributionMap()
 defaultDistMap.populate()
 
 export const computePatch = (patchKey: PatchKey) => {
-  const patch = new BlocksPatch(patchKey)
+  const patch = new BlocksPatchContainer(patchKey)
   genGroundBlocks(patch)
   genEntities(patch)
   return patch
@@ -111,7 +109,7 @@ export const bakeEntities = (_entities: EntityData) => {
   // TODO
 }
 
-const genEntities = (blocksContainer: BlocksContainer) => {
+const genEntities = (blocksContainer: BlocksPatchContainer) => {
   // query entities on patch range
   const entityDims = new Vector3(10, 20, 10)  // TODO compute from entity type
   const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDims))
@@ -130,7 +128,7 @@ const genEntities = (blocksContainer: BlocksContainer) => {
 /**
  * Fill container with ground blocks
  */
-const genGroundBlocks = (blocksContainer: BlocksContainer) => {
+const genGroundBlocks = (blocksContainer: BlocksPatchContainer) => {
   const { min, max } = blocksContainer.bbox
   // const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
   // const prng = alea(patchId)

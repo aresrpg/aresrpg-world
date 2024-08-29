@@ -1,8 +1,7 @@
 import { Vector3 } from 'three'
 
 import { Block, PatchKey } from '../common/types'
-import { BlocksPatch } from '../data/BlocksContainers'
-import { WorldCompute, WorldUtils } from '../index'
+import { BlocksPatchContainer, WorldCompute, WorldUtils } from '../index'
 
 export enum ComputeApiCall {
   PatchCompute = 'computePatch',
@@ -22,12 +21,12 @@ interface ComputeApiInterface {
     blockPosBatch: Vector3[],
     params?: any,
   ): Block[] | Promise<Block[]>
-  // computePatch(patchKey: PatchKey): BlocksPatch | Promise<BlocksPatch>
+  // computePatch(patchKey: PatchKey): BlocksPatchContainer | Promise<BlocksPatchContainer>
   iterPatchCompute(
     patchKeysBatch: PatchKey[],
   ):
-    | Generator<BlocksPatch, void, unknown>
-    | AsyncGenerator<BlocksPatch, void, unknown>
+    | Generator<BlocksPatchContainer, void, unknown>
+    | AsyncGenerator<BlocksPatchContainer, void, unknown>
 }
 
 export class WorldComputeApi implements ComputeApiInterface {
@@ -122,12 +121,12 @@ export class WorldComputeProxy implements ComputeApiInterface {
 
   async *iterPatchCompute(patchKeysBatch: PatchKey[]) {
     for (const patchKey of patchKeysBatch) {
-      // const emptyPatch = new BlocksPatch(patchKey)
+      // const emptyPatch = new BlocksPatchContainer(patchKey)
       const patchStub = await this.workerCall(
         ComputeApiCall.PatchCompute,
         [patchKey], // [emptyPatch.bbox]
       )
-      const patch = BlocksPatch.fromStub(patchStub)
+      const patch = BlocksPatchContainer.fromStub(patchStub)
       yield patch
     }
   }

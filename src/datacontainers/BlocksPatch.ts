@@ -1,19 +1,21 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { Box3, Vector2, Vector3 } from 'three'
 
-import { Block, PatchBlock, PatchKey, WorldChunk, ChunkDataContainer, EntityData, } from '../common/types'
+import { Block, PatchBlock, WorldChunk, ChunkDataContainer, EntityData, } from '../common/types'
 import {
-  asVect3,
-  computePatchKey,
-  convertPosToPatchId,
-  getBboxFromChunkId,
-  getBboxFromPatchKey,
+  patchBoxFromKey,
   parsePatchKey,
   parseThreeStub,
   serializeChunkId,
+  asVect2,
+  asBox3,
+  chunkBoxFromId,
+  patchIdFromPos,
+  serializePatchId,
 } from '../common/utils'
 import { BlockType } from '../procgen/Biome'
 import { WorldConfig } from '../config/WorldConfig'
 import { ChunkFactory } from '../index'
+import { PatchDataContainer } from './DataContainers'
 
 export enum BlockMode {
   DEFAULT,
@@ -43,11 +45,13 @@ const BlockDataBitAllocation = {
 
 export type BlockIteratorRes = IteratorResult<Block, void>
 
+const getDefaultPatchDim = () => new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
+
 /**
  * GenericBlocksContainer
  * multi purpose blocks container
  */
-export class BlocksContainer {
+export class BlocksPatchContainer implements PatchDataContainer {
   bbox: Box3
   dimensions = new Vector3()
   margin = 0
@@ -55,8 +59,14 @@ export class BlocksContainer {
   rawDataContainer: Uint32Array
   entities: EntityData[] = []
 
-  constructor(bbox: Box3, margin = 1) {
-    this.bbox = bbox.clone()
+  key: string | null
+  id: Vector2 | null
+
+  constructor(patchBoxOrKey: Box3 | string, margin = 1) {
+    this.bbox = patchBoxOrKey instanceof Box3 ? patchBoxOrKey.clone() :
+      asBox3(patchBoxFromKey(patchBoxOrKey, getDefaultPatchDim()))
+    this.key = patchBoxOrKey instanceof Box3 ? null : patchBoxOrKey
+    this.id = this.key ? parsePatchKey(this.key) : null
     this.bbox.getSize(this.dimensions)
     this.margin = margin
     const { extendedDims } = this
@@ -64,9 +74,18 @@ export class BlocksContainer {
   }
 
   duplicate() {
-    const copy = new BlocksContainer(this.bbox)
-    this.rawDataContainer.forEach((v, i) => (copy.rawDataContainer[i] = v))
-    // copy.entitiesChunks = this.entitiesChunks
+    const copy = new BlocksPatchContainer(this.key || this.bbox)// new BlocksPatchContainer(this.bbox)
+    this.rawDataContainer.forEach(
+      (rawVal, i) => (copy.rawDataContainer[i] = rawVal),
+    )
+    copy.entities = this.entities
+      .map(entity => {
+        const entityCopy: EntityData = {
+          ...entity,
+          bbox: entity.bbox.clone(),
+        }
+        return entityCopy
+      })
     return copy
   }
 
@@ -323,56 +342,31 @@ export class BlocksContainer {
     return chunk
   }
 
-  static fromStub(stub: any) {
-    const { rawDataContainer, entities, bbox } = stub
-    const blocksContainer = new BlocksContainer(parseThreeStub(bbox))
-    blocksContainer.rawDataContainer = rawDataContainer
-    blocksContainer.entities = entities
-      .map((stub: EntityData) => ({
-        ...stub,
-        bbox: parseThreeStub(stub.bbox),
-      }))
-    // patchStub.entitiesChunks?.forEach((entityChunk: EntityChunk) =>
-    //   patch.entitiesChunks.push(entityChunk),
-    // )
-    return blocksContainer
-  }
-}
-
-/**
- * Patch
- */
-export class BlocksPatch extends BlocksContainer {
-  id: Vector2
-  key: string
-
-  constructor(patchKey: string) {
-    super(getBboxFromPatchKey(patchKey)) // .expandByScalar(1))
-    this.key = patchKey
-    this.id = parsePatchKey(patchKey)
+  get chunkIds() {
+    return this.id ? ChunkFactory.default.genChunksIdsFromPatchId(this.id) : []
   }
 
-  override duplicate() {
-    const copy = new BlocksPatch(this.key)
-    this.rawDataContainer.forEach(
-      (rawVal, i) => (copy.rawDataContainer[i] = rawVal),
-    )
-    copy.entities = this.entities
-      .map(entity => {
-        const entityCopy: EntityData = {
-          ...entity,
-          bbox: entity.bbox.clone(),
-        }
-        return entityCopy
-      })
-    return copy
+  toChunks() {
+    const chunks = this.chunkIds.map(chunkId => {
+      const chunkBox = chunkBoxFromId(chunkId, WorldConfig.patchSize)
+      const chunk = this.toChunk(chunkBox)
+      const worldChunk: WorldChunk = {
+        key: serializeChunkId(chunkId),
+        data: chunk.data,
+      }
+      return worldChunk
+    })
+    return chunks
   }
 
-  static override fromStub(patchStub: any) {
+  static fromStub(patchStub: any) {
     const { rawDataContainer, entities } = patchStub
-    const bbox = parseThreeStub(patchStub.bbox)
-    const patchKey = patchStub.key || computePatchKey(bbox)
-    const patch = new BlocksPatch(patchKey)
+    const bbox = parseThreeStub(patchStub.bbox) as Box3
+    const patchCenter = asVect2(bbox.getCenter(new Vector3))
+    const patchDim = asVect2(bbox.getSize(new Vector3()).round())
+    const patchId = patchIdFromPos(patchCenter, patchDim)
+    const patchKey = patchStub.key || serializePatchId(patchId)
+    const patch = new BlocksPatchContainer(patchKey)
     patch.rawDataContainer = rawDataContainer
     patch.entities = entities
       .map((stub: EntityData) => ({
@@ -386,224 +380,4 @@ export class BlocksPatch extends BlocksContainer {
     // )
     return patch
   }
-
-  get chunkIds() {
-    return ChunkFactory.default.genChunksIdsFromPatchId(this.id)
-  }
-
-  toChunks() {
-    const chunks = this.chunkIds.map(chunkId => {
-      const chunkBox = getBboxFromChunkId(chunkId, WorldConfig.patchSize)
-      const chunk = super.toChunk(chunkBox)
-      const worldChunk: WorldChunk = {
-        key: serializeChunkId(chunkId),
-        data: chunk.data,
-      }
-      return worldChunk
-    })
-    return chunks
-  }
-}
-
-export class PatchMap {
-  bbox: Box3 = new Box3()
-  patchLookup: Record<string, BlocksPatch | null> = {}
-
-  initFromBoxAndMask(
-    bbox: Box3,
-    patchBboxMask = (patchBbox: Box3) => patchBbox,
-  ) {
-    this.bbox = bbox
-    this.patchLookup = {}
-    // const halfDimensions = this.bbox.getSize(new Vector3()).divideScalar(2)
-    // const range = BlocksPatch.asPatchCoords(halfDimensions)
-    // const center = this.bbox.getCenter(new Vector3())
-    // const origin = BlocksPatch.asPatchCoords(center)
-    const { min, max } = this.patchRange
-    for (let { x } = min; x < max.x; x++) {
-      for (let { y } = min; y < max.y; y++) {
-        const patchKey = `${x}:${y}`
-        const patchBox = getBboxFromPatchKey(patchKey)
-        if (patchBboxMask(patchBox)) {
-          this.patchLookup[patchKey] = null
-        }
-      }
-    }
-  }
-
-  get patchRange() {
-    const rangeMin = convertPosToPatchId(this.bbox.min)
-    const rangeMax = convertPosToPatchId(this.bbox.max).addScalar(1)
-    const patchRange = new Box2(rangeMin, rangeMax)
-    return patchRange
-  }
-
-  get externalBbox() {
-    const { min, max } = this.patchRange
-    min.multiplyScalar(WorldConfig.patchSize)
-    max.multiplyScalar(WorldConfig.patchSize)
-    const extBbox = new Box2(min, max)
-    return extBbox
-  }
-
-  get count() {
-    return Object.keys(this.patchLookup).length
-  }
-
-  get patchKeys() {
-    return Object.keys(this.patchLookup)
-  }
-
-  get chunkIds() {
-    return this.availablePatches.map(patch => patch.chunkIds).flat()
-  }
-
-  get availablePatches() {
-    return Object.values(this.patchLookup).filter(val => val) as BlocksPatch[]
-  }
-
-  get missingPatchKeys() {
-    return Object.keys(this.patchLookup).filter(
-      key => !this.patchLookup[key],
-    ) as PatchKey[]
-  }
-
-  // autoFill(fillingVal=0){
-  //   this.patchKeys.forEach(key=>this.patchLookup[key] = new BlocksPatch(key))
-  //   this.availablePatches.forEach(patch=>patch.iterOverBlocks)
-  // }
-
-  populateFromExisting(patches: BlocksPatch[], cloneObjects = false) {
-    const { min, max } = this.bbox
-    patches
-      .filter(patch => this.patchLookup[patch.key] !== undefined)
-      .forEach(patch => {
-        this.patchLookup[patch.key] = cloneObjects ? patch.duplicate() : patch
-        min.y = Math.min(patch.bbox.min.y, min.y)
-        max.y = Math.max(patch.bbox.max.y, max.y)
-      })
-  }
-
-  compareWith(otherContainer: PatchMap) {
-    const patchKeysDiff: Record<string, boolean> = {}
-    // added keys e.g. keys in current container but not found in other
-    Object.keys(this.patchLookup)
-      .filter(patchKey => otherContainer.patchLookup[patchKey] === undefined)
-      .forEach(patchKey => (patchKeysDiff[patchKey] = true))
-    // missing keys e.g. found in other container but not in current
-    Object.keys(otherContainer.patchLookup)
-      .filter(patchKey => this.patchLookup[patchKey] === undefined)
-      .forEach(patchKey => (patchKeysDiff[patchKey] = false))
-    return patchKeysDiff
-  }
-
-  toChunks() {
-    const exportedChunks = this.availablePatches
-      .map(patch => patch.toChunks())
-      .flat()
-    return exportedChunks
-  }
-
-  findPatch(blockPos: Vector3) {
-    // const point = new Vector3(
-    //   inputPoint.x,
-    //   0,
-    //   inputPoint instanceof Vector3 ? inputPoint.z : inputPoint.y,
-    // )
-
-    const res = this.availablePatches.find(patch =>
-      patch.containsBlock(blockPos),
-    )
-    return res
-  }
-
-  getBlock(blockPos: Vector3) {
-    return this.findPatch(blockPos)?.getBlock(blockPos, false)
-  }
-
-  getAllPatchesEntities(skipDuplicate = true) {
-    const entities: EntityData[] = []
-    for (const patch of this.availablePatches) {
-      patch.entities.forEach(entity => {
-        if (!skipDuplicate || !entities.find(ent => ent.bbox.equals(entity.bbox))) {
-          entities.push(entity)
-        }
-      })
-    }
-    return entities
-  }
-
-  // *iterAllPatchesBlocks() {
-  //   for (const patch of this.availablePatches) {
-  //     const blocks = patch.iterOverBlocks(undefined, false, false)
-  //     for (const block of blocks) {
-  //       yield block
-  //     }
-  //   }
-  // }
-
-  // getMergedRows(zRowIndex: number) {
-  //   const sortedPatchesRows = this.availablePatches
-  //     .filter(
-  //       patch => zRowIndex >= patch.bbox.min.z && zRowIndex <= patch.bbox.min.z,
-  //     )
-  //     .sort((p1, p2) => p1.bbox.min.x - p2.bbox.min.x)
-  //     .map(patch => patch.getBlocksRow(zRowIndex))
-  //   const mergedRows = sortedPatchesRows.reduce((arr1, arr2) => {
-  //     const mergedArray = new Uint32Array(arr1.length + arr2.length)
-  //     mergedArray.set(arr1)
-  //     mergedArray.set(arr2, arr1.length)
-  //     return mergedArray
-  //   })
-  //   return mergedRows
-  // }
-
-  // iterMergedRows() {
-  //   const { min, max } = this.patchRange
-  //   for (let zPatchIndex = min.z; zPatchIndex <= max.z; zPatchIndex++) {
-  //     for (let zRowIndex = min.z; zRowIndex < max.z; zRowIndex++) {}
-  //   }
-  // }
-
-  // getMergedCols(xColIndex: number) {
-
-  // }
-
-  // mergedLinesIteration() {
-  //   const { min, max } = this.bbox
-  //   for (let x = min.x; x < max.x; x++) {
-  //     for (let z = min.z; z < max.z; z++) {
-
-  //     }
-  //   }
-  // }
-
-  // toMergedContainer() {
-  //   const mergedBox = this.availablePatches.map(patch => patch.bbox)
-  //     .reduce((merge, bbox) => merge.union(bbox), new Box3())
-  //   // const mergedContainer =
-  // }
-
-  // static fromMergedContainer() {
-
-  // }
-  // mergeBlocks(blocksContainer: BlocksContainer) {
-  //   // // for each patch override with blocks from blocks container
-  //   this.availablePatches.forEach(patch => {
-  //     const blocksIter = patch.iterOverBlocks(blocksContainer.bbox)
-  //     for (const target_block of blocksIter) {
-  //       const source_block = blocksContainer.getBlock(target_block.pos, false)
-  //       if (source_block && source_block.pos.y > 0 && target_block.index) {
-  //         let block_type = source_block.type ? BlockType.SAND : BlockType.NONE
-  //         block_type =
-  //           source_block.type === BlockType.TREE_TRUNK
-  //             ? BlockType.TREE_TRUNK
-  //             : block_type
-  //         const block_level = blocksContainer.bbox.min.y // source_block?.pos.y
-  //         patch.writeBlock(target_block.index, block_level, block_type)
-  //         // console.log(source_block?.pos.y)
-  //       }
-  //     }
-  //   })
-  // }
 }

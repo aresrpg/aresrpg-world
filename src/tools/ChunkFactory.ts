@@ -2,7 +2,7 @@ import { Box3, MathUtils, Vector2, Vector3 } from 'three'
 
 import { EntityData, PatchBlock, PatchId } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
-import { BlockData, BlockMode } from '../data/BlocksContainers'
+import { BlockData, BlockMode } from '../datacontainers/BlocksPatch'
 import { BlockType } from '../index'
 
 import { TreeGenerators } from './TreeGenerator'

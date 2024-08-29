@@ -1,40 +1,44 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { EntityData, PatchBlock } from '../common/types'
-import { asBox2, asVect2, asVect3 } from '../common/utils'
-import { BlockData, BlockMode, PatchMap } from './BlocksContainers'
-import { BlockType, PseudoRandomDistributionMap, WorldCacheContainer, WorldConfig } from '../index'
+import { asVect2, asVect3 } from '../common/utils'
+import { BlockType, WorldCacheContainer, WorldConfig } from '../index'
+import { PseudoDistributionMap } from '../procgen/RandomDistributionMap'
+import { BlockData, BlockMode, BlocksPatchContainer } from './BlocksPatch'
+import { PatchesMap } from './DataContainers'
 
 export type BoardStub = {
   bbox: Box3,
   data: BlockData
 }
 
+const getDefaultPatchDim = () => new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
+
 const distParams = {
   minDistance: 5,
   maxDistance: 16,
   tries: 20,
 }
-const distMap = new PseudoRandomDistributionMap(undefined, distParams)
+const distMap = new PseudoDistributionMap(undefined, distParams)
 distMap.populate()
 
-export class BoardContainer extends PatchMap {
+export class BoardContainer extends PatchesMap<BlocksPatchContainer> {
   boardCenter
   boardRadius
   boardMaxHeightDiff
 
   constructor(center: Vector3, radius: number, maxHeightDiff: number) {
-    super()
+    super(getDefaultPatchDim())
     this.boardRadius = radius
     this.boardCenter = center.clone().floor()
     this.boardMaxHeightDiff = maxHeightDiff
-    const board_dims = new Vector3(radius, 0, radius).multiplyScalar(2)
-    this.bbox.setFromCenterAndSize(this.boardCenter, board_dims)
+    const board_dims = new Vector2(radius, radius).multiplyScalar(2)
+    this.bbox.setFromCenterAndSize(asVect2(this.boardCenter), board_dims)
     this.initFromBoxAndMask(this.bbox)
   }
 
   restoreOriginalPatches() {
-    const original_patches_container = new PatchMap()
+    const original_patches_container = new PatchesMap(getDefaultPatchDim())
     original_patches_container.initFromBoxAndMask(this.bbox)
     original_patches_container.populateFromExisting(
       WorldCacheContainer.instance.availablePatches,
@@ -64,8 +68,8 @@ export class BoardContainer extends PatchMap {
     // const { ymin, ymax } = this.getMinMax()
     // const avg = Math.round(ymin + (ymax - ymin) / 2)
     // reset bbox to refine bounds
-    this.bbox.min = this.boardCenter.clone()
-    this.bbox.max = this.boardCenter.clone()
+    this.bbox.min = asVect2(this.boardCenter)
+    this.bbox.max = asVect2(this.boardCenter)
 
     for (const patch of this.availablePatches) {
       const blocks = patch.iterOverBlocks(undefined, false)
@@ -75,11 +79,23 @@ export class BoardContainer extends PatchMap {
         if (this.filterBoardBlocks(block.pos)) {
           const boardBlock = this.overrideBlock(block)
           patch.writeBlockData(boardBlock.index, boardBlock.data)
-          this.bbox.expandByPoint(boardBlock.pos)
+          this.bbox.expandByPoint(asVect2(boardBlock.pos))
           // yield boardBlock
         }
       }
     }
+  }
+
+  getAllPatchesEntities(skipDuplicate = true) {
+    const entities: EntityData[] = []
+    for (const patch of this.availablePatches) {
+      patch.entities.forEach(entity => {
+        if (!skipDuplicate || !entities.find(ent => ent.bbox.equals(entity.bbox))) {
+          entities.push(entity)
+        }
+      })
+    }
+    return entities
   }
 
   getBoardEntities() {
@@ -95,7 +111,7 @@ export class BoardContainer extends PatchMap {
     this.availablePatches.forEach(patch => {
       patch.entities.forEach(entity => {
         const entityCenter = entity.bbox.getCenter(new Vector3())
-        const entityCenterBlock = this.getBlock(entityCenter)
+        const entityCenterBlock = this.findPatch(entityCenter)?.getBlock(entityCenter, false)
         entityCenter.y = entity.bbox.min.y
         const isEntityOverlappingBoard = () => {
           const entityBlocks = patch.iterOverBlocks(entity.bbox)
@@ -138,8 +154,7 @@ export class BoardContainer extends PatchMap {
     const existingBoardEntities = this.getBoardEntities()
     const entityShape = (pos: Vector2) => new Box2(pos, pos.clone().addScalar(2))
     this.patchRange.clone().expandByScalar(WorldConfig.patchSize)
-    const boardMapRange = asBox2(this.bbox)
-    const items = distMap.iterMapItems(entityShape, boardMapRange, () => 1)
+    const items = distMap.iterMapItems(entityShape, this.bbox, () => 1)
     for (const mapPos of items) {
       const pos = asVect3(mapPos)
       const patch = this.findPatch(pos)

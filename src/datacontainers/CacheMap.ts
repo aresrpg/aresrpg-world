@@ -1,24 +1,26 @@
-import { Box3, Vector3 } from 'three'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
 import { WorldConfig } from '../config/WorldConfig'
-import { WorldComputeApi } from '../index'
+import { BlocksPatchContainer, WorldComputeApi } from '../index'
+import { PatchesMap } from './DataContainers'
 
-import { BlocksPatch, PatchMap } from './BlocksContainers'
+const getDefaultPatchDim = () => new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
 
 /**
  * Blocks cache
  */
-export class CacheContainer extends PatchMap {
+export class CacheContainer extends PatchesMap<BlocksPatchContainer> {
   // eslint-disable-next-line no-use-before-define
+  static cachePowRadius = 2
+  static cacheSize = WorldConfig.patchSize * 5
   static singleton: CacheContainer
   pendingRefresh = false
   builtInCache = false // specify whether cache is managed internally or separately
-  static cachePowRadius = 2
-  static cacheSize = WorldConfig.patchSize * 5
+
 
   static get instance() {
-    this.singleton = this.singleton || new CacheContainer()
+    this.singleton = this.singleton || new CacheContainer(getDefaultPatchDim())
     return this.singleton
   }
 
@@ -27,8 +29,10 @@ export class CacheContainer extends PatchMap {
     const batchIter = WorldComputeApi.instance.iterPatchCompute(batch)
     // populate cache without blocking execution
     for await (const patch of batchIter) {
-      this.patchLookup[patch.key] = patch
-      this.bbox.union(patch.bbox)
+      if (patch.key) {
+        this.patchLookup[patch.key] = patch
+        this.bbox.union(patch.bbox)
+      }
     }
     this.pendingRefresh = false
   }
@@ -39,11 +43,11 @@ export class CacheContainer extends PatchMap {
    * @param dryRun
    * @returns true if cache was update, false otherwise
    */
-  async refresh(bbox: Box3) {
+  async refresh(bbox: Box2) {
     //, patchMask = () => true) {
     let changesDiff
     if (!this.pendingRefresh) {
-      const emptyContainer = new PatchMap()
+      const emptyContainer = new PatchesMap(this.patchDimensions)
       emptyContainer.initFromBoxAndMask(bbox)
       changesDiff = emptyContainer.compareWith(CacheContainer.instance)
       const hasChanged = Object.keys(changesDiff).length > 0
@@ -73,7 +77,7 @@ export class CacheContainer extends PatchMap {
     return res
   }
 
-  getNearPatches(patch: BlocksPatch) {
+  getNearPatches(patch: BlocksPatchContainer) {
     const dim = patch.dimensions
     const patchCenter = patch.bbox.getCenter(new Vector3())
     const minX = patchCenter.clone().add(new Vector3(-dim.x, 0, 0))
@@ -94,9 +98,9 @@ export class CacheContainer extends PatchMap {
       maxXminZ,
       maxXmaxZ,
     ]
-    const patchNeighbours: BlocksPatch[] = neighboursCenters
+    const patchNeighbours: BlocksPatchContainer[] = neighboursCenters
       .map(patchCenter => this.findPatch(patchCenter))
-      .filter(patch => patch) as BlocksPatch[]
+      .filter(patch => patch) as BlocksPatchContainer[]
     return patchNeighbours
   }
 
