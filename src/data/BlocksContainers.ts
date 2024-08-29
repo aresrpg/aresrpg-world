@@ -1,4 +1,4 @@
-import { Box3, Vector2, Vector3 } from 'three'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { Block, PatchBlock, PatchKey, WorldChunk, ChunkDataContainer, EntityData, } from '../common/types'
 import {
@@ -194,13 +194,14 @@ export class BlocksContainer {
     return block
   }
 
-  setBlock(localPos: Vector3, blockType: BlockType) {
-    const blockIndex = localPos.x * this.dimensions.x + localPos.z
-    const block = {
-      level: localPos.y,
-      type: blockType,
+  setBlock(pos: Vector3, blockData: BlockData, isLocalPos = false) {
+    const isWithingPatch = isLocalPos ? this.isWithinLocalRange(pos) :
+      this.isWithinGlobalRange(pos)
+    if (isWithingPatch) {
+      const localPos = isLocalPos ? pos : this.toLocalPos(pos)
+      const blockIndex = this.getBlockIndex(localPos)
+      this.writeBlockData(blockIndex, blockData)
     }
-    this.writeBlockData(blockIndex, block)
     // const levelMax = blockLevel + blockData.over.length
     // bbox.min.y = Math.min(bbox.min.y, levelMax)
     // bbox.max.y = Math.max(bbox.max.y, levelMax)
@@ -404,7 +405,7 @@ export class BlocksPatch extends BlocksContainer {
   }
 }
 
-export class PatchContainer {
+export class PatchMap {
   bbox: Box3 = new Box3()
   patchLookup: Record<string, BlocksPatch | null> = {}
 
@@ -420,8 +421,8 @@ export class PatchContainer {
     // const origin = BlocksPatch.asPatchCoords(center)
     const { min, max } = this.patchRange
     for (let { x } = min; x < max.x; x++) {
-      for (let { z } = min; z < max.z; z++) {
-        const patchKey = `${x}:${z}`
+      for (let { y } = min; y < max.y; y++) {
+        const patchKey = `${x}:${y}`
         const patchBox = getBboxFromPatchKey(patchKey)
         if (patchBboxMask(patchBox)) {
           this.patchLookup[patchKey] = null
@@ -433,8 +434,16 @@ export class PatchContainer {
   get patchRange() {
     const rangeMin = convertPosToPatchId(this.bbox.min)
     const rangeMax = convertPosToPatchId(this.bbox.max).addScalar(1)
-    const patchRange = new Box3(asVect3(rangeMin), asVect3(rangeMax))
+    const patchRange = new Box2(rangeMin, rangeMax)
     return patchRange
+  }
+
+  get externalBbox() {
+    const { min, max } = this.patchRange
+    min.multiplyScalar(WorldConfig.patchSize)
+    max.multiplyScalar(WorldConfig.patchSize)
+    const extBbox = new Box2(min, max)
+    return extBbox
   }
 
   get count() {
@@ -475,7 +484,7 @@ export class PatchContainer {
       })
   }
 
-  compareWith(otherContainer: PatchContainer) {
+  compareWith(otherContainer: PatchMap) {
     const patchKeysDiff: Record<string, boolean> = {}
     // added keys e.g. keys in current container but not found in other
     Object.keys(this.patchLookup)

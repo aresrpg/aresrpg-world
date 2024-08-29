@@ -1,16 +1,24 @@
-import { Box3, Vector3 } from 'three'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { EntityData, PatchBlock } from '../common/types'
-import { asVect2 } from '../common/utils'
-import { BlockData, BlockMode, PatchContainer } from './DataContainers'
-import { WorldCacheContainer } from '../index'
+import { asBox2, asVect2, asVect3 } from '../common/utils'
+import { BlockData, BlockMode, PatchMap } from './BlocksContainers'
+import { BlockType, PseudoRandomDistributionMap, WorldCacheContainer, WorldConfig } from '../index'
 
 export type BoardStub = {
   bbox: Box3,
   data: BlockData
 }
 
-export class BoardContainer extends PatchContainer {
+const distParams = {
+  minDistance: 5,
+  maxDistance: 16,
+  tries: 20,
+}
+const distMap = new PseudoRandomDistributionMap(undefined, distParams)
+distMap.populate()
+
+export class BoardContainer extends PatchMap {
   boardCenter
   boardRadius
   boardMaxHeightDiff
@@ -26,7 +34,7 @@ export class BoardContainer extends PatchContainer {
   }
 
   restoreOriginalPatches() {
-    const original_patches_container = new PatchContainer()
+    const original_patches_container = new PatchMap()
     original_patches_container.initFromBoxAndMask(this.bbox)
     original_patches_container.populateFromExisting(
       WorldCacheContainer.instance.availablePatches,
@@ -128,6 +136,20 @@ export class BoardContainer extends PatchContainer {
 
   genStartPosEntities() {
     const existingBoardEntities = this.getBoardEntities()
+    const entityShape = (pos: Vector2) => new Box2(pos, pos.clone().addScalar(2))
+    this.patchRange.clone().expandByScalar(WorldConfig.patchSize)
+    const boardMapRange = asBox2(this.bbox)
+    const items = distMap.iterMapItems(entityShape, boardMapRange, () => 1)
+    for (const mapPos of items) {
+      const pos = asVect3(mapPos)
+      const patch = this.findPatch(pos)
+      const block = patch?.getBlock(pos, false)
+      if (patch && block) {
+        block.data.type = BlockType.MUD
+        patch.writeBlockData(block.index, block.data)
+        // patch.setBlock(block.pos, block.data)
+      }
+    }
     // discard entities from spawning over existing entities
     const discardEntity = (entity: EntityData) => existingBoardEntities
       .find(boardEntity => entity.bbox.intersectsBox(boardEntity.bbox))
