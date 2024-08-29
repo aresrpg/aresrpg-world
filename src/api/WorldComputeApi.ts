@@ -1,7 +1,7 @@
 import { Vector3 } from 'three'
 
 import { Block, PatchKey } from '../common/types'
-import { BlocksPatch } from '../data/DataContainers'
+import { BlocksPatch } from '../data/BlocksContainers'
 import { WorldCompute, WorldUtils } from '../index'
 
 export enum ComputeApiCall {

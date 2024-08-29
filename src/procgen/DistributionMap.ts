@@ -4,10 +4,14 @@ import { Box2, Vector2, Vector3 } from 'three'
 
 import { ProcLayer } from './ProcLayer'
 import { EntityData } from '../common/types'
+import { WorldConfig } from '../config/WorldConfig'
 // import { Adjacent2dPos } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
 
 const probabilityThreshold = Math.pow(2, 8)
+const bmin = new Vector2(0, 0)
+const bmax = new Vector2(WorldConfig.defaultDistMapPeriod, WorldConfig.defaultDistMapPeriod)
+const distMapDefaultBox = new Box2(bmin, bmax)
 const distMapDefaults = {
   minDistance: 8,
   maxDistance: 100,
@@ -15,16 +19,18 @@ const distMapDefaults = {
 }
 
 /**
- * Map for querying/iterating randomly distributed items 
- * at block level or from custom box range 
+ * Infinite map using repeatable seamless pattern to provide
+ * independant, deterministic and approximated random distribution
+ * Enable querying/iterating randomly distributed items at block 
+ * level or from custom box range 
  */
-export class RandomDistributionMap {
+export class PseudoRandomDistributionMap {
   bbox: Box2
   params
   points: Vector2[] = []
   densityMap = new ProcLayer('treemap')
 
-  constructor(bbox: Box2, distParams: any = {}) {
+  constructor(bbox: Box2 = distMapDefaultBox, distParams: any = distMapDefaults) {
     this.bbox = bbox
     this.params = distParams
   }
@@ -46,83 +52,9 @@ export class RandomDistributionMap {
     this.points = p.fill()
       .map(point =>
         new Vector2(point[0] as number, point[1] as number).round())
-  }
-
-  spawnProbabilityEval(pos: Vector2) {
-    const maxCount = 1 // 16 * Math.round(Math.exp(10))
-    const val = this.densityMap?.eval(pos)
-    const adjustedVal = val
-      ? (16 * Math.round(Math.exp((1 - val) * 10))) / maxCount
-      : 0
-    return adjustedVal
-  }
-
-  hasSpawned(itemPos: Vector2) {
-    // eval spawn probability at entity center
-    const spawnProbabilty = this.spawnProbabilityEval(itemPos)
-    const itemId = itemPos.x + ':' + itemPos.y
-    const prng = alea(itemId)
-    const hasSpawned = prng() * spawnProbabilty < probabilityThreshold
-    return hasSpawned
-  }
-
-  /**
-   * all entities belonging or overlapping with given box area
-   * or all entities found at given block position
-   * @param patchCoords
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  *iterMapItems(entityShaper: (centerPos: Vector2) => Box2,
-    pointOrRange: Vector2 | Box2,
-    // spawnProbabilityOverride: (entityPos?: Vector2) => number,
-  ) {
-    // return entities in patch local coords
-    for (const entityPos of this.points) {
-      const entityShape = entityShaper(entityPos)
-      const isWithinRange = pointOrRange instanceof Box2 ?
-        entityShape.intersectsBox(pointOrRange) : entityShape.containsPoint(pointOrRange)
-      // TODO eval entity spawn probability here
-      if (isWithinRange && this.hasSpawned(entityPos))
-        yield entityPos
-    }
-  }
-
-
-  // /**
-  //  * Randomly spawn entites according to custom distribution
-  //  */
-  // static spawnEntity(pos: Vector2) {
-  //   // return Math.sin(0.01 * pos.x * pos.y) > 0.99
-  //   const offset = 10
-  //   return pos.x % 20 === offset && pos.y % 20 === offset
-  // }
-}
-
-/**
- * Infinite map using repeatable seamless pattern providing
- * independant, deterministic and approximated random distribution
- */
-export class PseudoRandomDistMap extends RandomDistributionMap {
-  // eslint-disable-next-line no-use-before-define
-  static singleton: PseudoRandomDistMap
-
-  constructor(mapPeriod: number, params = distMapDefaults) {
-    super(new Box2(new Vector2(0, 0), new Vector2(mapPeriod, mapPeriod)), params)
-  }
-
-  static get instance() {
-    return PseudoRandomDistMap.singleton
-  }
-
-  static set instance(defaultInstance: PseudoRandomDistMap) {
-    PseudoRandomDistMap.singleton = defaultInstance
-  }
-
-  override populate() {
-    super.populate()
     // make seamless repeatable map
-    const { dimensions } = this
-    const radius = this.params.minDistance / 2
+
+    const radius = params.minDistance / 2
     const edgePoints = this.points
       .map(point => {
         const pointCopy = point.clone()
@@ -142,14 +74,32 @@ export class PseudoRandomDistMap extends RandomDistributionMap {
     edgePoints.forEach(edgePoint => edgePoint && this.points.push(edgePoint))
   }
 
+  spawnProbabilityEval(pos: Vector2) {
+    const maxCount = 1 // 16 * Math.round(Math.exp(10))
+    const val = this.densityMap?.eval(pos)
+    const adjustedVal = val
+      ? (16 * Math.round(Math.exp((1 - val) * 10))) / maxCount
+      : 0
+    return adjustedVal
+  }
+
+  hasSpawned(itemPos: Vector2, spawnProbabilty?: number) {
+    // eval spawn probability at entity center
+    spawnProbabilty = spawnProbabilty && !isNaN(spawnProbabilty) ? spawnProbabilty : this.spawnProbabilityEval(itemPos)
+    const itemId = itemPos.x + ':' + itemPos.y
+    const prng = alea(itemId)
+    const hasSpawned = prng() * spawnProbabilty < probabilityThreshold
+    return hasSpawned
+  }
+
   /**
    * Either whole area or individual point overlapping with entity
    * @param input 
    * @param entityMask 
    */
-  override *iterMapItems(entityShaper: (centerPos: Vector2) => Box2,
+  *iterMapItems(entityShaper: (centerPos: Vector2) => Box2,
     inputPointOrRange: Vector2 | Box2,
-    // spawnProbabilityOverride: (entityPos?: Vector2) => number,
+    spawnProbabilityOverride: (entityPos?: Vector2) => number,
     // entityMask = (_entity: EntityData) => false
   ) {
     const { dimensions } = this
@@ -179,17 +129,27 @@ export class PseudoRandomDistMap extends RandomDistributionMap {
 
     for (const entityCenter of pointCandidates) {
       const entityPos = toRealMapPos(entityCenter)
-      if (this.hasSpawned(entityPos)) {
+      if (this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos))) {
         yield entityPos
       }
     }
   }
+
+  // /**
+  //  * Randomly spawn entites according to custom distribution
+  //  */
+  // static spawnEntity(pos: Vector2) {
+  //   // return Math.sin(0.01 * pos.x * pos.y) > 0.99
+  //   const offset = 10
+  //   return pos.x % 20 === offset && pos.y % 20 === offset
+  // }
 }
+
 
 /**
  * Storing entities at biome level with overlap at biomes' transitions
  */
-export class OverlappingEntitiesMap extends RandomDistributionMap {
+export class OverlappingEntitiesMap { //extends RandomDistributionMap {
   // entities stored per biome
   static biomeMapsLookup: Record<string, EntityData[]> = {}
   // getAdjacentEntities() {

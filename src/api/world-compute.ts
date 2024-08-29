@@ -1,18 +1,21 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
 
-import { ChunkFactory, EntityType, PseudoRandomDistMap } from '../index'
+import { ChunkFactory, EntityType, PseudoRandomDistributionMap } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
   BlockData,
   BlocksContainer,
   BlocksPatch,
-} from '../data/DataContainers'
+} from '../data/BlocksContainers'
 import { Block, EntityData, PatchKey } from '../common/types'
 import { asBox2, asVect2, asVect3 } from '../common/utils'
 
 // TODO remove hardcoded entity dimensions to compute from entity type
 const entityDefaultDims = new Vector3(10, 20, 10)
+// TODO move somewhere else
+const defaultDistMap = new PseudoRandomDistributionMap()
+defaultDistMap.populate()
 
 export const computePatch = (patchKey: PatchKey) => {
   const patch = new BlocksPatch(patchKey)
@@ -95,7 +98,7 @@ export const computeBlocksBuffer = (blockPos: Vector3) => {
   // query entities at current block
   const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDefaultDims))
   const mapPos = asVect2(blockPos)
-  const mapItems = PseudoRandomDistMap.instance.iterMapItems(entityShaper, mapPos)
+  const mapItems = defaultDistMap.iterMapItems(entityShaper, mapPos)
   for (const mapPos of mapItems) {
     const entityPos = asVect3(mapPos)
     const entity = genEntity(entityPos)
@@ -113,7 +116,7 @@ const genEntities = (blocksContainer: BlocksContainer) => {
   const entityDims = new Vector3(10, 20, 10)  // TODO compute from entity type
   const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDims))
   const mapBox = asBox2(blocksContainer.bbox)
-  const entitiesIter = PseudoRandomDistMap.instance.iterMapItems(entityShaper, mapBox)
+  const entitiesIter = defaultDistMap.iterMapItems(entityShaper, mapBox)
   for (const mapPos of entitiesIter) {
     // use global coords in case entity center is from adjacent patch
     const entityPos = asVect3(mapPos)

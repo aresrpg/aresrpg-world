@@ -4,12 +4,12 @@ import { PatchKey } from '../common/types'
 import { WorldConfig } from '../config/WorldConfig'
 import { WorldComputeApi } from '../index'
 
-import { BlocksPatch, PatchContainer } from './DataContainers'
+import { BlocksPatch, PatchMap } from './BlocksContainers'
 
 /**
  * Blocks cache
  */
-export class CacheContainer extends PatchContainer {
+export class CacheContainer extends PatchMap {
   // eslint-disable-next-line no-use-before-define
   static singleton: CacheContainer
   pendingRefresh = false
@@ -43,7 +43,7 @@ export class CacheContainer extends PatchContainer {
     //, patchMask = () => true) {
     let changesDiff
     if (!this.pendingRefresh) {
-      const emptyContainer = new PatchContainer()
+      const emptyContainer = new PatchMap()
       emptyContainer.initFromBoxAndMask(bbox)
       changesDiff = emptyContainer.compareWith(CacheContainer.instance)
       const hasChanged = Object.keys(changesDiff).length > 0

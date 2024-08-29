@@ -2,12 +2,12 @@ import { Box3, MathUtils, Vector2, Vector3 } from 'three'
 
 import { EntityData, PatchBlock, PatchId } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
-import { BlockData, BlockMode } from '../data/DataContainers'
+import { BlockData, BlockMode } from '../data/BlocksContainers'
 import { BlockType } from '../index'
 
 import { TreeGenerators } from './TreeGenerator'
 
-const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // disabled if NONE
+const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.SAND // disabled if NONE
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
