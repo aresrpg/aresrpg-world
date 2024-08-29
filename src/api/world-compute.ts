@@ -96,9 +96,9 @@ export const computeBlocksBuffer = (blockPos: Vector3) => {
   // query entities at current block
   const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDefaultDims))
   const mapPos = asVect2(blockPos)
-  const mapItems = defaultDistMap.iterMapItems(entityShaper, mapPos)
-  for (const mapPos of mapItems) {
-    const entityPos = asVect3(mapPos)
+  const spawnLocs = defaultDistMap.getSpawnLocations(entityShaper, mapPos)
+  for (const loc of spawnLocs) {
+    const entityPos = asVect3(loc)
     const entity = genEntity(entityPos)
     blocksBuffer = entity ? ChunkFactory.chunkifyEntity(entity, blockPos).data : blocksBuffer
   }
@@ -109,48 +109,45 @@ export const bakeEntities = (_entities: EntityData) => {
   // TODO
 }
 
-const genEntities = (blocksContainer: BlocksPatchContainer) => {
+const genEntities = (blocksPatch: BlocksPatchContainer) => {
   // query entities on patch range
   const entityDims = new Vector3(10, 20, 10)  // TODO compute from entity type
   const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDims))
-  const mapBox = asBox2(blocksContainer.bbox)
-  const entitiesIter = defaultDistMap.iterMapItems(entityShaper, mapBox)
-  for (const mapPos of entitiesIter) {
-    // use global coords in case entity center is from adjacent patch
-    const entityPos = asVect3(mapPos)
-    const entity = genEntity(entityPos)
-    if (entity) {
-      blocksContainer.entities.push(entity)
-    }
-  }
+  const mapBox = asBox2(blocksPatch.bbox)
+  const spawnLocs = defaultDistMap.getSpawnLocations(entityShaper, mapBox)
+  const spawnedEntities = spawnLocs
+    .map(loc => asVect3(loc))
+    .map(entityPos => genEntity(entityPos))
+    .filter(val => val) as EntityData[]
+  blocksPatch.entities = spawnedEntities
 }
 
 /**
  * Fill container with ground blocks
  */
-const genGroundBlocks = (blocksContainer: BlocksPatchContainer) => {
-  const { min, max } = blocksContainer.bbox
+const genGroundBlocks = (blocksPatch: BlocksPatchContainer) => {
+  const { min, max } = blocksPatch.bbox
   // const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
   // const prng = alea(patchId)
   // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
   // const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
-  const blocksPatchIter = blocksContainer.iterOverBlocks(undefined, false,)
+  const patchBlocks = blocksPatch.iterOverBlocks(undefined, false,)
   min.y = 512
   max.y = 0
   let blockIndex = 0
-  for (const block of blocksPatchIter) {
+  for (const block of patchBlocks) {
     // const patchCorner = points.find(pt => pt.distanceTo(blockData.pos) < 2)
     const blockData = computeGroundBlock(block.pos)
     min.y = Math.min(min.y, blockData.level)
     max.y = Math.max(max.y, blockData.level)
-    blocksContainer.writeBlockData(blockIndex, blockData)
+    blocksPatch.writeBlockData(blockIndex, blockData)
     blockIndex++
   }
-  blocksContainer.bbox.min = min
-  blocksContainer.bbox.max = max
-  blocksContainer.bbox.getSize(blocksContainer.dimensions)
-  // PatchBlocksCache.bbox.union(blocksContainer.bbox)
+  blocksPatch.bbox.min = min
+  blocksPatch.bbox.max = max
+  blocksPatch.bbox.getSize(blocksPatch.dimensions)
+  // PatchBlocksCache.bbox.union(blocksPatch.bbox)
 
-  // blocksContainer.state = PatchState.Filled
-  return blocksContainer
+  // blocksPatch.state = PatchState.Filled
+  return blocksPatch
 }
