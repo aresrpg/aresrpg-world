@@ -1,10 +1,11 @@
 import PoissonDiskSampling from 'poisson-disk-sampling'
 import alea from 'alea'
-import { Box2, Vector2 } from 'three'
+import { Box2, Box3, Vector2 } from 'three'
 
 import { ProcLayer } from './ProcLayer'
 import { EntityData } from '../common/types'
 import { WorldConfig } from '../config/WorldConfig'
+import { patchIdFromPos } from '../common/utils'
 // import { Adjacent2dPos } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
 
@@ -93,46 +94,40 @@ export class PseudoDistributionMap {
   }
 
   /**
-   * Either whole area or individual point overlapping with entity
-   * @param input 
-   * @param entityMask 
+   * 
+   * @param entityShaper 
+   * @param inputPointOrRange either test point or range box
+   * @param spawnProbabilityOverride 
+   * @returns all locations from which entity contains input point or overlaps with range box
    */
-  *iterMapItems(entityShaper: (centerPos: Vector2) => Box2,
+  getSpawnLocations(entityShaper: (centerPos: Vector2) => Box2,
     inputPointOrRange: Vector2 | Box2,
     spawnProbabilityOverride?: (entityPos?: Vector2) => number,
     // entityMask = (_entity: EntityData) => false
   ) {
     const { dimensions } = this
-    const mapOrigin = inputPointOrRange instanceof Box2 ? inputPointOrRange.min : inputPointOrRange
-    const mapShifting = new Vector2(
-      Math.floor(mapOrigin.x / dimensions.x),
-      Math.floor(mapOrigin.y / dimensions.y),
-    ).multiply(dimensions)
-    const mapDims =
-      inputPointOrRange instanceof Box2
-        ? inputPointOrRange.getSize(new Vector2())
-        : new Vector2(1, 1)
-    const virtualMapStart = mapOrigin.clone().sub(mapShifting)
-    const virtualMapEnd = virtualMapStart.clone().add(mapDims)
-    const virtualMapBox = new Box2(virtualMapStart, virtualMapEnd)
-    const toRealMapPos = (virtualMapRelativePos: Vector2) =>
-      mapShifting.clone().add(virtualMapRelativePos)
-
-    // filter all items belonging to map area or intersecting point
-    const pointCandidates = this.points
-      .filter(entityCenter => {
-        const entityBox = entityShaper(entityCenter)
-        return virtualMapBox ? entityBox.intersectsBox(virtualMapBox)
-          : entityBox.containsPoint(mapOrigin)
-      })
-    // .filter(entity => !entityMask(entity))// discard entities according to optional provided mask
-
-    for (const entityCenter of pointCandidates) {
-      const entityPos = toRealMapPos(entityCenter)
-      if (this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos))) {
-        yield entityPos
+    const inputBox = inputPointOrRange instanceof Box2 ? inputPointOrRange :
+      new Box2().setFromPoints([inputPointOrRange])
+    const mapRangeMin = patchIdFromPos(inputBox.min, dimensions)
+    const mapRangeMax = inputBox.max.clone().divide(dimensions).ceil()
+    const mapOffset = mapRangeMin.clone()
+    const candidates: Vector2[] = []
+    // iter maps on computed range
+    for (mapOffset.x = mapRangeMin.x; mapOffset.x < mapRangeMax.x; mapOffset.x++) {
+      for (mapOffset.y = mapRangeMin.y; mapOffset.y < mapRangeMax.y; mapOffset.y++) {
+        const posOffset = mapOffset.clone().multiply(dimensions)
+        // convet relative pos to global pos
+        this.points.map(point => point.clone().add(posOffset))
+          .filter(entityPos => {
+            const entityBox = entityShaper(entityPos)
+            return inputPointOrRange instanceof Vector2 ? entityBox.containsPoint(inputPointOrRange) :
+              entityBox.intersectsBox(inputBox)
+          })
+          .forEach(entityPos => candidates.push(entityPos))
       }
     }
+    const spawned = candidates.filter(entityPos => this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos)))
+    return spawned
   }
 
   // /**
