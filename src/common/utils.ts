@@ -256,46 +256,28 @@ const parsePatchKey = (patchKey: PatchKey) => {
   return patchId
 }
 
-const convertPosToPatchId = (
-  position: Vector3,
-  patchSize: number = WorldConfig.patchSize,
+const patchIdFromPos = (
+  position: Vector2,
+  patchSize: Vector2,
 ) => {
-  const orig_x = Math.floor(position.x / patchSize)
-  const orig_z = Math.floor(position.z / patchSize)
-  const patchCoords = new Vector2(orig_x, orig_z)
-  return patchCoords
+  const patchId = position.clone().divide(patchSize).floor()
+  return patchId
 }
 
-const computePatchKey = (
-  patchId: Box3 | Vector3 | Vector2,
-  patchSize: number = WorldConfig.patchSize,
-) => {
-  const inputCopy: Vector3 | Box3 =
-    patchId instanceof Vector2
-      ? new Vector3(patchId.x, 0, patchId.y)
-      : patchId.clone()
-  const point =
-    inputCopy instanceof Box3
-      ? (inputCopy as Box3).getCenter(new Vector3())
-      : (inputCopy as Vector3).clone()
-
-  const patchOrigin = convertPosToPatchId(point, patchSize)
-  const { x, y } = patchOrigin
+const serializePatchId = (patchId: PatchId) => {
+  const { x, y } = patchId
   const patchKey = `${x}:${y}`
   return patchKey
 }
 
-const getBboxFromPatchKey = (
+const patchBoxFromKey = (
   patchKey: string,
-  patchSize: number = WorldConfig.patchSize,
+  patchDims: Vector2,
 ) => {
   const patchCoords = parsePatchKey(patchKey)
-  const bmin = asVect3(patchCoords.clone().multiplyScalar(patchSize))
-  const bmax = asVect3(
-    patchCoords.clone().addScalar(1).multiplyScalar(patchSize),
-  )
-  bmax.y = 512
-  const bbox = new Box3(bmin, bmax)
+  const bmin = patchCoords.clone().multiply(patchDims)
+  const bmax = patchCoords.clone().addScalar(1).multiply(patchDims)
+  const bbox = new Box2(bmin, bmax)
   return bbox
 }
 
@@ -321,7 +303,7 @@ function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
   return chunk_ids
 }
 
-const getBboxFromChunkId = (
+const chunkBoxFromId = (
   chunkId: ChunkId,
   patchSize: number = WorldConfig.patchSize,
 ) => {
@@ -351,11 +333,11 @@ export {
   asBox2,
   asBox3,
   parsePatchKey,
-  convertPosToPatchId,
-  computePatchKey,
-  getBboxFromPatchKey,
+  patchIdFromPos,
+  serializePatchId,
+  patchBoxFromKey,
   parseChunkKey,
   serializeChunkId,
-  getBboxFromChunkId,
+  chunkBoxFromId,
   genChunkIds,
 }

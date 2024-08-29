@@ -1,6 +1,6 @@
 import PoissonDiskSampling from 'poisson-disk-sampling'
 import alea from 'alea'
-import { Box2, Vector2, Vector3 } from 'three'
+import { Box2, Vector2 } from 'three'
 
 import { ProcLayer } from './ProcLayer'
 import { EntityData } from '../common/types'
@@ -24,7 +24,7 @@ const distMapDefaults = {
  * Enable querying/iterating randomly distributed items at block 
  * level or from custom box range 
  */
-export class PseudoRandomDistributionMap {
+export class PseudoDistributionMap {
   bbox: Box2
   params
   points: Vector2[] = []
@@ -99,7 +99,7 @@ export class PseudoRandomDistributionMap {
    */
   *iterMapItems(entityShaper: (centerPos: Vector2) => Box2,
     inputPointOrRange: Vector2 | Box2,
-    spawnProbabilityOverride: (entityPos?: Vector2) => number,
+    spawnProbabilityOverride?: (entityPos?: Vector2) => number,
     // entityMask = (_entity: EntityData) => false
   ) {
     const { dimensions } = this
