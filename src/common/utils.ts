@@ -256,11 +256,19 @@ const parsePatchKey = (patchKey: PatchKey) => {
   return patchId
 }
 
-const patchIdFromPos = (
+const patchLowerId = (
   position: Vector2,
   patchSize: Vector2,
 ) => {
   const patchId = position.clone().divide(patchSize).floor()
+  return patchId
+}
+
+const patchUpperId = (
+  position: Vector2,
+  patchSize: Vector2,
+) => {
+  const patchId = position.clone().divide(patchSize).ceil()
   return patchId
 }
 
@@ -333,7 +341,8 @@ export {
   asBox2,
   asBox3,
   parsePatchKey,
-  patchIdFromPos,
+  patchLowerId,
+  patchUpperId,
   serializePatchId,
   patchBoxFromKey,
   parseChunkKey,

@@ -1,11 +1,11 @@
-import PoissonDiskSampling from 'poisson-disk-sampling'
 import alea from 'alea'
-import { Box2, Box3, Vector2 } from 'three'
+import { Box2, Vector2 } from 'three'
 
-import { ProcLayer } from './ProcLayer'
+import { ProcLayer } from '../procgen/ProcLayer'
+import { BlueNoisePattern } from '../procgen/BlueNoisePattern'
 import { EntityData } from '../common/types'
 import { WorldConfig } from '../config/WorldConfig'
-import { patchIdFromPos } from '../common/utils'
+import { patchLowerId, patchUpperId } from '../common/utils'
 // import { Adjacent2dPos } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
 
@@ -26,53 +26,11 @@ const distMapDefaults = {
  * level or from custom box range 
  */
 export class PseudoDistributionMap {
-  bbox: Box2
-  params
-  points: Vector2[] = []
+  repeatedPattern: BlueNoisePattern
   densityMap = new ProcLayer('treemap')
 
   constructor(bbox: Box2 = distMapDefaultBox, distParams: any = distMapDefaults) {
-    this.bbox = bbox
-    this.params = distParams
-  }
-
-  get dimensions() {
-    return this.bbox.getSize(new Vector2())
-  }
-
-  populate() {
-    const { dimensions, params } = this
-    const prng = alea('RandomDistributionMap')
-    const p = new PoissonDiskSampling(
-      {
-        shape: [dimensions.x, dimensions.y],
-        ...params
-      },
-      prng,
-    )
-    this.points = p.fill()
-      .map(point =>
-        new Vector2(point[0] as number, point[1] as number).round())
-    // make seamless repeatable map
-
-    const radius = params.minDistance / 2
-    const edgePoints = this.points
-      .map(point => {
-        const pointCopy = point.clone()
-        if (point.x - radius < 0) {
-          pointCopy.x += dimensions.x
-        } else if (point.x + radius > dimensions.x) {
-          pointCopy.x -= dimensions.x
-        }
-        if (point.y - radius < 0) {
-          pointCopy.y += dimensions.y
-        } else if (point.y + radius > dimensions.y) {
-          pointCopy.y -= dimensions.y
-        }
-        return pointCopy.round().equals(point) ? null : pointCopy
-      })
-      .filter(pointCopy => pointCopy)
-    edgePoints.forEach(edgePoint => edgePoint && this.points.push(edgePoint))
+    this.repeatedPattern = new BlueNoisePattern(bbox, distParams)
   }
 
   spawnProbabilityEval(pos: Vector2) {
@@ -93,41 +51,53 @@ export class PseudoDistributionMap {
     return hasSpawned
   }
 
+  getPatchIdsRange(mapArea: Box2) {
+    const { dimensions } = this.repeatedPattern
+    const rangeMin = patchLowerId(mapArea.min, dimensions)
+    const rangeMax = patchUpperId(mapArea.max, dimensions)
+    return new Box2(rangeMin, rangeMax)
+  }
+
+  *iterPatchIds(mapArea: Box2) {
+    const patchRange = this.getPatchIdsRange(mapArea)
+    const patchOffset = patchRange.min.clone()
+    // iter elements on computed range
+    for (patchOffset.x = patchRange.min.x; patchOffset.x < patchRange.max.x; patchOffset.x++) {
+      for (patchOffset.y = patchRange.min.y; patchOffset.y < patchRange.max.y; patchOffset.y++) {
+        yield patchOffset
+      }
+    }
+  }
+
   /**
    * 
    * @param entityShaper 
-   * @param inputPointOrRange either test point or range box
+   * @param inputPointOrArea either test point or range box
    * @param spawnProbabilityOverride 
    * @returns all locations from which entity contains input point or overlaps with range box
    */
   getSpawnLocations(entityShaper: (centerPos: Vector2) => Box2,
-    inputPointOrRange: Vector2 | Box2,
+    inputPointOrArea: Vector2 | Box2,
     spawnProbabilityOverride?: (entityPos?: Vector2) => number,
     // entityMask = (_entity: EntityData) => false
   ) {
-    const { dimensions } = this
-    const inputBox = inputPointOrRange instanceof Box2 ? inputPointOrRange :
-      new Box2().setFromPoints([inputPointOrRange])
-    const mapRangeMin = patchIdFromPos(inputBox.min, dimensions)
-    const mapRangeMax = inputBox.max.clone().divide(dimensions).ceil()
-    const mapOffset = mapRangeMin.clone()
-    const candidates: Vector2[] = []
-    // iter maps on computed range
-    for (mapOffset.x = mapRangeMin.x; mapOffset.x < mapRangeMax.x; mapOffset.x++) {
-      for (mapOffset.y = mapRangeMin.y; mapOffset.y < mapRangeMax.y; mapOffset.y++) {
-        const posOffset = mapOffset.clone().multiply(dimensions)
-        // convet relative pos to global pos
-        this.points.map(point => point.clone().add(posOffset))
-          .filter(entityPos => {
-            const entityBox = entityShaper(entityPos)
-            return inputPointOrRange instanceof Vector2 ? entityBox.containsPoint(inputPointOrRange) :
-              entityBox.intersectsBox(inputBox)
-          })
-          .forEach(entityPos => candidates.push(entityPos))
+    const mapBox = inputPointOrArea instanceof Box2 ? inputPointOrArea :
+      new Box2().setFromPoints([inputPointOrArea])
+    const overlappingEntities: Vector2[] = []
+    const patchIds = this.iterPatchIds(mapBox)
+    for (const patchId of patchIds) {
+      const patchElements = this.repeatedPattern.iterPatchElements(patchId)
+      // look for entities overlapping with input point or area
+      for (const entityPos of patchElements) {
+        const entityBox = entityShaper(entityPos)
+        const isOverlappingEntity = inputPointOrArea instanceof Vector2 ? entityBox.containsPoint(inputPointOrArea) :
+          entityBox.intersectsBox(mapBox)
+        if (isOverlappingEntity) overlappingEntities.push(entityPos)
       }
     }
-    const spawned = candidates.filter(entityPos => this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos)))
-    return spawned
+    const spawnedEntities = overlappingEntities
+    .filter(entityPos => this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos)))
+    return spawnedEntities
   }
 
   // /**

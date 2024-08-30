@@ -3,9 +3,9 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 import { EntityData, PatchBlock } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import { BlockType, WorldCacheContainer, WorldConfig } from '../index'
-import { PseudoDistributionMap } from '../procgen/RandomDistributionMap'
-import { BlockData, BlockMode, BlocksPatchContainer } from './BlocksPatch'
-import { PatchesMap } from './DataContainers'
+import { PseudoDistributionMap } from './RandomDistributionMap'
+import { BlockData, BlockMode, BlocksPatch } from './BlocksPatch'
+import { PatchesMap } from './PatchesMap'
 
 export type BoardStub = {
   bbox: Box3,
@@ -20,11 +20,10 @@ const distParams = {
   tries: 20,
 }
 const distMap = new PseudoDistributionMap(undefined, distParams)
-distMap.populate()
 
 const DBG_ENTITIES_HIGHLIGHT_COLOR = BlockType.SNOW// NONE to disable debugging
 
-export class BoardContainer extends PatchesMap<BlocksPatchContainer> {
+export class BoardContainer extends PatchesMap<BlocksPatch> {
   boardCenter
   boardRadius
   boardMaxHeightDiff
@@ -36,12 +35,12 @@ export class BoardContainer extends PatchesMap<BlocksPatchContainer> {
     this.boardMaxHeightDiff = maxHeightDiff
     const board_dims = new Vector2(radius, radius).multiplyScalar(2)
     this.bbox.setFromCenterAndSize(asVect2(this.boardCenter), board_dims)
-    this.initFromBoxAndMask(this.bbox)
+    this.init(this.bbox)
   }
 
   restoreOriginalPatches() {
     const original_patches_container = new PatchesMap(getDefaultPatchDim())
-    original_patches_container.initFromBoxAndMask(this.bbox)
+    original_patches_container.init(this.bbox)
     original_patches_container.populateFromExisting(
       WorldCacheContainer.instance.availablePatches,
       true,
@@ -112,7 +111,6 @@ export class BoardContainer extends PatchesMap<BlocksPatchContainer> {
   genStartPositions() {
     const existingBoardEntities = this.getBoardEntities()
     const entityShape = (pos: Vector2) => new Box2(pos, pos.clone().addScalar(2))
-    this.patchRange.clone().expandByScalar(WorldConfig.patchSize)
     const spawnLocs = distMap.getSpawnLocations(entityShape, this.bbox, () => 1)
     const startBlockPositions = spawnLocs
       .map(loc => {
@@ -132,9 +130,8 @@ export class BoardContainer extends PatchesMap<BlocksPatchContainer> {
     })
 
     // discard entities spawning over existing entities
-    const discardEntity = (entity: EntityData) => existingBoardEntities
-      .find(boardEntity => entity.bbox.intersectsBox(boardEntity.bbox))
-    // RepeatableEntitiesMap.instance.
+    // const discardEntity = (entity: EntityData) => existingBoardEntities
+    //   .find(boardEntity => entity.bbox.intersectsBox(boardEntity.bbox))
     return startBlockPositions
   }
 
