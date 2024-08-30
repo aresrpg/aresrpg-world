@@ -3,9 +3,7 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 import { ChunkFactory, EntityType, PseudoDistributionMap } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
-import {
-  BlockData, BlocksPatch,
-} from '../datacontainers/BlocksPatch'
+import { BlockData, BlocksPatch } from '../datacontainers/BlocksPatch'
 import { Block, EntityData, PatchKey } from '../common/types'
 import { asBox2, asVect2, asVect3 } from '../common/utils'
 
@@ -76,15 +74,20 @@ const genEntity = (entityPos: Vector3) => {
   const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
   const entityType = blockTypes.entities?.[0] as EntityType
   if (entityType) {
-    entityPos.y = Heightmap.instance.getGroundLevel(entityPos, rawVal) + entityDefaultDims.y / 2
-    const entityBox = new Box3().setFromCenterAndSize(entityPos, entityDefaultDims)
+    entityPos.y =
+      Heightmap.instance.getGroundLevel(entityPos, rawVal) +
+      entityDefaultDims.y / 2
+    const entityBox = new Box3().setFromCenterAndSize(
+      entityPos,
+      entityDefaultDims,
+    )
     entity = {
       type: entityType,
       bbox: entityBox,
       params: {
         radius: 5,
-        size: 10
-      }
+        size: 10,
+      },
     }
   }
   return entity
@@ -93,25 +96,29 @@ const genEntity = (entityPos: Vector3) => {
 export const computeBlocksBuffer = (blockPos: Vector3) => {
   let blocksBuffer
   // query entities at current block
-  const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDefaultDims))
+  const entityShaper = (entityPos: Vector2) =>
+    new Box2().setFromCenterAndSize(entityPos, asVect2(entityDefaultDims))
   const mapPos = asVect2(blockPos)
   const spawnLocs = distributionMap.getSpawnLocations(entityShaper, mapPos)
   for (const loc of spawnLocs) {
     const entityPos = asVect3(loc)
     const entity = genEntity(entityPos)
-    blocksBuffer = entity ? ChunkFactory.chunkifyEntity(entity, blockPos).data : blocksBuffer
+    blocksBuffer = entity
+      ? ChunkFactory.chunkifyEntity(entity, blockPos).data
+      : blocksBuffer
   }
   return blocksBuffer || []
 }
 
-export const bakeEntities = (_entities: EntityData) => {
-  // TODO
-}
+// export const bakeEntities = (_entities: EntityData) => {
+//   // TODO
+// }
 
 const genEntities = (blocksPatch: BlocksPatch) => {
   // query entities on patch range
-  const entityDims = new Vector3(10, 20, 10)  // TODO compute from entity type
-  const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDims))
+  const entityDims = new Vector3(10, 20, 10) // TODO compute from entity type
+  const entityShaper = (entityPos: Vector2) =>
+    new Box2().setFromCenterAndSize(entityPos, asVect2(entityDims))
   const mapBox = asBox2(blocksPatch.bbox)
   const spawnLocs = distributionMap.getSpawnLocations(entityShaper, mapBox)
   const spawnedEntities = spawnLocs
@@ -130,7 +137,7 @@ const genGroundBlocks = (blocksPatch: BlocksPatch) => {
   // const prng = alea(patchId)
   // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
   // const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
-  const patchBlocks = blocksPatch.iterOverBlocks(undefined, false,)
+  const patchBlocks = blocksPatch.iterOverBlocks(undefined, false)
   min.y = 512
   max.y = 0
   let blockIndex = 0

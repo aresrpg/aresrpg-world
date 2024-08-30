@@ -256,18 +256,12 @@ const parsePatchKey = (patchKey: PatchKey) => {
   return patchId
 }
 
-const patchLowerId = (
-  position: Vector2,
-  patchSize: Vector2,
-) => {
+const patchLowerId = (position: Vector2, patchSize: Vector2) => {
   const patchId = position.clone().divide(patchSize).floor()
   return patchId
 }
 
-const patchUpperId = (
-  position: Vector2,
-  patchSize: Vector2,
-) => {
+const patchUpperId = (position: Vector2, patchSize: Vector2) => {
   const patchId = position.clone().divide(patchSize).ceil()
   return patchId
 }
@@ -278,10 +272,7 @@ const serializePatchId = (patchId: PatchId) => {
   return patchKey
 }
 
-const patchBoxFromKey = (
-  patchKey: string,
-  patchDims: Vector2,
-) => {
+const patchBoxFromKey = (patchKey: string, patchDims: Vector2) => {
   const patchCoords = parsePatchKey(patchKey)
   const bmin = patchCoords.clone().multiply(patchDims)
   const bmax = patchCoords.clone().addScalar(1).multiply(patchDims)

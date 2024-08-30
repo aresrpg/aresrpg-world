@@ -1,23 +1,25 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
+import { asBox2 } from '../common/utils'
 import { WorldConfig } from '../config/WorldConfig'
 import { BlocksPatch, WorldComputeApi } from '../index'
+
 import { PatchesMap } from './PatchesMap'
 
-const getDefaultPatchDim = () => new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
+const getDefaultPatchDim = () =>
+  new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
 
 /**
  * Blocks cache
  */
 export class CacheContainer extends PatchesMap<BlocksPatch> {
-  // eslint-disable-next-line no-use-before-define
   static cachePowRadius = 2
   static cacheSize = WorldConfig.patchSize * 5
+  // eslint-disable-next-line no-use-before-define
   static singleton: CacheContainer
   pendingRefresh = false
   builtInCache = false // specify whether cache is managed internally or separately
-
 
   static get instance() {
     this.singleton = this.singleton || new CacheContainer(getDefaultPatchDim())
@@ -31,7 +33,7 @@ export class CacheContainer extends PatchesMap<BlocksPatch> {
     for await (const patch of batchIter) {
       if (patch.key) {
         this.patchLookup[patch.key] = patch
-        this.bbox.union(patch.bbox)
+        this.bbox.union(asBox2(patch.bbox))
       }
     }
     this.pendingRefresh = false

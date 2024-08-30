@@ -1,31 +1,26 @@
-import { Box2, Vector3 } from "three"
-import { PatchKey } from "../common/types"
-import { GenericPatch, GenericPatchesMap } from "./DataContainers"
+import { Box2, Vector3 } from 'three'
+
+import { PatchKey } from '../common/types'
+
+import { GenericPatch, GenericPatchesMap } from './DataContainers'
 
 /**
  * Finite map made from patch aggregation
  */
-export class PatchesMap<PatchType extends GenericPatch> extends GenericPatchesMap {
+export class PatchesMap<T extends GenericPatch> extends GenericPatchesMap {
   bbox: Box2 = new Box2()
-  patchLookup: Record<string, PatchType | null> = {}
+  patchLookup: Record<string, T | null> = {}
 
   init(
     bbox: Box2,
-    // patchDim: Vector2,
     // patchBboxFilter = (patchBbox: Box3) => patchBbox,
   ) {
     this.bbox = bbox
-    // this.patchDimensions = patchDim
     this.patchLookup = {}
-    // const halfDimensions = this.bbox.getSize(new Vector3()).divideScalar(2)
-    // const range = BlocksPatch.asPatchCoords(halfDimensions)
-    // const center = this.bbox.getCenter(new Vector3())
-    // const origin = BlocksPatch.asPatchCoords(center)
     const { min, max } = this.getPatchRange()
     for (let { x } = min; x < max.x; x++) {
       for (let { y } = min; y < max.y; y++) {
         const patchKey = `${x}:${y}`
-        // const patchBox = patchBoxFromKey(patchKey, patchDim)
         // if (patchBboxFilter(patchBox)) {
         this.patchLookup[patchKey] = null
         // }
@@ -54,7 +49,7 @@ export class PatchesMap<PatchType extends GenericPatch> extends GenericPatchesMa
   }
 
   get availablePatches() {
-    return Object.values(this.patchLookup).filter(val => val) as PatchType[]
+    return Object.values(this.patchLookup).filter(val => val) as T[]
   }
 
   get missingPatchKeys() {
@@ -68,18 +63,20 @@ export class PatchesMap<PatchType extends GenericPatch> extends GenericPatchesMa
   //   this.availablePatches.forEach(patch=>patch.iterOverBlocks)
   // }
 
-  populateFromExisting(patches: PatchType[], cloneObjects = false) {
+  populateFromExisting(patches: T[], cloneObjects = false) {
     // const { min, max } = this.bbox
     patches
       .filter(patch => this.patchLookup[patch.key] !== undefined)
       .forEach(patch => {
-        this.patchLookup[patch.key] = cloneObjects ? patch.duplicate() : patch
+        this.patchLookup[patch.key] = cloneObjects
+          ? (patch.duplicate() as T)
+          : patch
         // min.y = Math.min(patch.bbox.min.y, min.y)
         // max.y = Math.max(patch.bbox.max.y, max.y)
       })
   }
 
-  compareWith(otherContainer: PatchesMap<PatchType>) {
+  compareWith(otherContainer: PatchesMap<T>) {
     const patchKeysDiff: Record<string, boolean> = {}
     // added keys e.g. keys in current container but not found in other
     Object.keys(this.patchLookup)
@@ -100,14 +97,8 @@ export class PatchesMap<PatchType extends GenericPatch> extends GenericPatchesMa
   }
 
   findPatch(blockPos: Vector3) {
-    // const point = new Vector3(
-    //   inputPoint.x,
-    //   0,
-    //   inputPoint instanceof Vector3 ? inputPoint.z : inputPoint.y,
-    // )
-
     const res = this.availablePatches.find(patch =>
-      patch.containsBlock(blockPos),
+      patch.containsPoint(blockPos),
     )
     return res
   }
