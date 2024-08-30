@@ -95,7 +95,7 @@ export class PseudoDistributionMap {
    * @param spawnProbabilityOverride
    * @returns all locations from which entity contains input point or overlaps with range box
    */
-  getSpawnLocations(
+  querySpawnLocations(
     entityShaper: (centerPos: Vector2) => Box2,
     inputPointOrArea: Vector2 | Box2,
     spawnProbabilityOverride?: (entityPos?: Vector2) => number,

@@ -25,9 +25,10 @@ export enum BlockType {
   MUD,
   ROCK,
   SNOW,
+  DBG_LIGHT,
+  DBG_DARK,
   DBG_PURPLE,
   DBG_ORANGE,
-  DBG_BEIGE,
 }
 
 export enum BiomeType {
