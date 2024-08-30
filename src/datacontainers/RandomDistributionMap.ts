@@ -14,6 +14,7 @@ const bmin = new Vector2(0, 0)
 const bmax = new Vector2(WorldConfig.defaultDistMapPeriod, WorldConfig.defaultDistMapPeriod)
 const distMapDefaultBox = new Box2(bmin, bmax)
 const distMapDefaults = {
+  aleaSeed: 'treeMap',
   minDistance: 8,
   maxDistance: 100,
   tries: 20,
@@ -27,10 +28,11 @@ const distMapDefaults = {
  */
 export class PseudoDistributionMap {
   repeatedPattern: BlueNoisePattern
-  densityMap = new ProcLayer('treemap')
+  densityMap: ProcLayer
 
   constructor(bbox: Box2 = distMapDefaultBox, distParams: any = distMapDefaults) {
     this.repeatedPattern = new BlueNoisePattern(bbox, distParams)
+    this.densityMap = new ProcLayer(distParams.aleaSeed || '')
   }
 
   spawnProbabilityEval(pos: Vector2) {
@@ -96,7 +98,7 @@ export class PseudoDistributionMap {
       }
     }
     const spawnedEntities = overlappingEntities
-    .filter(entityPos => this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos)))
+      .filter(entityPos => this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos)))
     return spawnedEntities
   }
 

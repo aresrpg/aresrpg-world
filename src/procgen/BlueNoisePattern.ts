@@ -23,7 +23,8 @@ export class BlueNoisePattern {
     // populate with discrete elements using relative pos 
     populate() {
         const { dimensions, params } = this
-        const prng = alea('RandomDistributionMap')
+        const { aleaSeed } = this.params
+        const prng = alea(aleaSeed || '')
         const p = new PoissonDiskSampling(
             {
                 shape: [dimensions.x, dimensions.y],
