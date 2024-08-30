@@ -4,16 +4,16 @@ import { Box2, Vector2 } from 'three'
 import { ProcLayer } from '../procgen/ProcLayer'
 import { BlueNoisePattern } from '../procgen/BlueNoisePattern'
 import { EntityData } from '../common/types'
-import { WorldConfig } from '../config/WorldConfig'
 import { patchLowerId, patchUpperId } from '../common/utils'
+import { WorldConf } from '../index'
 // import { Adjacent2dPos } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
 
 const probabilityThreshold = Math.pow(2, 8)
 const bmin = new Vector2(0, 0)
 const bmax = new Vector2(
-  WorldConfig.defaultDistMapPeriod,
-  WorldConfig.defaultDistMapPeriod,
+  WorldConf.defaultDistMapPeriod,
+  WorldConf.defaultDistMapPeriod,
 )
 const distMapDefaultBox = new Box2(bmin, bmax)
 const distMapDefaults = {

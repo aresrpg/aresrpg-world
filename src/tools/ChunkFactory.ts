@@ -3,16 +3,14 @@ import { Box3, MathUtils, Vector2, Vector3 } from 'three'
 import { EntityData, PatchBlock, PatchId } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import { BlockData, BlockMode } from '../datacontainers/BlocksPatch'
-import { BlockType } from '../index'
+import { BlockType, WorldConf } from '../index'
 
 import { TreeGenerators } from './TreeGenerator'
 
-const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // use NONE to disable
-
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
-  return DBG_BORDERS_HIGHLIGHT_COLOR && (localPos.x === 1 || localPos.z === 1)
-    ? DBG_BORDERS_HIGHLIGHT_COLOR
+  return WorldConf.debug.patchBordersHighlightColor && (localPos.x === 1 || localPos.z === 1)
+    ? WorldConf.debug.patchBordersHighlightColor
     : blockType
 }
 

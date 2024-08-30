@@ -1,6 +1,5 @@
 import { Box2, Box3, Vector2, Vector3, Vector3Like } from 'three'
-
-import { WorldConfig } from '../config/WorldConfig'
+import { WorldConf } from '../index'
 
 import {
   Adjacent2dPos,
@@ -304,7 +303,7 @@ function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
 
 const chunkBoxFromId = (
   chunkId: ChunkId,
-  patchSize: number = WorldConfig.patchSize,
+  patchSize: number = WorldConf.patchSize,
 ) => {
   const bmin = chunkId.clone().multiplyScalar(patchSize)
   const bmax = chunkId.clone().addScalar(1).multiplyScalar(patchSize)

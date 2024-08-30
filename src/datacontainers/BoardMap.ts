@@ -2,7 +2,7 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { EntityData, PatchBlock } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
-import { BlockType, WorldCacheContainer, WorldConfig } from '../index'
+import { WorldCacheContainer, WorldConf } from '../index'
 
 import { PseudoDistributionMap } from './RandomDistributionMap'
 import { BlockData, BlockMode, BlocksPatch } from './BlocksPatch'
@@ -14,7 +14,7 @@ export type BoardStub = {
 }
 
 const getDefaultPatchDim = () =>
-  new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
+  new Vector2(WorldConf.patchSize, WorldConf.patchSize)
 
 const startPosDistParams = {
   aleaSeed: 'boardStartPos',
@@ -31,9 +31,6 @@ const holesDistParams = {
   tries: 20,
 }
 const holesDistMap = new PseudoDistributionMap(undefined, holesDistParams)
-
-const DBG_STARTPOS_HIGHLIGHT_COLOR = BlockType.DBG_LIGHT // use NONE to disable
-const DBG_HOLES_HIGHLIGHT_COLOR = BlockType.DBG_DARK // use NONE to disable
 
 export class BoardContainer extends PatchesMap<BlocksPatch> {
   boardCenter
@@ -141,11 +138,11 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
       .filter(
         startBlock => startBlock && this.isWithinBoard(startBlock.pos),
       ) as PatchBlock[]
-    DBG_STARTPOS_HIGHLIGHT_COLOR &&
+    WorldConf.debug.boardStartPosHighlightColor &&
       startBlockPositions.forEach(block => {
         const patch = this.findPatch(block.pos)
         if (patch && block) {
-          block.data.type = DBG_STARTPOS_HIGHLIGHT_COLOR
+          block.data.type = WorldConf.debug.boardStartPosHighlightColor
           block.data.mode = BlockMode.DEFAULT
           patch.writeBlockData(block.index, block.data)
           // patch.setBlock(block.pos, block.data)
@@ -222,11 +219,11 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
       .filter(
         startBlock => startBlock && this.isWithinBoard(startBlock.pos),
       ) as PatchBlock[]
-    DBG_HOLES_HIGHLIGHT_COLOR &&
+      WorldConf.debug.boardHolesHighlightColor &&
       startBlockPositions.forEach(block => {
         const patch = this.findPatch(block.pos)
         if (patch && block) {
-          block.data.type = DBG_HOLES_HIGHLIGHT_COLOR
+          block.data.type = WorldConf.debug.boardHolesHighlightColor
           block.data.level -= 1 // dig hole in the ground
           block.data.mode = BlockMode.DEFAULT
           patch.writeBlockData(block.index, block.data)

@@ -20,8 +20,7 @@ import {
   asBox2,
 } from '../common/utils'
 import { BlockType } from '../procgen/Biome'
-import { WorldConfig } from '../config/WorldConfig'
-import { ChunkFactory } from '../index'
+import { ChunkFactory, WorldConf } from '../index'
 
 import { GenericPatch } from './DataContainers'
 
@@ -54,7 +53,7 @@ const BlockDataBitAllocation = {
 export type BlockIteratorRes = IteratorResult<Block, void>
 
 const getDefaultPatchDim = () =>
-  new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
+  new Vector2(WorldConf.patchSize, WorldConf.patchSize)
 
 /**
  * GenericBlocksContainer
@@ -370,7 +369,7 @@ export class BlocksPatch implements GenericPatch {
 
   toChunks() {
     const chunks = this.chunkIds.map(chunkId => {
-      const chunkBox = chunkBoxFromId(chunkId, WorldConfig.patchSize)
+      const chunkBox = chunkBoxFromId(chunkId, WorldConf.patchSize)
       const chunk = this.toChunk(chunkBox)
       const worldChunk: WorldChunk = {
         key: serializeChunkId(chunkId),
