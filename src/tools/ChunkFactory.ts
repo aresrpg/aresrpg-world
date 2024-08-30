@@ -7,7 +7,7 @@ import { BlockType } from '../index'
 
 import { TreeGenerators } from './TreeGenerator'
 
-const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // use NONE to disable
+const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.DBG_BEIGE // use NONE to disable
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -70,7 +70,7 @@ export class ChunkFactory {
         buff_index > 0 &&
         chunkDataContainer[blocksIndex] !== undefined &&
         !bufferOver[buff_index]
-      if (!skip) {
+      if (!skip && blockType !== undefined) {
         chunkDataContainer[blocksIndex] = this.voxelDataEncoder(
           blockType,
           blockData.mode,
@@ -136,8 +136,14 @@ export class ChunkFactory {
 
   static chunkifyEntity(entity: EntityData, blockPosOrRange?: Vector3 | Box3) {
     if (blockPosOrRange instanceof Vector3) {
-      const blockStart = new Vector3(blockPosOrRange.x, entity.bbox.min.y, blockPosOrRange.z)
-      const blockEnd = blockStart.clone().add(new Vector3(1, entity.bbox.max.y - entity.bbox.min.y, 1))
+      const blockStart = new Vector3(
+        blockPosOrRange.x,
+        entity.bbox.min.y,
+        blockPosOrRange.z,
+      )
+      const blockEnd = blockStart
+        .clone()
+        .add(new Vector3(1, entity.bbox.max.y - entity.bbox.min.y, 1))
       blockPosOrRange = new Box3(blockStart, blockEnd)
     }
     const range = blockPosOrRange || entity.bbox
@@ -172,7 +178,7 @@ export class ChunkFactory {
     }
     const entityChunk = {
       bbox: range,
-      data
+      data,
     }
     return entityChunk
   }

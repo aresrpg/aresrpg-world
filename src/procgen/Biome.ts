@@ -27,7 +27,7 @@ export enum BlockType {
   SNOW,
   DBG_PURPLE,
   DBG_ORANGE,
-  DBG_BEIGE
+  DBG_BEIGE,
 }
 
 export enum BiomeType {
