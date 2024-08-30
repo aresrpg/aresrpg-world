@@ -4,7 +4,7 @@ import { ChunkFactory, EntityType, PseudoDistributionMap } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
-  BlockData, BlocksPatchContainer,
+  BlockData, BlocksPatch,
 } from '../datacontainers/BlocksPatch'
 import { Block, EntityData, PatchKey } from '../common/types'
 import { asBox2, asVect2, asVect3 } from '../common/utils'
@@ -12,11 +12,10 @@ import { asBox2, asVect2, asVect3 } from '../common/utils'
 // TODO remove hardcoded entity dimensions to compute from entity type
 const entityDefaultDims = new Vector3(10, 20, 10)
 // TODO move somewhere else
-const defaultDistMap = new PseudoDistributionMap()
-defaultDistMap.populate()
+const distributionMap = new PseudoDistributionMap()
 
 export const computePatch = (patchKey: PatchKey) => {
-  const patch = new BlocksPatchContainer(patchKey)
+  const patch = new BlocksPatch(patchKey)
   genGroundBlocks(patch)
   genEntities(patch)
   return patch
@@ -96,7 +95,7 @@ export const computeBlocksBuffer = (blockPos: Vector3) => {
   // query entities at current block
   const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDefaultDims))
   const mapPos = asVect2(blockPos)
-  const spawnLocs = defaultDistMap.getSpawnLocations(entityShaper, mapPos)
+  const spawnLocs = distributionMap.getSpawnLocations(entityShaper, mapPos)
   for (const loc of spawnLocs) {
     const entityPos = asVect3(loc)
     const entity = genEntity(entityPos)
@@ -109,12 +108,12 @@ export const bakeEntities = (_entities: EntityData) => {
   // TODO
 }
 
-const genEntities = (blocksPatch: BlocksPatchContainer) => {
+const genEntities = (blocksPatch: BlocksPatch) => {
   // query entities on patch range
   const entityDims = new Vector3(10, 20, 10)  // TODO compute from entity type
   const entityShaper = (entityPos: Vector2) => new Box2().setFromCenterAndSize(entityPos, asVect2(entityDims))
   const mapBox = asBox2(blocksPatch.bbox)
-  const spawnLocs = defaultDistMap.getSpawnLocations(entityShaper, mapBox)
+  const spawnLocs = distributionMap.getSpawnLocations(entityShaper, mapBox)
   const spawnedEntities = spawnLocs
     .map(loc => asVect3(loc))
     .map(entityPos => genEntity(entityPos))
@@ -125,7 +124,7 @@ const genEntities = (blocksPatch: BlocksPatchContainer) => {
 /**
  * Fill container with ground blocks
  */
-const genGroundBlocks = (blocksPatch: BlocksPatchContainer) => {
+const genGroundBlocks = (blocksPatch: BlocksPatch) => {
   const { min, max } = blocksPatch.bbox
   // const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
   // const prng = alea(patchId)

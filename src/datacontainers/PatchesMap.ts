@@ -1,32 +1,15 @@
-import { Box2, Vector3, Vector2 } from "three"
+import { Box2, Vector3 } from "three"
 import { PatchKey } from "../common/types"
-import { patchIdFromPos } from "../common/utils"
-import { WorldConfig } from "../config/WorldConfig"
+import { GenericPatch, GenericPatchesMap } from "./DataContainers"
 
 /**
- * Generic patch data container
+ * Finite map made from patch aggregation
  */
-// GenericPatch
-export interface PatchDataContainer {
-  key: any
-  bbox: any
-  chunkIds: any
-  duplicate(): PatchDataContainer | null
-  toChunks(): any
-}
-/**
- * Map from patch aggregation
- */
-export class PatchesMap<PatchType extends PatchDataContainer> {
+export class PatchesMap<PatchType extends GenericPatch> extends GenericPatchesMap {
   bbox: Box2 = new Box2()
-  patchDimensions: Vector2
   patchLookup: Record<string, PatchType | null> = {}
 
-  constructor(patchDim: Vector2) {
-    this.patchDimensions = patchDim
-  }
-
-  initFromBoxAndMask(
+  init(
     bbox: Box2,
     // patchDim: Vector2,
     // patchBboxFilter = (patchBbox: Box3) => patchBbox,
@@ -38,7 +21,7 @@ export class PatchesMap<PatchType extends PatchDataContainer> {
     // const range = BlocksPatch.asPatchCoords(halfDimensions)
     // const center = this.bbox.getCenter(new Vector3())
     // const origin = BlocksPatch.asPatchCoords(center)
-    const { min, max } = this.patchRange
+    const { min, max } = this.getPatchRange()
     for (let { x } = min; x < max.x; x++) {
       for (let { y } = min; y < max.y; y++) {
         const patchKey = `${x}:${y}`
@@ -50,19 +33,12 @@ export class PatchesMap<PatchType extends PatchDataContainer> {
     }
   }
 
-  get patchRange() {
-    const rangeMin = patchIdFromPos(this.bbox.min, this.patchDimensions)
-    const rangeMax = patchIdFromPos(this.bbox.max, this.patchDimensions).addScalar(1)
-    const patchRange = new Box2(rangeMin, rangeMax)
-    return patchRange
+  override getPatchRange() {
+    return super.getPatchRange(this.bbox)
   }
 
-  get externalBbox() {
-    const { min, max } = this.patchRange
-    min.multiplyScalar(WorldConfig.patchSize)
-    max.multiplyScalar(WorldConfig.patchSize)
-    const extBbox = new Box2(min, max)
-    return extBbox
+  override getRoundedBox() {
+    return super.getRoundedBox(this.bbox)
   }
 
   get count() {
@@ -225,11 +201,4 @@ export class PatchesMap<PatchType extends PatchDataContainer> {
   //     }
   //   })
   // }
-}
-
-/**
- * Repeat patch pattern indefinitely to provide infinite map
- */
-export class PatchRepeatMap<PatchType extends PatchDataContainer> extends PatchesMap<PatchType> {
-
 }

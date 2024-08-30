@@ -9,13 +9,13 @@ import {
   asVect2,
   asBox3,
   chunkBoxFromId,
-  patchIdFromPos,
+  patchLowerId,
   serializePatchId,
 } from '../common/utils'
 import { BlockType } from '../procgen/Biome'
 import { WorldConfig } from '../config/WorldConfig'
 import { ChunkFactory } from '../index'
-import { PatchDataContainer } from './DataContainers'
+import { GenericPatch } from './DataContainers'
 
 export enum BlockMode {
   DEFAULT,
@@ -51,7 +51,7 @@ const getDefaultPatchDim = () => new Vector2(WorldConfig.patchSize, WorldConfig.
  * GenericBlocksContainer
  * multi purpose blocks container
  */
-export class BlocksPatchContainer implements PatchDataContainer {
+export class BlocksPatch implements GenericPatch {
   bbox: Box3
   dimensions = new Vector3()
   margin = 0
@@ -74,7 +74,7 @@ export class BlocksPatchContainer implements PatchDataContainer {
   }
 
   duplicate() {
-    const copy = new BlocksPatchContainer(this.key || this.bbox)// new BlocksPatchContainer(this.bbox)
+    const copy = new BlocksPatch(this.key || this.bbox)// new BlocksPatch(this.bbox)
     this.rawDataContainer.forEach(
       (rawVal, i) => (copy.rawDataContainer[i] = rawVal),
     )
@@ -86,7 +86,7 @@ export class BlocksPatchContainer implements PatchDataContainer {
         }
         return entityCopy
       })
-    return copy
+    return copy as GenericPatch
   }
 
   decodeBlockData(rawData: number): BlockData {
@@ -364,9 +364,9 @@ export class BlocksPatchContainer implements PatchDataContainer {
     const bbox = parseThreeStub(patchStub.bbox) as Box3
     const patchCenter = asVect2(bbox.getCenter(new Vector3))
     const patchDim = asVect2(bbox.getSize(new Vector3()).round())
-    const patchId = patchIdFromPos(patchCenter, patchDim)
+    const patchId = patchLowerId(patchCenter, patchDim)
     const patchKey = patchStub.key || serializePatchId(patchId)
-    const patch = new BlocksPatchContainer(patchKey)
+    const patch = new BlocksPatch(patchKey)
     patch.rawDataContainer = rawDataContainer
     patch.entities = entities
       .map((stub: EntityData) => ({

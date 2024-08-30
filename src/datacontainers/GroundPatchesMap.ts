@@ -2,15 +2,15 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
 import { WorldConfig } from '../config/WorldConfig'
-import { BlocksPatchContainer, WorldComputeApi } from '../index'
-import { PatchesMap } from './DataContainers'
+import { BlocksPatch, WorldComputeApi } from '../index'
+import { PatchesMap } from './PatchesMap'
 
 const getDefaultPatchDim = () => new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
 
 /**
  * Blocks cache
  */
-export class CacheContainer extends PatchesMap<BlocksPatchContainer> {
+export class CacheContainer extends PatchesMap<BlocksPatch> {
   // eslint-disable-next-line no-use-before-define
   static cachePowRadius = 2
   static cacheSize = WorldConfig.patchSize * 5
@@ -48,7 +48,7 @@ export class CacheContainer extends PatchesMap<BlocksPatchContainer> {
     let changesDiff
     if (!this.pendingRefresh) {
       const emptyContainer = new PatchesMap(this.patchDimensions)
-      emptyContainer.initFromBoxAndMask(bbox)
+      emptyContainer.init(bbox)
       changesDiff = emptyContainer.compareWith(CacheContainer.instance)
       const hasChanged = Object.keys(changesDiff).length > 0
 
@@ -57,7 +57,7 @@ export class CacheContainer extends PatchesMap<BlocksPatchContainer> {
         // backup patches that will remain in cache
         const backup = this.availablePatches.filter(patch => patch)
         // reinit cache
-        super.initFromBoxAndMask(bbox)
+        super.init(bbox)
         // restore remaining patches backup
         this.populateFromExisting(backup)
         this.builtInCache && (await this.populate(this.missingPatchKeys))
@@ -77,7 +77,7 @@ export class CacheContainer extends PatchesMap<BlocksPatchContainer> {
     return res
   }
 
-  getNearPatches(patch: BlocksPatchContainer) {
+  getNearPatches(patch: BlocksPatch) {
     const dim = patch.dimensions
     const patchCenter = patch.bbox.getCenter(new Vector3())
     const minX = patchCenter.clone().add(new Vector3(-dim.x, 0, 0))
@@ -98,9 +98,9 @@ export class CacheContainer extends PatchesMap<BlocksPatchContainer> {
       maxXminZ,
       maxXmaxZ,
     ]
-    const patchNeighbours: BlocksPatchContainer[] = neighboursCenters
+    const patchNeighbours: BlocksPatch[] = neighboursCenters
       .map(patchCenter => this.findPatch(patchCenter))
-      .filter(patch => patch) as BlocksPatchContainer[]
+      .filter(patch => patch) as BlocksPatch[]
     return patchNeighbours
   }
 
