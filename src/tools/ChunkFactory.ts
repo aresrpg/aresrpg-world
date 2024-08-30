@@ -7,7 +7,7 @@ import { BlockType } from '../index'
 
 import { TreeGenerators } from './TreeGenerator'
 
-const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // disabled if NONE
+const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // use NONE to disable
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {

@@ -14,14 +14,24 @@ export type BoardStub = {
 
 const getDefaultPatchDim = () => new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
 
-const distParams = {
+const startPosDistParams = {
+  aleaSeed: 'boardStartPos',
   minDistance: 10,
   maxDistance: 16,
   tries: 20,
 }
-const distMap = new PseudoDistributionMap(undefined, distParams)
+const startPosDistMap = new PseudoDistributionMap(undefined, startPosDistParams)
 
-const DBG_ENTITIES_HIGHLIGHT_COLOR = BlockType.SNOW// NONE to disable debugging
+const holesDistParams = {
+  aleaSeed: 'boardHoles',
+  minDistance: 10,
+  maxDistance: 16,
+  tries: 20,
+}
+const holesDistMap = new PseudoDistributionMap(undefined, holesDistParams)
+
+const DBG_STARTPOS_HIGHLIGHT_COLOR = BlockType.DBG_ORANGE // use NONE to disable
+const DBG_HOLES_HIGHLIGHT_COLOR = BlockType.DBG_PURPLE // use NONE to disable
 
 export class BoardContainer extends PatchesMap<BlocksPatch> {
   boardCenter
@@ -109,9 +119,8 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   }
 
   genStartPositions() {
-    const existingBoardEntities = this.getBoardEntities()
     const entityShape = (pos: Vector2) => new Box2(pos, pos.clone().addScalar(2))
-    const spawnLocs = distMap.getSpawnLocations(entityShape, this.bbox, () => 1)
+    const spawnLocs = startPosDistMap.getSpawnLocations(entityShape, this.bbox, () => 1)
     const startBlockPositions = spawnLocs
       .map(loc => {
         const startPos = asVect3(loc)
@@ -120,15 +129,15 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
         return block
       })
       .filter(startBlock => startBlock && this.isWithinBoard(startBlock.pos)) as PatchBlock[]
-    DBG_ENTITIES_HIGHLIGHT_COLOR && startBlockPositions.forEach(block => {
+    DBG_STARTPOS_HIGHLIGHT_COLOR && startBlockPositions.forEach(block => {
       const patch = this.findPatch(block.pos)
       if (patch && block) {
-        block.data.type = DBG_ENTITIES_HIGHLIGHT_COLOR
+        block.data.type = DBG_STARTPOS_HIGHLIGHT_COLOR
         patch.writeBlockData(block.index, block.data)
         // patch.setBlock(block.pos, block.data)
       }
     })
-
+    // const existingBoardEntities = this.getBoardEntities()
     // discard entities spawning over existing entities
     // const discardEntity = (entity: EntityData) => existingBoardEntities
     //   .find(boardEntity => entity.bbox.intersectsBox(boardEntity.bbox))
@@ -179,7 +188,25 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   }
 
   digHoles() {
-
+    const entityShape = (pos: Vector2) => new Box2(pos, pos.clone().addScalar(2))
+    const spawnLocs = holesDistMap.getSpawnLocations(entityShape, this.bbox, () => 1)
+    const startBlockPositions = spawnLocs
+      .map(loc => {
+        const startPos = asVect3(loc)
+        const patch = this.findPatch(startPos)
+        const block = patch?.getBlock(startPos, false)
+        return block
+      })
+      .filter(startBlock => startBlock && this.isWithinBoard(startBlock.pos)) as PatchBlock[]
+      DBG_HOLES_HIGHLIGHT_COLOR && startBlockPositions.forEach(block => {
+      const patch = this.findPatch(block.pos)
+      if (patch && block) {
+        block.data.type = DBG_HOLES_HIGHLIGHT_COLOR
+        block.data.level -= 1
+        patch.writeBlockData(block.index, block.data)
+        // patch.setBlock(block.pos, block.data)
+      }
+    })
   }
 
   exportBoard() {
