@@ -2,20 +2,19 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
 import { asBox2 } from '../common/utils'
-import { WorldConfig } from '../config/WorldConfig'
-import { BlocksPatch, WorldComputeApi } from '../index'
+import { BlocksPatch, WorldComputeApi, WorldConf } from '../index'
 
 import { PatchesMap } from './PatchesMap'
 
 const getDefaultPatchDim = () =>
-  new Vector2(WorldConfig.patchSize, WorldConfig.patchSize)
+  new Vector2(WorldConf.patchSize, WorldConf.patchSize)
 
 /**
  * Blocks cache
  */
 export class CacheContainer extends PatchesMap<BlocksPatch> {
   static cachePowRadius = 2
-  static cacheSize = WorldConfig.patchSize * 5
+  static cacheSize = WorldConf.patchSize * 5
   // eslint-disable-next-line no-use-before-define
   static singleton: CacheContainer
   pendingRefresh = false
