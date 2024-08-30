@@ -99,7 +99,7 @@ export const computeBlocksBuffer = (blockPos: Vector3) => {
   const entityShaper = (entityPos: Vector2) =>
     new Box2().setFromCenterAndSize(entityPos, asVect2(entityDefaultDims))
   const mapPos = asVect2(blockPos)
-  const spawnLocs = distributionMap.getSpawnLocations(entityShaper, mapPos)
+  const spawnLocs = distributionMap.querySpawnLocations(entityShaper, mapPos)
   for (const loc of spawnLocs) {
     const entityPos = asVect3(loc)
     const entity = genEntity(entityPos)
@@ -120,7 +120,7 @@ const genEntities = (blocksPatch: BlocksPatch) => {
   const entityShaper = (entityPos: Vector2) =>
     new Box2().setFromCenterAndSize(entityPos, asVect2(entityDims))
   const mapBox = asBox2(blocksPatch.bbox)
-  const spawnLocs = distributionMap.getSpawnLocations(entityShaper, mapBox)
+  const spawnLocs = distributionMap.querySpawnLocations(entityShaper, mapBox)
   const spawnedEntities = spawnLocs
     .map(loc => asVect3(loc))
     .map(entityPos => genEntity(entityPos))
@@ -137,7 +137,7 @@ const genGroundBlocks = (blocksPatch: BlocksPatch) => {
   // const prng = alea(patchId)
   // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
   // const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
-  const patchBlocks = blocksPatch.iterOverBlocks(undefined, false)
+  const patchBlocks = blocksPatch.iterBlocksQuery(undefined, false)
   min.y = 512
   max.y = 0
   let blockIndex = 0

@@ -7,7 +7,7 @@ import { BlockType } from '../index'
 
 import { TreeGenerators } from './TreeGenerator'
 
-const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.DBG_BEIGE // use NONE to disable
+const DBG_BORDERS_HIGHLIGHT_COLOR = BlockType.NONE // use NONE to disable
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -59,7 +59,7 @@ export class ChunkFactory {
     // debug_mode && is_edge(local_pos.z, local_pos.x, h, patch_size - 2)
     //   ? BlockType.SAND
     //   : block_cache.type
-
+    let depth = 0
     while (h >= 0) {
       const blocksIndex =
         blockLocalPos.z * Math.pow(chunk_size, 2) +
@@ -71,14 +71,18 @@ export class ChunkFactory {
         chunkDataContainer[blocksIndex] !== undefined &&
         !bufferOver[buff_index]
       if (!skip && blockType !== undefined) {
+        // #hack: disable block mode below ground to remove checkerboard excess
+        const skipBlockMode = depth > 0 && (bufferOver.length === 0 || bufferOver[buff_index] || buff_index < 0)
+        const blockMode = skipBlockMode ? BlockMode.DEFAULT : blockData.mode
         chunkDataContainer[blocksIndex] = this.voxelDataEncoder(
           blockType,
-          blockData.mode,
+          blockMode,
         )
         blockType && written_blocks_count++
       }
-      buff_index--
       h--
+      buff_index--
+      depth++
     }
     return written_blocks_count
   }

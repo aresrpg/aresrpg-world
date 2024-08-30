@@ -258,7 +258,7 @@ export class BlocksPatch implements GenericPatch {
    * @param rangeBox iteration range as global coords
    * @param skipMargin
    */
-  *iterOverBlocks(rangeBox?: Box3 | Vector3, skipMargin = true) {
+  *iterBlocksQuery(rangeBox?: Box3 | Vector3, skipMargin = true) {
     // convert to local coords to speed up iteration
     const localBbox = rangeBox
       ? this.adjustRangeBox(rangeBox)
@@ -306,7 +306,7 @@ export class BlocksPatch implements GenericPatch {
   *iterEntityChunkBlocks(entityChunk: ChunkDataContainer) {
     // return overlapping blocks between entity and container
     const entityDims = entityChunk.bbox.getSize(new Vector3())
-    const blocks = this.iterOverBlocks(entityChunk.bbox)
+    const blocks = this.iterBlocksQuery(entityChunk.bbox)
 
     for (const block of blocks) {
       // const buffer = entityChunk.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
@@ -335,7 +335,7 @@ export class BlocksPatch implements GenericPatch {
     const chunkDims = chunkBox.getSize(new Vector3())
     const chunkData = new Uint16Array(chunkDims.x * chunkDims.y * chunkDims.z)
     // Ground pass
-    const groundBlocksIterator = this.iterOverBlocks(undefined, false)
+    const groundBlocksIterator = this.iterBlocksQuery(undefined, false)
     // ground blocks pass
     totalWrittenBlocks += ChunkFactory.default.fillGroundData(
       groundBlocksIterator,

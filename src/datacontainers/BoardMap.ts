@@ -32,8 +32,8 @@ const holesDistParams = {
 }
 const holesDistMap = new PseudoDistributionMap(undefined, holesDistParams)
 
-const DBG_STARTPOS_HIGHLIGHT_COLOR = BlockType.DBG_ORANGE // use NONE to disable
-const DBG_HOLES_HIGHLIGHT_COLOR = BlockType.DBG_PURPLE // use NONE to disable
+const DBG_STARTPOS_HIGHLIGHT_COLOR = BlockType.DBG_LIGHT // use NONE to disable
+const DBG_HOLES_HIGHLIGHT_COLOR = BlockType.DBG_DARK // use NONE to disable
 
 export class BoardContainer extends PatchesMap<BlocksPatch> {
   boardCenter
@@ -86,7 +86,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
     this.bbox.max = asVect2(this.boardCenter)
 
     for (const patch of this.availablePatches) {
-      const blocks = patch.iterOverBlocks(undefined, false)
+      const blocks = patch.iterBlocksQuery(undefined, false)
       // const blocks = this.iterPatchesBlocks()
       for (const block of blocks) {
         // discard blocs not included in board shape
@@ -126,7 +126,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   genStartPositions() {
     const entityShape = (pos: Vector2) =>
       new Box2(pos, pos.clone().addScalar(2))
-    const spawnLocs = startPosDistMap.getSpawnLocations(
+    const spawnLocs = startPosDistMap.querySpawnLocations(
       entityShape,
       this.bbox,
       () => 1,
@@ -146,6 +146,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
         const patch = this.findPatch(block.pos)
         if (patch && block) {
           block.data.type = DBG_STARTPOS_HIGHLIGHT_COLOR
+          block.data.mode = BlockMode.DEFAULT
           patch.writeBlockData(block.index, block.data)
           // patch.setBlock(block.pos, block.data)
         }
@@ -167,7 +168,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
         )
         entityCenter.y = entity.bbox.min.y
         const isEntityOverlappingBoard = () => {
-          const entityBlocks = patch.iterOverBlocks(entity.bbox)
+          const entityBlocks = patch.iterBlocksQuery(entity.bbox)
           for (const block of entityBlocks) {
             if (this.isWithinBoard(block.pos)) {
               return true
@@ -206,7 +207,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   digHoles() {
     const entityShape = (pos: Vector2) =>
       new Box2(pos, pos.clone().addScalar(2))
-    const spawnLocs = holesDistMap.getSpawnLocations(
+    const spawnLocs = holesDistMap.querySpawnLocations(
       entityShape,
       this.bbox,
       () => 1,
@@ -226,7 +227,8 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
         const patch = this.findPatch(block.pos)
         if (patch && block) {
           block.data.type = DBG_HOLES_HIGHLIGHT_COLOR
-          block.data.level -= 1
+          block.data.level -= 1 // dig hole in the ground
+          block.data.mode = BlockMode.DEFAULT
           patch.writeBlockData(block.index, block.data)
           // patch.setBlock(block.pos, block.data)
         }
