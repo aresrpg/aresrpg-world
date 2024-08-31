@@ -96,10 +96,8 @@ const genEntity = (entityPos: Vector3) => {
 export const computeBlocksBuffer = (blockPos: Vector3) => {
   let blocksBuffer
   // query entities at current block
-  const entityShaper = (entityPos: Vector2) =>
-    new Box2().setFromCenterAndSize(entityPos, asVect2(entityDefaultDims))
-  const mapPos = asVect2(blockPos)
-  const spawnLocs = distributionMap.querySpawnLocations(entityShaper, mapPos)
+  const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 5
+  const spawnLocs = distributionMap.querySpawnLocations(asVect2(blockPos), intersectsEntity)
   for (const loc of spawnLocs) {
     const entityPos = asVect3(loc)
     const entity = genEntity(entityPos)
@@ -116,11 +114,8 @@ export const computeBlocksBuffer = (blockPos: Vector3) => {
 
 const genEntities = (blocksPatch: BlocksPatch) => {
   // query entities on patch range
-  const entityDims = new Vector3(10, 20, 10) // TODO compute from entity type
-  const entityShaper = (entityPos: Vector2) =>
-    new Box2().setFromCenterAndSize(entityPos, asVect2(entityDims))
-  const mapBox = asBox2(blocksPatch.bbox)
-  const spawnLocs = distributionMap.querySpawnLocations(entityShaper, mapBox)
+  const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 5
+  const spawnLocs = distributionMap.querySpawnLocations(asBox2(blocksPatch.bbox), intersectsEntity)
   const spawnedEntities = spawnLocs
     .map(loc => asVect3(loc))
     .map(entityPos => genEntity(entityPos))

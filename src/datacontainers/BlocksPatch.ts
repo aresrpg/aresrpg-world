@@ -15,9 +15,9 @@ import {
   asVect2,
   asBox3,
   chunkBoxFromId,
-  patchLowerId,
   serializePatchId,
   asBox2,
+  getPatchId,
 } from '../common/utils'
 import { BlockType } from '../procgen/Biome'
 import { ChunkFactory, WorldConf } from '../index'
@@ -385,7 +385,7 @@ export class BlocksPatch implements GenericPatch {
     const bbox = parseThreeStub(patchStub.bbox) as Box3
     const patchCenter = asVect2(bbox.getCenter(new Vector3()))
     const patchDim = asVect2(bbox.getSize(new Vector3()).round())
-    const patchId = patchLowerId(patchCenter, patchDim)
+    const patchId = getPatchId(patchCenter, patchDim)
     const patchKey = patchStub.key || serializePatchId(patchId)
     const patch = new BlocksPatch(patchKey)
     patch.rawDataContainer = rawDataContainer

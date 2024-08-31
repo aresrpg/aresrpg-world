@@ -121,11 +121,10 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   }
 
   genStartPositions() {
-    const entityShape = (pos: Vector2) =>
-      new Box2(pos, pos.clone().addScalar(2))
+    const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 2
     const spawnLocs = startPosDistMap.querySpawnLocations(
-      entityShape,
       this.bbox,
+      intersectsEntity,
       () => 1,
     )
     const startBlockPositions = spawnLocs
@@ -202,11 +201,10 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   }
 
   digHoles() {
-    const entityShape = (pos: Vector2) =>
-      new Box2(pos, pos.clone().addScalar(2))
+    const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 2
     const spawnLocs = holesDistMap.querySpawnLocations(
-      entityShape,
       this.bbox,
+      intersectsEntity,
       () => 1,
     )
     const startBlockPositions = spawnLocs
@@ -219,7 +217,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
       .filter(
         startBlock => startBlock && this.isWithinBoard(startBlock.pos),
       ) as PatchBlock[]
-      WorldConf.debug.boardHolesHighlightColor &&
+    WorldConf.debug.boardHolesHighlightColor &&
       startBlockPositions.forEach(block => {
         const patch = this.findPatch(block.pos)
         if (patch && block) {
@@ -241,5 +239,5 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
     // }
   }
 
-  smoothEdges() {}
+  smoothEdges() { }
 }
