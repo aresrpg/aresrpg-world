@@ -1,21 +1,30 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 
-import { EntityData, PatchBlock } from '../common/types'
+import { Block, PatchBlock } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import { WorldCacheContainer, WorldConf } from '../index'
 
 import { PseudoDistributionMap } from './RandomDistributionMap'
-import { BlockData, BlockMode, BlocksPatch } from './BlocksPatch'
+import { BlockMode, BlocksPatch } from './BlocksPatch'
 import { PatchesMap } from './PatchesMap'
 
-export type BoardStub = {
-  bbox: Box3
-  data: BlockData
+export type BoardData = {
+  box: Box2,
+  groundBlocks: [],
+  entities: {
+    startPos: Block[],
+    holes: Block[],
+    obstacles: Block[],
+  }
 }
 
 const getDefaultPatchDim = () =>
   new Vector2(WorldConf.patchSize, WorldConf.patchSize)
 
+/**
+ * Entities distribution conf
+ */
+// Start positions
 const startPosDistParams = {
   aleaSeed: 'boardStartPos',
   minDistance: 10,
@@ -24,6 +33,7 @@ const startPosDistParams = {
 }
 const startPosDistMap = new PseudoDistributionMap(undefined, startPosDistParams)
 
+// Holes
 const holesDistParams = {
   aleaSeed: 'boardHoles',
   minDistance: 10,
@@ -45,6 +55,13 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
     const board_dims = new Vector2(radius, radius).multiplyScalar(2)
     this.bbox.setFromCenterAndSize(asVect2(this.boardCenter), board_dims)
     this.init(this.bbox)
+  }
+
+  initBoard(): void {
+    this.shapeBoard()
+    this.showStartPositions()
+    this.digHoles()
+    this.trimTrees()
   }
 
   restoreOriginalPatches() {
@@ -75,6 +92,27 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
     return block
   }
 
+  getBoardEntities(distMap: PseudoDistributionMap, entityRadius = 2) {
+    const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= entityRadius
+    const spawnLocs = distMap.querySpawnLocations(
+      this.bbox,
+      intersectsEntity,
+      () => 1,
+    )
+    const entities = spawnLocs
+      .map(loc => {
+        const startPos = asVect3(loc)
+        const patch = this.findPatch(startPos)
+        const block = patch?.getBlock(startPos, false)
+        return block
+      })
+      .filter(
+        ent => ent && this.isWithinBoard(ent.pos),
+      ) as PatchBlock[]
+    // TODO prune entities spawning over existing entities
+    return entities
+  }
+
   shapeBoard() {
     // const { ymin, ymax } = this.getMinMax()
     // const avg = Math.round(ymin + (ymax - ymin) / 2)
@@ -97,48 +135,12 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
     }
   }
 
-  getAllPatchesEntities(skipDuplicate = true) {
-    const entities: EntityData[] = []
-    for (const patch of this.availablePatches) {
-      patch.entities.forEach(entity => {
-        if (
-          !skipDuplicate ||
-          !entities.find(ent => ent.bbox.equals(entity.bbox))
-        ) {
-          entities.push(entity)
-        }
-      })
-    }
-    return entities
-  }
+  smoothEdges() { }
 
-  getBoardEntities() {
-    const boardEntities = this.getAllPatchesEntities().filter(ent => {
-      const entityCenter = ent.bbox.getCenter(new Vector3())
-      return this.isWithinBoard(entityCenter)
-    })
-    return boardEntities
-  }
-
-  genStartPositions() {
-    const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 2
-    const spawnLocs = startPosDistMap.querySpawnLocations(
-      this.bbox,
-      intersectsEntity,
-      () => 1,
-    )
-    const startBlockPositions = spawnLocs
-      .map(loc => {
-        const startPos = asVect3(loc)
-        const patch = this.findPatch(startPos)
-        const block = patch?.getBlock(startPos, false)
-        return block
-      })
-      .filter(
-        startBlock => startBlock && this.isWithinBoard(startBlock.pos),
-      ) as PatchBlock[]
+  showStartPositions() {
+    const startPositions = this.getBoardEntities(startPosDistMap)
     WorldConf.debug.boardStartPosHighlightColor &&
-      startBlockPositions.forEach(block => {
+      startPositions.forEach(block => {
         const patch = this.findPatch(block.pos)
         if (patch && block) {
           block.data.type = WorldConf.debug.boardStartPosHighlightColor
@@ -147,11 +149,22 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
           // patch.setBlock(block.pos, block.data)
         }
       })
-    // const existingBoardEntities = this.getBoardEntities()
-    // discard entities spawning over existing entities
-    // const discardEntity = (entity: EntityData) => existingBoardEntities
-    //   .find(boardEntity => entity.bbox.intersectsBox(boardEntity.bbox))
-    return startBlockPositions
+    return startPositions
+  }
+
+  digHoles() {
+    const holes = this.getBoardEntities(holesDistMap)
+    WorldConf.debug.boardHolesHighlightColor &&
+      holes.forEach(block => {
+        const patch = this.findPatch(block.pos)
+        if (patch && block) {
+          block.data.type = WorldConf.debug.boardHolesHighlightColor
+          block.data.level -= 1 // dig hole in the ground
+          block.data.mode = BlockMode.DEFAULT
+          patch.writeBlockData(block.index, block.data)
+          // patch.setBlock(block.pos, block.data)
+        }
+      })
   }
 
   trimTrees() {
@@ -200,44 +213,20 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
     })
   }
 
-  digHoles() {
-    const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 2
-    const spawnLocs = holesDistMap.querySpawnLocations(
-      this.bbox,
-      intersectsEntity,
-      () => 1,
-    )
-    const startBlockPositions = spawnLocs
-      .map(loc => {
-        const startPos = asVect3(loc)
-        const patch = this.findPatch(startPos)
-        const block = patch?.getBlock(startPos, false)
-        return block
-      })
-      .filter(
-        startBlock => startBlock && this.isWithinBoard(startBlock.pos),
-      ) as PatchBlock[]
-    WorldConf.debug.boardHolesHighlightColor &&
-      startBlockPositions.forEach(block => {
-        const patch = this.findPatch(block.pos)
-        if (patch && block) {
-          block.data.type = WorldConf.debug.boardHolesHighlightColor
-          block.data.level -= 1 // dig hole in the ground
-          block.data.mode = BlockMode.DEFAULT
-          patch.writeBlockData(block.index, block.data)
-          // patch.setBlock(block.pos, block.data)
-        }
-      })
+  dataExport() {
+    const startPos = this.getBoardEntities(startPosDistMap)
+    const holes = this.getBoardEntities(holesDistMap)
+    // TODO refactor: consider trees as other entities
+    const obstacles: PatchBlock[] = []
+    const boardData: BoardData = {
+      box: new Box2(),
+      groundBlocks: [],
+      entities: {
+        startPos,
+        holes,
+        obstacles,
+      }
+    }
+    return boardData
   }
-
-  exportBoard() {
-    // const data =
-    // const boardData = {
-    //   origin,
-    //   size,
-    //   data
-    // }
-  }
-
-  smoothEdges() { }
 }
