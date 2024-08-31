@@ -4,8 +4,8 @@ import { Box2, Vector2 } from 'three'
 import { ProcLayer } from '../procgen/ProcLayer'
 import { BlueNoisePattern } from '../procgen/BlueNoisePattern'
 import { EntityData } from '../common/types'
-import { patchLowerId, patchUpperId } from '../common/utils'
 import { WorldConf } from '../index'
+import { GenericPatchesMap } from './DataContainers'
 // import { Adjacent2dPos } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
 
@@ -29,7 +29,7 @@ const distMapDefaults = {
  * Enable querying/iterating randomly distributed items at block
  * level or from custom box range
  */
-export class PseudoDistributionMap {
+export class PseudoDistributionMap extends GenericPatchesMap {
   repeatedPattern: BlueNoisePattern
   densityMap: ProcLayer
 
@@ -37,6 +37,7 @@ export class PseudoDistributionMap {
     bbox: Box2 = distMapDefaultBox,
     distParams: any = distMapDefaults,
   ) {
+    super(bbox.getSize(new Vector2()))
     this.repeatedPattern = new BlueNoisePattern(bbox, distParams)
     this.densityMap = new ProcLayer(distParams.aleaSeed || '')
   }
@@ -62,32 +63,6 @@ export class PseudoDistributionMap {
     return hasSpawned
   }
 
-  getPatchIdsRange(mapArea: Box2) {
-    const { dimensions } = this.repeatedPattern
-    const rangeMin = patchLowerId(mapArea.min, dimensions)
-    const rangeMax = patchUpperId(mapArea.max, dimensions)
-    return new Box2(rangeMin, rangeMax)
-  }
-
-  *iterPatchIds(mapArea: Box2) {
-    const patchRange = this.getPatchIdsRange(mapArea)
-    const patchOffset = patchRange.min.clone()
-    // iter elements on computed range
-    for (
-      patchOffset.x = patchRange.min.x;
-      patchOffset.x < patchRange.max.x;
-      patchOffset.x++
-    ) {
-      for (
-        patchOffset.y = patchRange.min.y;
-        patchOffset.y < patchRange.max.y;
-        patchOffset.y++
-      ) {
-        yield patchOffset
-      }
-    }
-  }
-
   /**
    *
    * @param entityShaper
@@ -96,28 +71,32 @@ export class PseudoDistributionMap {
    * @returns all locations from which entity contains input point or overlaps with range box
    */
   querySpawnLocations(
-    entityShaper: (centerPos: Vector2) => Box2,
-    inputPointOrArea: Vector2 | Box2,
+    testRange: Vector2 | Box2,
+    overlapsTest: (testRange: Box2, entityPos: Vector2) => boolean,
     spawnProbabilityOverride?: (entityPos?: Vector2) => number,
     // entityMask = (_entity: EntityData) => false
   ) {
-    const mapBox =
-      inputPointOrArea instanceof Box2
-        ? inputPointOrArea
-        : new Box2().setFromPoints([inputPointOrArea])
+    const testBox =
+      testRange instanceof Box2
+        ? testRange
+        : new Box2().setFromPoints([testRange])
+    // const offset = testBox.min.clone().divide(this.patchDimensions).floor().multiply(this.patchDimensions)
+    // const localTestBox = testBox.clone().translate(offset.clone().negate())
+    // const overlappingEntities = this.repeatedPattern.elements
+    //   .filter(entityPos => overlapsTest(localTestBox, entityPos))
+    //   .map(relativePos => relativePos.clone().add(offset))
     const overlappingEntities: Vector2[] = []
-    const patchIds = this.iterPatchIds(mapBox)
+    const patchIds = this.getPatchIds(testBox)
     for (const patchId of patchIds) {
-      const patchElements = this.repeatedPattern.iterPatchElements(patchId)
-      // look for entities overlapping with input point or area
-      for (const entityPos of patchElements) {
-        const entityBox = entityShaper(entityPos)
-        const isOverlappingEntity =
-          inputPointOrArea instanceof Vector2
-            ? entityBox.containsPoint(inputPointOrArea)
-            : entityBox.intersectsBox(mapBox)
-        if (isOverlappingEntity) overlappingEntities.push(entityPos)
-      }
+      const offset = patchId.clone().multiply(this.patchDimensions)
+      const localTestBox = testBox.clone().translate(offset.clone().negate())
+        // look for entities overlapping with input point or area
+        for (const relativePos of this.repeatedPattern.elements) {
+          if (overlapsTest(localTestBox, relativePos)) {
+            const entityPos = relativePos.clone().add(offset)
+            overlappingEntities.push(entityPos)
+          }
+        }
     }
     const spawnedEntities = overlappingEntities.filter(entityPos =>
       this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos)),
