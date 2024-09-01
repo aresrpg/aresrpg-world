@@ -1,4 +1,4 @@
-import { Box2, Box3, Vector2, Vector3, Vector3Like } from 'three'
+import { Box2, Box3, Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 import { WorldConf } from '../index'
 
 import {
@@ -216,10 +216,46 @@ const asBox3 = (box2: Box2) => {
   return new Box3(asVect3(box2.min), asVect3(box2.max))
 }
 
+const isVect2Stub = (stub: Vector2Like) => {
+  return (
+    stub !== undefined &&
+    stub.x !== undefined &&
+    stub.y !== undefined &&
+    stub.z === undefined
+  )
+}
+
+const isVect3Stub = (stub: Vector3Like) => {
+  return (
+    stub !== undefined &&
+    stub.x !== undefined &&
+    stub.y !== undefined &&
+    stub.z !== undefined
+  )
+}
+
 const parseVect3Stub = (stub: Vector3Like) => {
   let res
   if (isVect3Stub(stub)) {
     res = new Vector3(...Object.values(stub))
+  }
+  return res
+}
+
+const parseVect2Stub = (stub: Vector2Like) => {
+  let res
+  if (isVect2Stub(stub)) {
+    res = new Vector2(...Object.values(stub))
+  }
+  return res
+}
+
+const parseBox2Stub = (stub: Box2) => {
+  let res
+  if (isVect2Stub(stub.min) && isVect2Stub(stub.max)) {
+    const min = parseVect2Stub(stub.min)
+    const max = parseVect2Stub(stub.max)
+    res = new Box2(min, max)
   }
   return res
 }
@@ -234,17 +270,10 @@ const parseBox3Stub = (stub: Box3) => {
   return res
 }
 
-const isVect3Stub = (stub: Vector3Like) => {
-  return (
-    stub !== undefined &&
-    stub.x !== undefined &&
-    stub.y !== undefined &&
-    stub.z !== undefined
-  )
-}
-
 const parseThreeStub = (stub: any) => {
-  return stub ? parseBox3Stub(stub) || parseVect3Stub(stub) || stub : stub
+  return stub ? parseBox3Stub(stub) || parseVect3Stub(stub)
+    || parseBox2Stub(stub) || parseVect2Stub(stub)
+    || stub : stub
 }
 
 const parsePatchKey = (patchKey: PatchKey) => {

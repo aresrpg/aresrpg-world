@@ -119,10 +119,12 @@ export type EntityData = {
   type: EntityType
   bbox: Box3
   params: {
-    radius: 5
-    size: 10
+    radius: number
+    size: number
   }
 }
+
+export type EntityKey = string
 
 export type PatchKey = string
 export type PatchId = Vector2
@@ -130,7 +132,7 @@ export type ChunkKey = string
 export type ChunkId = Vector3
 
 export type ChunkDataContainer = {
-  bbox: Box3
+  box: Box3
   data: Uint16Array
 }
 
