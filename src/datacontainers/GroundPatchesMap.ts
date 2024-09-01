@@ -1,7 +1,7 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
-import { asBox2 } from '../common/utils'
+import { asVect3 } from '../common/utils'
 import { BlocksPatch, WorldComputeApi, WorldConf } from '../index'
 
 import { PatchesMap } from './PatchesMap'
@@ -32,7 +32,7 @@ export class CacheContainer extends PatchesMap<BlocksPatch> {
     for await (const patch of batchIter) {
       if (patch.key) {
         this.patchLookup[patch.key] = patch
-        this.bbox.union(asBox2(patch.bbox))
+        this.bbox.union(patch.bounds)
       }
     }
     this.pendingRefresh = false
@@ -68,27 +68,23 @@ export class CacheContainer extends PatchesMap<BlocksPatch> {
     return changesDiff
   }
 
-  getPatches(inputBbox: Box3) {
-    const bbox = inputBbox.clone()
-    bbox.min.y = 0
-    bbox.max.y = 512
-    const res = this.availablePatches.filter(patch =>
-      patch.bbox.intersectsBox(bbox),
+  getPatches(inputBox: Box2) {
+    return this.availablePatches.filter(patch =>
+      patch.bounds.intersectsBox(inputBox),
     )
-    return res
   }
 
   getNearPatches(patch: BlocksPatch) {
     const dim = patch.dimensions
-    const patchCenter = patch.bbox.getCenter(new Vector3())
-    const minX = patchCenter.clone().add(new Vector3(-dim.x, 0, 0))
-    const maxX = patchCenter.clone().add(new Vector3(dim.x, 0, 0))
-    const minZ = patchCenter.clone().add(new Vector3(0, 0, -dim.z))
-    const maxZ = patchCenter.clone().add(new Vector3(0, 0, dim.z))
-    const minXminZ = patchCenter.clone().add(new Vector3(-dim.x, 0, -dim.z))
-    const minXmaxZ = patchCenter.clone().add(new Vector3(-dim.x, 0, dim.z))
-    const maxXminZ = patchCenter.clone().add(new Vector3(dim.x, 0, -dim.z))
-    const maxXmaxZ = patchCenter.clone().add(new Vector3(dim.x, 0, dim.z))
+    const patchCenter = patch.bounds.getCenter(new Vector2())
+    const minX = patchCenter.clone().add(new Vector3(-dim.x, 0))
+    const maxX = patchCenter.clone().add(new Vector3(dim.x, 0))
+    const minZ = patchCenter.clone().add(new Vector3(0, -dim.y))
+    const maxZ = patchCenter.clone().add(new Vector3(0, dim.y))
+    const minXminZ = patchCenter.clone().add(new Vector3(-dim.x, -dim.y))
+    const minXmaxZ = patchCenter.clone().add(new Vector3(-dim.x, dim.y))
+    const maxXminZ = patchCenter.clone().add(new Vector3(dim.x, -dim.y))
+    const maxXmaxZ = patchCenter.clone().add(new Vector3(dim.x, dim.y))
     const neighboursCenters = [
       minX,
       maxX,
@@ -100,7 +96,7 @@ export class CacheContainer extends PatchesMap<BlocksPatch> {
       maxXmaxZ,
     ]
     const patchNeighbours: BlocksPatch[] = neighboursCenters
-      .map(patchCenter => this.findPatch(patchCenter))
+      .map(patchCenter => this.findPatch(asVect3(patchCenter)))
       .filter(patch => patch) as BlocksPatch[]
     return patchNeighbours
   }

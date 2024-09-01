@@ -1,17 +1,23 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 
-import { ChunkFactory, EntityType, PseudoDistributionMap } from '../index'
+import { BoardContainer, EntityType, GroundPatch } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
-import { BlockData, BlocksPatch } from '../datacontainers/BlocksPatch'
+import { BlockData } from '../datacontainers/BlocksPatch'
 import { Block, EntityData, PatchKey } from '../common/types'
-import { asBox2, asVect2, asVect3 } from '../common/utils'
+import { asBox3, asVect2, asVect3 } from '../common/utils'
+import { WorldEntities } from '../procgen/WorldEntities'
+import { EntityChunk, EntityChunkMaker } from '../datacontainers/EntityChunkMaker'
+/**
+ * BLOCKS
+ */
 
-// TODO remove hardcoded entity dimensions to compute from entity type
-const entityDefaultDims = new Vector3(10, 20, 10)
-// TODO move somewhere else
-const distributionMap = new PseudoDistributionMap()
-
+/**
+ * 
+ * @param blockPosBatch 
+ * @param params 
+ * @returns 
+ */
 export const computeBlocksBatch = (
   blockPosBatch: Vector3[],
   params = { includeEntitiesBlocks: false },
@@ -21,7 +27,18 @@ export const computeBlocksBatch = (
     const blockPos = new Vector3(x, 0, z)
     const blockData = computeGroundBlock(blockPos)
     if (includeEntitiesBlocks) {
-      const blocksBuffer = bakeChunkEntity(blockPos, true)?.data
+      const entityRange = new Box2().setFromPoints([asVect2(blockPos)])
+      entityRange.max.addScalar(1)
+      const foundEntity = queryEntities(entityRange)
+        .map(entityData => new EntityChunkMaker(entityData))[0]
+      let blocksBuffer
+      if (foundEntity) {
+        const { min, max } = foundEntity.entityData.bbox
+        const voxelizationRange = asBox3(entityRange)
+        voxelizationRange.min.y = min.y
+        voxelizationRange.max.y = max.y
+        blocksBuffer = foundEntity.voxelizeEntity(voxelizationRange)
+      }
       const lastBlockIndex = blocksBuffer?.findLastIndex(elt => elt)
       if (blocksBuffer && lastBlockIndex && lastBlockIndex >= 0) {
         blockData.level += lastBlockIndex
@@ -38,7 +55,7 @@ export const computeBlocksBatch = (
   return blocksBatch
 }
 
-const computeGroundBlock = (blockPos: Vector3) => {
+export const computeGroundBlock = (blockPos: Vector3) => {
   const biomeContribs = Biome.instance.getBiomeInfluence(blockPos)
   const mainBiome = Biome.instance.getMainBiome(biomeContribs)
   const rawVal = Heightmap.instance.getRawVal(blockPos)
@@ -60,87 +77,80 @@ const computeGroundBlock = (blockPos: Vector3) => {
   return block
 }
 
-const genEntity = (entityPos: Vector3) => {
-  let entity: EntityData | undefined
+/**
+ * PATCHES
+ */
+
+export const bakeGroundPatch = (patchKeyOrBox: PatchKey | Box2) => {
+  const groundPatch = new GroundPatch(patchKeyOrBox)
+  groundPatch.fill()
+  return groundPatch
+}
+
+export const computeBoardData = (center: Vector3, radius: number, maxThickness: number) => {
+  const boardMap = new BoardContainer(center, radius, maxThickness)
+  const boardGroundBlocks = bakeGroundPatch(boardMap.bbox)
+}
+
+/**
+ * ENTITIES
+ */
+
+export const bakeEntities = (queriedRange: Box2) => {
+  const entitiesData = queryEntities(queriedRange)
+  return bakeEntitiesBatch(entitiesData)
+}
+
+export const bakeEntitiesBatch = (entities: EntityData[]) => {
+  const entitiesChunks: EntityChunk[] = entities
+    .map(entityData => new EntityChunkMaker(entityData))
+    .map(entityChunkMaker => {
+      entityChunkMaker.voxelizeEntity()
+      return entityChunkMaker.toStub() as EntityChunk
+    })
+  return entitiesChunks
+}
+
+
+/**
+ * 
+ * @param entityPos 
+ * @returns 
+ */
+const confirmFinalizeEntity = (entity: EntityData) => {
+  const entityPos = entity.bbox.getCenter(new Vector3)
   // use global coords in case entity center is from adjacent patch
   const rawVal = Heightmap.instance.getRawVal(entityPos)
   const mainBiome = Biome.instance.getMainBiome(entityPos)
   const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
   const entityType = blockTypes.entities?.[0] as EntityType
+  // confirm this kind of entity can spawn over here
   if (entityType) {
-    entityPos.y =
-      Heightmap.instance.getGroundLevel(entityPos, rawVal) +
-      entityDefaultDims.y / 2
-    const entityBox = new Box3().setFromCenterAndSize(
-      entityPos,
-      entityDefaultDims,
-    )
-    entity = {
-      type: entityType,
-      bbox: entityBox,
-      params: {
-        radius: 5,
-        size: 10,
-      },
-    }
+    entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos, rawVal)
+    entity.bbox.max.y += entity.bbox.min.y
+    return entity
   }
-  return entity
+  return
 }
 
-const genEntities = (blocksPatch: BlocksPatch) => {
-  // query entities on patch range
-  const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 5
-  const spawnLocs = distributionMap.querySpawnLocations(asBox2(blocksPatch.bbox), intersectsEntity)
-  const spawnedEntities = spawnLocs
-    .map(loc => asVect3(loc))
-    .map(entityPos => genEntity(entityPos))
-    .filter(val => val) as EntityData[]
-  blocksPatch.entities = spawnedEntities
+const queryEntities = (region: Box2 | Vector2) => {
+  const spawnablePlaces = WorldEntities.instance.queryDistributionMap(EntityType.TREE_APPLE)(region)
+  const spawnedEntities = spawnablePlaces
+    .map(entLoc => WorldEntities.instance.getEntityData(EntityType.TREE_PINE, asVect3(entLoc)))
+    .filter(entity => confirmFinalizeEntity(entity))
+  return spawnedEntities
 }
 
-export const bakeChunkEntity = (blockPos: Vector3, singleBlockOnly = false) => {
-  let entityChunk
-  // query entities at current block
-  const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 5
-  const spawnLocs = distributionMap.querySpawnLocations(asVect2(blockPos), intersectsEntity)
-  for (const loc of spawnLocs) {
-    const entityPos = asVect3(loc)
-    const entity = genEntity(entityPos)
-    if (entity) {
-      entityChunk = singleBlockOnly ? ChunkFactory.chunkifyEntity(entity, blockPos) :
-        ChunkFactory.chunkifyEntity(entity)
-    }
-  }
-  return entityChunk
-}
-
-// export const bakeEntities = (_entities: EntityData) => {
+// /**
+//  * return all entity types which can spwawn over specific region
+//  */
+// const getSpawnableEntities = (region: Box2) => {
 //   // TODO
 // }
 
-/**
- * Fill ground blocks container
- */
-export const bakeGroundPatch = (patchKey: PatchKey) => {
-  const blocksPatch = new BlocksPatch(patchKey)
-  const { min, max } = blocksPatch.bbox
-  const patchBlocks = blocksPatch.iterBlocksQuery(undefined, false)
-  min.y = 512
-  max.y = 0
-  let blockIndex = 0
-  for (const block of patchBlocks) {
-    // const patchCorner = points.find(pt => pt.distanceTo(blockData.pos) < 2)
-    const blockData = computeGroundBlock(block.pos)
-    min.y = Math.min(min.y, blockData.level)
-    max.y = Math.max(max.y, blockData.level)
-    blocksPatch.writeBlockData(blockIndex, blockData)
-    blockIndex++
-  }
-  blocksPatch.bbox.min = min
-  blocksPatch.bbox.max = max
-  blocksPatch.bbox.getSize(blocksPatch.dimensions)
-  // PatchBlocksCache.bbox.union(blocksPatch.bbox)
+// /**
+//  * granular check in transition place (spline or biome transitions)
+//  */
+// const confirmSpawnability = () => {
 
-  // blocksPatch.state = PatchState.Filled
-  return blocksPatch
-}
+// }

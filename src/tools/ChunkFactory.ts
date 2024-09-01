@@ -85,7 +85,7 @@ export class ChunkFactory {
     return written_blocks_count
   }
 
-  fillGroundData(
+  voxelizeGround(
     blockIterator: Generator<PatchBlock, void, unknown>,
     chunkDataContainer: Uint16Array,
     chunkBox: Box3,
@@ -111,7 +111,7 @@ export class ChunkFactory {
     return written_blocks_count
   }
 
-  mergeEntitiesData(
+  mergeEntityChunkData(
     entityDataIterator: Generator<PatchBlock, void, unknown>,
     chunkData: Uint16Array,
     chunkBox: Box3,
@@ -136,55 +136,6 @@ export class ChunkFactory {
     return writtenBlocksCount
   }
 
-  static chunkifyEntity(entity: EntityData, blockPosOrRange?: Vector3 | Box3) {
-    if (blockPosOrRange instanceof Vector3) {
-      const blockStart = new Vector3(
-        blockPosOrRange.x,
-        entity.bbox.min.y,
-        blockPosOrRange.z,
-      )
-      const blockEnd = blockStart
-        .clone()
-        .add(new Vector3(1, entity.bbox.max.y - entity.bbox.min.y, 1))
-      blockPosOrRange = new Box3(blockStart, blockEnd)
-    }
-    const range = blockPosOrRange || entity.bbox
-    const dims = range.getSize(new Vector3())
-    const data = new Uint16Array(dims.z * dims.x * dims.y)
-    const { size: treeSize, radius: treeRadius } = entity.params
-    const entityPos = entity.bbox.getCenter(new Vector3())
-    let index = 0
-    for (let { z } = range.min; z < range.max.z; z++) {
-      for (let { x } = range.min; x < range.max.x; x++) {
-        for (let { y } = range.min; y < range.max.y; y++) {
-          const xzProj = new Vector2(x, z).sub(asVect2(entityPos))
-          if (xzProj.length() > 0) {
-            if (y < range.min.y + treeSize) {
-              // empty space around trunk between ground and trunk top
-              data[index++] = BlockType.NONE
-            } else {
-              // tree foliage
-              const blockType = TreeGenerators[entity.type](
-                xzProj.length(),
-                y - (range.min.y + treeSize + treeRadius),
-                treeRadius,
-              )
-              data[index++] = blockType
-            }
-          } else {
-            // tree trunk
-            data[index++] = BlockType.TREE_TRUNK
-          }
-        }
-      }
-    }
-    const entityChunk = {
-      bbox: range,
-      data,
-    }
-    return entityChunk
-  }
-
   genChunksIdsFromPatchId(patchId: PatchId) {
     const { ymin, ymax } = this.chunksRange
     const chunk_ids = []
@@ -193,5 +144,15 @@ export class ChunkFactory {
       chunk_ids.push(chunk_coords)
     }
     return chunk_ids
+  }
+
+  /**
+     * Assembles world building blocks (GroundPatch, ChunkEntity) together 
+     * to form final world chunk
+     */
+  chunksAssemby(groundPatches:Ground) {
+    // chunkify ground patches
+    // retrieve and chunkify entities
+    // merge entities chunks with ground chunk
   }
 }

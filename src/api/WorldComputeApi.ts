@@ -1,12 +1,14 @@
-import { Vector3 } from 'three'
+import { Box2, Vector3 } from 'three'
 
 import { Block, EntityKey, PatchKey } from '../common/types'
+import { EntityChunk } from '../datacontainers/EntityChunkMaker'
 import { BlocksPatch, WorldCompute, WorldUtils } from '../index'
 
 export enum ComputeApiCall {
   PatchCompute = 'bakeGroundPatch',
   BlocksBatchCompute = 'computeBlocksBatch',
   OvergroundBufferCompute = 'computeOvergroundBuffer',
+  BakeEntities = 'bakeEntities'
 }
 
 export type ComputeApiParams = Partial<{
@@ -65,7 +67,7 @@ export class WorldComputeApi {
 
   async computeBlocksBatch(
     blockPosBatch: Vector3[],
-    params = { includeEntitiesBlocks: true },
+    params = { includeEntitiesBlocks: false },
   ) {
     const blocks = !this.worker ?
       WorldCompute.computeBlocksBatch(blockPosBatch, params) :
@@ -99,5 +101,24 @@ export class WorldComputeApi {
 
       yield patch
     }
+  }
+
+  async bakeEntities(queriedRange: Box2,) {
+    const entityChunks = !this.worker ?
+      WorldCompute.bakeEntities(queriedRange) :
+      await this.workerCall(
+        ComputeApiCall.BakeEntities,
+        [queriedRange],
+      )?.then((entityChunks: EntityChunk[]) =>
+        // parse worker's data to recreate original objects
+        entityChunks.map(chunkStub => {
+          chunkStub.box = WorldUtils.parseThreeStub(chunkStub.box)
+          if (chunkStub.entity) {
+            chunkStub.entity.bbox = WorldUtils.parseThreeStub(chunkStub.entity?.bbox)
+          }
+          return chunkStub
+        })) as EntityChunk[]
+
+    return entityChunks
   }
 }

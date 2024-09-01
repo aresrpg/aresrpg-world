@@ -40,13 +40,15 @@ const holesDistParams = {
   tries: 20,
 }
 
-export class BoardContainer extends PatchesMap<BlocksPatch> {
+// const initBoardBox = () 
+
+export class BoardContainer extends BlocksPatch {
   // static singleton: BoardContainer
   // static get instance(){
   //   return this.singleton
   // }
   static holesDistribution = new PseudoDistributionMap(undefined, holesDistParams)
-  static startPosDistribution = new PseudoDistributionMap(undefined, startPosDistParams) 
+  static startPosDistribution = new PseudoDistributionMap(undefined, startPosDistParams)
 
   // board instance params
   boardCenter
@@ -54,7 +56,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   boardMaxHeightDiff
 
   constructor(center: Vector3, radius: number, maxHeightDiff: number) {
-    super(getDefaultPatchDim())
+    super(new Box2())
     this.boardRadius = radius
     this.boardCenter = center.clone().floor()
     this.boardMaxHeightDiff = maxHeightDiff
@@ -120,26 +122,34 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
     return entities
   }
 
-  shapeBoard() {
-    // const { ymin, ymax } = this.getMinMax()
-    // const avg = Math.round(ymin + (ymax - ymin) / 2)
-    // reset bbox to refine bounds
-    this.bbox.min = asVect2(this.boardCenter)
-    this.bbox.max = asVect2(this.boardCenter)
-
+  *iterBoardBlock() {
     for (const patch of this.availablePatches) {
       const blocks = patch.iterBlocksQuery(undefined, false)
       // const blocks = this.iterPatchesBlocks()
       for (const block of blocks) {
-        // discard blocs not included in board shape
+         // discard blocks not included in board shape
         if (this.isWithinBoard(block.pos)) {
-          const boardBlock = this.overrideBlock(block)
-          patch.writeBlockData(boardBlock.index, boardBlock.data)
-          this.bbox.expandByPoint(asVect2(boardBlock.pos))
-          // yield boardBlock
+          yield block
         }
       }
     }
+  }
+
+  shapeBoard() {
+    // const { ymin, ymax } = this.getMinMax()
+    // const avg = Math.round(ymin + (ymax - ymin) / 2)
+    // reset bbox to refine bounds
+    const blocksContainer = new BlocksPatch(this.bbox, 0)
+    const adjustedBox = new Box2(asVect2(this.boardCenter), asVect2(this.boardCenter))
+    
+    const boardBlocks = this.iterBoardBlock()
+    for (const block of boardBlocks) {
+      const boardBlock = this.overrideBlock(block)
+      blocksContainer.setBlock(boardBlock.pos, boardBlock.data, false)
+      adjustedBox.expandByPoint(asVect2(boardBlock.pos))
+      // yield boardBlock
+    }
+    const finalBlocksContainer = new BlocksPatch(adjustedBox)
   }
 
   smoothEdges() { }
@@ -220,8 +230,12 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
     })
   }
 
+  copyBoardData() {
+
+  }
+
   dataExport() {
-    const {startPosDistribution, holesDistribution} = BoardContainer
+    const { startPosDistribution, holesDistribution } = BoardContainer
     const startPos = this.getBoardEntities(startPosDistribution)
       .map(block => ({
         pos: block.pos,
