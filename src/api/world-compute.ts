@@ -12,24 +12,18 @@ const entityDefaultDims = new Vector3(10, 20, 10)
 // TODO move somewhere else
 const distributionMap = new PseudoDistributionMap()
 
-export const computePatch = (patchKey: PatchKey) => {
-  const patch = new BlocksPatch(patchKey)
-  genGroundBlocks(patch)
-  genEntities(patch)
-  return patch
-}
-
 export const computeBlocksBatch = (
   blockPosBatch: Vector3[],
   params = { includeEntitiesBlocks: false },
 ) => {
+  const { includeEntitiesBlocks } = params
   const blocksBatch = blockPosBatch.map(({ x, z }) => {
     const blockPos = new Vector3(x, 0, z)
     const blockData = computeGroundBlock(blockPos)
-    if (params.includeEntitiesBlocks) {
-      const blocksBuffer = computeBlocksBuffer(blockPos)
-      const lastBlockIndex = blocksBuffer.findLastIndex(elt => elt)
-      if (lastBlockIndex >= 0) {
+    if (includeEntitiesBlocks) {
+      const blocksBuffer = bakeChunkEntity(blockPos, true)?.data
+      const lastBlockIndex = blocksBuffer?.findLastIndex(elt => elt)
+      if (blocksBuffer && lastBlockIndex && lastBlockIndex >= 0) {
         blockData.level += lastBlockIndex
         blockData.type = blocksBuffer[lastBlockIndex] as BlockType
       }
@@ -44,7 +38,7 @@ export const computeBlocksBatch = (
   return blocksBatch
 }
 
-export const computeGroundBlock = (blockPos: Vector3) => {
+const computeGroundBlock = (blockPos: Vector3) => {
   const biomeContribs = Biome.instance.getBiomeInfluence(blockPos)
   const mainBiome = Biome.instance.getMainBiome(biomeContribs)
   const rawVal = Heightmap.instance.getRawVal(blockPos)
@@ -93,25 +87,6 @@ const genEntity = (entityPos: Vector3) => {
   return entity
 }
 
-export const computeBlocksBuffer = (blockPos: Vector3) => {
-  let blocksBuffer
-  // query entities at current block
-  const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 5
-  const spawnLocs = distributionMap.querySpawnLocations(asVect2(blockPos), intersectsEntity)
-  for (const loc of spawnLocs) {
-    const entityPos = asVect3(loc)
-    const entity = genEntity(entityPos)
-    blocksBuffer = entity
-      ? ChunkFactory.chunkifyEntity(entity, blockPos).data
-      : blocksBuffer
-  }
-  return blocksBuffer || []
-}
-
-// export const bakeEntities = (_entities: EntityData) => {
-//   // TODO
-// }
-
 const genEntities = (blocksPatch: BlocksPatch) => {
   // query entities on patch range
   const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 5
@@ -123,15 +98,32 @@ const genEntities = (blocksPatch: BlocksPatch) => {
   blocksPatch.entities = spawnedEntities
 }
 
+export const bakeChunkEntity = (blockPos: Vector3, singleBlockOnly = false) => {
+  let entityChunk
+  // query entities at current block
+  const intersectsEntity = (testRange: Box2, entityPos: Vector2) => testRange.distanceToPoint(entityPos) <= 5
+  const spawnLocs = distributionMap.querySpawnLocations(asVect2(blockPos), intersectsEntity)
+  for (const loc of spawnLocs) {
+    const entityPos = asVect3(loc)
+    const entity = genEntity(entityPos)
+    if (entity) {
+      entityChunk = singleBlockOnly ? ChunkFactory.chunkifyEntity(entity, blockPos) :
+        ChunkFactory.chunkifyEntity(entity)
+    }
+  }
+  return entityChunk
+}
+
+// export const bakeEntities = (_entities: EntityData) => {
+//   // TODO
+// }
+
 /**
- * Fill container with ground blocks
+ * Fill ground blocks container
  */
-const genGroundBlocks = (blocksPatch: BlocksPatch) => {
+export const bakeGroundPatch = (patchKey: PatchKey) => {
+  const blocksPatch = new BlocksPatch(patchKey)
   const { min, max } = blocksPatch.bbox
-  // const patchId = min.x + ',' + min.z + '-' + max.x + ',' + max.z
-  // const prng = alea(patchId)
-  // const refPoints = this.isTransitionPatch ? this.buildRefPoints() : []
-  // const blocksPatch = new PatchBlocksCache(new Vector2(min.x, min.z))
   const patchBlocks = blocksPatch.iterBlocksQuery(undefined, false)
   min.y = 512
   max.y = 0

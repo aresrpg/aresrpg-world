@@ -10,7 +10,7 @@ import { PatchesMap } from './PatchesMap'
 
 export type BoardData = {
   box: Box2,
-  groundBlocks: [],
+  blocks: [],
   entities: {
     startPos: Block[],
     holes: Block[],
@@ -22,7 +22,7 @@ const getDefaultPatchDim = () =>
   new Vector2(WorldConf.patchSize, WorldConf.patchSize)
 
 /**
- * Entities distribution conf
+ * Entities distribution default conf
  */
 // Start positions
 const startPosDistParams = {
@@ -31,7 +31,6 @@ const startPosDistParams = {
   maxDistance: 16,
   tries: 20,
 }
-const startPosDistMap = new PseudoDistributionMap(undefined, startPosDistParams)
 
 // Holes
 const holesDistParams = {
@@ -40,9 +39,16 @@ const holesDistParams = {
   maxDistance: 16,
   tries: 20,
 }
-const holesDistMap = new PseudoDistributionMap(undefined, holesDistParams)
 
 export class BoardContainer extends PatchesMap<BlocksPatch> {
+  // static singleton: BoardContainer
+  // static get instance(){
+  //   return this.singleton
+  // }
+  static holesDistribution = new PseudoDistributionMap(undefined, holesDistParams)
+  static startPosDistribution = new PseudoDistributionMap(undefined, startPosDistParams) 
+
+  // board instance params
   boardCenter
   boardRadius
   boardMaxHeightDiff
@@ -59,6 +65,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
 
   initBoard(): void {
     this.shapeBoard()
+    console.log(this.dataExport())
     this.showStartPositions()
     this.digHoles()
     this.trimTrees()
@@ -138,7 +145,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   smoothEdges() { }
 
   showStartPositions() {
-    const startPositions = this.getBoardEntities(startPosDistMap)
+    const startPositions = this.getBoardEntities(BoardContainer.startPosDistribution)
     WorldConf.debug.boardStartPosHighlightColor &&
       startPositions.forEach(block => {
         const patch = this.findPatch(block.pos)
@@ -153,7 +160,7 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   }
 
   digHoles() {
-    const holes = this.getBoardEntities(holesDistMap)
+    const holes = this.getBoardEntities(BoardContainer.holesDistribution)
     WorldConf.debug.boardHolesHighlightColor &&
       holes.forEach(block => {
         const patch = this.findPatch(block.pos)
@@ -214,13 +221,23 @@ export class BoardContainer extends PatchesMap<BlocksPatch> {
   }
 
   dataExport() {
-    const startPos = this.getBoardEntities(startPosDistMap)
-    const holes = this.getBoardEntities(holesDistMap)
-    // TODO refactor: consider trees as other entities
-    const obstacles: PatchBlock[] = []
+    const {startPosDistribution, holesDistribution} = BoardContainer
+    const startPos = this.getBoardEntities(startPosDistribution)
+      .map(block => ({
+        pos: block.pos,
+        data: block.data
+      }))
+    const holes = this.getBoardEntities(holesDistribution)
+      .map(block => ({
+        pos: block.pos,
+        data: block.data
+      }))
+    // TODO refactor: consider trees as no longer attached to ground patch 
+    // but retrievable like any other entities 
+    const obstacles: Block[] = []
     const boardData: BoardData = {
-      box: new Box2(),
-      groundBlocks: [],
+      box: this.bbox,
+      blocks: [],
       entities: {
         startPos,
         holes,
