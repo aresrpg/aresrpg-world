@@ -1,12 +1,11 @@
 import { Vector3 } from 'three'
 
-import { Block, PatchKey } from '../common/types'
+import { Block, EntityKey, PatchKey } from '../common/types'
 import { BlocksPatch, WorldCompute, WorldUtils } from '../index'
 
 export enum ComputeApiCall {
-  PatchCompute = 'computePatch',
+  PatchCompute = 'bakeGroundPatch',
   BlocksBatchCompute = 'computeBlocksBatch',
-  GroundBlockCompute = 'computeGroundBlock',
   OvergroundBufferCompute = 'computeOvergroundBuffer',
 }
 
@@ -16,25 +15,14 @@ export type ComputeApiParams = Partial<{
   includeEntitiesBlocks: boolean // skip or include entities blocks
 }>
 
-interface ComputeApiInterface {
-  computeBlocksBatch(
-    blockPosBatch: Vector3[],
-    params?: any,
-  ): Block[] | Promise<Block[]>
-  // computePatch(patchKey: PatchKey): BlocksPatch | Promise<BlocksPatch>
-  iterPatchCompute(
-    patchKeysBatch: PatchKey[],
-  ):
-    | Generator<BlocksPatch, void, unknown>
-    | AsyncGenerator<BlocksPatch, void, unknown>
-}
-
-export class WorldComputeApi implements ComputeApiInterface {
-  static singleton: ComputeApiInterface
-
-  pendingTask = false
-  startTime = Date.now()
-  elapsedTime = 0
+/**
+ * All methods exposed here supports worker mode and will forward
+ * requests to external compute module if worker instance is provided
+ */
+export class WorldComputeApi {
+  static singleton: WorldComputeApi
+  workerInstance: Worker | undefined
+  resolvers: Record<number, any> = {}
   count = 0
 
   static get instance() {
@@ -42,91 +30,73 @@ export class WorldComputeApi implements ComputeApiInterface {
     return this.singleton
   }
 
-  // eslint-disable-next-line no-undef
-  static useWorker(worker: Worker) {
-    this.singleton = new WorldComputeProxy(worker)
+  get worker() {
+    return this.workerInstance
   }
 
-  computeBlocksBatch(
-    blockPosBatch: Vector3[],
-    params = { includeEntitiesBlocks: true },
-  ) {
-    return WorldCompute.computeBlocksBatch(blockPosBatch, params)
-  }
-
-  *iterPatchCompute(patchKeysBatch: PatchKey[]) {
-    for (const patchKey of patchKeysBatch) {
-      const patch = WorldCompute.computePatch(patchKey)
-      yield patch
-    }
-  }
-}
-
-/**
- * Proxying requests to worker instead of internal world compute
- */
-export class WorldComputeProxy implements ComputeApiInterface {
-  // eslint-disable-next-line no-undef
-  worker: Worker
-  count = 0
-  resolvers: Record<number, any> = {}
-
-  // eslint-disable-next-line no-undef
-  constructor(worker: Worker) {
-    // super()
-    this.worker = worker
-    this.worker.onmessage = ({ data }) => {
+  set worker(workerInstance: Worker) {
+    workerInstance.onmessage = ({ data }) => {
       if (data.id !== undefined) {
         this.resolvers[data.id]?.(data.data)
         delete this.resolvers[data.id]
-      } else {
-        if (data) {
-          // data.kept?.length > 0 && PatchBlocksCache.cleanDeprecated(data.kept)
-          // data.created?.forEach(blocks_cache => {
-          //   const blocks_patch = new PatchBlocksCache(blocks_cache)
-          //   PatchBlocksCache.instances.push(blocks_patch)
-          //   // patchRenderQueue.push(blocksPatch)
-          // })
-        }
       }
     }
 
-    this.worker.onerror = error => {
+    workerInstance.onerror = error => {
       console.error(error)
     }
 
-    this.worker.onmessageerror = error => {
+    workerInstance.onmessageerror = error => {
       console.error(error)
     }
+    this.workerInstance = workerInstance
   }
 
+  /**
+   * Proxying request to worker
+   */
   workerCall(apiName: ComputeApiCall, args: any[]) {
-    const id = this.count++
-    this.worker.postMessage({ id, apiName, args })
-    return new Promise<any>(resolve => (this.resolvers[id] = resolve))
+    if (this.worker) {
+      const id = this.count++
+      this.worker.postMessage({ id, apiName, args })
+      return new Promise<any>(resolve => (this.resolvers[id] = resolve))
+    }
   }
 
-  async computeBlocksBatch(blockPosBatch: Vector3[], params?: any) {
-    const blockStubs = await this.workerCall(
-      ComputeApiCall.BlocksBatchCompute,
-      [blockPosBatch, params],
-    )
-    // parse worker's data to recreate original objects
-    const blocks: Block[] = blockStubs.map((blockStub: Block) => {
-      blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
-      return blockStub
-    })
+  async computeBlocksBatch(
+    blockPosBatch: Vector3[],
+    params = { includeEntitiesBlocks: true },
+  ) {
+    const blocks = !this.worker ?
+      WorldCompute.computeBlocksBatch(blockPosBatch, params) :
+      await this.workerCall(
+        ComputeApiCall.BlocksBatchCompute,
+        [blockPosBatch, params],
+      )?.then((blocksStubs: Block[]) =>
+        // parse worker's data to recreate original objects
+        blocksStubs.map(blockStub => {
+          blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
+          return blockStub
+        })) as Block[]
+
     return blocks
   }
 
+  // *iterEntitiesBaking(entityKeys: EntityKey[]) {
+  //   for (const entityKey of entityKeys) {
+  //     const entityChunk = WorldCompute.bakeChunkEntity(entityKey)
+  //     yield entityChunk
+  //   }
+  // }
+
   async *iterPatchCompute(patchKeysBatch: PatchKey[]) {
     for (const patchKey of patchKeysBatch) {
-      // const emptyPatch = new BlocksPatch(patchKey)
-      const patchStub = await this.workerCall(
-        ComputeApiCall.PatchCompute,
-        [patchKey], // [emptyPatch.bbox]
-      )
-      const patch = BlocksPatch.fromStub(patchStub)
+      const patch = !this.worker ? WorldCompute.bakeGroundPatch(patchKey) :
+        await this.workerCall(
+          ComputeApiCall.PatchCompute,
+          [patchKey], // [emptyPatch.bbox]
+        )?.then(patchStub => BlocksPatch.fromStub(patchStub)) as BlocksPatch
+
       yield patch
     }
   }
