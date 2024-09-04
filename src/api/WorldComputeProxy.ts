@@ -1,9 +1,9 @@
 import { Box2, Vector3 } from 'three'
 
-import { Block, EntityKey, PatchKey } from '../common/types'
+import { Block, PatchKey } from '../common/types'
 import { BoardContainer, BoardParams } from '../datacontainers/BoardContainer'
 import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
-import { BlocksPatch, GroundPatch, WorldCompute, WorldUtils } from '../index'
+import { GroundPatch, WorldCompute, WorldUtils } from '../index'
 
 export enum ComputeApiCall {
   PatchCompute = 'bakeGroundPatch',

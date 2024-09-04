@@ -93,7 +93,6 @@ export const bakeGroundPatch = (patchKeyOrBox: PatchKey | Box2) => {
 export const computeBoardData = (boardPos: Vector3, boardParams: BoardParams) => {
   const boardMap = new BoardContainer(boardPos, boardParams)
   boardMap.fill() // fill with ground data
-  boardMap.buildBoard() // override with board data
   const boardData = boardMap.exportRawData()
   return boardData
 }
