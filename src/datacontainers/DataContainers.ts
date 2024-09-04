@@ -1,9 +1,4 @@
-/**
- * Generic patch data container
- */
-
 import { Vector2, Box2, Vector3 } from 'three'
-import { ChunkId } from '../common/types'
 import { asVect2, asVect3, getPatchId, patchUpperId } from '../common/utils'
 
 // export enum BitLength {
@@ -20,7 +15,10 @@ import { asVect2, asVect3, getPatchId, patchUpperId } from '../common/utils'
 //     }
 // }
 
-// GenericPatch
+
+/**
+ * Multi purpose data container
+ */
 export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
     bounds: Box2
     dimensions: Vector2
@@ -57,7 +55,7 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
                     sourceIndex++
                     targetIndex++
                 }
-                rowStartPos.z++
+                rowStartPos.y++
             }
     }
     inLocalRange(localPos: Vector3 | Vector2) {
@@ -105,14 +103,14 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
         //   blockPos.z < this.bounds.max.z
         // )
     }
-    abstract get chunkIds(): ChunkId[]
-    abstract toChunks(): any
+    // abstract get chunkIds(): ChunkId[]
+    // abstract toChunks(): any
 }
 
 /**
- * Generic PatchesMap
+ * PatchesMap base class
  */
-export class GenericPatchesMap {
+export class PatchesMapBase {
     patchDimensions: Vector2
     constructor(patchDim: Vector2) {
         this.patchDimensions = patchDim

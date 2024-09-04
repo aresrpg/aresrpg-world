@@ -5,7 +5,7 @@ import { ProcLayer } from '../procgen/ProcLayer'
 import { BlueNoisePattern } from '../procgen/BlueNoisePattern'
 import { EntityData } from '../common/types'
 import { WorldConf } from '../index'
-import { GenericPatchesMap } from './DataContainers'
+import { PatchesMapBase } from './DataContainers'
 // import { Adjacent2dPos } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
 
@@ -29,7 +29,7 @@ const distMapDefaults = {
  * Enable querying/iterating randomly distributed items at block
  * level or from custom box range
  */
-export class PseudoDistributionMap extends GenericPatchesMap {
+export class PseudoDistributionMap extends PatchesMapBase {
   repeatedPattern: BlueNoisePattern
   densityMap: ProcLayer
 

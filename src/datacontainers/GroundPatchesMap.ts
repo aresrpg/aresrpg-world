@@ -2,7 +2,7 @@ import { Box2, Vector2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
 import { asVect3 } from '../common/utils'
-import { BlocksPatch, WorldComputeApi, WorldConf } from '../index'
+import { BlocksPatch, WorldComputeProxy, WorldConf } from '../index'
 
 import { PatchesMap } from './PatchesMap'
 
@@ -27,7 +27,7 @@ export class CacheContainer extends PatchesMap<BlocksPatch> {
 
   async populate(batch: PatchKey[]) {
     this.pendingRefresh = true
-    const batchIter = WorldComputeApi.instance.iterPatchCompute(batch)
+    const batchIter = WorldComputeProxy.instance.iterPatchCompute(batch)
     // populate cache without blocking execution
     for await (const patch of batchIter) {
       if (patch.key) {
@@ -68,9 +68,11 @@ export class CacheContainer extends PatchesMap<BlocksPatch> {
     return changesDiff
   }
 
-  getPatches(inputBox: Box2) {
+  getOverlappingPatches(inputBounds: Box2) {
+    const overlappingBounds = (bounds1: Box2, bounds2: Box2) =>
+      !(bounds1.max.x <= bounds2.min.x || bounds1.min.x >= bounds2.max.x || bounds1.max.y <= bounds2.min.y || bounds1.min.y >= bounds2.max.y);
     return this.availablePatches.filter(patch =>
-      patch.bounds.intersectsBox(inputBox),
+      overlappingBounds(patch.bounds, inputBounds),
     )
   }
 
