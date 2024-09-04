@@ -48,10 +48,20 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
         return target; // Return the copied subcontent
     }
 
-    overrideContent(source: DataContainer<T>) {
+    overrideContent(source: DataContainer<T>, margin = 0) {
         const target = this;
+
+        const adjustOverlapMargins = (overlap: Box2) => {
+            const margin = Math.min(target.margin, source.margin) || 0
+            overlap.min.x -= target.bounds.min.x === overlap.min.x ? margin : 0
+            overlap.min.y -= target.bounds.min.y === overlap.min.y ? margin : 0
+            overlap.max.x += target.bounds.max.x === overlap.max.x ? margin : 0
+            overlap.max.y += target.bounds.max.y === overlap.max.y ? margin : 0
+        }
+
         if (source.bounds.intersectsBox(target.bounds)) {
             const overlap = target.bounds.clone().intersect(source.bounds);
+            adjustOverlapMargins(overlap)
             console.log(`overlapping => override content`)
             for (let x = overlap.min.x; x < overlap.max.x; x++) {
                 // const globalStartPos = new Vector3(x, 0, overlap.min.y)
