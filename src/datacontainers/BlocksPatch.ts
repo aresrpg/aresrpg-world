@@ -4,6 +4,7 @@ import {
   Block,
   PatchBlock,
   EntityData,
+  PatchKey,
 } from '../common/types'
 import {
   patchBoxFromKey,
@@ -11,6 +12,7 @@ import {
   parseThreeStub,
   asVect3,
   asVect2,
+  serializePatchId,
 } from '../common/utils'
 import { BlockType } from '../procgen/Biome'
 import { WorldConf } from '../index'
@@ -29,10 +31,9 @@ export type BlockData = {
 }
 
 export type PatchStub = {
-  key: string
-  bounds: Box3
-  rawDataContainer: Uint32Array
-  entities: EntityData[]
+  key?: string
+  bounds: Box2
+  rawData: Uint32Array
 }
 
 // bits allocated per block data type
@@ -56,18 +57,33 @@ const parseBoundsOrKeyInput = (patchBoundsOrKey: Box2 | string) => {
 }
 
 export class BlocksPatch extends DataContainer<Uint32Array> {
-  rawDataContainer: Uint32Array
+  rawData!: Uint32Array
   margin = 0
+  key = ''  // needed for patch export
+  patchId: Vector2 | undefined
 
-  key: string | null
-  id: Vector2 | null
-
-  constructor(patchBoundsOrKey: Box2 | string, margin = 1) {
+  constructor(patchBoundsOrKey: Box2 | PatchKey = new Box2(), margin = 1) {
     super(parseBoundsOrKeyInput(patchBoundsOrKey))
-    this.key = typeof patchBoundsOrKey === "string" ? patchBoundsOrKey : null
-    this.id = this.key ? parsePatchKey(this.key) : null
+    const patchId = typeof patchBoundsOrKey === "string" ? parsePatchKey(patchBoundsOrKey) : null
+    if (patchId) {
+      this.id = patchId
+    }
     this.margin = margin
-    this.rawDataContainer = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
+    this.init(this.bounds)
+  }
+
+  override init(bounds: Box2): void {
+    super.init(bounds)
+    this.rawData = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
+  }
+
+  get id() {
+    return this.patchId
+  }
+
+  set id(patchId: Vector2 | undefined) {
+    this.patchId = patchId
+    this.key = serializePatchId(patchId)
   }
 
   get extendedBox() {
@@ -85,26 +101,6 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
 
   get localExtendedBox() {
     return this.localBox.expandByScalar(this.margin)
-  }
-
-  /**
-   * @param targetBox if unspecified will be whole source container
-   */
-  copyContentOverTarget(targetBox: Box2) {
-    const source = this
-    const targetInput = targetBox || source.bounds
-    const target = new BlocksPatch(targetInput)
-    super.copyContentOverTargetContainer(target)
-  }
-
-  static fromStub(patchOrStub: BlocksPatch) {
-    const bounds = parseThreeStub(patchOrStub.bounds) as Box2
-    const patch = new BlocksPatch(patchOrStub.key || bounds)
-    patchOrStub.rawDataContainer.forEach(
-      (rawVal, i) => patch.rawDataContainer[i] = rawVal)
-    patch.bounds.min.y = patchOrStub.bounds.min.y
-    patch.bounds.max.y = patchOrStub.bounds.max.y
-    return patch
   }
 
   decodeBlockData(rawData: number): BlockData {
@@ -131,13 +127,13 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
   }
 
   readBlockData(blockIndex: number): BlockData {
-    const blockRawData = this.rawDataContainer[blockIndex]
+    const blockRawData = this.rawData[blockIndex]
     const blockData = this.decodeBlockData(blockRawData as number)
     return blockData
   }
 
   writeBlockData(blockIndex: number, blockData: BlockData) {
-    this.rawDataContainer[blockIndex] = this.encodeBlockData(blockData)
+    this.rawData[blockIndex] = this.encodeBlockData(blockData)
   }
 
   adjustRangeBox(rangeBox: Box2 | Vector2, local = false) {
@@ -158,11 +154,11 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
         asVect2(this.toLocalPos(asVect3(rangeMax))))
   }
 
-  override getIndex(localPos: Vector3) {
+  override getIndex(localPos: Vector2 | Vector3) {
+    localPos = localPos instanceof Vector2 ? localPos : asVect2(localPos)
     return (
       (localPos.x + this.margin) * this.extendedDims.x +
-      localPos.z +
-      this.margin
+      localPos.y + this.margin
     )
   }
 
@@ -242,10 +238,19 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
     }
   }
 
+  fromStub(patchStub: PatchStub) {
+    this.init(parseThreeStub(patchStub.bounds) as Box2)
+    this.id = patchStub.key ? parsePatchKey(patchStub.key) : this.id
+    this.rawData.set(patchStub.rawData)
+    this.bounds.min.y = patchStub.bounds.min.y
+    this.bounds.max.y = patchStub.bounds.max.y
+    return this
+  }
+
   // getBlocksRow(zRowIndex: number) {
   //   const rowStart = zRowIndex * this.dimensions.y
   //   const rowEnd = rowStart + this.dimensions.x
-  //   const rowRawData = this.rawDataContainer.slice(rowStart, rowEnd)
+  //   const rowRawData = this.rawData.slice(rowStart, rowEnd)
   //   return rowRawData
   // }
 
