@@ -86,12 +86,12 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
     this.key = serializePatchId(patchId)
   }
 
-  get extendedBox() {
+  get extendedBounds() {
     return this.bounds.clone().expandByScalar(this.margin)
   }
 
   get extendedDims() {
-    return this.extendedBox.getSize(new Vector2())
+    return this.extendedBounds.getSize(new Vector2())
   }
 
   get localBox() {
@@ -236,6 +236,16 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
         index++
       }
     }
+  }
+
+  toStub() {
+    const { bounds, rawData } = this
+    const patchStub: PatchStub = {
+      bounds,
+      rawData
+    }
+    if (this.key && this.key !== '') patchStub.key = this.key
+    return patchStub
   }
 
   fromStub(patchStub: PatchStub) {
