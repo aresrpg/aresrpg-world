@@ -3,22 +3,17 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 import {
   Block,
   PatchBlock,
-  WorldChunk,
-  ChunkDataContainer,
   EntityData,
 } from '../common/types'
 import {
   patchBoxFromKey,
   parsePatchKey,
   parseThreeStub,
-  serializeChunkId,
-  chunkBoxFromId,
-  asBox2,
   asVect3,
   asVect2,
 } from '../common/utils'
 import { BlockType } from '../procgen/Biome'
-import { ChunkFactory, WorldConf } from '../index'
+import { WorldConf } from '../index'
 
 import { DataContainer } from './DataContainers'
 
@@ -60,10 +55,6 @@ const parseBoundsOrKeyInput = (patchBoundsOrKey: Box2 | string) => {
   return bounds
 }
 
-/**
- * GenericBlocksContainer
- * multi purpose blocks container
- */
 export class BlocksPatch extends DataContainer<Uint32Array> {
   rawDataContainer: Uint32Array
   margin = 0
@@ -211,17 +202,6 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
     // bounds.max.y = Math.max(bounds.max.y, levelMax)
   }
 
-  getBlocksRow(zRowIndex: number) {
-    const rowStart = zRowIndex * this.dimensions.z
-    const rowEnd = rowStart + this.dimensions.x
-    const rowRawData = this.rawDataContainer.slice(rowStart, rowEnd)
-    return rowRawData
-  }
-
-  // getBlocksCol(xColIndex: number) {
-
-  // }
-
   /**
    *
    * @param rangeBox iteration range as global coords
@@ -262,88 +242,21 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
     }
   }
 
-  *iterEntityChunkBlocks(entityChunk: ChunkDataContainer) {
-    // return overlapping blocks between entity and container
-    const entityDims = entityChunk.box.getSize(new Vector3())
-    const blocks = this.iterBlocksQuery(asBox2(entityChunk.box))
+  // getBlocksRow(zRowIndex: number) {
+  //   const rowStart = zRowIndex * this.dimensions.y
+  //   const rowEnd = rowStart + this.dimensions.x
+  //   const rowRawData = this.rawDataContainer.slice(rowStart, rowEnd)
+  //   return rowRawData
+  // }
 
-    for (const block of blocks) {
-      // const buffer = entityChunk.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
-      const chunkLocalPos = block.pos.clone().sub(entityChunk.box.min)
-      const buffIndex =
-        chunkLocalPos.z * entityDims.x * entityDims.y +
-        chunkLocalPos.x * entityDims.y
-      block.buffer = entityChunk.data.slice(buffIndex, buffIndex + entityDims.y)
-      const buffOffset = entityChunk.box.min.y - block.pos.y
-      const buffSrc = Math.abs(Math.min(0, buffOffset))
-      const buffDest = Math.max(buffOffset, 0)
-      block.buffer = block.buffer?.copyWithin(buffDest, buffSrc)
-      block.buffer =
-        buffOffset < 0
-          ? block.buffer?.fill(BlockType.NONE, buffOffset)
-          : block.buffer
-      // block.buffer = new Array(20).fill(BlockType.TREE_TRUNK)
-      yield block
-    }
-  }
+  // getBlocksCol(xColIndex: number) {
 
-  // multi-pass chunk filling
-  toChunk(chunkBox: Box3) {
-    let totalWrittenBlocks = 0
-    chunkBox = chunkBox || this.bounds
-    const chunkDims = chunkBox.getSize(new Vector3())
-    const chunkData = new Uint16Array(chunkDims.x * chunkDims.y * chunkDims.z)
-    // Ground pass
-    const groundBlocksIterator = this.iterBlocksQuery(undefined, false)
-    // ground blocks pass
-    totalWrittenBlocks += ChunkFactory.default.voxelizeGround(
-      groundBlocksIterator,
-      chunkData,
-      chunkBox,
-    )
-    // Entities pass
-    // for (const entity of this.entities) {
-    //   // const entityChunk = this.buildEntityChunk(entity)
-    //   const entityChunk = ChunkFactory.chunkifyEntity(entity)
-    //   const entityDataIterator = this.iterEntityChunkBlocks(entityChunk) // this.iterEntityBlocks(entity)
-    //   totalWrittenBlocks += ChunkFactory.default.mergeEntitiesData(
-    //     entityDataIterator,
-    //     chunkData,
-    //     chunkBox,
-    //   )
-    // }
-
-    // const size = Math.round(Math.pow(chunk.data.length, 1 / 3))
-    // const dimensions = new Vector3(size, size, size)
-    const chunk = {
-      bounds: chunkBox,
-      data: totalWrittenBlocks ? chunkData : null,
-      // isEmpty: totalWrittenBlocks === 0,
-    }
-    return chunk
-  }
-
-  get chunkIds() {
-    return this.id ? ChunkFactory.default.genChunksIdsFromPatchId(this.id) : []
-  }
-
-  toChunks() {
-    const chunks = this.chunkIds.map(chunkId => {
-      const chunkBox = chunkBoxFromId(chunkId, WorldConf.patchSize)
-      const chunk = this.toChunk(chunkBox)
-      const worldChunk: WorldChunk = {
-        key: serializeChunkId(chunkId),
-        data: chunk.data,
-      }
-      return worldChunk
-    })
-    return chunks
-  }
+  // }
 
   /**
    * Split container into fixed size patches
    */
-  asSplittedPatchMap() {
+  // splitAsPatchMap() {
 
-  }
+  // }
 }

@@ -277,10 +277,13 @@ const parseThreeStub = (stub: any) => {
 }
 
 const parsePatchKey = (patchKey: PatchKey) => {
-  const patchId = new Vector2(
-    parseInt(patchKey.split(':')[0] as string),
-    parseInt(patchKey.split(':')[1] as string),
-  )
+  let patchId
+  if (patchKey?.length > 0) {
+    patchId = new Vector2(
+      parseInt(patchKey.split(':')[0] as string),
+      parseInt(patchKey.split(':')[1] as string),
+    )
+  }
   return patchId
 }
 
@@ -294,9 +297,12 @@ const patchUpperId = (position: Vector2, patchSize: Vector2) => {
   return patchId
 }
 
-const serializePatchId = (patchId: PatchId) => {
-  const { x, y } = patchId
-  const patchKey = `${x}:${y}`
+const serializePatchId = (patchId: PatchId | undefined) => {
+  let patchKey = ''
+  if (patchId) {
+    const { x, y } = patchId
+    patchKey = `${x}:${y}`
+  }
   return patchKey
 }
 

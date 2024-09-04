@@ -1,14 +1,16 @@
 import { Box2, Vector3 } from 'three'
 
 import { Block, EntityKey, PatchKey } from '../common/types'
-import { EntityChunk } from '../datacontainers/EntityChunkMaker'
-import { BlocksPatch, WorldCompute, WorldUtils } from '../index'
+import { BoardContainer, BoardParams } from '../datacontainers/BoardContainer'
+import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
+import { BlocksPatch, GroundPatch, WorldCompute, WorldUtils } from '../index'
 
 export enum ComputeApiCall {
   PatchCompute = 'bakeGroundPatch',
   BlocksBatchCompute = 'computeBlocksBatch',
   OvergroundBufferCompute = 'computeOvergroundBuffer',
-  BakeEntities = 'bakeEntities'
+  BakeEntities = 'queryBakeEntities',
+  BattleBoardCompute = 'computeBoardData'
 }
 
 export type ComputeApiParams = Partial<{
@@ -18,17 +20,17 @@ export type ComputeApiParams = Partial<{
 }>
 
 /**
- * All methods exposed here supports worker mode and will forward
- * requests to external compute module if worker instance is provided
+ * Exposing world compute api with ability to run inside optional worker
+ * When provided all request are proxied to worker instead of main thread
  */
-export class WorldComputeApi {
-  static singleton: WorldComputeApi
+export class WorldComputeProxy {
+  static singleton: WorldComputeProxy
   workerInstance: Worker | undefined
   resolvers: Record<number, any> = {}
   count = 0
 
   static get instance() {
-    this.singleton = this.singleton || new WorldComputeApi()
+    this.singleton = this.singleton || new WorldComputeProxy()
     return this.singleton
   }
 
@@ -36,22 +38,24 @@ export class WorldComputeApi {
     return this.workerInstance
   }
 
-  set worker(workerInstance: Worker) {
-    workerInstance.onmessage = ({ data }) => {
-      if (data.id !== undefined) {
-        this.resolvers[data.id]?.(data.data)
-        delete this.resolvers[data.id]
+  set worker(workerInstance: Worker | undefined) {
+    this.workerInstance = workerInstance
+    if (workerInstance) {
+      workerInstance.onmessage = ({ data }) => {
+        if (data.id !== undefined) {
+          this.resolvers[data.id]?.(data.data)
+          delete this.resolvers[data.id]
+        }
+      }
+
+      workerInstance.onerror = error => {
+        console.error(error)
+      }
+
+      workerInstance.onmessageerror = error => {
+        console.error(error)
       }
     }
-
-    workerInstance.onerror = error => {
-      console.error(error)
-    }
-
-    workerInstance.onmessageerror = error => {
-      console.error(error)
-    }
-    this.workerInstance = workerInstance
   }
 
   /**
@@ -63,6 +67,7 @@ export class WorldComputeApi {
       this.worker.postMessage({ id, apiName, args })
       return new Promise<any>(resolve => (this.resolvers[id] = resolve))
     }
+    return
   }
 
   async computeBlocksBatch(
@@ -97,7 +102,7 @@ export class WorldComputeApi {
         await this.workerCall(
           ComputeApiCall.PatchCompute,
           [patchKey], // [emptyPatch.bbox]
-        )?.then(patchStub => BlocksPatch.fromStub(patchStub)) as BlocksPatch
+        )?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
 
       yield patch
     }
@@ -105,20 +110,24 @@ export class WorldComputeApi {
 
   async bakeEntities(queriedRange: Box2,) {
     const entityChunks = !this.worker ?
-      WorldCompute.bakeEntities(queriedRange) :
+      WorldCompute.queryBakeEntities(queriedRange) :
       await this.workerCall(
         ComputeApiCall.BakeEntities,
         [queriedRange],
-      )?.then((entityChunks: EntityChunk[]) =>
+      )?.then((entityChunks: EntityChunkStub[]) =>
         // parse worker's data to recreate original objects
-        entityChunks.map(chunkStub => {
-          chunkStub.box = WorldUtils.parseThreeStub(chunkStub.box)
-          if (chunkStub.entity) {
-            chunkStub.entity.bbox = WorldUtils.parseThreeStub(chunkStub.entity?.bbox)
-          }
-          return chunkStub
-        })) as EntityChunk[]
-
+        entityChunks.map(chunkStub => EntityChunk.fromStub(chunkStub)))
     return entityChunks
+  }
+
+  async requestBattleBoard(boardCenter: Vector3, boardParams: BoardParams) {
+    const boardData = !this.worker ?
+      WorldCompute.computeBoardData(boardCenter, boardParams) :
+      await this.workerCall(
+        ComputeApiCall.BattleBoardCompute,
+        [boardCenter, boardParams],
+      )
+    const board = new BoardContainer().fromStub(boardData)
+    return board
   }
 }

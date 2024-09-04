@@ -2,12 +2,12 @@ import { Box2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
 
-import { GenericPatch, GenericPatchesMap } from './DataContainers'
+import { DataContainer, PatchesMapBase } from './DataContainers'
 
 /**
  * Finite map made from patch aggregation
  */
-export class PatchesMap<T extends GenericPatch> extends GenericPatchesMap {
+export class PatchesMap<T extends DataContainer<any>> extends PatchesMapBase {
   bbox: Box2 = new Box2()
   patchLookup: Record<string, T | null> = {}
 

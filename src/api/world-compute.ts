@@ -7,9 +7,11 @@ import { BlockData } from '../datacontainers/BlocksPatch'
 import { Block, EntityData, PatchKey } from '../common/types'
 import { asBox3, asVect2, asVect3 } from '../common/utils'
 import { WorldEntities } from '../procgen/WorldEntities'
-import { EntityChunk, EntityChunkMaker } from '../datacontainers/EntityChunkMaker'
+import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
+import { BoardParams } from '../datacontainers/BoardContainer'
+
 /**
- * BLOCKS
+ * Individual blocks requests
  */
 
 /**
@@ -30,15 +32,14 @@ export const computeBlocksBatch = (
       const entityRange = new Box2().setFromPoints([asVect2(blockPos)])
       entityRange.max.addScalar(1)
       const foundEntity = queryEntities(entityRange)
-        .map(entityData => new EntityChunkMaker(entityData))[0]
-      let blocksBuffer
-      if (foundEntity) {
-        const { min, max } = foundEntity.entityData.bbox
-        const voxelizationRange = asBox3(entityRange)
-        voxelizationRange.min.y = min.y
-        voxelizationRange.max.y = max.y
-        blocksBuffer = foundEntity.voxelizeEntity(voxelizationRange)
-      }
+        .map(entityData => {
+          const { min, max } = entityData.bbox
+          const custChunkBox = asBox3(entityRange)
+          custChunkBox.min.y = min.y
+          custChunkBox.max.y = max.y
+          return new EntityChunk(entityData, custChunkBox)
+        })[0]
+      const blocksBuffer = foundEntity?.voxelize()
       const lastBlockIndex = blocksBuffer?.findLastIndex(elt => elt)
       if (blocksBuffer && lastBlockIndex && lastBlockIndex >= 0) {
         blockData.level += lastBlockIndex
@@ -78,39 +79,37 @@ export const computeGroundBlock = (blockPos: Vector3) => {
 }
 
 /**
- * PATCHES
+ * Patch requests
  */
 
+// Ground
 export const bakeGroundPatch = (patchKeyOrBox: PatchKey | Box2) => {
   const groundPatch = new GroundPatch(patchKeyOrBox)
   groundPatch.fill()
   return groundPatch
 }
 
-export const computeBoardData = (center: Vector3, radius: number, maxThickness: number) => {
-  const boardMap = new BoardContainer(center, radius, maxThickness)
-  const boardGroundBlocks = bakeGroundPatch(boardMap.bbox)
+// Battle board
+export const computeBoardData = (boardPos: Vector3, boardParams: BoardParams) => {
+  const { radius, maxThickness } = boardParams
+  const boardMap = new BoardContainer(boardPos, radius, maxThickness)
+  boardMap.fill()
+  boardMap.buildBoard()
+  const boardData = boardMap.rawDataExport()
+  return boardData
 }
 
 /**
- * ENTITIES
+ * Entity queries
  */
 
-export const bakeEntities = (queriedRange: Box2) => {
-  const entitiesData = queryEntities(queriedRange)
-  return bakeEntitiesBatch(entitiesData)
+export const queryEntities = (region: Box2 | Vector2) => {
+  const spawnablePlaces = WorldEntities.instance.queryDistributionMap(EntityType.TREE_APPLE)(region)
+  const spawnedEntities = spawnablePlaces
+    .map(entLoc => WorldEntities.instance.getEntityData(EntityType.TREE_PINE, asVect3(entLoc)))
+    .filter(entity => confirmFinalizeEntity(entity))
+  return spawnedEntities
 }
-
-export const bakeEntitiesBatch = (entities: EntityData[]) => {
-  const entitiesChunks: EntityChunk[] = entities
-    .map(entityData => new EntityChunkMaker(entityData))
-    .map(entityChunkMaker => {
-      entityChunkMaker.voxelizeEntity()
-      return entityChunkMaker.toStub() as EntityChunk
-    })
-  return entitiesChunks
-}
-
 
 /**
  * 
@@ -133,12 +132,23 @@ const confirmFinalizeEntity = (entity: EntityData) => {
   return
 }
 
-const queryEntities = (region: Box2 | Vector2) => {
-  const spawnablePlaces = WorldEntities.instance.queryDistributionMap(EntityType.TREE_APPLE)(region)
-  const spawnedEntities = spawnablePlaces
-    .map(entLoc => WorldEntities.instance.getEntityData(EntityType.TREE_PINE, asVect3(entLoc)))
-    .filter(entity => confirmFinalizeEntity(entity))
-  return spawnedEntities
+/**
+ * Entities baking
+ */
+
+export const queryBakeEntities = (queriedRange: Box2) => {
+  const entitiesData = queryEntities(queriedRange)
+  return bakeEntitiesBatch(entitiesData)
+}
+
+export const bakeEntitiesBatch = (entities: EntityData[]) => {
+  const entitiesChunks: EntityChunkStub[] = entities
+    .map(entityData => new EntityChunk(entityData))
+    .map(entityChunk => {
+      entityChunk.voxelize()
+      return entityChunk.toStub()
+    })
+  return entitiesChunks
 }
 
 // /**

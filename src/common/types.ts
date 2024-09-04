@@ -130,13 +130,3 @@ export type PatchKey = string
 export type PatchId = Vector2
 export type ChunkKey = string
 export type ChunkId = Vector3
-
-export type ChunkDataContainer = {
-  box: Box3
-  data: Uint16Array
-}
-
-export type WorldChunk = {
-  key: ChunkKey
-  data: Uint16Array | null
-}
