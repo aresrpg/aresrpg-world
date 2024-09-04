@@ -62,7 +62,6 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
         if (source.bounds.intersectsBox(target.bounds)) {
             const overlap = target.bounds.clone().intersect(source.bounds);
             adjustOverlapMargins(overlap)
-            console.log(`overlapping => override content`)
             for (let x = overlap.min.x; x < overlap.max.x; x++) {
                 // const globalStartPos = new Vector3(x, 0, overlap.min.y)
                 const globalStartPos = new Vector3(x, 0, overlap.min.y)
