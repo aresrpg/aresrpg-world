@@ -221,7 +221,7 @@ const isVect2Stub = (stub: Vector2Like) => {
     stub !== undefined &&
     stub.x !== undefined &&
     stub.y !== undefined &&
-    stub.z === undefined
+    (stub as any).z === undefined
   )
 }
 
@@ -308,9 +308,11 @@ const serializePatchId = (patchId: PatchId | undefined) => {
 
 const patchBoxFromKey = (patchKey: string, patchDims: Vector2) => {
   const patchCoords = parsePatchKey(patchKey)
-  const bmin = patchCoords.clone().multiply(patchDims)
-  const bmax = patchCoords.clone().addScalar(1).multiply(patchDims)
-  const bbox = new Box2(bmin, bmax)
+  const bbox = new Box2()
+  if (patchCoords) {
+    bbox.min = patchCoords.clone().multiply(patchDims)
+    bbox.max = patchCoords.clone().addScalar(1).multiply(patchDims)
+  }
   return bbox
 }
 

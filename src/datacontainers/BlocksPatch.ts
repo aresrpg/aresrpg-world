@@ -1,9 +1,8 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 
 import {
   Block,
   PatchBlock,
-  EntityData,
   PatchKey,
 } from '../common/types'
 import {
@@ -69,7 +68,7 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
       this.id = patchId
     }
     this.margin = margin
-    this.init(this.bounds)
+    this.rawData = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
   }
 
   override init(bounds: Box2): void {
@@ -157,7 +156,7 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
   override getIndex(localPos: Vector2 | Vector3) {
     localPos = localPos instanceof Vector2 ? localPos : asVect2(localPos)
     return (
-      (localPos.x + this.margin) * this.extendedDims.x +
+      (localPos.x + this.margin) * this.extendedDims.y +
       localPos.y + this.margin
     )
   }
