@@ -1,4 +1,4 @@
-import { Vector2, Box2, Vector3, Box3 } from 'three'
+import { Vector2, Box2, Vector3 } from 'three'
 import { asVect2, asVect3, getPatchId, patchUpperId } from '../common/utils'
 
 /**
@@ -10,7 +10,8 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
     abstract rawData: T
 
     constructor(bounds = new Box2()) {//, bitLength = BitLength.Uint16) {
-        this.init(bounds)
+        this.bounds = bounds
+        this.dimensions = bounds.getSize(new Vector2())
         // this.rawData = getArrayConstructor(bitLength)
     }
 
@@ -19,38 +20,8 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
         this.dimensions = bounds.getSize(new Vector2())
     }
 
-    /**
-   * @param target target container to copy data to
-   */
-    copySubContent(subBounds: Box2): T {
-        const targetDims = subBounds.getSize(new Vector2());
-        const targetSize = targetDims.x * targetDims.y;
-        const { bounds } = this;
-        const source = this.rawData;
-
-        // Create a new typed array of the same type as the source
-        const target = new (this.rawData.constructor as { new(length: number): T })(targetSize);
-
-        // Calculate local offsets relative to the main bounds
-        const localMin = subBounds.min.clone().sub(bounds.min);
-        const localMax = subBounds.max.clone().sub(bounds.min); // Corrected subtraction
-
-        const rowLength = localMax.x - localMin.x;
-
-        // Efficiently copy each row
-        for (let yIndex = localMin.y; yIndex < localMax.y; yIndex++) {
-            // inverted index to stick to current order TODO use new system
-            const sourceStartIndex = this.getIndex(new Vector2(yIndex, localMin.x));
-            const targetStartIndex = (yIndex - localMin.y) * rowLength;
-            target.set(source.subarray(sourceStartIndex, sourceStartIndex + rowLength), targetStartIndex);
-        }
-
-        return target; // Return the copied subcontent
-    }
-
-    overrideContent(source: DataContainer<T>, margin = 0) {
-        const target = this;
-
+    // copy occurs only on the overlapping global pos region of both containers
+    static copySourceOverTargetContainer(source: DataContainer, target: DataContainer) {
         const adjustOverlapMargins = (overlap: Box2) => {
             const margin = Math.min(target.margin, source.margin) || 0
             overlap.min.x -= target.bounds.min.x === overlap.min.x ? margin : 0
@@ -70,10 +41,12 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
                 let targetIndex = target.getIndex(targetLocalStartPos)
                 let sourceIndex = source.getIndex(sourceLocalStartPos)
                 for (let y = overlap.min.y; y < overlap.max.y; y++) {
-                    const sourceVal = source.rawData[sourceIndex++]
+                    const sourceVal = source.rawData[sourceIndex]
                     if (sourceVal) {
-                        target.rawData[targetIndex++] = sourceVal
+                        target.rawData[targetIndex] = sourceVal
                     }
+                    sourceIndex++
+                    targetIndex++
                 }
             }
         }
@@ -102,7 +75,7 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
 
     getIndex(localPos: Vector2 | Vector3) {
         localPos = localPos instanceof Vector2 ? localPos : asVect2(localPos)
-        return localPos.y * this.dimensions.x + localPos.x;
+        return localPos.x * this.dimensions.y + localPos.y;
     }
 
     // toLocalPos<T = Vector2 | Vector3>(pos: T): T

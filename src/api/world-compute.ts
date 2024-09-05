@@ -1,4 +1,4 @@
-import { Box2, Vector2, Vector3 } from 'three'
+import { Box2, Vector3 } from 'three'
 
 import { BoardContainer, EntityType, GroundPatch } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
@@ -101,7 +101,7 @@ export const computeBoardData = (boardPos: Vector3, boardParams: BoardParams) =>
  * Entity queries
  */
 
-export const queryEntities = (region: Box2 | Vector2) => {
+export const queryEntities = (region: Box2) => {
   const spawnablePlaces = WorldEntities.instance.queryDistributionMap(EntityType.TREE_APPLE)(region)
   const spawnedEntities = spawnablePlaces
     .map(entLoc => WorldEntities.instance.getEntityData(EntityType.TREE_PINE, asVect3(entLoc)))

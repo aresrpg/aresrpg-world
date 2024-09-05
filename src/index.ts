@@ -12,6 +12,8 @@ export { BlockMode, BlocksPatch } from './datacontainers/BlocksPatch'
 export { CacheContainer as WorldCacheContainer } from './datacontainers/GroundPatchesMap'
 export { ChunkFactory } from './tools/ChunkFactory'
 export { WorldComputeProxy } from './api/WorldComputeProxy'
+export { DataContainer } from './datacontainers/DataContainers'
+
 export * as WorldCompute from './api/world-compute'
 export * as WorldUtils from './common/utils'
 
