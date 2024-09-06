@@ -1,9 +1,9 @@
 import { Vector3 } from "three";
 import { asBox2 } from "../common/utils";
 import { BlockType, WorldCompute, WorldConf } from "../index";
-import { BlocksPatch } from "./BlocksPatch";
-import { EntityChunk } from "./EntityChunk";
-import { WorldChunk } from "./WorldChunk";
+import { BlocksPatch } from "../datacontainers/BlocksPatch";
+import { EntityChunk } from "../datacontainers/EntityChunk";
+import { WorldChunk } from "../datacontainers/WorldChunk";
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -48,6 +48,7 @@ export class GroundPatch extends BlocksPatch {
         }
     }
 
+    // TODO rename mergeWithEntities
     mergeEntityVoxels(entityChunk: EntityChunk, worldChunk: WorldChunk) {
         // return overlapping blocks between entity and container
         const patchBlocksIter = this.iterBlocksQuery(asBox2(entityChunk.chunkBox))

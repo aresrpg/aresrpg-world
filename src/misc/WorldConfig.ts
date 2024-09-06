@@ -14,6 +14,6 @@ export class WorldConf {
   static debug = {
     patchBordersHighlightColor: BlockType.NONE,
     boardStartPosHighlightColor: BlockType.NONE,
-    boardHolesHighlightColor: BlockType.NONE,
+    boardStartSideColoring: false
   }
 }

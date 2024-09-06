@@ -25,6 +25,7 @@ export enum BlockType {
   MUD,
   ROCK,
   SNOW,
+  BOARD_HOLE,
   DBG_LIGHT,
   DBG_DARK,
   DBG_PURPLE,
