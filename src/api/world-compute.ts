@@ -8,7 +8,7 @@ import { Block, EntityData, PatchKey } from '../common/types'
 import { asBox3, asVect2, asVect3 } from '../common/utils'
 import { WorldEntities } from '../procgen/WorldEntities'
 import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
-import { BoardParams } from '../datacontainers/BoardContainer'
+import { BoardParams } from '../feats/BoardContainer'
 
 /**
  * Individual blocks requests
@@ -90,10 +90,10 @@ export const bakeGroundPatch = (patchKeyOrBox: PatchKey | Box2) => {
 }
 
 // Battle board
-export const computeBoardData = (boardPos: Vector3, boardParams: BoardParams) => {
-  const boardMap = new BoardContainer(boardPos, boardParams)
+export const computeBoardData = (boardPos: Vector3, boardParams: BoardParams, lastBoardBounds: Box2) => {
+  const boardMap = new BoardContainer(boardPos, boardParams, lastBoardBounds)
   boardMap.fill() // fill with ground data
-  const boardData = boardMap.exportRawData()
+  const boardData = boardMap.toStub()
   return boardData
 }
 

@@ -1,7 +1,7 @@
 import { Box2, Vector3 } from 'three'
 
 import { Block, PatchKey } from '../common/types'
-import { BoardContainer, BoardParams } from '../datacontainers/BoardContainer'
+import { BoardContainer, BoardParams } from '../feats/BoardContainer'
 import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
 import { GroundPatch, WorldCompute, WorldUtils } from '../index'
 
@@ -120,12 +120,12 @@ export class WorldComputeProxy {
     return entityChunks
   }
 
-  async requestBattleBoard(boardCenter: Vector3, boardParams: BoardParams) {
+  async requestBattleBoard(boardCenter: Vector3, boardParams: BoardParams, lastBoardBounds: Box2) {
     const boardData = !this.worker ?
-      WorldCompute.computeBoardData(boardCenter, boardParams) :
+      WorldCompute.computeBoardData(boardCenter, boardParams, lastBoardBounds) :
       await this.workerCall(
         ComputeApiCall.BattleBoardCompute,
-        [boardCenter, boardParams],
+        [boardCenter, boardParams, lastBoardBounds],
       )
     const board = new BoardContainer().fromStub(boardData)
     return board
