@@ -2,7 +2,7 @@ import { Box2, Vector2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
 import { asVect3 } from '../common/utils'
-import { BlocksPatch, WorldComputeProxy, WorldConf } from '../index'
+import { GroundPatch, WorldComputeProxy, WorldConf } from '../index'
 
 import { PatchesMap } from './PatchesMap'
 
@@ -12,7 +12,7 @@ const getDefaultPatchDim = () =>
 /**
  * Blocks cache
  */
-export class CacheContainer extends PatchesMap<BlocksPatch> {
+export class CacheContainer extends PatchesMap<GroundPatch> {
   static cachePowRadius = 2
   static cacheSize = WorldConf.patchSize * 5
   // eslint-disable-next-line no-use-before-define
@@ -70,13 +70,18 @@ export class CacheContainer extends PatchesMap<BlocksPatch> {
 
   getOverlappingPatches(inputBounds: Box2) {
     const overlappingBounds = (bounds1: Box2, bounds2: Box2) =>
-      !(bounds1.max.x <= bounds2.min.x || bounds1.min.x >= bounds2.max.x || bounds1.max.y <= bounds2.min.y || bounds1.min.y >= bounds2.max.y);
+      !(
+        bounds1.max.x <= bounds2.min.x ||
+        bounds1.min.x >= bounds2.max.x ||
+        bounds1.max.y <= bounds2.min.y ||
+        bounds1.min.y >= bounds2.max.y
+      )
     return this.availablePatches.filter(patch =>
       overlappingBounds(patch.bounds, inputBounds),
     )
   }
 
-  getNearPatches(patch: BlocksPatch) {
+  getNearPatches(patch: GroundPatch) {
     const dim = patch.dimensions
     const patchCenter = patch.bounds.getCenter(new Vector2())
     const minX = patchCenter.clone().add(new Vector3(-dim.x, 0))
@@ -97,9 +102,9 @@ export class CacheContainer extends PatchesMap<BlocksPatch> {
       maxXminZ,
       maxXmaxZ,
     ]
-    const patchNeighbours: BlocksPatch[] = neighboursCenters
+    const patchNeighbours: GroundPatch[] = neighboursCenters
       .map(patchCenter => this.findPatch(asVect3(patchCenter)))
-      .filter(patch => patch) as BlocksPatch[]
+      .filter(patch => patch) as GroundPatch[]
     return patchNeighbours
   }
 

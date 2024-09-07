@@ -1,9 +1,8 @@
 import { PatchId } from '../common/types'
 import { asVect3, chunkBoxFromId, serializeChunkId } from '../common/utils'
-import { BlockMode } from '../datacontainers/BlocksPatch'
 import { EntityChunk } from '../datacontainers/EntityChunk'
 import { WorldChunk, WorldChunkStub } from '../datacontainers/WorldChunk'
-import { BlockType, GroundPatch, WorldConf } from '../index'
+import { BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
 
 export class ChunkFactory {
   // eslint-disable-next-line no-use-before-define
@@ -36,23 +35,28 @@ export class ChunkFactory {
     }
     return chunk_ids
   }
+
   /**
-    * chunkify or chunksAssembly
-     * Assembles world building blocks (GroundPatch, EntityChunk) together 
-     * to form final world chunk
-     */
+   * chunkify or chunksAssembly
+   * Assembles world building blocks (GroundPatch, EntityChunk) together
+   * to form final world chunk
+   */
   chunkify(patch: GroundPatch, patchEntities: EntityChunk[]) {
-    const patchChunkIds = patch.id ? ChunkFactory.default.genChunksIdsFromPatchId(patch.id) : []
+    const patchChunkIds = patch.id
+      ? ChunkFactory.default.genChunksIdsFromPatchId(patch.id)
+      : []
     const worldChunksStubs = patchChunkIds.map(chunkId => {
       const chunkBox = chunkBoxFromId(chunkId, WorldConf.patchSize)
       const worldChunk = new WorldChunk(chunkBox)
       // Ground pass
       patch.fillChunk(worldChunk)
       // Entities pass
-      patchEntities.forEach(entityChunk => patch.mergeEntityVoxels(entityChunk, worldChunk))
+      patchEntities.forEach(entityChunk =>
+        patch.mergeEntityVoxels(entityChunk, worldChunk),
+      )
       const worldChunkStub: WorldChunkStub = {
         key: serializeChunkId(chunkId),
-        data: worldChunk.chunkData
+        data: worldChunk.chunkData,
       }
       return worldChunkStub
     })

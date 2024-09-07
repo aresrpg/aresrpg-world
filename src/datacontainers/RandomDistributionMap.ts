@@ -5,6 +5,7 @@ import { ProcLayer } from '../procgen/ProcLayer'
 import { BlueNoisePattern } from '../procgen/BlueNoisePattern'
 import { EntityData } from '../common/types'
 import { WorldConf } from '../index'
+
 import { PatchesMapBase } from './DataContainers'
 // import { Adjacent2dPos } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
@@ -90,13 +91,13 @@ export class PseudoDistributionMap extends PatchesMapBase {
     for (const patchId of patchIds) {
       const offset = patchId.clone().multiply(this.patchDimensions)
       const localTestBox = testBox.clone().translate(offset.clone().negate())
-        // look for entities overlapping with input point or area
-        for (const relativePos of this.repeatedPattern.elements) {
-          if (overlapsTest(localTestBox, relativePos)) {
-            const entityPos = relativePos.clone().add(offset)
-            overlappingEntities.push(entityPos)
-          }
+      // look for entities overlapping with input point or area
+      for (const relativePos of this.repeatedPattern.elements) {
+        if (overlapsTest(localTestBox, relativePos)) {
+          const entityPos = relativePos.clone().add(offset)
+          overlappingEntities.push(entityPos)
         }
+      }
     }
     const spawnedEntities = overlappingEntities.filter(entityPos =>
       this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos)),

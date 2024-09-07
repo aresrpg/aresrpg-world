@@ -44,10 +44,6 @@ export class PatchesMap<T extends DataContainer<any>> extends PatchesMapBase {
     return Object.keys(this.patchLookup)
   }
 
-  get chunkIds() {
-    return this.availablePatches.map(patch => patch.chunkIds).flat()
-  }
-
   get availablePatches() {
     return Object.values(this.patchLookup).filter(val => val) as T[]
   }
@@ -59,7 +55,7 @@ export class PatchesMap<T extends DataContainer<any>> extends PatchesMapBase {
   }
 
   // autoFill(fillingVal=0){
-  //   this.patchKeys.forEach(key=>this.patchLookup[key] = new BlocksPatch(key))
+  //   this.patchKeys.forEach(key=>this.patchLookup[key] = new GroundPatch(key))
   //   this.availablePatches.forEach(patch=>patch.iterOverBlocks)
   // }
 
@@ -69,7 +65,7 @@ export class PatchesMap<T extends DataContainer<any>> extends PatchesMapBase {
       .filter(patch => this.patchLookup[patch.key] !== undefined)
       .forEach(patch => {
         this.patchLookup[patch.key] = cloneObjects
-          ? (patch.duplicate() as T)
+          ? patch // (patch.duplicate() as T)
           : patch
         // min.y = Math.min(patch.bbox.min.y, min.y)
         // max.y = Math.max(patch.bbox.max.y, max.y)
@@ -87,13 +83,6 @@ export class PatchesMap<T extends DataContainer<any>> extends PatchesMapBase {
       .filter(patchKey => this.patchLookup[patchKey] === undefined)
       .forEach(patchKey => (patchKeysDiff[patchKey] = false))
     return patchKeysDiff
-  }
-
-  toChunks() {
-    const exportedChunks = this.availablePatches
-      .map(patch => patch.toChunks())
-      .flat()
-    return exportedChunks
   }
 
   findPatch(blockPos: Vector3) {

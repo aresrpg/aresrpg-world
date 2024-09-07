@@ -1,24 +1,24 @@
 import { Box2, Vector3 } from 'three'
 
-import { BoardContainer, EntityType, GroundPatch } from '../index'
+import { EntityType, GroundPatch } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
-import { BlockData } from '../datacontainers/BlocksPatch'
 import { Block, EntityData, PatchKey } from '../common/types'
 import { asBox3, asVect2, asVect3 } from '../common/utils'
 import { WorldEntities } from '../procgen/WorldEntities'
 import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
-import { BoardParams } from '../feats/BoardContainer'
+import { BlockData } from '../datacontainers/GroundPatch'
+// import { BoardInputParams } from '../feats/BoardContainer'
 
 /**
  * Individual blocks requests
  */
 
 /**
- * 
- * @param blockPosBatch 
- * @param params 
- * @returns 
+ *
+ * @param blockPosBatch
+ * @param params
+ * @returns
  */
 export const computeBlocksBatch = (
   blockPosBatch: Vector3[],
@@ -31,14 +31,13 @@ export const computeBlocksBatch = (
     if (includeEntitiesBlocks) {
       const entityRange = new Box2().setFromPoints([asVect2(blockPos)])
       entityRange.max.addScalar(1)
-      const foundEntity = queryEntities(entityRange)
-        .map(entityData => {
-          const { min, max } = entityData.bbox
-          const custChunkBox = asBox3(entityRange)
-          custChunkBox.min.y = min.y
-          custChunkBox.max.y = max.y
-          return new EntityChunk(entityData, custChunkBox)
-        })[0]
+      const [foundEntity] = queryEntities(entityRange).map(entityData => {
+        const { min, max } = entityData.bbox
+        const custChunkBox = asBox3(entityRange)
+        custChunkBox.min.y = min.y
+        custChunkBox.max.y = max.y
+        return new EntityChunk(entityData, custChunkBox)
+      })
       const blocksBuffer = foundEntity?.voxelize()
       const lastBlockIndex = blocksBuffer?.findLastIndex(elt => elt)
       if (blocksBuffer && lastBlockIndex && lastBlockIndex >= 0) {
@@ -83,39 +82,60 @@ export const computeGroundBlock = (blockPos: Vector3) => {
  */
 
 // Ground
-export const bakeGroundPatch = (patchKeyOrBox: PatchKey | Box2) => {
-  const groundPatch = new GroundPatch(patchKeyOrBox)
-  groundPatch.fill()
+export const bakeGroundPatch = (boundsOrPatchKey: PatchKey | Box2) => {
+  const groundPatch = new GroundPatch(boundsOrPatchKey)
+  const { min, max } = groundPatch.bounds
+  const blocks = groundPatch.iterBlocksQuery(undefined, false)
+  const level = {
+    min: 512,
+    max: 0,
+  }
+  let blockIndex = 0
+  for (const block of blocks) {
+    const blockData = computeGroundBlock(block.pos)
+    level.min = Math.min(min.y, blockData.level)
+    level.max = Math.max(max.y, blockData.level)
+    groundPatch.writeBlockData(blockIndex, blockData)
+    blockIndex++
+  }
   return groundPatch
 }
 
 // Battle board
-export const computeBoardData = (boardPos: Vector3, boardParams: BoardParams, lastBoardBounds: Box2) => {
-  const boardMap = new BoardContainer(boardPos, boardParams, lastBoardBounds)
-  boardMap.fill() // fill with ground data
-  const boardData = boardMap.toStub()
-  return boardData
-}
+// export const computeBoardData = (boardPos: Vector3, boardParams: BoardInputParams, lastBoardBounds: Box2) => {
+//   const boardMap = new BoardContainer(boardPos, boardParams, lastBoardBounds)
+//   await boardMap.fillGroundData()
+//   await boardMap.populateEntities()
+//   const boardStub = boardMap.toStub()
+//   return boardStub
+// }
 
 /**
- * Entity queries
+ * Entity queries/baking
  */
 
-export const queryEntities = (region: Box2) => {
-  const spawnablePlaces = WorldEntities.instance.queryDistributionMap(EntityType.TREE_APPLE)(region)
+export const queryEntities = (queriedRegion: Box2) => {
+  const spawnablePlaces = WorldEntities.instance.queryDistributionMap(
+    EntityType.TREE_APPLE,
+  )(queriedRegion)
   const spawnedEntities = spawnablePlaces
-    .map(entLoc => WorldEntities.instance.getEntityData(EntityType.TREE_PINE, asVect3(entLoc)))
+    .map(entLoc =>
+      WorldEntities.instance.getEntityData(
+        EntityType.TREE_PINE,
+        asVect3(entLoc),
+      ),
+    )
     .filter(entity => confirmFinalizeEntity(entity))
   return spawnedEntities
 }
 
 /**
- * 
- * @param entityPos 
- * @returns 
+ *
+ * @param entityPos
+ * @returns
  */
 const confirmFinalizeEntity = (entity: EntityData) => {
-  const entityPos = entity.bbox.getCenter(new Vector3)
+  const entityPos = entity.bbox.getCenter(new Vector3())
   // use global coords in case entity center is from adjacent patch
   const rawVal = Heightmap.instance.getRawVal(entityPos)
   const mainBiome = Biome.instance.getMainBiome(entityPos)
@@ -127,12 +147,8 @@ const confirmFinalizeEntity = (entity: EntityData) => {
     entity.bbox.max.y += entity.bbox.min.y
     return entity
   }
-  return
+  return null
 }
-
-/**
- * Entities baking
- */
 
 export const queryBakeEntities = (queriedRange: Box2) => {
   const entitiesData = queryEntities(queriedRange)

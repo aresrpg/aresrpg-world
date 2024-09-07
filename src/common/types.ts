@@ -1,6 +1,6 @@
 import { Box3, Vector2, Vector3 } from 'three'
 
-import { BlockData } from '../datacontainers/BlocksPatch'
+import { BlockData } from '../datacontainers/GroundPatch'
 import { BiomeType, BlockType } from '../procgen/Biome'
 
 import { LinkedList } from './misc'

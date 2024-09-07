@@ -1,16 +1,17 @@
 import { Box2, Vector3 } from 'three'
 
-import { Block, PatchKey } from '../common/types'
-import { BoardContainer, BoardParams } from '../feats/BoardContainer'
+import { Block, EntityData, PatchKey } from '../common/types'
 import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
 import { GroundPatch, WorldCompute, WorldUtils } from '../index'
+import { parseThreeStub } from '../common/utils'
 
 export enum ComputeApiCall {
   PatchCompute = 'bakeGroundPatch',
   BlocksBatchCompute = 'computeBlocksBatch',
   OvergroundBufferCompute = 'computeOvergroundBuffer',
+  QueryEntities = 'queryEntities',
   BakeEntities = 'queryBakeEntities',
-  BattleBoardCompute = 'computeBoardData'
+  BattleBoardCompute = 'computeBoardData',
 }
 
 export type ComputeApiParams = Partial<{
@@ -24,7 +25,9 @@ export type ComputeApiParams = Partial<{
  * When provided all request are proxied to worker instead of main thread
  */
 export class WorldComputeProxy {
+  // eslint-disable-next-line no-use-before-define
   static singleton: WorldComputeProxy
+  // eslint-disable-next-line no-undef
   workerInstance: Worker | undefined
   resolvers: Record<number, any> = {}
   count = 0
@@ -38,6 +41,7 @@ export class WorldComputeProxy {
     return this.workerInstance
   }
 
+  // eslint-disable-next-line no-undef
   set worker(workerInstance: Worker | undefined) {
     this.workerInstance = workerInstance
     if (workerInstance) {
@@ -67,24 +71,25 @@ export class WorldComputeProxy {
       this.worker.postMessage({ id, apiName, args })
       return new Promise<any>(resolve => (this.resolvers[id] = resolve))
     }
-    return
+    return null
   }
 
   async computeBlocksBatch(
     blockPosBatch: Vector3[],
     params = { includeEntitiesBlocks: false },
   ) {
-    const blocks = !this.worker ?
-      WorldCompute.computeBlocksBatch(blockPosBatch, params) :
-      await this.workerCall(
-        ComputeApiCall.BlocksBatchCompute,
-        [blockPosBatch, params],
-      )?.then((blocksStubs: Block[]) =>
-        // parse worker's data to recreate original objects
-        blocksStubs.map(blockStub => {
-          blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
-          return blockStub
-        })) as Block[]
+    const blocks = !this.worker
+      ? WorldCompute.computeBlocksBatch(blockPosBatch, params)
+      : ((await this.workerCall(ComputeApiCall.BlocksBatchCompute, [
+          blockPosBatch,
+          params,
+        ])?.then((blocksStubs: Block[]) =>
+          // parse worker's data to recreate original objects
+          blocksStubs.map(blockStub => {
+            blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
+            return blockStub
+          }),
+        )) as Block[])
 
     return blocks
   }
@@ -96,38 +101,65 @@ export class WorldComputeProxy {
   //   }
   // }
 
+  async queryEntities(queriedRegion: Box2) {
+    const entitiesData = !this.worker
+      ? WorldCompute.queryEntities(queriedRegion)
+      : ((await this.workerCall(
+          ComputeApiCall.QueryEntities,
+          [queriedRegion], // [emptyPatch.bbox]
+        )?.then(stubs =>
+          stubs.map((stub: EntityData) => ({
+            ...stub,
+            bbox: parseThreeStub(stub.bbox),
+          })),
+        )) as EntityData[])
+    return entitiesData
+  }
+
   async *iterPatchCompute(patchKeysBatch: PatchKey[]) {
     for (const patchKey of patchKeysBatch) {
-      const patch = !this.worker ? WorldCompute.bakeGroundPatch(patchKey) :
-        await this.workerCall(
-          ComputeApiCall.PatchCompute,
-          [patchKey], // [emptyPatch.bbox]
-        )?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
+      const patch = !this.worker
+        ? WorldCompute.bakeGroundPatch(patchKey)
+        : ((await this.workerCall(
+            ComputeApiCall.PatchCompute,
+            [patchKey], // [emptyPatch.bbox]
+          )?.then(patchStub =>
+            new GroundPatch().fromStub(patchStub),
+          )) as GroundPatch)
 
       yield patch
     }
   }
 
-  async bakeEntities(queriedRange: Box2,) {
-    const entityChunks = !this.worker ?
-      WorldCompute.queryBakeEntities(queriedRange) :
-      await this.workerCall(
-        ComputeApiCall.BakeEntities,
-        [queriedRange],
-      )?.then((entityChunks: EntityChunkStub[]) =>
-        // parse worker's data to recreate original objects
-        entityChunks.map(chunkStub => EntityChunk.fromStub(chunkStub)))
+  async bakeGroundPatch(boundsOrPatchKey: Box2 | string) {
+    const patchStub = !this.worker
+      ? WorldCompute.bakeGroundPatch(boundsOrPatchKey)
+      : await this.workerCall(ComputeApiCall.PatchCompute, [boundsOrPatchKey])
+    // ?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
+
+    return patchStub
+  }
+
+  async bakeEntities(queriedRange: Box2) {
+    const entityChunks = !this.worker
+      ? WorldCompute.queryBakeEntities(queriedRange)
+      : await this.workerCall(ComputeApiCall.BakeEntities, [
+          queriedRange,
+        ])?.then((entityChunks: EntityChunkStub[]) =>
+          // parse worker's data to recreate original objects
+          entityChunks.map(chunkStub => EntityChunk.fromStub(chunkStub)),
+        )
     return entityChunks
   }
 
-  async requestBattleBoard(boardCenter: Vector3, boardParams: BoardParams, lastBoardBounds: Box2) {
-    const boardData = !this.worker ?
-      WorldCompute.computeBoardData(boardCenter, boardParams, lastBoardBounds) :
-      await this.workerCall(
-        ComputeApiCall.BattleBoardCompute,
-        [boardCenter, boardParams, lastBoardBounds],
-      )
-    const board = new BoardContainer().fromStub(boardData)
-    return board
-  }
+  // async requestBattleBoard(boardCenter: Vector3, boardParams: BoardParams, lastBoardBounds: Box2) {
+  //   const boardData = !this.worker ?
+  //     WorldCompute.computeBoardData(boardCenter, boardParams, lastBoardBounds) :
+  //     await this.workerCall(
+  //       ComputeApiCall.BattleBoardCompute,
+  //       [boardCenter, boardParams, lastBoardBounds],
+  //     )
+  //   const board = new BoardContainer().fromStub(boardData)
+  //   return board
+  // }
 }
