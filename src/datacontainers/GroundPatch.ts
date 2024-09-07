@@ -1,22 +1,19 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
+import { Block, PatchBlock, PatchKey } from '../common/types'
 import {
-  Block,
-  PatchBlock,
-  PatchKey,
-} from '../common/types'
-import {
-  patchBoxFromKey,
   parsePatchKey,
   parseThreeStub,
   asVect3,
   asVect2,
-  serializePatchId,
+  asBox2,
 } from '../common/utils'
+import { WorldComputeProxy, WorldConf } from '../index'
 import { BlockType } from '../procgen/Biome'
-import { WorldConf } from '../index'
 
 import { DataContainer } from './DataContainers'
+import { EntityChunk } from './EntityChunk'
+import { WorldChunk } from './WorldChunk'
 
 export enum BlockMode {
   DEFAULT,
@@ -43,63 +40,27 @@ const BlockDataBitAllocation = {
   mode: 3, // support for 8 different block mode
 }
 
-export type BlockIteratorRes = IteratorResult<Block, void>
-
-const getDefaultPatchDim = () =>
-  new Vector2(WorldConf.patchSize, WorldConf.patchSize)
-
-const parseBoundsOrKeyInput = (patchBoundsOrKey: Box2 | string) => {
-  const bounds = patchBoundsOrKey instanceof Box2
-    ? patchBoundsOrKey.clone()
-    : patchBoxFromKey(patchBoundsOrKey, getDefaultPatchDim())
-  return bounds
+// for debug use only
+const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
+  return WorldConf.debug.patchBordersHighlightColor &&
+    (localPos.x === 1 || localPos.z === 1)
+    ? WorldConf.debug.patchBordersHighlightColor
+    : blockType
 }
 
-export class BlocksPatch extends DataContainer<Uint32Array> {
-  rawData!: Uint32Array
-  margin = 0
-  key = ''  // needed for patch export
-  patchId: Vector2 | undefined
+export type BlockIteratorRes = IteratorResult<Block, void>
 
-  constructor(patchBoundsOrKey: Box2 | PatchKey = new Box2(), margin = 1) {
-    super(parseBoundsOrKeyInput(patchBoundsOrKey))
-    const patchId = typeof patchBoundsOrKey === "string" ? parsePatchKey(patchBoundsOrKey) : null
-    if (patchId) {
-      this.id = patchId
-    }
-    this.margin = margin
+export class GroundPatch extends DataContainer<Uint32Array> {
+  rawData: Uint32Array
+
+  constructor(boundsOrPatchKey: Box2 | PatchKey = new Box2(), margin = 1) {
+    super(boundsOrPatchKey, margin)
     this.rawData = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
   }
 
   override init(bounds: Box2): void {
     super.init(bounds)
     this.rawData = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
-  }
-
-  get id() {
-    return this.patchId
-  }
-
-  set id(patchId: Vector2 | undefined) {
-    this.patchId = patchId
-    this.key = serializePatchId(patchId)
-  }
-
-  get extendedBounds() {
-    return this.bounds.clone().expandByScalar(this.margin)
-  }
-
-  get extendedDims() {
-    return this.extendedBounds.getSize(new Vector2())
-  }
-
-  get localBox() {
-    const localBox = new Box2(new Vector2(0), this.dimensions.clone())
-    return localBox
-  }
-
-  get localExtendedBox() {
-    return this.localBox.expandByScalar(this.margin)
   }
 
   decodeBlockData(rawData: number): BlockData {
@@ -149,15 +110,18 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
     )
     return local
       ? new Box2(rangeMin, rangeMax)
-      : new Box2(asVect2(this.toLocalPos(asVect3(rangeMin))),
-        asVect2(this.toLocalPos(asVect3(rangeMax))))
+      : new Box2(
+          asVect2(this.toLocalPos(asVect3(rangeMin))),
+          asVect2(this.toLocalPos(asVect3(rangeMax))),
+        )
   }
 
   override getIndex(localPos: Vector2 | Vector3) {
     localPos = localPos instanceof Vector2 ? localPos : asVect2(localPos)
     return (
       (localPos.x + this.margin) * this.extendedDims.y +
-      localPos.y + this.margin
+      localPos.y +
+      this.margin
     )
   }
 
@@ -241,7 +205,7 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
     const { bounds, rawData } = this
     const patchStub: PatchStub = {
       bounds,
-      rawData
+      rawData,
     }
     if (this.key && this.key !== '') patchStub.key = this.key
     return patchStub
@@ -254,6 +218,53 @@ export class BlocksPatch extends DataContainer<Uint32Array> {
     this.bounds.min.y = patchStub.bounds.min.y
     this.bounds.max.y = patchStub.bounds.max.y
     return this
+  }
+
+  async fillGroundData() {
+    const stub: PatchStub = await WorldComputeProxy.instance.bakeGroundPatch(
+      this.key || this.bounds,
+    )
+    this.rawData.set(stub.rawData)
+    // this.bounds.min = min
+    // this.bounds.max = max
+    // this.bounds.getSize(this.dimensions)
+  }
+
+  fillChunk(worldChunk: WorldChunk) {
+    const blocks = this.iterBlocksQuery(undefined, false)
+    for (const block of blocks) {
+      const blockData = block.data
+      const blockType = block.data.type
+      const blockLocalPos = block.localPos as Vector3
+      blockLocalPos.x += 1
+      // block.localPos.y = patch.bbox.max.y
+      blockLocalPos.z += 1
+      blockData.type =
+        highlightPatchBorders(blockLocalPos, blockType) || blockType
+      worldChunk.writeBlock(blockLocalPos, blockData, block.buffer || [])
+    }
+  }
+
+  // TODO rename mergeWithEntities
+  mergeEntityVoxels(entityChunk: EntityChunk, worldChunk: WorldChunk) {
+    // return overlapping blocks between entity and container
+    const patchBlocksIter = this.iterBlocksQuery(asBox2(entityChunk.chunkBox))
+    // iter over entity blocks
+    for (const block of patchBlocksIter) {
+      // const buffer = entityChunk.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
+      let bufferData = entityChunk.getBlocksBuffer(block.pos)
+      const buffOffset = entityChunk.chunkBox.min.y - block.pos.y
+      const buffSrc = Math.abs(Math.min(0, buffOffset))
+      const buffDest = Math.max(buffOffset, 0)
+      bufferData = bufferData.copyWithin(buffDest, buffSrc)
+      bufferData =
+        buffOffset < 0
+          ? bufferData.fill(BlockType.NONE, buffOffset)
+          : bufferData
+      block.localPos.x += 1
+      block.localPos.z += 1
+      worldChunk.writeBlock(block.localPos, block.data, bufferData)
+    }
   }
 
   // getBlocksRow(zRowIndex: number) {

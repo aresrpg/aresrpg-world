@@ -1,4 +1,5 @@
 import { Box2, Box3, Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
+
 import { WorldConf } from '../index'
 
 import {
@@ -271,9 +272,13 @@ const parseBox3Stub = (stub: Box3) => {
 }
 
 const parseThreeStub = (stub: any) => {
-  return stub ? parseBox3Stub(stub) || parseVect3Stub(stub)
-    || parseBox2Stub(stub) || parseVect2Stub(stub)
-    || stub : stub
+  return stub
+    ? parseBox3Stub(stub) ||
+        parseVect3Stub(stub) ||
+        parseBox2Stub(stub) ||
+        parseVect2Stub(stub) ||
+        stub
+    : stub
 }
 
 const parsePatchKey = (patchKey: PatchKey) => {
