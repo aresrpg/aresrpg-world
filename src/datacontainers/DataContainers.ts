@@ -169,16 +169,16 @@ export class PatchesMapBase {
     this.patchDimensions = patchDim
   }
 
-  getPatchRange(bbox: Box2) {
-    const rangeMin = getPatchId(bbox.min, this.patchDimensions)
-    const rangeMax = patchUpperId(bbox.max, this.patchDimensions) // .addScalar(1)
+  getPatchRange(bounds: Box2) {
+    const rangeMin = getPatchId(bounds.min, this.patchDimensions)
+    const rangeMax = patchUpperId(bounds.max, this.patchDimensions) // .addScalar(1)
     const patchRange = new Box2(rangeMin, rangeMax)
     return patchRange
   }
 
-  getPatchIds(bbox: Box2) {
+  getPatchIds(bounds: Box2) {
     const patchIds = []
-    const patchRange = this.getPatchRange(bbox)
+    const patchRange = this.getPatchRange(bounds)
     // iter elements on computed range
     const { min, max } = patchRange
     for (let { x } = min; x <= max.x; x++) {
