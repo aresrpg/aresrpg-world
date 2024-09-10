@@ -1,4 +1,4 @@
-import { Box2, Vector3 } from 'three'
+import { Box2, Vector2 } from 'three'
 
 import { PatchKey } from '../common/types'
 
@@ -85,7 +85,7 @@ export class PatchesMap<T extends DataContainer<any>> extends PatchesMapBase {
     return patchKeysDiff
   }
 
-  findPatch(blockPos: Vector3) {
+  findPatch(blockPos: Vector2) {
     const res = this.availablePatches.find(patch =>
       patch.containsPoint(blockPos),
     )
