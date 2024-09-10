@@ -8,7 +8,6 @@ import {
   GroundPatch,
   ProcLayer,
   WorldComputeProxy,
-  WorldConf,
 } from '../index'
 import { PseudoDistributionMap } from '../datacontainers/RandomDistributionMap'
 import { findBoundingBox } from '../common/math'
@@ -117,9 +116,9 @@ export class BoardContainer extends GroundPatch {
     obstacles: EntityData[]
     holes: EntityData[]
   } = {
-    obstacles: [],
-    holes: [],
-  }
+      obstacles: [],
+      holes: [],
+    }
   // swapContainer!: GroundPatch //Uint32Array
 
   /**
@@ -165,8 +164,6 @@ export class BoardContainer extends GroundPatch {
   get overridingContainer() {
     if (!this.output.overridingContainer) {
       const overridingContainer = this.shapeBoard()
-      WorldConf.debug.boardSideSplitColoring &&
-        this.boardSplit(overridingContainer)
       // const boardEntitiesBlocks: Block[] = []
       const obstacles: Block[] = this.trimTrees(overridingContainer)
       const holes: Block[] = this.getHolesAreasBis(
@@ -215,18 +212,6 @@ export class BoardContainer extends GroundPatch {
     return false
   }
 
-  overrideBlockData(block: PatchBlock) {
-    const blockData = block.data
-
-    blockData.mode = BlockMode.BOARD_CONTAINER
-    blockData.level = this.input.center.y
-    blockData.type = this.isWithinBoard(block.pos)
-      ? blockData.type
-      : BlockType.DBG_ORANGE
-
-    return blockData
-  }
-
   *iterBoardBlock() {
     const blocks = this.iterBlocksQuery(undefined, true)
     // const blocks = this.iterPatchesBlocks()
@@ -254,10 +239,14 @@ export class BoardContainer extends GroundPatch {
     for (const block of boardBlocks) {
       // tempContainer.setBlock(boardBlock.pos, boardBlock.data, false)
       if (this.isWithinBoard(block.pos)) {
-        tempContainer.writeBlockData(block.index, this.overrideBlockData(block))
+        block.data.mode = BlockMode.BOARD_CONTAINER
+        block.data.level = center.y
+        // override block data
+        tempContainer.writeBlockData(block.index, block.data)
         finalBounds.expandByPoint(asVect2(block.pos))
       }
     }
+
     // copy content over final container
     const bounds = new Box2(asVect2(center), asVect2(center))
     bounds.expandByVector(new Vector2(1, 1).multiplyScalar(10))
@@ -285,57 +274,12 @@ export class BoardContainer extends GroundPatch {
     const entities = spawnLocs
       .map(loc => {
         const startPos = asVect3(loc)
-        const block = boardContainer.getBlock(startPos, false)
+        const block = boardContainer.getBlock(startPos)
         return block
       })
       .filter(block => block && this.isWithinBoard(block.pos)) as PatchBlock[]
     // TODO prune entities spawning over existing entities
     return entities
-  }
-
-  // Moved to SDK
-  // genStartPositions(boardContainer: GroundPatch, otherEntities: PatchBlock[]) {
-  //   const startPositions = this.getBoardEntities(boardContainer, BoardContainer.startPosDistribution)
-  //   WorldConf.debug.boardStartPosHighlightColor &&
-  //     startPositions.forEach(block => {
-  //       block.data.type = WorldConf.debug.boardStartPosHighlightColor
-  //       block.data.mode = BlockMode.DEFAULT
-  //       // this.swapContainer.writeBlockData(block.index, block.data)
-  //       boardContainer.setBlock(block.pos, block.data)
-  //     })
-  //   return startPositions
-  // }
-
-  boardSplit(boardContainer: GroundPatch) {
-    const { center } = this.input
-    const boardBlocks = boardContainer.iterBlocksQuery(undefined, false)
-    const dims = boardContainer.bounds.getSize(new Vector2())
-    const ratio = dims.y / dims.x
-    const projectionAxis = ratio > 1 ? new Vector3(dims.x, -dims.y) : dims // ratio > 1 ? new Vector2(0, 1) : new Vector2(1, 0) //dims.clone().normalize() //ratio > 1 ? new Vector2(0, 1) : new Vector2(1, 0)
-    const check = (pos: Vector3) => {
-      const diff = asVect2(pos.clone().sub(center))
-      // const projection = pos2.dot(projectionAxis)X
-      const projection = diff.dot(projectionAxis)
-      return projection < 0
-      // return ratio < 1 ? pos.z < center.z : pos.x < center.x
-      // if (Math.abs(ratio - 1) < 0.15){
-      //   console.log(`board dim ratio: ${ratio}`)
-      //   return projection < 0
-      // }
-      // else return ratio < 1 ? pos.z < center.z : pos.x < center.x
-    }
-    for (const block of boardBlocks) {
-      if (this.isWithinBoard(block.pos)) {
-        block.data.type = check(block.pos)
-          ? BlockType.DBG_ORANGE
-          : BlockType.DBG_GREEN
-        boardContainer.writeBlockData(block.index, block.data)
-      }
-      // else {
-      //   block.data.type = BlockType.DBG_LIGHT
-      //   boardContainer.writeBlockData(block.index, block.data)
-      // }
-    }
   }
 
   isGroundHole(testPos: Vector3) {
@@ -403,7 +347,7 @@ export class BoardContainer extends GroundPatch {
     const trunks = this.entities.obstacles
       .map(entity => {
         const entityCenter = entity.bbox.getCenter(new Vector3())
-        const entityCenterBlock = boardContainer.getBlock(entityCenter, false)
+        const entityCenterBlock = boardContainer.getBlock(entityCenter)
         entityCenter.y = entity.bbox.min.y
         return entityCenterBlock
       })

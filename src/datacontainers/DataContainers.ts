@@ -91,7 +91,7 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
       adjustOverlapMargins(overlap)
       for (let { x } = overlap.min; x < overlap.max.x; x++) {
         // const globalStartPos = new Vector3(x, 0, overlap.min.y)
-        const globalStartPos = new Vector3(x, 0, overlap.min.y)
+        const globalStartPos = new Vector2(x, overlap.min.y)
         const targetLocalStartPos = target.toLocalPos(globalStartPos)
         const sourceLocalStartPos = source.toLocalPos(globalStartPos)
         let targetIndex = target.getIndex(targetLocalStartPos)
@@ -108,8 +108,7 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
     }
   }
 
-  inLocalRange(localPos: Vector3 | Vector2) {
-    localPos = localPos instanceof Vector2 ? localPos : asVect2(localPos)
+  inLocalRange(localPos: Vector2) {
     return (
       localPos.x >= 0 &&
       localPos.x < this.dimensions.x &&
@@ -118,8 +117,7 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
     )
   }
 
-  inGlobalRange(globalPos: Vector3 | Vector2) {
-    globalPos = globalPos instanceof Vector2 ? globalPos : asVect2(globalPos)
+  inWorldRange(globalPos: Vector2) {
     return (
       globalPos.x >= this.bounds.min.x &&
       globalPos.x < this.bounds.max.x &&
@@ -128,26 +126,31 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
     )
   }
 
-  getIndex(localPos: Vector2 | Vector3) {
-    localPos = localPos instanceof Vector2 ? localPos : asVect2(localPos)
+  getIndex(localPos: Vector2) {
     return localPos.x * this.dimensions.y + localPos.y
+  }
+
+  getLocalPosFromIndex(index: number) {
+    const y = index % this.dimensions.y
+    const x = Math.floor(index / this.dimensions.y)
+    return new Vector2(x, y)
   }
 
   // toLocalPos<T = Vector2 | Vector3>(pos: T): T
   // toGlobalPos<T = Vector2 | Vector3>(pos: T): T
 
-  toLocalPos(pos: Vector3) {
-    const origin = asVect3(this.bounds.min.clone())
+  toLocalPos(pos: Vector2) {
+    const origin = this.bounds.min.clone()
     return pos.clone().sub(origin)
   }
 
-  toGlobalPos(pos: Vector3) {
-    const origin = asVect3(this.bounds.min.clone())
+  toWorldPos(pos: Vector2) {
+    const origin = this.bounds.min.clone()
     return origin.add(pos)
   }
 
-  containsPoint(pos: Vector3) {
-    return this.bounds.containsPoint(asVect2(pos))
+  containsPoint(pos: Vector2) {
+    return this.bounds.containsPoint(pos)
     // return (
     //   blockPos.x >= this.bounds.min.x &&
     //   blockPos.z >= this.bounds.min.z &&
@@ -200,5 +203,5 @@ export class PatchesMapBase {
   /**
    * Merges all patches as single data container
    */
-  asMergedContainer() {}
+  asMergedContainer() { }
 }
