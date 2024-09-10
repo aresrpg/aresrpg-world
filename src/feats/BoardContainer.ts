@@ -4,12 +4,10 @@ import { Block, EntityData, PatchBlock } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import {
   BlockType,
-  BoardUtils,
   DataContainer,
   GroundPatch,
   ProcLayer,
   WorldComputeProxy,
-  WorldConf,
 } from '../index'
 import { PseudoDistributionMap } from '../datacontainers/RandomDistributionMap'
 import { findBoundingBox } from '../common/math'
@@ -396,30 +394,7 @@ export class BoardContainer extends GroundPatch {
       this.output.data.push(boardBlock)
     }
     const { origin, size, data } = this.output
-    const board: BoardOutputData = { origin, size, data }
-    if (WorldConf.debug.board.splitSidesColoring) {
-      const boardSides = BoardUtils.splitBoard(board)
-      // boardSides.first.forEach(blockPos => {
-      //   const block = this.getBlock(blockPos)
-      //   if (block) {
-      //     block.data.type = BlockType.DBG_ORANGE
-      //     this.setBlock(block.pos, block.data)
-      //   }
-      // })
-      let index = 0
-      board.data.forEach(boardBlock => {
-        if (boardBlock.type) {
-          const blockData = this.overridingContainer.readBlockData(index)
-          const blockPos = this.overridingContainer.getLocalPosFromIndex(index)
-          if (blockData) {
-            blockData.type = BlockType.DBG_ORANGE
-            this.setBlock(blockPos, blockData, true)
-          }
-        }
-        index++
-      })
-      console.log(boardSides)
-    }
-    return board
+    const boardOutputData: BoardOutputData = { origin, size, data }
+    return boardOutputData
   }
 }

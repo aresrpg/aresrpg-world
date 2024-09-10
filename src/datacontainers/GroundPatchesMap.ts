@@ -1,7 +1,6 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
 import { PatchKey } from '../common/types'
-import { asVect3 } from '../common/utils'
 import { GroundPatch, WorldComputeProxy, WorldConf } from '../index'
 
 import { PatchesMap } from './PatchesMap'
@@ -103,7 +102,7 @@ export class CacheContainer extends PatchesMap<GroundPatch> {
       maxXmaxZ,
     ]
     const patchNeighbours: GroundPatch[] = neighboursCenters
-      .map(patchCenter => this.findPatch(asVect3(patchCenter)))
+      .map(patchCenter => this.findPatch(patchCenter))
       .filter(patch => patch) as GroundPatch[]
     return patchNeighbours
   }
