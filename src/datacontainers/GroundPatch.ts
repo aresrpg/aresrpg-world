@@ -42,9 +42,9 @@ const BlockDataBitAllocation = {
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
-  return WorldConf.debug.patchBordersHighlightColor &&
+  return WorldConf.debug.patch.borderHighlightColor &&
     (localPos.x === 1 || localPos.z === 1)
-    ? WorldConf.debug.patchBordersHighlightColor
+    ? WorldConf.debug.patch.borderHighlightColor
     : blockType
 }
 
@@ -111,9 +111,9 @@ export class GroundPatch extends DataContainer<Uint32Array> {
     return local
       ? new Box2(rangeMin, rangeMax)
       : new Box2(
-          asVect2(this.toLocalPos(asVect3(rangeMin))),
-          asVect2(this.toLocalPos(asVect3(rangeMax))),
-        )
+        this.toLocalPos(rangeMin),
+        this.toLocalPos(rangeMax),
+      )
   }
 
   override getIndex(localPos: Vector2 | Vector3) {
@@ -125,34 +125,34 @@ export class GroundPatch extends DataContainer<Uint32Array> {
     )
   }
 
-  getBlock(inputPos: Vector3, isLocalPos = true) {
+  getBlock(inputPos: Vector2 | Vector3, isLocalPos = false) {
+    inputPos = inputPos instanceof Vector2 ? inputPos : asVect2(inputPos)
     const isWithingRange = isLocalPos
       ? this.inLocalRange(inputPos)
-      : this.inGlobalRange(inputPos)
+      : this.inWorldRange(inputPos)
     let block: PatchBlock | undefined
     if (isWithingRange) {
       const localPos = isLocalPos ? inputPos : this.toLocalPos(inputPos)
-      const pos = isLocalPos ? this.toGlobalPos(inputPos) : inputPos
+      const pos = isLocalPos ? this.toWorldPos(inputPos) : inputPos
       const blockIndex = this.getIndex(localPos)
       const blockData = this.readBlockData(blockIndex) || BlockType.NONE
-      localPos.y = blockData.level
-      pos.y = blockData.level
       block = {
         index: blockIndex,
-        pos: this.toGlobalPos(localPos),
-        localPos,
+        pos: asVect3(pos, blockData.level),
+        localPos: asVect3(localPos, blockData.level),
         data: blockData,
       }
     }
     return block
   }
 
-  setBlock(pos: Vector3, blockData: BlockData, isLocalPos = false) {
+  setBlock(inputPos: Vector2 | Vector3, blockData: BlockData, isLocalPos = false) {
+    inputPos = inputPos instanceof Vector2 ? inputPos : asVect2(inputPos)
     const isWithingPatch = isLocalPos
-      ? this.inLocalRange(pos)
-      : this.inGlobalRange(pos)
+      ? this.inLocalRange(inputPos)
+      : this.inWorldRange(inputPos)
     if (isWithingPatch) {
-      const localPos = isLocalPos ? pos : this.toLocalPos(pos)
+      const localPos = isLocalPos ? inputPos : this.toLocalPos(inputPos)
       const blockIndex = this.getIndex(localPos)
       this.writeBlockData(blockIndex, blockData)
     }
@@ -172,26 +172,25 @@ export class GroundPatch extends DataContainer<Uint32Array> {
       ? this.adjustRangeBox(rangeBox)
       : this.localExtendedBox
 
-    const isMarginBlock = ({ x, z }: { x: number; z: number }) =>
+    const isMarginBlock = ({ x, y }: { x: number; y: number }) =>
       !rangeBox &&
       this.margin > 0 &&
       (x === localBbox.min.x ||
         x === localBbox.max.x - 1 ||
-        z === localBbox.min.y ||
-        z === localBbox.max.y - 1)
+        y === localBbox.min.y ||
+        y === localBbox.max.y - 1)
 
     let index = 0
     for (let { x } = localBbox.min; x < localBbox.max.x; x++) {
       for (let { y } = localBbox.min; y < localBbox.max.y; y++) {
-        const localPos = new Vector3(x, 0, y)
+        const localPos = new Vector2(x, y)
         if (!skipMargin || !isMarginBlock(localPos)) {
           index = rangeBox ? this.getIndex(localPos) : index
           const blockData = this.readBlockData(index) || BlockType.NONE
-          localPos.y = blockData.level
           const block: PatchBlock = {
             index,
-            pos: this.toGlobalPos(localPos),
-            localPos,
+            pos: asVect3(this.toWorldPos(localPos), blockData.level),
+            localPos: asVect3(localPos, blockData.level),
             data: blockData,
           }
           yield block

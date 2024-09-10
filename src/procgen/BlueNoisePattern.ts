@@ -69,7 +69,7 @@ export class BlueNoisePattern {
     return pos.clone().sub(this.getPatchOrigin(patchId))
   }
 
-  toPatchGlobalPos(relativePos: Vector2, patchId: Vector2) {
+  toPatchWorldPos(relativePos: Vector2, patchId: Vector2) {
     return relativePos.clone().add(this.getPatchOrigin(patchId))
   }
 
@@ -77,7 +77,7 @@ export class BlueNoisePattern {
   *iterPatchElements(patchOffset: Vector2) {
     // relative to global pos conv
     for (const relativePos of this.elements) {
-      const pos = this.toPatchGlobalPos(relativePos, patchOffset)
+      const pos = this.toPatchWorldPos(relativePos, patchOffset)
       yield pos
     }
   }
