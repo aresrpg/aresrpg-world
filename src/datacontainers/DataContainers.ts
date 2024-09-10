@@ -1,9 +1,7 @@
-import { Vector2, Box2, Vector3 } from 'three'
+import { Vector2, Box2 } from 'three'
 
 import { PatchKey } from '../common/types'
 import {
-  asVect2,
-  asVect3,
   getPatchId,
   parsePatchKey,
   patchBoxFromKey,
@@ -203,5 +201,5 @@ export class PatchesMapBase {
   /**
    * Merges all patches as single data container
    */
-  asMergedContainer() { }
+  asMergedContainer() {}
 }

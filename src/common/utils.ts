@@ -72,7 +72,7 @@ const directNeighbours2D = [
   Adjacent2dPos.left,
   Adjacent2dPos.right,
   Adjacent2dPos.top,
-  Adjacent2dPos.bottom
+  Adjacent2dPos.bottom,
 ]
 
 /**
@@ -176,16 +176,24 @@ const getAdjacent3dCoords = (pos: Vector3, dir: Adjacent3dPos): Vector3 => {
   }
 }
 
-const getNeighbours2D = (pos: Vector2, directNeighboursOnly = false): Vector2[] => {
-  const neighbours = directNeighboursOnly? directNeighbours2D :  Object.values(Adjacent2dPos)
-  .filter(v => !isNaN(Number(v)))
+const getNeighbours2D = (
+  pos: Vector2,
+  directNeighboursOnly = false,
+): Vector2[] => {
+  const neighbours = directNeighboursOnly
+    ? directNeighbours2D
+    : Object.values(Adjacent2dPos).filter(v => !isNaN(Number(v)))
   return neighbours.map(type => getAdjacent2dCoords(pos, type as number))
 }
 
-const getNeighbours3D = (pos: Vector3, directNeighboursOnly = false): Vector3[] => {
-  const neighbours = directNeighboursOnly ? directNeighbours3D : Object.values(Adjacent3dPos)
-    .filter(v => !isNaN(Number(v)))
-  return  neighbours.map(type => getAdjacent3dCoords(pos, type as number))
+const getNeighbours3D = (
+  pos: Vector3,
+  directNeighboursOnly = false,
+): Vector3[] => {
+  const neighbours = directNeighboursOnly
+    ? directNeighbours3D
+    : Object.values(Adjacent3dPos).filter(v => !isNaN(Number(v)))
+  return neighbours.map(type => getAdjacent3dCoords(pos, type as number))
 }
 
 const getPatchPoints = (patchBBox: Box3, clearY = true) => {
@@ -284,10 +292,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-    parseVect3Stub(stub) ||
-    parseBox2Stub(stub) ||
-    parseVect2Stub(stub) ||
-    stub
+        parseVect3Stub(stub) ||
+        parseBox2Stub(stub) ||
+        parseVect2Stub(stub) ||
+        stub
     : stub
 }
 

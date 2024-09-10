@@ -110,10 +110,7 @@ export class GroundPatch extends DataContainer<Uint32Array> {
     )
     return local
       ? new Box2(rangeMin, rangeMax)
-      : new Box2(
-        this.toLocalPos(rangeMin),
-        this.toLocalPos(rangeMax),
-      )
+      : new Box2(this.toLocalPos(rangeMin), this.toLocalPos(rangeMax))
   }
 
   override getIndex(localPos: Vector2 | Vector3) {
@@ -146,7 +143,11 @@ export class GroundPatch extends DataContainer<Uint32Array> {
     return block
   }
 
-  setBlock(inputPos: Vector2 | Vector3, blockData: BlockData, isLocalPos = false) {
+  setBlock(
+    inputPos: Vector2 | Vector3,
+    blockData: BlockData,
+    isLocalPos = false,
+  ) {
     inputPos = inputPos instanceof Vector2 ? inputPos : asVect2(inputPos)
     const isWithingPatch = isLocalPos
       ? this.inLocalRange(inputPos)

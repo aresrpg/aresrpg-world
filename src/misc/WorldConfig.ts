@@ -15,11 +15,11 @@ export class WorldConf {
   static defaultDistMapPeriod = 4 * WorldConf.patchSize
   static debug = {
     patch: {
-      borderHighlightColor: BlockType.NONE
+      borderHighlightColor: BlockType.NONE,
     },
     board: {
       startPosHighlightColor: BlockType.NONE,
-      splitSidesColoring: false
-    }
+      splitSidesColoring: false,
+    },
   }
 }
