@@ -18,8 +18,8 @@ export class PatchesMap<T extends DataContainer<any>> extends PatchesMapBase {
     this.bbox = bbox
     this.patchLookup = {}
     const { min, max } = this.getPatchRange()
-    for (let { x } = min; x < max.x; x++) {
-      for (let { y } = min; y < max.y; y++) {
+    for (let { y } = min; y < max.y; y++) {
+      for (let { x } = min; x < max.x; x++) {
         const patchKey = `${x}:${y}`
         // if (patchBboxFilter(patchBox)) {
         this.patchLookup[patchKey] = null

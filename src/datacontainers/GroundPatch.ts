@@ -113,8 +113,8 @@ export class GroundPatch extends DataContainer<Uint32Array> {
   override getIndex(localPos: Vector2 | Vector3) {
     localPos = localPos instanceof Vector2 ? localPos : asVect2(localPos)
     return (
-      (localPos.x + this.margin) * this.extendedDims.y +
-      localPos.y +
+      (localPos.y + this.margin) * this.extendedDims.x +
+      localPos.x +
       this.margin
     )
   }
@@ -179,8 +179,8 @@ export class GroundPatch extends DataContainer<Uint32Array> {
         y === localBbox.max.y - 1)
 
     let index = 0
-    for (let { x } = localBbox.min; x < localBbox.max.x; x++) {
-      for (let { y } = localBbox.min; y < localBbox.max.y; y++) {
+    for (let { y } = localBbox.min; y < localBbox.max.y; y++) {
+      for (let { x } = localBbox.min; x < localBbox.max.x; x++) {
         const localPos = new Vector2(x, y)
         if (!skipMargin || !isMarginBlock(localPos)) {
           index = rangeBox ? this.getIndex(localPos) : index

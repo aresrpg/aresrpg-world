@@ -87,14 +87,14 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
     if (source.bounds.intersectsBox(target.bounds)) {
       const overlap = target.bounds.clone().intersect(source.bounds)
       adjustOverlapMargins(overlap)
-      for (let { x } = overlap.min; x < overlap.max.x; x++) {
+      for (let { y } = overlap.min; y < overlap.max.y; y++) {
         // const globalStartPos = new Vector3(x, 0, overlap.min.y)
-        const globalStartPos = new Vector2(x, overlap.min.y)
+        const globalStartPos = new Vector2(overlap.min.x, y)
         const targetLocalStartPos = target.toLocalPos(globalStartPos)
         const sourceLocalStartPos = source.toLocalPos(globalStartPos)
         let targetIndex = target.getIndex(targetLocalStartPos)
         let sourceIndex = source.getIndex(sourceLocalStartPos)
-        for (let { y } = overlap.min; y < overlap.max.y; y++) {
+        for (let { x } = overlap.min; x < overlap.max.x; x++) {
           const sourceVal = source.rawData[sourceIndex]
           if (sourceVal) {
             target.rawData[targetIndex] = sourceVal
@@ -125,12 +125,12 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
   }
 
   getIndex(localPos: Vector2) {
-    return localPos.x * this.dimensions.y + localPos.y
+    return localPos.y * this.dimensions.x + localPos.x
   }
 
   getLocalPosFromIndex(index: number) {
-    const y = index % this.dimensions.y
-    const x = Math.floor(index / this.dimensions.y)
+    const y = Math.floor(index / this.dimensions.y)
+    const x = index % this.dimensions.x
     return new Vector2(x, y)
   }
 
@@ -182,8 +182,8 @@ export class PatchesMapBase {
     const patchRange = this.getPatchRange(bounds)
     // iter elements on computed range
     const { min, max } = patchRange
-    for (let { x } = min; x <= max.x; x++) {
-      for (let { y } = min; y <= max.y; y++) {
+    for (let { y } = min; y <= max.y; y++) {
+      for (let { x } = min; x <= max.x; x++) {
         patchIds.push(new Vector2(x, y))
       }
     }
@@ -201,5 +201,5 @@ export class PatchesMapBase {
   /**
    * Merges all patches as single data container
    */
-  asMergedContainer() {}
+  asMergedContainer() { }
 }
