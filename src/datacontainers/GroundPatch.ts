@@ -40,14 +40,6 @@ const BlockDataBitAllocation = {
   mode: 3, // support for 8 different block mode
 }
 
-// for debug use only
-const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
-  return WorldConf.debug.patch.borderHighlightColor &&
-    (localPos.x === 1 || localPos.z === 1)
-    ? WorldConf.debug.patch.borderHighlightColor
-    : blockType
-}
-
 export type BlockIteratorRes = IteratorResult<Block, void>
 
 export class GroundPatch extends DataContainer<Uint32Array> {
@@ -61,6 +53,12 @@ export class GroundPatch extends DataContainer<Uint32Array> {
   override init(bounds: Box2): void {
     super.init(bounds)
     this.rawData = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
+  }
+
+  duplicate() {
+    const copy = new GroundPatch(this.key || this.bounds, this.margin)
+    copy.rawData.set(this.rawData)
+    return copy
   }
 
   decodeBlockData(rawData: number): BlockData {
@@ -96,9 +94,8 @@ export class GroundPatch extends DataContainer<Uint32Array> {
     this.rawData[blockIndex] = this.encodeBlockData(blockData)
   }
 
-  adjustRangeBox(rangeBox: Box2 | Vector2, local = false) {
-    rangeBox =
-      rangeBox instanceof Box2 ? rangeBox : new Box2(rangeBox, rangeBox)
+  adjustRangeBox(input: Box2 | Vector2, local = false) {
+    const rangeBox = input instanceof Box2 ? input : new Box2(input, input)
     const { min, max } = local ? this.localBox : this.bounds
     const rangeMin = new Vector2(
       Math.max(Math.floor(rangeBox.min.x), min.x),
@@ -228,43 +225,6 @@ export class GroundPatch extends DataContainer<Uint32Array> {
     // this.bounds.min = min
     // this.bounds.max = max
     // this.bounds.getSize(this.dimensions)
-  }
-
-  fillChunk(worldChunk: WorldChunk) {
-    const blocks = this.iterBlocksQuery(undefined, false)
-    for (const block of blocks) {
-      const blockData = block.data
-      const blockType = block.data.type
-      const blockLocalPos = block.localPos as Vector3
-      blockLocalPos.x += 1
-      // block.localPos.y = patch.bbox.max.y
-      blockLocalPos.z += 1
-      blockData.type =
-        highlightPatchBorders(blockLocalPos, blockType) || blockType
-      worldChunk.writeBlock(blockLocalPos, blockData, block.buffer || [])
-    }
-  }
-
-  // TODO rename mergeWithEntities
-  mergeEntityVoxels(entityChunk: EntityChunk, worldChunk: WorldChunk) {
-    // return overlapping blocks between entity and container
-    const patchBlocksIter = this.iterBlocksQuery(asBox2(entityChunk.chunkBox))
-    // iter over entity blocks
-    for (const block of patchBlocksIter) {
-      // const buffer = entityChunk.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
-      let bufferData = entityChunk.getBlocksBuffer(block.pos)
-      const buffOffset = entityChunk.chunkBox.min.y - block.pos.y
-      const buffSrc = Math.abs(Math.min(0, buffOffset))
-      const buffDest = Math.max(buffOffset, 0)
-      bufferData = bufferData.copyWithin(buffDest, buffSrc)
-      bufferData =
-        buffOffset < 0
-          ? bufferData.fill(BlockType.NONE, buffOffset)
-          : bufferData
-      block.localPos.x += 1
-      block.localPos.z += 1
-      worldChunk.writeBlock(block.localPos, block.data, bufferData)
-    }
   }
 
   // getBlocksRow(zRowIndex: number) {

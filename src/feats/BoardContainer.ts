@@ -1,6 +1,6 @@
 import { Box2, Vector2, Vector3, Vector3Like } from 'three'
 
-import { Block, EntityData, PatchBlock } from '../common/types'
+import { Block, PatchBlock } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import {
   BlockType,
@@ -11,7 +11,7 @@ import {
 } from '../index'
 import { PseudoDistributionMap } from '../datacontainers/RandomDistributionMap'
 import { findBoundingBox } from '../common/math'
-import { BlockMode, PatchStub } from '../datacontainers/GroundPatch'
+import { BlockData, BlockMode } from '../datacontainers/GroundPatch'
 
 export enum BlockCategory {
   FLAT = 0,
@@ -49,23 +49,7 @@ const blockTypeCategoryMapper = (blockType: BlockType) => {
   }
 }
 
-export type BoardStub = PatchStub & {
-  input: BoardInput
-  output: BoardOutputData
-}
-
-/**
- * Board entities distribution conf
- */
-// Start positions
-// const startPosDistParams = {
-//   aleaSeed: 'boardStartPos',
-//   minDistance: 10,
-//   maxDistance: 16,
-//   tries: 20,
-// }
-
-// Holes
+// Board hole entities distribution conf
 const holesDistParams = {
   aleaSeed: 'boardHoles',
   minDistance: 10,
@@ -79,121 +63,37 @@ const holesDistParams = {
  * - override original blocks and adjust external bounds
  * - add board entities (trimmed trees, holes)
  *
- * Board data export format:
- * - bounds
- * - data as array of block's type
  */
 export class BoardContainer extends GroundPatch {
-  // static prevContainerBounds: Box2 | undefined
-  // static singleton: BoardContainer
-  // static get instance(){
-  //   return this.singleton
-  // }
   static holesDistribution = new PseudoDistributionMap(
     undefined,
     holesDistParams,
   )
 
   static holesMapDistribution = new ProcLayer('holesMap')
-  // static startPosDistribution = new PseudoDistributionMap(undefined, startPosDistParams)
 
-  // board input params
-  input: BoardInput = {
-    center: new Vector3(),
-    radius: 0,
-    thickness: 0,
-  }
+  center
+  radius
+  thickness
 
-  // board data output
-  output: BoardOutputData & { overridingContainer: GroundPatch | undefined } = {
-    origin: new Vector3(),
-    size: new Vector2(),
-    data: [],
-    overridingContainer: undefined,
-  }
-
-  entities: {
-    obstacles: EntityData[]
-    holes: EntityData[]
-  } = {
-    obstacles: [],
-    holes: [],
-  }
-  // swapContainer!: GroundPatch //Uint32Array
-
-  /**
-   *
-   * @param center
-   * @param radius
-   * @param previousBounds  // used for handling previous board removal
-   * @returns
-   */
-  static getInitialBounds = (
-    center: Vector3,
-    radius: number,
-    previousBounds?: Box2,
-  ) => {
-    // const previousBounds = BoardContainer.prevContainerBounds
-    const defaultBounds = new Box2().setFromCenterAndSize(
-      asVect2(center),
-      new Vector2(radius, radius).multiplyScalar(2),
-    )
-    return previousBounds ? defaultBounds.union(previousBounds) : defaultBounds
-  }
-
-  constructor(
-    boardCenter = new Vector3(),
-    boardParams?: BoardInputParams,
-    lastBoardBounds?: Box2,
-  ) {
-    super(
-      BoardContainer.getInitialBounds(
-        boardCenter,
-        boardParams?.radius || 0,
-        lastBoardBounds,
-      ),
-    )
-    const { input } = this
-    input.center = boardCenter.clone().floor()
-    input.radius = boardParams?.radius || input.radius
-    input.thickness = boardParams?.thickness || input.thickness
-
+  constructor(boardCenter = new Vector3(), boardParams?: BoardInputParams) {
+    super()
+    this.center = boardCenter.clone().floor() || new Vector3()
+    this.radius = boardParams?.radius || 0
+    this.thickness = boardParams?.thickness || 0
     BoardContainer.holesMapDistribution.sampling.periodicity = 0.25
   }
 
-  get overridingContainer() {
-    if (!this.output.overridingContainer) {
-      const overridingContainer = this.shapeBoard()
-      // const boardEntitiesBlocks: Block[] = []
-      const obstacles: Block[] = this.trimTrees(overridingContainer)
-      const holes: Block[] = this.getHolesAreasBis(
-        overridingContainer,
-        obstacles,
-      )
-      holes.forEach(block => this.digGroundHole(block, overridingContainer))
-      this.output.origin = asVect3(
-        overridingContainer.bounds.min,
-        this.input.center.y,
-      )
-      overridingContainer.bounds.getSize(this.output.size)
-      this.output.overridingContainer = overridingContainer
-      DataContainer.copySourceOverTargetContainer(overridingContainer, this)
-    }
-    return this.output.overridingContainer
-  }
-
-  async retrieveBoardData() {
-    await this.fillGroundData()
-    // populate external entities (trees) from world-compute
-    const trees = await WorldComputeProxy.instance.queryEntities(this.bounds)
-    // query local entities (holes)
-    // const holes = this.queryLocalEntities(boardContainer, BoardContainer.holesDistribution)
-    this.entities.obstacles.push(...trees)
+  async make() {
+    await this.fillAndShapeBoard()
+    const obstacles: Block[] = await this.retrieveAndTrimTrees()
+    const holes: Block[] = this.getHolesAreasBis(obstacles)
+    holes.forEach(block => this.digGroundHole(block))
   }
 
   isWithinBoard(blockPos: Vector3) {
     let isInsideBoard = false
-    const { thickness, radius, center } = this.input
+    const { thickness, radius, center } = this
     if (blockPos) {
       const heightDiff = Math.abs(blockPos.y - center.y)
       const dist = asVect2(blockPos).distanceTo(asVect2(center))
@@ -212,31 +112,25 @@ export class BoardContainer extends GroundPatch {
     return false
   };
 
-  *iterBoardBlock() {
-    const blocks = this.iterBlocksQuery(undefined, true)
-    // const blocks = this.iterPatchesBlocks()
-    for (const block of blocks) {
-      // discard blocks not included in board shape
-      if (this.isWithinBoard(block.pos)) {
-        yield block
-      }
-    }
-  }
-
   /**
    * Override original ground blocks with board blocks
    * and adjust final board bounds
    * @returns
    */
-  shapeBoard() {
-    const { center } = this.input
+  async fillAndShapeBoard() {
+    const { center, radius } = this
+    const defaultBounds = new Box2().setFromCenterAndSize(
+      asVect2(center),
+      new Vector2(radius, radius).multiplyScalar(2),
+    )
+    const tempContainer = new GroundPatch(defaultBounds)
+    await tempContainer.fillGroundData()
     // const { ymin, ymax } = this.getMinMax()
     // const avg = Math.round(ymin + (ymax - ymin) / 2)
-    const tempContainer = new GroundPatch(this.bounds)
     const finalBounds = new Box2(asVect2(center), asVect2(center))
-    const boardBlocks = this.iterBlocksQuery(undefined, false)
+    const blocks = tempContainer.iterBlocksQuery(undefined, false)
     // const boardBlocks = this.iterBoardBlock()
-    for (const block of boardBlocks) {
+    for (const block of blocks) {
       // tempContainer.setBlock(boardBlock.pos, boardBlock.data, false)
       if (this.isWithinBoard(block.pos)) {
         block.data.mode = BlockMode.BOARD_CONTAINER
@@ -246,16 +140,31 @@ export class BoardContainer extends GroundPatch {
         finalBounds.expandByPoint(asVect2(block.pos))
       }
     }
+    // copy content over board container
+    this.init(finalBounds)
+    DataContainer.copySourceOverTargetContainer(tempContainer, this)
+  }
 
-    // copy content over final container
-    const bounds = new Box2(asVect2(center), asVect2(center))
-    bounds.expandByVector(new Vector2(1, 1).multiplyScalar(10))
-    const finalBoardContainer = new GroundPatch(finalBounds)
-    DataContainer.copySourceOverTargetContainer(
-      tempContainer,
-      finalBoardContainer,
-    )
-    return finalBoardContainer
+  async retrieveAndTrimTrees() {
+    const trees = await WorldComputeProxy.instance.queryEntities(this.bounds)
+    const trunks = trees
+      .map(entity => {
+        const entityCenter = entity.bbox.getCenter(new Vector3())
+        const entityCenterBlock = this.getBlock(entityCenter)
+        entityCenter.y = entity.bbox.min.y
+        return entityCenterBlock
+      })
+      .filter(
+        trunkBlock => trunkBlock && this.isWithinBoard(trunkBlock.pos),
+      ) as PatchBlock[]
+
+    trunks.forEach(trunkBlock => {
+      trunkBlock.data.type = BlockType.TREE_TRUNK
+      trunkBlock.data.mode = BlockMode.DEFAULT
+      trunkBlock.data.level += 1
+      this.setBlock(trunkBlock.pos, trunkBlock.data)
+    })
+    return trunks.map(({ pos, data }) => ({ pos, data }) as Block)
   }
 
   // perform local query
@@ -286,11 +195,11 @@ export class BoardContainer extends GroundPatch {
     return BoardContainer.holesMapDistribution.eval(testPos) < 0.15
   }
 
-  digGroundHole(holeBlock: Block, boardContainer: GroundPatch) {
+  digGroundHole(holeBlock: Block) {
     holeBlock.data.type = BlockType.BOARD_HOLE
     holeBlock.data.level -= 1 // dig hole in the ground
     holeBlock.data.mode = BlockMode.DEFAULT
-    boardContainer.setBlock(holeBlock.pos, holeBlock.data)
+    this.setBlock(holeBlock.pos, holeBlock.data)
   }
 
   getHolesMonoBlocks(boardContainer: GroundPatch) {
@@ -324,11 +233,11 @@ export class BoardContainer extends GroundPatch {
     return holesMulti.map(({ pos, data }) => ({ pos, data }) as Block)
   }
 
-  getHolesAreasBis(boardContainer: GroundPatch, forbiddenBlocks: Block[]) {
+  getHolesAreasBis(forbiddenBlocks: Block[]) {
     // prevent holes from spreading over forbidden blocks
     const isForbiddenPos = (testPos: Vector3) =>
       !!forbiddenBlocks.find(block => block.pos.equals(testPos))
-    const blocks = boardContainer.iterBlocksQuery()
+    const blocks = this.iterBlocksQuery()
     const holes: Block[] = []
     for (const block of blocks) {
       const testPos = block.pos
@@ -343,58 +252,57 @@ export class BoardContainer extends GroundPatch {
     return holes.map(({ pos, data }) => ({ pos, data }) as Block)
   }
 
-  trimTrees(boardContainer: GroundPatch) {
-    const trunks = this.entities.obstacles
-      .map(entity => {
-        const entityCenter = entity.bbox.getCenter(new Vector3())
-        const entityCenterBlock = boardContainer.getBlock(entityCenter)
-        entityCenter.y = entity.bbox.min.y
-        return entityCenterBlock
-      })
-      .filter(
-        trunkBlock => trunkBlock && this.isWithinBoard(trunkBlock.pos),
-      ) as PatchBlock[]
-
-    trunks.forEach(trunkBlock => {
-      trunkBlock.data.type = BlockType.TREE_TRUNK
-      trunkBlock.data.mode = BlockMode.DEFAULT
-      trunkBlock.data.level += 1
-      boardContainer.setBlock(trunkBlock.pos, trunkBlock.data)
-    })
-    return trunks.map(({ pos, data }) => ({ pos, data }) as Block)
-  }
-
-  override fromStub(boardStub: BoardStub) {
-    super.fromStub(boardStub)
-    const { input, output } = boardStub
-    this.input = input
-    this.output = { ...output, overridingContainer: undefined }
-    return this
-  }
-
-  override toStub(): BoardStub {
-    const { input, output } = this
-    const boardStub: BoardStub = {
-      ...super.toStub(),
-      input,
-      output,
-    }
-    return boardStub
-  }
-
+  /**
+   * Convert board ground container to exported format
+   */
   exportBoardData() {
-    const boardBlocks = this.overridingContainer.iterBlocksQuery()
+    const origin = asVect3(this.bounds.min, this.center.y)
+    const size = this.bounds.getSize(new Vector2())
+    // convert board blocks to board data
+    const boardBlocks = this.iterBlocksQuery()
+    const data = []
     for (const block of boardBlocks) {
-      const blockType = block.data.type
+      const blockType = this.isWithinBoard(block.pos)
+        ? block.data.type
+        : BlockType.NONE
       const blockCat = blockTypeCategoryMapper(blockType)
-      const boardBlock: BoardBlock = {
+      const boardElement: BoardBlock = {
         type: blockType,
         category: blockCat,
       }
-      this.output.data.push(boardBlock)
+      data.push(boardElement)
     }
-    const { origin, size, data } = this.output
-    const boardOutputData: BoardOutputData = { origin, size, data }
-    return boardOutputData
+    // DataContainer.copySourceOverTargetContainer(boardContainer, this)
+    const board: BoardOutputData = { origin, size, data }
+    return board
+  }
+
+  /**
+   * Convert previously exported board data to ground container
+   * @param board exported data
+   * @returns ground container
+   */
+  importBoardData(board: BoardOutputData) {
+    const origin = asVect2(board.origin as Vector3)
+    const end = origin.clone().add(board.size)
+    const bounds = new Box2(origin, end)
+    this.init(bounds)
+    // copy cource content over target container
+    const targetContainer = this // new GroundPatch(bounds)
+    const blocks = this.iterBlocksQuery() // BoardUtils.iterBoardData(board)
+    const boardLevel = board.origin.y
+    let index = 0
+    for (const block of blocks) {
+      const boardData = board.data[index++]
+      if (boardData) {
+        const blockData: BlockData = {
+          level: boardLevel,
+          type: boardData.type,
+          mode: BlockMode.BOARD_CONTAINER,
+        }
+        targetContainer.setBlock(block.pos, blockData)
+      }
+    }
+    return targetContainer
   }
 }
