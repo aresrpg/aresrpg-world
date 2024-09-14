@@ -6,14 +6,11 @@ import {
   parseThreeStub,
   asVect3,
   asVect2,
-  asBox2,
 } from '../common/utils'
-import { WorldComputeProxy, WorldConf } from '../index'
+import { WorldComputeProxy } from '../index'
 import { BlockType } from '../procgen/Biome'
 
 import { DataContainer } from './DataContainers'
-import { EntityChunk } from './EntityChunk'
-import { WorldChunk } from './WorldChunk'
 
 export enum BlockMode {
   DEFAULT,
@@ -44,6 +41,7 @@ export type BlockIteratorRes = IteratorResult<Block, void>
 
 export class GroundPatch extends DataContainer<Uint32Array> {
   rawData: Uint32Array
+  isEmpty = true
 
   constructor(boundsOrPatchKey: Box2 | PatchKey = new Box2(), margin = 1) {
     super(boundsOrPatchKey, margin)
@@ -94,7 +92,7 @@ export class GroundPatch extends DataContainer<Uint32Array> {
     this.rawData[blockIndex] = this.encodeBlockData(blockData)
   }
 
-  adjustRangeBox(input: Box2 | Vector2, local = false) {
+  adjustInputBounds(input: Box2 | Vector2, local = false) {
     const rangeBox = input instanceof Box2 ? input : new Box2(input, input)
     const { min, max } = local ? this.localBox : this.bounds
     const rangeMin = new Vector2(
@@ -146,10 +144,10 @@ export class GroundPatch extends DataContainer<Uint32Array> {
     isLocalPos = false,
   ) {
     inputPos = inputPos instanceof Vector2 ? inputPos : asVect2(inputPos)
-    const isWithingPatch = isLocalPos
+    const isWithinPatch = isLocalPos
       ? this.inLocalRange(inputPos)
       : this.inWorldRange(inputPos)
-    if (isWithingPatch) {
+    if (isWithinPatch) {
       const localPos = isLocalPos ? inputPos : this.toLocalPos(inputPos)
       const blockIndex = this.getIndex(localPos)
       this.writeBlockData(blockIndex, blockData)
@@ -164,26 +162,26 @@ export class GroundPatch extends DataContainer<Uint32Array> {
    * @param rangeBox iteration range as global coords
    * @param skipMargin
    */
-  *iterBlocksQuery(rangeBox?: Box2 | Vector2, skipMargin = true) {
+  *iterBlocksQuery(iterBounds?: Box2 | Vector2, skipMargin = true) {
     // convert to local coords to speed up iteration
-    const localBbox = rangeBox
-      ? this.adjustRangeBox(rangeBox)
+    const localBounds = iterBounds
+      ? this.adjustInputBounds(iterBounds)
       : this.localExtendedBox
 
     const isMarginBlock = ({ x, y }: { x: number; y: number }) =>
-      !rangeBox &&
+      !iterBounds &&
       this.margin > 0 &&
-      (x === localBbox.min.x ||
-        x === localBbox.max.x - 1 ||
-        y === localBbox.min.y ||
-        y === localBbox.max.y - 1)
+      (x === localBounds.min.x ||
+        x === localBounds.max.x - 1 ||
+        y === localBounds.min.y ||
+        y === localBounds.max.y - 1)
 
     let index = 0
-    for (let { y } = localBbox.min; y < localBbox.max.y; y++) {
-      for (let { x } = localBbox.min; x < localBbox.max.x; x++) {
+    for (let { y } = localBounds.min; y < localBounds.max.y; y++) {
+      for (let { x } = localBounds.min; x < localBounds.max.x; x++) {
         const localPos = new Vector2(x, y)
         if (!skipMargin || !isMarginBlock(localPos)) {
-          index = rangeBox ? this.getIndex(localPos) : index
+          index = iterBounds ? this.getIndex(localPos) : index
           const blockData = this.readBlockData(index) || BlockType.NONE
           const block: PatchBlock = {
             index,
@@ -222,9 +220,7 @@ export class GroundPatch extends DataContainer<Uint32Array> {
       this.key || this.bounds,
     )
     this.rawData.set(stub.rawData)
-    // this.bounds.min = min
-    // this.bounds.max = max
-    // this.bounds.getSize(this.dimensions)
+    this.isEmpty = false
   }
 
   // getBlocksRow(zRowIndex: number) {

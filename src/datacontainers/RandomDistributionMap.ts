@@ -5,8 +5,8 @@ import { ProcLayer } from '../procgen/ProcLayer'
 import { BlueNoisePattern } from '../procgen/BlueNoisePattern'
 import { EntityData } from '../common/types'
 import { WorldConf } from '../index'
+import { getPatchIds } from '../common/utils'
 
-import { PatchesMapBase } from './DataContainers'
 // import { Adjacent2dPos } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
 
@@ -25,21 +25,20 @@ const distMapDefaults = {
 }
 
 /**
- * Infinite map using repeatable seamless pattern to provide
- * independant, deterministic and approximated random distribution
- * Enable querying/iterating randomly distributed items at block
- * level or from custom box range
+ * Approximated random distribution using infinite map made from patch repetition
+ * independant and deterministic
  */
-export class PseudoDistributionMap extends PatchesMapBase {
+export class PseudoDistributionMap {
+  patchDimensions: Vector2
   repeatedPattern: BlueNoisePattern
   densityMap: ProcLayer
 
   constructor(
-    bbox: Box2 = distMapDefaultBox,
+    bounds: Box2 = distMapDefaultBox,
     distParams: any = distMapDefaults,
   ) {
-    super(bbox.getSize(new Vector2()))
-    this.repeatedPattern = new BlueNoisePattern(bbox, distParams)
+    this.patchDimensions = bounds.getSize(new Vector2())
+    this.repeatedPattern = new BlueNoisePattern(bounds, distParams)
     this.densityMap = new ProcLayer(distParams.aleaSeed || '')
   }
 
@@ -65,11 +64,11 @@ export class PseudoDistributionMap extends PatchesMapBase {
   }
 
   /**
-   *
+   * querying/iterating randomly distributed items at block level or from custom bounds
    * @param entityShaper
-   * @param inputPointOrArea either test point or range box
+   * @param inputPointOrArea either test point or bounds
    * @param spawnProbabilityOverride
-   * @returns all locations from which entity contains input point or overlaps with range box
+   * @returns all entities locations overlapping with input point or bounds
    */
   querySpawnLocations(
     testRange: Vector2 | Box2,
@@ -87,7 +86,7 @@ export class PseudoDistributionMap extends PatchesMapBase {
     //   .filter(entityPos => overlapsTest(localTestBox, entityPos))
     //   .map(relativePos => relativePos.clone().add(offset))
     const overlappingEntities: Vector2[] = []
-    const patchIds = this.getPatchIds(testBox)
+    const patchIds = getPatchIds(testBox, this.patchDimensions)
     for (const patchId of patchIds) {
       const offset = patchId.clone().multiply(this.patchDimensions)
       const localTestBox = testBox.clone().translate(offset.clone().negate())

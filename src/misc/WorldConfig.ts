@@ -1,3 +1,5 @@
+import { Vector2 } from 'three'
+
 import { BlockType } from '../index'
 
 export class WorldConf {
@@ -10,6 +12,10 @@ export class WorldConf {
   static cachePowLimit = 2 // 4 => 16 patches radius
   static get cacheLimit() {
     return Math.pow(2, this.cachePowLimit)
+  }
+
+  static get regularPatchDimensions() {
+    return new Vector2(this.patchSize, this.patchSize)
   }
 
   static defaultDistMapPeriod = 4 * WorldConf.patchSize

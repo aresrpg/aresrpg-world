@@ -2,16 +2,11 @@ import { Vector2, Box2 } from 'three'
 
 import { PatchKey } from '../common/types'
 import {
-  getPatchId,
   parsePatchKey,
   patchBoxFromKey,
-  patchUpperId,
   serializePatchId,
 } from '../common/utils'
 import { WorldConf } from '../index'
-
-const getDefaultPatchDim = () =>
-  new Vector2(WorldConf.patchSize, WorldConf.patchSize)
 
 /**
  * Multi purpose low level data container
@@ -29,7 +24,7 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
     const bounds =
       boundsOrPatchKey instanceof Box2
         ? boundsOrPatchKey.clone()
-        : patchBoxFromKey(boundsOrPatchKey, getDefaultPatchDim())
+        : patchBoxFromKey(boundsOrPatchKey, WorldConf.regularPatchDimensions)
     this.bounds = bounds
     this.dimensions = bounds.getSize(new Vector2())
     this.margin = margin
@@ -147,59 +142,25 @@ export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
     return origin.add(pos)
   }
 
+  isOverlapping(bounds: Box2) {
+    const nonOverlapping =
+      this.bounds.max.x <= bounds.min.x ||
+      this.bounds.min.x >= bounds.max.x ||
+      this.bounds.max.y <= bounds.min.y ||
+      this.bounds.min.y >= bounds.max.y
+    return !nonOverlapping
+  }
+
   containsPoint(pos: Vector2) {
-    return this.bounds.containsPoint(pos)
-    // return (
-    //   blockPos.x >= this.bounds.min.x &&
-    //   blockPos.z >= this.bounds.min.z &&
-    //   blockPos.x < this.bounds.max.x &&
-    //   blockPos.z < this.bounds.max.z
-    // )
+    // return this.bounds.containsPoint(pos)
+    return (
+      pos.x >= this.bounds.min.x &&
+      pos.y >= this.bounds.min.y &&
+      pos.x < this.bounds.max.x &&
+      pos.y < this.bounds.max.y
+    )
   }
 
   // abstract get chunkIds(): ChunkId[]
   // abstract toChunks(): any
-}
-
-/**
- * PatchesMap base class
- */
-export class PatchesMapBase {
-  patchDimensions: Vector2
-  constructor(patchDim: Vector2) {
-    this.patchDimensions = patchDim
-  }
-
-  getPatchRange(bounds: Box2) {
-    const rangeMin = getPatchId(bounds.min, this.patchDimensions)
-    const rangeMax = patchUpperId(bounds.max, this.patchDimensions) // .addScalar(1)
-    const patchRange = new Box2(rangeMin, rangeMax)
-    return patchRange
-  }
-
-  getPatchIds(bounds: Box2) {
-    const patchIds = []
-    const patchRange = this.getPatchRange(bounds)
-    // iter elements on computed range
-    const { min, max } = patchRange
-    for (let { y } = min; y <= max.y; y++) {
-      for (let { x } = min; x <= max.x; x++) {
-        patchIds.push(new Vector2(x, y))
-      }
-    }
-    return patchIds
-  }
-
-  getRoundedBox(bbox: Box2) {
-    const { min, max } = this.getPatchRange(bbox)
-    min.multiply(this.patchDimensions)
-    max.multiply(this.patchDimensions)
-    const extBbox = new Box2(min, max)
-    return extBbox
-  }
-
-  /**
-   * Merges all patches as single data container
-   */
-  asMergedContainer() { }
 }

@@ -110,7 +110,7 @@ export class BoardContainer extends GroundPatch {
       }
     }
     return false
-  };
+  }
 
   /**
    * Override original ground blocks with board blocks

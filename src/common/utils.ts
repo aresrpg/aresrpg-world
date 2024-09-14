@@ -1,7 +1,5 @@
 import { Box2, Box3, Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 
-import { WorldConf } from '../index'
-
 import {
   Adjacent2dPos,
   Adjacent3dPos,
@@ -339,6 +337,34 @@ const patchBoxFromKey = (patchKey: string, patchDims: Vector2) => {
   return bbox
 }
 
+const getPatchRange = (bounds: Box2, patchDims: Vector2) => {
+  const rangeMin = getPatchId(bounds.min, patchDims)
+  const rangeMax = patchUpperId(bounds.max, patchDims) // .addScalar(1)
+  const patchRange = new Box2(rangeMin, rangeMax)
+  return patchRange
+}
+
+const getPatchIds = (bounds: Box2, patchDims: Vector2) => {
+  const patchIds = []
+  const patchRange = getPatchRange(bounds, patchDims)
+  // iter elements on computed range
+  const { min, max } = patchRange
+  for (let { y } = min; y <= max.y; y++) {
+    for (let { x } = min; x <= max.x; x++) {
+      patchIds.push(new Vector2(x, y))
+    }
+  }
+  return patchIds
+}
+
+const getRoundedBox = (bounds: Box2, patchDims: Vector2) => {
+  const { min, max } = getPatchRange(bounds, patchDims)
+  min.multiply(patchDims)
+  max.multiply(patchDims)
+  const extBbox = new Box2(min, max)
+  return extBbox
+}
+
 const parseChunkKey = (chunkKey: ChunkKey) => {
   const chunkId = new Vector3(
     parseInt(chunkKey.split('_')[1] as string),
@@ -361,10 +387,7 @@ function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
   return chunk_ids
 }
 
-const chunkBoxFromId = (
-  chunkId: ChunkId,
-  patchSize: number = WorldConf.patchSize,
-) => {
+const chunkBoxFromId = (chunkId: ChunkId, patchSize: number) => {
   const bmin = chunkId.clone().multiplyScalar(patchSize)
   const bmax = chunkId.clone().addScalar(1).multiplyScalar(patchSize)
   const chunkBbox = new Box3(bmin, bmax)
@@ -391,6 +414,9 @@ export {
   getPatchId,
   patchUpperId,
   serializePatchId,
+  getPatchRange,
+  getPatchIds,
+  getRoundedBox,
   patchBoxFromKey,
   parseChunkKey,
   serializeChunkId,
