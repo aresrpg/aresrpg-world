@@ -1,6 +1,12 @@
 import { Vector3 } from 'three'
+
 import { PatchId } from '../common/types'
-import { asBox2, asVect3, chunkBoxFromId, serializeChunkId } from '../common/utils'
+import {
+  asBox2,
+  asVect3,
+  chunkBoxFromId,
+  serializeChunkId,
+} from '../common/utils'
 import { EntityChunk } from '../datacontainers/EntityChunk'
 import { WorldChunk, WorldChunkStub } from '../datacontainers/WorldChunk'
 import { BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
@@ -70,25 +76,31 @@ export class ChunkFactory {
     return worldChunksStubs
   }
 
-  mergeGroundBlocks(worldChunk: WorldChunk, patch: GroundPatch){
+  mergeGroundBlocks(worldChunk: WorldChunk, patch: GroundPatch) {
     const blocks = patch.iterBlocksQuery(undefined, false)
-      for (const block of blocks) {
-        const blockData = block.data
-        const blockType = block.data.type
-        const blockLocalPos = block.localPos as Vector3
-        blockLocalPos.x += 1
-        // block.localPos.y = patch.bbox.max.y
-        blockLocalPos.z += 1
-        blockData.type =
-          highlightPatchBorders(blockLocalPos, blockType) || blockType
-        worldChunk.writeBlock(blockLocalPos, blockData, block.buffer || [])
-      }
+    for (const block of blocks) {
+      const blockData = block.data
+      const blockType = block.data.type
+      const blockLocalPos = block.localPos as Vector3
+      blockLocalPos.x += 1
+      // block.localPos.y = patch.bbox.max.y
+      blockLocalPos.z += 1
+      blockData.type =
+        highlightPatchBorders(blockLocalPos, blockType) || blockType
+      worldChunk.writeBlock(blockLocalPos, blockData, block.buffer || [])
+    }
   }
 
-  mergePatchEntities(worldChunk: WorldChunk, patch: GroundPatch, patchEntities: EntityChunk[]) {
+  mergePatchEntities(
+    worldChunk: WorldChunk,
+    patch: GroundPatch,
+    patchEntities: EntityChunk[],
+  ) {
     patchEntities.forEach(entityChunk => {
       // return overlapping blocks between entity and container
-      const patchBlocksIter = patch.iterBlocksQuery(asBox2(entityChunk.chunkBox))
+      const patchBlocksIter = patch.iterBlocksQuery(
+        asBox2(entityChunk.chunkBox),
+      )
       // iter over entity blocks
       for (const block of patchBlocksIter) {
         // const buffer = entityChunk.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
