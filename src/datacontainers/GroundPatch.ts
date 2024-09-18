@@ -17,6 +17,11 @@ export enum BlockMode {
   BOARD_CONTAINER,
 }
 
+export type GroundRawData = {
+  rawVal: number
+  confIndex: number
+}
+
 export type BlockData = {
   level: number
   type: BlockType

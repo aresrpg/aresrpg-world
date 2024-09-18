@@ -1,13 +1,13 @@
-import { Box2, Vector3 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 
 import { EntityType, GroundPatch } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
-import { Block, EntityData, PatchKey } from '../common/types'
-import { asBox3, asVect2, asVect3 } from '../common/utils'
+import { Block, EntityData, NoiseLevelConf, PatchKey } from '../common/types'
+import { asBox3, asVect2, asVect3, getBoundsCornerPoints } from '../common/utils'
 import { WorldEntities } from '../procgen/WorldEntities'
 import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
-import { BlockData } from '../datacontainers/GroundPatch'
+import { BlockData, GroundRawData } from '../datacontainers/GroundPatch'
 // import { BoardInputParams } from '../feats/BoardContainer'
 
 /**
@@ -57,16 +57,33 @@ export const computeBlocksBatch = (
 
 export const computeGroundBlock = (blockPos: Vector3) => {
   const biomeContribs = Biome.instance.getBiomeInfluence(blockPos)
-  const mainBiome = Biome.instance.getMainBiome(biomeContribs)
+  const biomeType = Biome.instance.getBiomeType(biomeContribs)
   const rawVal = Heightmap.instance.getRawVal(blockPos)
-  const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
+  const noiseLevel = Biome.instance.getBiomeConf(rawVal, biomeType) as NoiseLevelConf
+  const currLevelConf = noiseLevel.data
+  const prevLevelConf = noiseLevel.prev?.data
+  const nextLevelConf = noiseLevel.next?.data
+  const confIndex = Biome.instance.getConfIndex(currLevelConf.key)
+  // const confData = Biome.instance.indexedConf.get(confIndex)
   const level = Heightmap.instance.getGroundLevel(
     blockPos,
     rawVal,
     biomeContribs,
   )
   // const pos = new Vector3(blockPos.x, level, blockPos.z)
-  const type = blockTypes.grounds[0] as BlockType
+  const variation = Biome.instance.posRandomizer.eval(blockPos.clone().multiplyScalar(50))//Math.cos(0.1 * blockPos.length()) / 100
+  const min = new Vector2(currLevelConf.x, currLevelConf.y)
+  const max = new Vector2(nextLevelConf.x, nextLevelConf.y)
+  const rangeBox = new Box2(min, max)
+  const dims = rangeBox.getSize(new Vector2())
+  const slope = dims.y / dims.x
+  const distRatio = (rawVal - min.x) / dims.x
+  const threshold = 4 * distRatio
+  const prevType = prevLevelConf?.type
+  const type = variation > threshold && prevType ? prevType : currLevelConf.type
+  if (!type) {
+    console.log(currLevelConf)
+  }
   // const entityType = blockTypes.entities?.[0] as EntityType
   // let offset = 0
   // if (lastBlock && entityType) {
@@ -74,6 +91,7 @@ export const computeGroundBlock = (blockPos: Vector3) => {
   // }
   // level += offset
   const block: BlockData = { level, type }
+  // const block: GroundRawData = { rawVal, confIndex }
   return block
 }
 
@@ -84,6 +102,9 @@ export const computeGroundBlock = (blockPos: Vector3) => {
 // Ground
 export const bakeGroundPatch = (boundsOrPatchKey: PatchKey | Box2) => {
   const groundPatch = new GroundPatch(boundsOrPatchKey)
+  // eval biome at patch corners
+  const patchCorners = getBoundsCornerPoints(groundPatch.bounds)
+  // patchCorners.map(point=>Biome.instance.getBiomeInfluence())
   const { min, max } = groundPatch.bounds
   const blocks = groundPatch.iterBlocksQuery(undefined, false)
   const level = {
@@ -138,9 +159,9 @@ const confirmFinalizeEntity = (entity: EntityData) => {
   const entityPos = entity.bbox.getCenter(new Vector3())
   // use global coords in case entity center is from adjacent patch
   const rawVal = Heightmap.instance.getRawVal(entityPos)
-  const mainBiome = Biome.instance.getMainBiome(entityPos)
-  const blockTypes = Biome.instance.getBlockType(rawVal, mainBiome)
-  const entityType = blockTypes.entities?.[0] as EntityType
+  const biomeType = Biome.instance.getBiomeType(entityPos)
+  const biomeConf = Biome.instance.getBiomeConf(rawVal, biomeType)
+  const [entityType] = biomeConf.data.entities || []
   // confirm this kind of entity can spawn over here
   if (entityType) {
     entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos, rawVal)

@@ -51,7 +51,8 @@ export class WorldChunk {
         blockLocalPos.z * Math.pow(chunk_size, 2) +
         h * chunk_size +
         blockLocalPos.x
-      const blockType = buff_index > 0 ? bufferOver[buff_index] : blockData.type
+      const groundType = blockData.type//depth > 0 && bufferOver.length === 0 ? BlockType.ROCK : blockData.type
+      const blockType = buff_index > 0 ? bufferOver[buff_index] : groundType
       const skip =
         buff_index > 0 &&
         chunkData[blocksIndex] !== undefined &&
