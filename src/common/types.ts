@@ -16,6 +16,24 @@ export type PatchBlock = Block & {
   localPos: Vector3
 }
 
+export enum CardinalDirections {
+  N,
+  E,
+  S,
+  W,
+}
+
+export enum IntercardinalDirections {
+  NE,
+  NW,
+  SE,
+  SW,
+}
+
+export type AllCardinalDirections =
+  | CardinalDirections
+  | IntercardinalDirections
+
 export enum Adjacent2dPos {
   center,
   left,
@@ -89,25 +107,22 @@ export type ProcLayerExtCfg = {
 //   MOUNTAINS_TOP,
 // }
 
-export interface MappingData {
-  grounds: BlockType[] // which types of ground can be here
-  entities: string[] // which type of entities can spawn
-  amplitude: {
-    // amplitude used in blocks randomization
-    low: number
-    high: number
-  }
+export type MetadataFields = {
+  key: BiomeConfKey,
+  x: number, // noise value
+  y: number, // height noise mapping
+  type: BlockType, // ground surface
+  subtype: BlockType, // below ground or mixed with ground surface
+  mixratio: number, // mixing ratio between type/subtype
+  entities: string[] // which entities can spawn
+  fadein: any,
+  fadeout: any
 }
 
-export interface MappingRange extends Partial<MappingData> {
-  x: number // noise
-  y: number // noise mapping
-}
 
-export type MappingConf = Record<string, MappingRange>
-export type MappingRanges = LinkedList<MappingRange>
-export type BiomeConf = Record<BiomeType, MappingConf>
-export type BiomeMappings = Record<BiomeType, MappingRanges>
+export type NoiseLevelMappings = Record<NoiseLevelId, Partial<MetadataFields>> 
+export type BiomeConfigs = Record<BiomeType, NoiseLevelMappings>
+export type NoiseLevelConf = LinkedList<MetadataFields>
 
 export enum EntityType {
   NONE = '',
@@ -124,6 +139,8 @@ export type EntityData = {
   }
 }
 
+export type NoiseLevelId = string // an arbitrary name given to help identify noise level
+export type BiomeConfKey = string // combination of noiseLevelId and biomeType
 export type EntityKey = string
 
 export type PatchKey = string

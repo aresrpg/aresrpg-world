@@ -1,5 +1,3 @@
-import { MappingRanges } from '../common/types'
-
 import { InputType, NoiseSampler } from './NoiseSampler'
 
 /**
@@ -9,7 +7,6 @@ export class ProcLayer {
   name: string // layer identifier
   parent: any
   sampling!: NoiseSampler
-  mapping!: MappingRanges
   params = {
     spreading: 0,
     scaling: 0.001,

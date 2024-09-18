@@ -5,8 +5,8 @@ import {
   Adjacent3dPos,
   ChunkId,
   ChunkKey,
-  MappingRange,
-  MappingRanges,
+  MetadataFields,
+  NoiseLevelConf,
   PatchId,
   PatchKey,
 } from './types'
@@ -32,7 +32,7 @@ const vectRoundToDec = (input: Vector2 | Vector3, n_pow: number) => {
 }
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
-export const MappingRangeSorter = (item1: MappingRange, item2: MappingRange) =>
+export const MappingRangeSorter = (item1: MetadataFields, item2: MetadataFields) =>
   item1.x - item2.x
 
 /**
@@ -40,8 +40,8 @@ export const MappingRangeSorter = (item1: MappingRange, item2: MappingRange) =>
  * @param inputVal
  * @returns
  */
-const findMatchingRange = (inputVal: number, mappingRanges: MappingRanges) => {
-  let match = mappingRanges.first()
+const findMatchingRange = (inputVal: number, noiseMappings: NoiseLevelConf) => {
+  let match = noiseMappings.first()
   while (match.next && inputVal > match.next.data.x) {
     match = match.next
   }
@@ -194,17 +194,13 @@ const getNeighbours3D = (
   return neighbours.map(type => getAdjacent3dCoords(pos, type as number))
 }
 
-const getPatchPoints = (patchBBox: Box3, clearY = true) => {
-  const { min, max } = patchBBox.clone()
-  if (clearY) {
-    min.y = 0
-    max.y = 0
-  }
-  const minXmaxZ = min.clone()
-  minXmaxZ.z = max.z
-  const maxXminZ = min.clone()
-  maxXminZ.x = max.x
-  const points = [min, max, minXmaxZ, maxXminZ]
+const getBoundsCornerPoints = (bounds: Box2) => {
+  const { min, max } = bounds
+  const xMyP = min.clone()
+  xMyP.y = max.y
+  const xPyM = min.clone()
+  xPyM.x = max.x
+  const points = [min, max, xMyP, xPyM]
   return points
 }
 
@@ -290,10 +286,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-        parseVect3Stub(stub) ||
-        parseBox2Stub(stub) ||
-        parseVect2Stub(stub) ||
-        stub
+    parseVect3Stub(stub) ||
+    parseBox2Stub(stub) ||
+    parseVect2Stub(stub) ||
+    stub
     : stub
 }
 
@@ -404,7 +400,7 @@ export {
   getNeighbours2D,
   getNeighbours3D,
   bboxContainsPointXZ,
-  getPatchPoints,
+  getBoundsCornerPoints,
   parseThreeStub,
   asVect2,
   asVect3,

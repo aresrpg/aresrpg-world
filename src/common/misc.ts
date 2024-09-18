@@ -11,19 +11,41 @@ export class LinkedList<T> {
   // finder?: (item: T, val: any) => boolean
 
   first() {
-    let curr: LinkedList<T> = this
-    while (curr.prev) {
-      curr = curr.prev
+    const items = this.backwardIter()
+    let first = this as LinkedList<T>
+    for (const item of items) {
+      first = item
     }
-    return curr
+    return first
   }
 
   last() {
-    let curr: LinkedList<T> = this
-    while (curr.next) {
+    const items = this.forwardIter()
+    let last = this as LinkedList<T>
+    for (const item of items) {
+      last = item
+    }
+    return last
+  }
+
+  *backwardIter() {
+    let curr: LinkedList<T> | undefined = this
+    // yield curr
+    // do{
+    //   yield curr.prev
+    // }while(curr.prev)
+    while (curr) {
+      yield curr
+      curr = curr.prev
+    }
+  }
+
+  *forwardIter() {
+    let curr: LinkedList<T> | undefined = this
+    while (curr) {
+      yield curr
       curr = curr.next
     }
-    return curr
   }
 
   // find(val: any) {

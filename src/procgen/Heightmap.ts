@@ -71,14 +71,14 @@ export class Heightmap {
     // includeSea?: boolean,
   ) {
     rawVal = rawVal || this.getRawVal(blockPos)
-    biomeInfluence = Biome.instance.getBiomeInfluence(blockPos)
+    biomeInfluence = biomeInfluence || Biome.instance.getBiomeInfluence(blockPos)
     // (blockData as BlockIterData).cache.type = Biome.instance.getBlockType(blockPos, noiseVal)
     // noiseVal = includeSea ? Math.max(noiseVal, Biome.instance.params.seaLevel) : noiseVal
-    const initialVal = Biome.instance.getBlockLevelInterpolated(
-      rawVal,
-      biomeInfluence,
-    )
-    // Biome.instance.getBlockLevel(rawVal, BiomeType.Artic)
+    // const initialVal = Biome.instance.getBlockLevelInterpolated(
+    //   rawVal,
+    //   biomeInfluence,
+    // )
+    const initialVal = Biome.instance.getBlockLevel(rawVal, Biome.instance.getBiomeType(biomeInfluence))
     const finalVal = this.applyModulation(
       blockPos,
       initialVal,
