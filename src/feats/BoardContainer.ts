@@ -4,7 +4,7 @@ import { Block, PatchBlock } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import {
   BlockType,
-  DataContainer,
+  PatchContainer,
   GroundPatch,
   ProcLayer,
   WorldComputeProxy,
@@ -142,7 +142,7 @@ export class BoardContainer extends GroundPatch {
     }
     // copy content over board container
     this.init(finalBounds)
-    DataContainer.copySourceOverTargetContainer(tempContainer, this)
+    PatchContainer.copySourceOverTargetContainer(tempContainer, this)
   }
 
   async retrieveAndTrimTrees() {
@@ -272,7 +272,7 @@ export class BoardContainer extends GroundPatch {
       }
       data.push(boardElement)
     }
-    // DataContainer.copySourceOverTargetContainer(boardContainer, this)
+    // PatchContainer.copySourceOverTargetContainer(boardContainer, this)
     const board: BoardOutputData = { origin, size, data }
     return board
   }

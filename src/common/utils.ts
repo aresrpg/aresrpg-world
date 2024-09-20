@@ -391,6 +391,16 @@ const chunkBoxFromId = (chunkId: ChunkId, patchSize: number) => {
   return chunkBbox
 }
 
+const chunkBoxFromKey = (chunkKey: string, chunkDims: Vector3) => {
+  const chunkId = parseChunkKey(chunkKey)
+  const bbox = new Box3()
+  if (chunkId) {
+    bbox.min = chunkId.clone().multiply(chunkDims)
+    bbox.max = chunkId.clone().addScalar(1).multiply(chunkDims)
+  }
+  return bbox
+}
+
 export {
   roundToDec,
   vectRoundToDec,
@@ -417,5 +427,6 @@ export {
   parseChunkKey,
   serializeChunkId,
   chunkBoxFromId,
+  chunkBoxFromKey,
   genChunkIds,
 }

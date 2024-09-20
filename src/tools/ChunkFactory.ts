@@ -1,14 +1,15 @@
-import { Vector3 } from 'three'
+import { MathUtils, Vector2, Vector3 } from 'three'
 
 import { PatchId } from '../common/types'
 import {
   asBox2,
+  asVect2,
   asVect3,
   chunkBoxFromId,
   serializeChunkId,
 } from '../common/utils'
-import { EntityChunk } from '../datacontainers/EntityChunk'
-import { WorldChunk, WorldChunkStub } from '../datacontainers/WorldChunk'
+import { ChunkContainer } from '../datacontainers/ChunkContainer'
+import { InstancedEntity } from '../datacontainers/OvergroundEntities'
 import { BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
 
 // for debug use only
@@ -52,60 +53,89 @@ export class ChunkFactory {
   }
 
   /**
-   * chunkify or chunksAssembly
-   * Assembles world building blocks (GroundPatch, EntityChunk) together
-   * to form final world chunk
+   * Assembles layers together: ground, world objects
    */
-  chunkify(patch: GroundPatch, patchEntities: EntityChunk[]) {
-    const patchChunkIds = patch.id
-      ? ChunkFactory.default.genChunksIdsFromPatchId(patch.id)
+  chunkifyPatch(groundPatchLayer: GroundPatch, overgroundEntities: InstancedEntity[]) {
+    const patchChunkIds = groundPatchLayer.id
+      ? ChunkFactory.default.genChunksIdsFromPatchId(groundPatchLayer.id)
       : []
     const worldChunksStubs = patchChunkIds.map(chunkId => {
       const chunkBox = chunkBoxFromId(chunkId, WorldConf.patchSize)
-      const worldChunk = new WorldChunk(chunkBox)
-      // Ground pass
-      this.mergeGroundBlocks(worldChunk, patch)
-      // Entities pass
-      this.mergePatchEntities(worldChunk, patch, patchEntities)
-      const worldChunkStub: WorldChunkStub = {
+      const worldChunk = new ChunkContainer(chunkBox)
+      // this.mergeGroundBlocks(worldChunk, patch)
+      // this.mergePatchEntities(worldChunk, patch, worldObjects)
+      this.mergePatchLayersToChunk(worldChunk, groundPatchLayer, overgroundEntities)
+      const worldChunkStub = {
         key: serializeChunkId(chunkId),
-        data: worldChunk.chunkData,
+        data: worldChunk.rawData,
       }
       return worldChunkStub
     })
     return worldChunksStubs
   }
 
-  mergeGroundBlocks(worldChunk: WorldChunk, patch: GroundPatch) {
-    const blocks = patch.iterBlocksQuery(undefined, false)
+  mergePatchLayersToChunk(chunkContainer: ChunkContainer, groundPatchLayer: GroundPatch, overgroundEntities: InstancedEntity[]) {
+    this.mergeGroundLayer(chunkContainer, groundPatchLayer)
+    this.mergePatchEntities(chunkContainer, groundPatchLayer, overgroundEntities)
+  }
+
+  mergeLayersBuffers(){
+
+  }
+
+  mergeOverlappingBuffers(){
+    
+  }
+
+
+  mergeGroundLayer(worldChunk: ChunkContainer, patchGroundLayer: GroundPatch) {
+    const ymin = worldChunk.bounds.min.y
+    const ymax = worldChunk.bounds.max.y
+    const blocks = patchGroundLayer.iterBlocksQuery(undefined, false)
     for (const block of blocks) {
-      const blockData = block.data
-      const blockType = block.data.type
       const blockLocalPos = block.localPos as Vector3
       blockLocalPos.x += 1
       // block.localPos.y = patch.bbox.max.y
       blockLocalPos.z += 1
-      blockData.type =
-        highlightPatchBorders(blockLocalPos, blockType) || blockType
-      worldChunk.writeBlock(blockLocalPos, blockData, block.buffer || [])
+      const blockType = highlightPatchBorders(blockLocalPos, block.data.type) || block.data.type
+      const blockMode = block.data.mode
+      // generate ground buffer
+      let bufferCount = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
+      const groundBuffer = [];
+      while (bufferCount > 0) {
+        const rawData = this.voxelDataEncoder(
+          blockType,
+          blockMode,
+        )
+        groundBuffer.push(rawData)
+        bufferCount--
+      }
+
+      // worldChunk.writeSector()
+      worldChunk.writeBuffer(blockLocalPos, block.data, [])
     }
   }
 
+
   mergePatchEntities(
-    worldChunk: WorldChunk,
-    patch: GroundPatch,
-    patchEntities: EntityChunk[],
+    worldChunk: ChunkContainer,
+    groundLayer: GroundPatch,
+    overgroundEntities: InstancedEntity[],
   ) {
-    patchEntities.forEach(entityChunk => {
+    overgroundEntities.forEach(instancedEntity => {
+      const { spawnLoc, entity } = instancedEntity
+      const entityBounds = asBox2(entity.template.bounds).translate(asVect2(spawnLoc))
+      const center = entityBounds.getCenter(new Vector2()).floor()
+      spawnLoc.y = groundLayer.getBlock(center)?.pos.y || 0
       // return overlapping blocks between entity and container
-      const patchBlocksIter = patch.iterBlocksQuery(
-        asBox2(entityChunk.chunkBox),
-      )
+      const patchBlocksIter = groundLayer.iterBlocksQuery(entityBounds)
       // iter over entity blocks
       for (const block of patchBlocksIter) {
-        // const buffer = entityChunk.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
-        let bufferData = entityChunk.getBlocksBuffer(block.pos)
-        const buffOffset = entityChunk.chunkBox.min.y - block.pos.y
+        // const buffer = instancedEntity.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
+        // translate queried loc to template local pos
+        const localPos = block.pos.clone().sub(spawnLoc)
+        let bufferData = entity.template.readBufferY(asVect2(localPos))
+        const buffOffset = spawnLoc.y - block.pos.y
         const buffSrc = Math.abs(Math.min(0, buffOffset))
         const buffDest = Math.max(buffOffset, 0)
         bufferData = bufferData.copyWithin(buffDest, buffSrc)
@@ -115,7 +145,7 @@ export class ChunkFactory {
             : bufferData
         block.localPos.x += 1
         block.localPos.z += 1
-        worldChunk.writeBlock(block.localPos, block.data, bufferData)
+        worldChunk.writeBuffer(block.localPos, block.data, bufferData)
       }
     })
   }
