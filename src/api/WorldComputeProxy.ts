@@ -102,18 +102,18 @@ export class WorldComputeProxy {
   // }
 
   async queryEntities(queriedRegion: Box2) {
-    const entitiesData = !this.worker
-      ? WorldCompute.queryEntities(queriedRegion)
-      : ((await this.workerCall(
-          ComputeApiCall.QueryEntities,
-          [queriedRegion], // [emptyPatch.bbox]
-        )?.then(stubs =>
-          stubs.map((stub: EntityData) => ({
-            ...stub,
-            bbox: parseThreeStub(stub.bbox),
-          })),
-        )) as EntityData[])
-    return entitiesData
+    // const entitiesData = !this.worker
+    //   ? WorldCompute.queryEntities(queriedRegion)
+    //   : ((await this.workerCall(
+    //       ComputeApiCall.QueryEntities,
+    //       [queriedRegion], // [emptyPatch.bbox]
+    //     )?.then(stubs =>
+    //       stubs.map((stub: EntityData) => ({
+    //         ...stub,
+    //         bbox: parseThreeStub(stub.bbox),
+    //       })),
+    //     )) as EntityData[])
+    return [] //entitiesData
   }
 
   async *iterPatchCompute(patchKeysBatch: PatchKey[]) {
@@ -141,15 +141,15 @@ export class WorldComputeProxy {
   }
 
   async bakeEntities(queriedRange: Box2) {
-    const entityChunks = !this.worker
-      ? WorldCompute.queryBakeEntities(queriedRange)
-      : await this.workerCall(ComputeApiCall.BakeEntities, [
-          queriedRange,
-        ])?.then((entityChunks: EntityChunkStub[]) =>
-          // parse worker's data to recreate original objects
-          entityChunks.map(chunkStub => EntityChunk.fromStub(chunkStub)),
-        )
-    return entityChunks
+    // const entityChunks = !this.worker
+    //   ? WorldCompute.queryBakeEntities(queriedRange)
+    //   : await this.workerCall(ComputeApiCall.BakeEntities, [
+    //       queriedRange,
+    //     ])?.then((entityChunks: EntityChunkStub[]) =>
+    //       // parse worker's data to recreate original objects
+    //       entityChunks.map(chunkStub => EntityChunk.fromStub(chunkStub)),
+    //     )
+    return []//entityChunks
   }
 
   // async requestBattleBoard(boardCenter: Vector3, boardParams: BoardParams, lastBoardBounds: Box2) {

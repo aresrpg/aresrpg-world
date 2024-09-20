@@ -11,7 +11,7 @@ import { WorldConf } from '../index'
 /**
  * Multi purpose low level data container
  */
-export abstract class DataContainer<T extends Uint16Array | Uint32Array> {
+export abstract class PatchContainer<T extends Uint16Array | Uint32Array> {
   bounds: Box2
   dimensions: Vector2
   margin = 0

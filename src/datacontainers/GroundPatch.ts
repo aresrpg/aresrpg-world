@@ -1,4 +1,4 @@
-import { Box2, Vector2, Vector3 } from 'three'
+import { Box2, MathUtils, Vector2, Vector3 } from 'three'
 
 import { Block, PatchBlock, PatchKey } from '../common/types'
 import {
@@ -10,7 +10,7 @@ import {
 import { WorldComputeProxy } from '../index'
 import { BlockType } from '../procgen/Biome'
 
-import { DataContainer } from './DataContainers'
+import { PatchContainer } from './PatchContainer'
 
 export enum BlockMode {
   DEFAULT,
@@ -43,8 +43,15 @@ const BlockDataBitAllocation = {
 }
 
 export type BlockIteratorRes = IteratorResult<Block, void>
-
-export class GroundPatch extends DataContainer<Uint32Array> {
+/**
+ * field | bits alloc | value range 
+ * -----|------------|--------------------------------
+ * ground elevation |  10 | 1024 
+ * groundIndex#  | 6 | 64 
+ * overgroundIndex  | 16 | support for 65536 different configurations
+ * 
+ */
+export class GroundPatch extends PatchContainer<Uint32Array> {
   rawData: Uint32Array
   isEmpty = true
 
@@ -160,6 +167,16 @@ export class GroundPatch extends DataContainer<Uint32Array> {
     // const levelMax = blockLevel + blockData.over.length
     // bounds.min.y = Math.min(bounds.min.y, levelMax)
     // bounds.max.y = Math.max(bounds.max.y, levelMax)
+  }
+
+  genGroundBuffer(blockIndex: number, ymin: number, ymax: number) {
+    const block = this.readBlockData(blockIndex)
+    let bufferCount = MathUtils.clamp(block.level - ymin, 0, ymax - ymin)
+    const groundBuffer = [];
+    while (bufferCount > 0) {
+      groundBuffer.push(block.type)
+    }
+    return groundBuffer
   }
 
   /**

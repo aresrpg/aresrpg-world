@@ -1,4 +1,4 @@
-import { Vector2 } from 'three'
+import { Vector2, Vector3 } from 'three'
 
 import { BlockType } from '../index'
 
@@ -16,6 +16,10 @@ export class WorldConf {
 
   static get regularPatchDimensions() {
     return new Vector2(this.patchSize, this.patchSize)
+  }
+
+  static get defaultChunkDimensions() {
+    return new Vector3(this.patchSize, this.patchSize, this.patchSize)
   }
 
   static defaultDistMapPeriod = 4 * WorldConf.patchSize

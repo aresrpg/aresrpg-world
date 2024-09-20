@@ -3,11 +3,10 @@ import { Box2, Vector2, Vector3 } from 'three'
 import { EntityType, GroundPatch } from '../index'
 import { Biome, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
-import { Block, EntityData, NoiseLevelConf, PatchKey } from '../common/types'
-import { asBox3, asVect2, asVect3, getBoundsCornerPoints } from '../common/utils'
-import { WorldEntities } from '../procgen/WorldEntities'
-import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
-import { BlockData, GroundRawData } from '../datacontainers/GroundPatch'
+import { Block, EntityData, PatchKey } from '../common/types'
+import { asBox3, asVect2, asVect3 } from '../common/utils'
+import { BlockData } from '../datacontainers/GroundPatch'
+import { OvergroundEntities, WorldObjectType } from '../datacontainers/OvergroundEntities'
 // import { BoardInputParams } from '../feats/BoardContainer'
 
 /**
@@ -28,23 +27,27 @@ export const computeBlocksBatch = (
   const blocksBatch = blockPosBatch.map(({ x, z }) => {
     const blockPos = new Vector3(x, 0, z)
     const blockData = computeGroundBlock(blockPos)
-    if (includeEntitiesBlocks) {
-      const entityRange = new Box2().setFromPoints([asVect2(blockPos)])
-      entityRange.max.addScalar(1)
-      const [foundEntity] = queryEntities(entityRange).map(entityData => {
-        const { min, max } = entityData.bbox
-        const custChunkBox = asBox3(entityRange)
-        custChunkBox.min.y = min.y
-        custChunkBox.max.y = max.y
-        return new EntityChunk(entityData, custChunkBox)
-      })
-      const blocksBuffer = foundEntity?.voxelize()
+    const { spawnableItems } = blockData
+    const queriedLoc = new Box2().setFromPoints([asVect2(blockPos)])
+    queriedLoc.max.addScalar(1)
+    false && includeEntitiesBlocks && spawnableItems.forEach(entityType => {
+      // multiple (overlapping) objects may be found at queried position
+      const [spawnedEntity] = OvergroundEntities.querySpawnedEntities(entityType, queriedLoc)
+
+      // const [foundEntity] = queryEntities(spawnRange).map(entityData => {
+      //   const { min, max } = entityData.bbox
+      //   const custChunkBox = asBox3(entityRange)
+      //   custChunkBox.min.y = min.y
+      //   custChunkBox.max.y = max.y
+      //   return new EntityChunk(entityData, custChunkBox)
+      // })
+      // foundEntity.
       const lastBlockIndex = blocksBuffer?.findLastIndex(elt => elt)
       if (blocksBuffer && lastBlockIndex && lastBlockIndex >= 0) {
         blockData.level += lastBlockIndex
         blockData.type = blocksBuffer[lastBlockIndex] as BlockType
       }
-    }
+    })
     blockPos.y = blockData.level
     const block: Block = {
       pos: blockPos,
@@ -84,14 +87,15 @@ export const computeGroundBlock = (blockPos: Vector3) => {
   if (!type) {
     console.log(currLevelConf)
   }
+  const type = blockTypes.grounds[0] as BlockType
+  const spawnableItems = blockTypes.entities
   // const entityType = blockTypes.entities?.[0] as EntityType
   // let offset = 0
   // if (lastBlock && entityType) {
 
   // }
   // level += offset
-  const block: BlockData = { level, type }
-  // const block: GroundRawData = { rawVal, confIndex }
+  const block: BlockData = { level, type, spawnableItems }
   return block
 }
 
@@ -99,7 +103,7 @@ export const computeGroundBlock = (blockPos: Vector3) => {
  * Patch requests
  */
 
-// Ground
+// Patch ground layer
 export const bakeGroundPatch = (boundsOrPatchKey: PatchKey | Box2) => {
   const groundPatch = new GroundPatch(boundsOrPatchKey)
   // eval biome at patch corners
@@ -122,6 +126,18 @@ export const bakeGroundPatch = (boundsOrPatchKey: PatchKey | Box2) => {
   return groundPatch
 }
 
+/**
+ * patch is an assembly of several layers
+ * - ground
+ * - underground caverns
+ * - overground objects
+ */
+export const bakePatchLayers = () => { }
+export const bakePatchGroundLayer = () => { }
+export const bakePatchUndergroundLayer = () => { } // or caverns
+export const bakePatchOvergroundLayer = (boundsOrPatchKey: PatchKey | Box2, objectType: WorldObjectType) => { }
+
+
 // Battle board
 // export const computeBoardData = (boardPos: Vector3, boardParams: BoardInputParams, lastBoardBounds: Box2) => {
 //   const boardMap = new BoardContainer(boardPos, boardParams, lastBoardBounds)
@@ -135,7 +151,10 @@ export const bakeGroundPatch = (boundsOrPatchKey: PatchKey | Box2) => {
  * Entity queries/baking
  */
 
-export const queryEntities = (queriedRegion: Box2) => {
+export const queryEntities = (queriedRegion: Box2, queriedObjType: WorldObjectType) => {
+  const queriedObject = OvergroundObjects.getObjectInstance(queriedObjType)
+
+  // const spawnablePlaces = queriedObject.queryDistribution(queriedRegion)
   const spawnablePlaces = WorldEntities.instance.queryDistributionMap(
     EntityType.TREE_APPLE,
   )(queriedRegion)
@@ -177,13 +196,13 @@ export const queryBakeEntities = (queriedRange: Box2) => {
 }
 
 export const bakeEntitiesBatch = (entities: EntityData[]) => {
-  const entitiesChunks: EntityChunkStub[] = entities
-    .map(entityData => new EntityChunk(entityData))
-    .map(entityChunk => {
-      entityChunk.voxelize()
-      return entityChunk.toStub()
-    })
-  return entitiesChunks
+  // const entitiesChunks: EntityChunkStub[] = entities
+  //   .map(entityData => new EntityChunk(entityData))
+  //   .map(entityChunk => {
+  //     entityChunk.voxelize()
+  //     return entityChunk.toStub()
+  //   })
+  return [];//entitiesChunks
 }
 
 // /**
