@@ -49,16 +49,73 @@ const findMatchingRange = (inputVal: number, noiseMappings: NoiseLevelConf) => {
 }
 
 /**
- *
- * @param p1
- * @param p2
- * @param t time between P1 and P2
+ *      |       |
+ * y2 --+-------+--
+ *      |   + P |
+ *      |       |
+ * y1 --+-------+--
+ *      |       |
+ *      x1      x2
+ * @param p 
+ * @param p11 
+ * @param p12 
+ * @param p22 
+ * @param p21 
+ * @returns 
  */
-const interpolatePoints = (p1: Vector2, p2: Vector2, t: number) => {
-  // interpolate
-  const range: Vector2 = p2.clone().sub(p1)
-  const slope = range.x > 0 ? range.y / range.x : 0
-  return p1.y + slope * (t - p1.x)
+const bilinearInterpolation = (p: Vector2, bounds: Box2, { v11, v12, v21, v22 }: Record<any, any>) => {
+  const { x, y } = p
+  const { x: x1, y: y1 } = bounds.min
+  const { x: x2, y: y2 } = bounds.max
+  const dims = bounds.getSize(new Vector2())
+
+  const sumComponents = (componentKey, values) => {
+    return values.reduce((sum, val) => sum + val[componentKey], 0)
+  }
+  const add = (...items) => {
+    const res: any = {}
+    const [first] = items
+    Object.keys(first).forEach(k => res[k] = sumComponents(k, items))
+    return res
+  }
+  const mul = (w: number, v: any) => {
+    const res = { ...v }
+    Object.keys(res).forEach(k => res[k] *= w)
+    return res
+  }
+  const divider = dims.x * dims.y // common divider
+  const w11 = (x2 - x) * (y2 - y) / divider
+  const w12 = (x2 - x) * (y - y1) / divider
+  const w21 = (x - x1) * (y2 - y) / divider
+  const w22 = (x - x1) * (y - y1) / divider
+  const m11 = mul(w11, v11)
+  const m12 = mul(w12, v12)
+  const m21 = mul(w21, v21)
+  const m22 = mul(w22, v22)
+  const res = add(m11, m12, m21, m22)
+  return res
+}
+
+/**
+ * Inverse distance weighting (IDW)
+ * @param cornersPoints 
+ * @param point 
+ */
+const invDistWeighting = (cornerPointsValues: [p: Vector2, v: any][], point: Vector2) => {
+  const [firstItem] = cornerPointsValues
+  const [, firstVal] = firstItem || []
+  const initVal = { ...firstVal }
+  Object.keys(initVal).forEach(key => initVal[key] = 0)
+  let totalWeight = 0
+  const idwInterpolation = cornerPointsValues.reduce((weightedSum, [p, v]) => {
+    const d = point.distanceTo(p)
+    const w = d > 0 ? 1 / d : 1
+    Object.keys(weightedSum).forEach(k => weightedSum[k] += w * v[k])
+    totalWeight += w
+    return weightedSum
+  }, initVal)
+  Object.keys(idwInterpolation).forEach(key => idwInterpolation[key] = idwInterpolation[key] / totalWeight)
+  return idwInterpolation
 }
 
 /**
@@ -195,12 +252,12 @@ const getNeighbours3D = (
 }
 
 const getBoundsCornerPoints = (bounds: Box2) => {
-  const { min, max } = bounds
-  const xMyP = min.clone()
-  xMyP.y = max.y
-  const xPyM = min.clone()
-  xPyM.x = max.x
-  const points = [min, max, xMyP, xPyM]
+  const { min: xMyM, max: xPyP } = bounds
+  const xMyP = xMyM.clone()
+  xMyP.y = xPyP.y
+  const xPyM = xMyM.clone()
+  xPyM.x = xPyP.x
+  const points = [xMyM, xMyP, xPyM, xPyP]
   return points
 }
 
@@ -406,7 +463,7 @@ export {
   vectRoundToDec,
   clamp,
   findMatchingRange,
-  interpolatePoints,
+  bilinearInterpolation,
   getNeighbours2D,
   getNeighbours3D,
   bboxContainsPointXZ,
