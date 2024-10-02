@@ -301,7 +301,7 @@ export class Biome {
   ) => {
     const { seaLevel } = this.params
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
-    const validInput = Utils.clamp(rawVal, 0, 1)
+    rawVal = Utils.clamp(rawVal, 0, 1)
     const mappingRange = Utils.findMatchingRange(
       rawVal,
       this.mappings[biomeType],
@@ -309,8 +309,8 @@ export class Biome {
     const upperRange = mappingRange.next || mappingRange
     const min = new Vector2(mappingRange.data.x, mappingRange.data.y)
     const max = new Vector2(upperRange.data.x, upperRange.data.y)
-    const interpolated = Utils.interpolatePoints(min, max, validInput)
-    return interpolated // includeSea ? Math.max(interpolated, seaLevel) : interpolated
+    const lerp = min.lerp(max, (rawVal - min.x) / (max.x - min.x))
+    return lerp.y // includeSea ? Math.max(interpolated, seaLevel) : interpolated
   }
 
   getBlockLevelInterpolated = (
