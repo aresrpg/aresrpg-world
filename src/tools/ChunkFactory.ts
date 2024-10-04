@@ -1,15 +1,15 @@
-import { MathUtils, Vector2, Vector3 } from 'three'
+import { Box3, MathUtils, Vector3 } from 'three'
 
 import { PatchId } from '../common/types'
 import {
-  asBox2,
   asVect2,
   asVect3,
   chunkBoxFromId,
+  parseThreeStub,
   serializeChunkId,
 } from '../common/utils'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { InstancedEntity } from '../datacontainers/OvergroundEntities'
+import { OvergroundEntities, WorldItem } from '../datacontainers/OvergroundEntities'
 import { BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
 
 // for debug use only
@@ -53,18 +53,20 @@ export class ChunkFactory {
   }
 
   /**
-   * Assembles layers together: ground, world objects
+   * Assembles pieces together: ground, world objects
    */
-  chunkifyPatch(groundPatchLayer: GroundPatch, overgroundEntities: InstancedEntity[]) {
-    const patchChunkIds = groundPatchLayer.id
-      ? ChunkFactory.default.genChunksIdsFromPatchId(groundPatchLayer.id)
+  chunkifyPatch(groundLayer: GroundPatch, overgroundItems: Record<WorldItem, Vector3[]>) {
+    const patchChunkIds = groundLayer.id
+      ? ChunkFactory.default.genChunksIdsFromPatchId(groundLayer.id)
       : []
     const worldChunksStubs = patchChunkIds.map(chunkId => {
       const chunkBox = chunkBoxFromId(chunkId, WorldConf.patchSize)
       const worldChunk = new ChunkContainer(chunkBox)
-      // this.mergeGroundBlocks(worldChunk, patch)
-      // this.mergePatchEntities(worldChunk, patch, worldObjects)
-      this.mergePatchLayersToChunk(worldChunk, groundPatchLayer, overgroundEntities)
+      // this.mergePatchLayersToChunk(worldChunk, groundLayer, overgroundItems)
+      // merge items first so they don't override ground
+      this.mergeOvergroundItems(worldChunk, overgroundItems)
+      // merge ground layer after, overriding items blocks overlapping with ground
+      this.mergeGroundLayer(worldChunk, groundLayer)
       const worldChunkStub = {
         key: serializeChunkId(chunkId),
         data: worldChunk.rawData,
@@ -74,24 +76,10 @@ export class ChunkFactory {
     return worldChunksStubs
   }
 
-  mergePatchLayersToChunk(chunkContainer: ChunkContainer, groundPatchLayer: GroundPatch, overgroundEntities: InstancedEntity[]) {
-    this.mergeGroundLayer(chunkContainer, groundPatchLayer)
-    this.mergePatchEntities(chunkContainer, groundPatchLayer, overgroundEntities)
-  }
-
-  mergeLayersBuffers(){
-
-  }
-
-  mergeOverlappingBuffers(){
-    
-  }
-
-
-  mergeGroundLayer(worldChunk: ChunkContainer, patchGroundLayer: GroundPatch) {
+  mergeGroundLayer(worldChunk: ChunkContainer, groundLayer: GroundPatch) {
     const ymin = worldChunk.bounds.min.y
     const ymax = worldChunk.bounds.max.y
-    const blocks = patchGroundLayer.iterBlocksQuery(undefined, false)
+    const blocks = groundLayer.iterBlocksQuery(undefined, false)
     for (const block of blocks) {
       const blockLocalPos = block.localPos as Vector3
       blockLocalPos.x += 1
@@ -100,53 +88,39 @@ export class ChunkFactory {
       const blockType = highlightPatchBorders(blockLocalPos, block.data.type) || block.data.type
       const blockMode = block.data.mode
       // generate ground buffer
-      let bufferCount = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
-      const groundBuffer = [];
-      while (bufferCount > 0) {
-        const rawData = this.voxelDataEncoder(
+      let buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
+      if (buffSize > 0) {
+        const groundBuffer = new Uint16Array(buffSize)
+        const bufferData = this.voxelDataEncoder(
           blockType,
           blockMode,
         )
-        groundBuffer.push(rawData)
-        bufferCount--
+        groundBuffer.fill(bufferData)
+        // worldChunk.writeSector()
+        const chunkBuffer = worldChunk.readBuffer(asVect2(blockLocalPos))
+        chunkBuffer.set(groundBuffer)
+        worldChunk.writeBuffer(asVect2(blockLocalPos), chunkBuffer)
       }
-
-      // worldChunk.writeSector()
-      worldChunk.writeBuffer(blockLocalPos, block.data, [])
     }
   }
 
-
-  mergePatchEntities(
-    worldChunk: ChunkContainer,
-    groundLayer: GroundPatch,
-    overgroundEntities: InstancedEntity[],
-  ) {
-    overgroundEntities.forEach(instancedEntity => {
-      const { spawnLoc, entity } = instancedEntity
-      const entityBounds = asBox2(entity.template.bounds).translate(asVect2(spawnLoc))
-      const center = entityBounds.getCenter(new Vector2()).floor()
-      spawnLoc.y = groundLayer.getBlock(center)?.pos.y || 0
-      // return overlapping blocks between entity and container
-      const patchBlocksIter = groundLayer.iterBlocksQuery(entityBounds)
-      // iter over entity blocks
-      for (const block of patchBlocksIter) {
-        // const buffer = instancedEntity.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
-        // translate queried loc to template local pos
-        const localPos = block.pos.clone().sub(spawnLoc)
-        let bufferData = entity.template.readBufferY(asVect2(localPos))
-        const buffOffset = spawnLoc.y - block.pos.y
-        const buffSrc = Math.abs(Math.min(0, buffOffset))
-        const buffDest = Math.max(buffOffset, 0)
-        bufferData = bufferData.copyWithin(buffDest, buffSrc)
-        bufferData =
-          buffOffset < 0
-            ? bufferData.fill(BlockType.NONE, buffOffset)
-            : bufferData
-        block.localPos.x += 1
-        block.localPos.z += 1
-        worldChunk.writeBuffer(block.localPos, block.data, bufferData)
-      }
+  mergeOvergroundItems(worldChunk: ChunkContainer, overgroundItems: Record<WorldItem, Vector3[]>) {
+    Object.entries(overgroundItems).forEach(([type, spawnPlaces]) => {
+      const itemType = parseInt(type) as WorldItem
+      const { entity } = OvergroundEntities.registered[itemType]
+      spawnPlaces.forEach(spawnLoc => {
+        const dims = entity.template.bounds.getSize(new Vector3())
+        // const translation = parseThreeStub(spawnLoc).sub(new Vector3(dims.x / 2, 0, dims.z / 2).round())
+        // const entityBounds = entity.template.bounds.clone().translate(translation)
+        const entityBounds = new Box3().setFromCenterAndSize(spawnLoc, dims)
+        entityBounds.min.y = spawnLoc.y
+        entityBounds.max.y = spawnLoc.y + dims.y
+        entityBounds.min.floor()
+        entityBounds.max.floor()
+        const entityChunk = new ChunkContainer(entityBounds, 0)
+        entityChunk.rawData.set(entity.template.rawData)
+        ChunkContainer.copySourceToTarget(entityChunk, worldChunk)
+      })
     })
   }
 }

@@ -1,5 +1,5 @@
 export { Biome, BlockType } from './procgen/Biome'
-export { WorldObjectType, OvergroundEntities } from './datacontainers/OvergroundEntities'
+export { WorldItem, OvergroundEntities } from './datacontainers/OvergroundEntities'
 export { WorldConf } from './misc/WorldConfig'
 export { Heightmap } from './procgen/Heightmap'
 export { NoiseSampler } from './procgen/NoiseSampler'

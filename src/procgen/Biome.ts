@@ -95,7 +95,7 @@ export class Biome {
     seaLevel: 0,
   }
 
-  indexedConf = new Map<string, NoiseLevelConf>
+  indexedConf = new Map<BiomeConfKey, NoiseLevelConf>
 
   constructor(biomeConf?: BiomeConfigs) {
     this.heatmap = new ProcLayer('heatmap')

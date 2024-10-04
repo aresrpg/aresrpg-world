@@ -3,8 +3,10 @@ import Pako from "pako"
 import { Box3, Vector3 } from "three";
 import { BlockType } from "../procgen/Biome";
 import { ChunkContainer } from "../datacontainers/ChunkContainer";
+import { WorldConf } from "../misc/WorldConfig";
 
 export class SchematicLoader {
+    static worldBlocksMapping: Record<string, BlockType>
 
     static async load(path: string) {
         // const schem = await Schematic.read(Buffer.from(schemData), '1.16.4')
@@ -36,38 +38,30 @@ export class SchematicLoader {
      * @param schemBlocks 
      * @returns 
      */
-    static async createChunkContainer(fileUrl: string) {
-        const toWorldBlockType = (rawType: string) => {
-            switch (rawType) {
-                case "air":
-                    return BlockType.NONE
-                case "spruce_log":
-                    return BlockType.TREE_TRUNK
-                case "spruce_leaves":
-                    return BlockType.TREE_FOLIAGE
-                default:
-                    console.log(rawType)
-                    return BlockType.NONE
-            }
-        }
+    static async createChunkContainer(fileUrl: string, chunkDataEncoder = (val: BlockType) => val) {
         const rawData = await SchematicLoader.load(fileUrl)
-        const parsedData = await SchematicLoader.parse(rawData)
-        const schemBlocks = SchematicLoader.getBlocks(parsedData)
+        const parsedSchematic = await SchematicLoader.parse(rawData)
+        const schemBlocks = SchematicLoader.getBlocks(parsedSchematic)
         const dims = new Vector3(schemBlocks[0].length, schemBlocks.length, schemBlocks[0][0].length)
-        const orig = new Vector3(0, 140, 0)
+        const orig = new Vector3(0, 0, 0)
         const end = orig.clone().add(dims)
         const bbox = new Box3(orig, end)
         const chunkContainer = new ChunkContainer(bbox)
-        let index = 0
+
         for (let y = 0; y < schemBlocks.length; y++) {
             for (let x = 0; x < schemBlocks[y].length; x++) {
                 for (let z = 0; z < schemBlocks[y][x].length; z++) {
                     const rawType = schemBlocks[y][x][z].name.split(":")[1]
-                    const blockType = toWorldBlockType(rawType)
+                    let blockType = this.worldBlocksMapping[rawType]
+                    if (blockType === undefined) {
+                        console.warn(`missing schematic block type ${rawType}`)
+                        blockType = WorldConf.debug.schematics.missingBlockType
+                    }
                     // worldObj.rawData[index++] = blockType
                     const localPos = new Vector3(x, y, z)
                     const blockIndex = chunkContainer.getIndex(localPos)
-                    chunkContainer.rawData[blockIndex] = blockType
+                    // const encodedData = ChunkFactory.defaultInstance.voxelDataEncoder(blockType || BlockType.NONE)
+                    chunkContainer.rawData[blockIndex] = chunkDataEncoder(blockType || BlockType.NONE) //encodedData
                 }
             }
         }
