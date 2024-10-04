@@ -2,8 +2,6 @@ import { Vector2, Box2, Box3, Vector3, MathUtils } from 'three'
 import { ChunkId, ChunkKey } from '../common/types'
 import { asVect3, chunkBoxFromKey, parseChunkKey, serializeChunkId } from '../common/utils'
 import { WorldConf } from '../misc/WorldConfig'
-import { ChunkFactory } from '../tools/ChunkFactory'
-import { BlockData, BlockMode } from './GroundPatch'
 
 enum ChunkAxisOrder {
     ZXY,
@@ -22,7 +20,7 @@ export class ChunkContainer {
     rawData: Uint16Array
     axisOrder: ChunkAxisOrder
 
-    constructor(boundsOrChunkKey: Box3 | ChunkKey = new Box3(), margin = 0, axisOrder= ChunkAxisOrder.ZXY) {
+    constructor(boundsOrChunkKey: Box3 | ChunkKey = new Box3(), margin = 0, axisOrder = ChunkAxisOrder.ZXY) {
         //, bitLength = BitLength.Uint16) {
         const bounds =
             boundsOrChunkKey instanceof Box3
@@ -74,38 +72,42 @@ export class ChunkContainer {
         this.dimensions = bounds.getSize(new Vector3())
     }
 
-    // copy occurs only on the overlapping global pos region of both containers
-    static copySourceOverTargetContainer(source: any, target: any) {
-        const adjustOverlapMargins = (overlap: Box2) => {
-            const margin = Math.min(target.margin, source.margin) || 0
-            overlap.min.x -= target.bounds.min.x === overlap.min.x ? margin : 0
-            overlap.min.y -= target.bounds.min.y === overlap.min.y ? margin : 0
-            overlap.max.x += target.bounds.max.x === overlap.max.x ? margin : 0
-            overlap.max.y += target.bounds.max.y === overlap.max.y ? margin : 0
+    // copy occurs only on the overlapping region of both containers
+    static copySourceToTarget(sourceChunk: ChunkContainer, targetChunk: ChunkContainer){
+        const adjustOverlapMargins = (overlap: Box3) => {
+            const margin = Math.min(targetChunk.margin, sourceChunk.margin) || 0
+            overlap.min.x -= targetChunk.bounds.min.x === overlap.min.x ? margin : 0
+            overlap.min.y -= targetChunk.bounds.min.y === overlap.min.y ? margin : 0
+            overlap.min.z -= targetChunk.bounds.min.z === overlap.min.z ? margin : 0
+            overlap.max.x += targetChunk.bounds.max.x === overlap.max.x ? margin : 0
+            overlap.max.y += targetChunk.bounds.max.y === overlap.max.y ? margin : 0
+            overlap.max.z += targetChunk.bounds.max.z === overlap.max.z ? margin : 0
         }
-
-        if (source.bounds.intersectsBox(target.bounds)) {
-            const overlap = target.bounds.clone().intersect(source.bounds)
+    
+        if (sourceChunk.bounds.intersectsBox(targetChunk.bounds)) {
+            const overlap = targetChunk.bounds.clone().intersect(sourceChunk.bounds)
             adjustOverlapMargins(overlap)
-            for (let { y } = overlap.min; y < overlap.max.y; y++) {
-                // const globalStartPos = new Vector3(x, 0, overlap.min.y)
-                const globalStartPos = new Vector2(overlap.min.x, y)
-                const targetLocalStartPos = target.toLocalPos(globalStartPos)
-                const sourceLocalStartPos = source.toLocalPos(globalStartPos)
-                let targetIndex = target.getIndex(targetLocalStartPos)
-                let sourceIndex = source.getIndex(sourceLocalStartPos)
+    
+            for (let { z } = overlap.min; z < overlap.max.z; z++) {
                 for (let { x } = overlap.min; x < overlap.max.x; x++) {
-                    const sourceVal = source.rawData[sourceIndex]
-                    if (sourceVal) {
-                        target.rawData[targetIndex] = sourceVal
+                    const globalStartPos = new Vector3(x, overlap.min.y, z)
+                    const targetLocalStartPos = targetChunk.toLocalPos(globalStartPos)
+                    const sourceLocalStartPos = sourceChunk.toLocalPos(globalStartPos)
+                    let targetIndex = targetChunk.getIndex(targetLocalStartPos)
+                    let sourceIndex = sourceChunk.getIndex(sourceLocalStartPos)
+    
+                    for (let { y } = overlap.min; y < overlap.max.y; y++) {
+                        const sourceVal = sourceChunk.rawData[sourceIndex]
+                        if (sourceVal) {
+                            targetChunk.rawData[targetIndex] = sourceVal
+                        }
+                        sourceIndex++
+                        targetIndex++
                     }
-                    sourceIndex++
-                    targetIndex++
                 }
             }
         }
     }
-
     /**
      * 
      * @param localPos queried buffer location as Vector2 or Vector3
@@ -259,92 +261,18 @@ export class ChunkContainer {
         this.rawData[sectorIndex] = this.encodeSectorData(sectorData)
     }
 
-    readBufferY(localPos: Vector2) {
-        // const localPos = this.toLocalPos(asVect3(pos, this.bounds.min.y))
+    readBuffer(localPos: Vector2) {
         const buffIndex = this.getIndex(localPos)
-        // const buffIndex =
-        //   chunkLocalPos.z * chunkDims.x * chunkDims.y +
-        //   chunkLocalPos.x * chunkDims.y
         const rawBuffer = this.rawData.slice(buffIndex, buffIndex + this.dimensions.y)
         return rawBuffer
     }
 
-    writeBufferY(pos: Vector2, blocksBuffer: number[]) {
-        const localPos = this.toLocalPos(asVect3(pos, this.bounds.min.y))
-        const {extendedDims}=this
-        //const startOffset = this.getIndex(localPos)
-        //this.rawData.set(buffer, startOffset)
-        while(blocksBuffer.length>0){
-            const index = localPos.z * extendedDims.z +
-            blocksBuffer.length * extendedDims.y +
-            localPos.x
-            const blockData = blocksBuffer.pop()
-            this.rawData[index] = ChunkFactory.defaultInstance.voxelDataEncoder(
-                blockData.type,
-                blockData.mode,
-            )
-        }
-    }
-
-    /**
-   * From native world format (z,x,y) to (z,y,x) format
-   */
-    exportAsZYXFormat() {
-        const dimensions = this.bounds.getSize(new Vector3())
-        const getTargetIndex = (localPos: Vector3) => localPos.z * dimensions.x * dimensions.y +
-            localPos.y * dimensions.x +
-            localPos.x
-        // read yBuffer at z,x pos
-    }
-
     writeBuffer(
-        blockLocalPos: Vector3,
-        blockData: BlockData,
-        bufferOver: Uint16Array | [],
+        localPos: Vector2,
+        buffer: Uint16Array,
     ) {
-        const { bounds, rawData } = this
-        const chunk_size = bounds.getSize(new Vector3()).x // Math.round(Math.pow(chunkData.length, 1 / 3))
-
-        let written_blocks_count = 0
-
-        const level = MathUtils.clamp(
-            blockLocalPos.y + bufferOver.length,
-            bounds.min.y,
-            bounds.max.y,
-        )
-        let buff_index = Math.max(level - blockLocalPos.y, 0)
-        let h = level - bounds.min.y // local height
-        // debug_mode && is_edge(local_pos.z, local_pos.x, h, patch_size - 2)
-        //   ? BlockType.SAND
-        //   : block_cache.type
-        let depth = 0
-        while (h >= 0) {
-            const blocksIndex =
-                blockLocalPos.z * Math.pow(chunk_size, 2) +
-                h * chunk_size +
-                blockLocalPos.x
-            const blockType = buff_index > 0 ? bufferOver[buff_index] : blockData.type
-            const skip =
-                buff_index > 0 &&
-                rawData[blocksIndex] !== undefined &&
-                !bufferOver[buff_index]
-            if (!skip && blockType !== undefined) {
-                // #hack: disable block mode below ground to remove checkerboard excess
-                const skipBlockMode =
-                    depth > 0 &&
-                    (bufferOver.length === 0 || bufferOver[buff_index] || buff_index < 0)
-                const blockMode = skipBlockMode ? BlockMode.DEFAULT : blockData.mode
-                rawData[blocksIndex] = ChunkFactory.defaultInstance.voxelDataEncoder(
-                    blockType,
-                    blockMode,
-                )
-                blockType && written_blocks_count++
-            }
-            h--
-            buff_index--
-            depth++
-        }
-        return written_blocks_count
+        const buffIndex = this.getIndex(localPos)
+        this.rawData.set(buffer, buffIndex)
     }
 
     // abstract get chunkIds(): ChunkId[]

@@ -23,6 +23,9 @@ export class WorldConf {
   }
 
   static defaultDistMapPeriod = 4 * WorldConf.patchSize
+  static settings = {
+    useBiomeBilinearInterpolation: true
+  }
   static debug = {
     patch: {
       borderHighlightColor: BlockType.NONE,
@@ -31,5 +34,8 @@ export class WorldConf {
       startPosHighlightColor: BlockType.NONE,
       splitSidesColoring: false,
     },
+    schematics:{
+      missingBlockType: BlockType.NONE
+    }
   }
 }

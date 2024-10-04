@@ -1,16 +1,12 @@
 import { Box2, Vector3 } from 'three'
 
-import { Block, EntityData, PatchKey } from '../common/types'
-import { EntityChunk, EntityChunkStub } from '../datacontainers/EntityChunk'
+import { Block, PatchKey } from '../common/types'
 import { GroundPatch, WorldCompute, WorldUtils } from '../index'
-import { parseThreeStub } from '../common/utils'
 
 export enum ComputeApiCall {
-  PatchCompute = 'bakeGroundPatch',
+  PatchCompute = 'bakePatch',
   BlocksBatchCompute = 'computeBlocksBatch',
-  OvergroundBufferCompute = 'computeOvergroundBuffer',
-  QueryEntities = 'queryEntities',
-  BakeEntities = 'queryBakeEntities',
+  OvergroundItemsQuery = 'retrieveOvergroundItems',
   BattleBoardCompute = 'computeBoardData',
 }
 
@@ -21,8 +17,9 @@ export type ComputeApiParams = Partial<{
 }>
 
 /**
- * Exposing world compute api with ability to run inside optional worker
- * When provided all request are proxied to worker instead of main thread
+ * Frontend exposing world APIs and proxying requests to internal modules: world-compute, world-cache, 
+ * When optional worker is provided all compute request are proxied to worker 
+ * instead of main thread
  */
 export class WorldComputeProxy {
   // eslint-disable-next-line no-use-before-define
@@ -81,15 +78,15 @@ export class WorldComputeProxy {
     const blocks = !this.worker
       ? WorldCompute.computeBlocksBatch(blockPosBatch, params)
       : ((await this.workerCall(ComputeApiCall.BlocksBatchCompute, [
-          blockPosBatch,
-          params,
-        ])?.then((blocksStubs: Block[]) =>
-          // parse worker's data to recreate original objects
-          blocksStubs.map(blockStub => {
-            blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
-            return blockStub
-          }),
-        )) as Block[])
+        blockPosBatch,
+        params,
+      ])?.then((blocksStubs: Block[]) =>
+        // parse worker's data to recreate original objects
+        blocksStubs.map(blockStub => {
+          blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
+          return blockStub
+        }),
+      )) as Block[])
 
     return blocks
   }
@@ -101,31 +98,26 @@ export class WorldComputeProxy {
   //   }
   // }
 
-  async queryEntities(queriedRegion: Box2) {
-    // const entitiesData = !this.worker
-    //   ? WorldCompute.queryEntities(queriedRegion)
-    //   : ((await this.workerCall(
-    //       ComputeApiCall.QueryEntities,
-    //       [queriedRegion], // [emptyPatch.bbox]
-    //     )?.then(stubs =>
-    //       stubs.map((stub: EntityData) => ({
-    //         ...stub,
-    //         bbox: parseThreeStub(stub.bbox),
-    //       })),
-    //     )) as EntityData[])
-    return [] //entitiesData
+  async queryOvergroundItems(queriedRegion: Box2) {
+    const overgroundItems = !this.worker
+      ? WorldCompute.retrieveOvergroundItems(queriedRegion)
+      : await this.workerCall(
+        ComputeApiCall.OvergroundItemsQuery,
+        [queriedRegion], // [emptyPatch.bbox]
+      )
+    return overgroundItems
   }
 
   async *iterPatchCompute(patchKeysBatch: PatchKey[]) {
     for (const patchKey of patchKeysBatch) {
       const patch = !this.worker
-        ? WorldCompute.bakeGroundPatch(patchKey)
+        ? WorldCompute.bakePatch(patchKey)
         : ((await this.workerCall(
-            ComputeApiCall.PatchCompute,
-            [patchKey], // [emptyPatch.bbox]
-          )?.then(patchStub =>
-            new GroundPatch().fromStub(patchStub),
-          )) as GroundPatch)
+          ComputeApiCall.PatchCompute,
+          [patchKey], // [emptyPatch.bbox]
+        )?.then(patchStub =>
+          new GroundPatch().fromStub(patchStub),
+        )) as GroundPatch)
 
       yield patch
     }
@@ -133,7 +125,7 @@ export class WorldComputeProxy {
 
   async bakeGroundPatch(boundsOrPatchKey: Box2 | string) {
     const patchStub = !this.worker
-      ? WorldCompute.bakeGroundPatch(boundsOrPatchKey)
+      ? WorldCompute.bakePatch(boundsOrPatchKey)
       : await this.workerCall(ComputeApiCall.PatchCompute, [boundsOrPatchKey])
     // ?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
 

@@ -1,13 +1,17 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { EntityType, GroundPatch } from '../index'
-import { Biome, BiomeInfluence, BiomeType, BlockType } from '../procgen/Biome'
+import { EntityType, GroundPatch, WorldConf } from '../index'
+import { Biome, BiomeInfluence, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
-import { Block, EntityData, NoiseLevelConf, PatchKey } from '../common/types'
-import { asBox3, asVect2, asVect3, bilinearInterpolation, getBoundsCornerPoints } from '../common/utils'
-import { BlockData } from '../datacontainers/GroundPatch'
-import { OvergroundEntities, WorldObjectType } from '../datacontainers/OvergroundEntities'
+import { BiomeConfKey, Block, EntityData, NoiseLevelConf, PatchKey } from '../common/types'
+import { asVect2, asVect3, bilinearInterpolation, getBoundsCornerPoints } from '../common/utils'
+import { BlockConfigs, BlockData } from '../datacontainers/GroundPatch'
+import { OvergroundEntities, WorldItem } from '../datacontainers/OvergroundEntities'
 // import { BoardInputParams } from '../feats/BoardContainer'
+
+/**
+ * Brain of the world which can be run in separate worker
+ */
 
 /**
  * Individual blocks requests
@@ -58,7 +62,7 @@ export const computeBlocksBatch = (
   return blocksBatch
 }
 
-export const computeGroundBlock = (blockPos: Vector3, biomeInfluence: BiomeInfluence) => {
+export const computeGroundBlock = (blockPos: Vector3, biomeInfluence?: BiomeInfluence) => {
   biomeInfluence = biomeInfluence || Biome.instance.getBiomeInfluence(blockPos)
   // const biomeInfluenceBis = Biome.instance.getBiomeInfluence(blockPos)
   const biomeType = Biome.instance.getBiomeType(biomeInfluence)
@@ -67,6 +71,7 @@ export const computeGroundBlock = (blockPos: Vector3, biomeInfluence: BiomeInflu
   const currLevelConf = noiseLevel.data
   const prevLevelConf = noiseLevel.prev?.data
   const nextLevelConf = noiseLevel.next?.data
+  const confKey = currLevelConf.key
   const confIndex = Biome.instance.getConfIndex(currLevelConf.key)
   // const confData = Biome.instance.indexedConf.get(confIndex)
   const level = Heightmap.instance.getGroundLevel(
@@ -95,16 +100,24 @@ export const computeGroundBlock = (blockPos: Vector3, biomeInfluence: BiomeInflu
 
   // }
   // level += offset
-  const block: BlockData = { level, type, spawnableItems }
-  return block
+  const output = { level, type, spawnableItems, confKey }
+  return output
 }
 
 /**
  * Patch requests
  */
 
+export const bakePatch = (boundsOrPatchKey: PatchKey | Box2) => {
+  // compute patch layers
+  const groundLayer = bakeGroundLayer(boundsOrPatchKey)
+  // const overgroundItems = retrieveOvergroundItems(groundLayer.bounds)
+  // console.log(overgroundItems)
+  return groundLayer
+}
+
 // Patch ground layer
-export const bakeGroundPatch = (boundsOrPatchKey: PatchKey | Box2) => {
+export const bakeGroundLayer = (boundsOrPatchKey: PatchKey | Box2) => {
   const groundPatch = new GroundPatch(boundsOrPatchKey)
   // eval biome at patch corners
   const equals = (v1, v2) => {
@@ -112,7 +125,11 @@ export const bakeGroundPatch = (boundsOrPatchKey: PatchKey | Box2) => {
     return !different
   }
   const [p11, p12, p21, p22] = getBoundsCornerPoints(groundPatch.bounds)
-  const [v11, v12, v21, v22] = [p11, p12, p21, p22].map(point => Biome.instance.getBiomeInfluence(point))
+  const [v11, v12, v21, v22] = [p11, p12, p21, p22].map(pos => {
+    const biomeInfluence = Biome.instance.getBiomeInfluence(pos)
+    // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+    return biomeInfluence
+  })
   const allEquals = equals(v11, v12) && equals(v11, v21) && equals(v11, v22)
   const { min, max } = groundPatch.bounds
   const blocks = groundPatch.iterBlocksQuery(undefined, false)
@@ -122,15 +139,44 @@ export const bakeGroundPatch = (boundsOrPatchKey: PatchKey | Box2) => {
   }
   let blockIndex = 0
   for (const block of blocks) {
-    // if biome is the same at each patch corners, no need tp interpolate
-    const interpolatedBiome = allEquals ? v11 : bilinearInterpolation(asVect2(block.pos), groundPatch.bounds, { v11, v12, v21, v22 })
-    const blockData = computeGroundBlock(block.pos, interpolatedBiome)
+    // EXPERIMENTAL: is it faster to perform bilinear interpolation rather than sampling biome for each block?
+    const getBlockBiome = () => WorldConf.settings.useBiomeBilinearInterpolation && bilinearInterpolation(asVect2(block.pos), groundPatch.bounds, { v11, v12, v21, v22 })
+    // if biome is the same at each patch corners, no need to interpolate
+    const blockData = computeGroundBlock(block.pos, allEquals ? v11 : getBlockBiome())
     level.min = Math.min(min.y, blockData.level)
     level.max = Math.max(max.y, blockData.level)
     groundPatch.writeBlockData(blockIndex, blockData)
+    groundPatch.blockConfigs[blockData.confKey] = true
     blockIndex++
   }
   return groundPatch
+}
+
+export const retrieveOvergroundItems = (bounds: Box2) => {
+  // spawnable items based on soil type found in this specific region
+  const blockConfigs: any = {}
+  const [p11, p12, p21, p22] = getBoundsCornerPoints(bounds);
+  [p11, p12, p21, p22].forEach(pos => {
+    const block = computeGroundBlock(asVect3(pos))
+    blockConfigs[block.confKey] = Biome.instance.indexedConf.get(block.confKey)?.data
+  })
+  const spawnedItems = {}
+  Object.values(blockConfigs).forEach(blockConf => blockConf?.entities?.forEach(itemType => spawnedItems[itemType] = []))
+  Object.keys(spawnedItems).forEach(type => {
+    const itemType = parseInt(type) as WorldItem
+    const spawnablePlaces = OvergroundEntities.querySpawnedEntities(
+      itemType,
+      bounds,
+    )
+    spawnablePlaces.forEach(itemPos => {
+      // confirm entities and add spawn elevation
+      const block = computeGroundBlock(asVect3(itemPos))
+      const blockConf = Biome.instance.indexedConf.get(block.confKey)?.data
+      if (blockConf?.entities?.find(val => val === itemType))
+        spawnedItems[itemType].push(asVect3(itemPos, block.level))
+    })
+  })
+  return spawnedItems
 }
 
 /**
@@ -142,7 +188,7 @@ export const bakeGroundPatch = (boundsOrPatchKey: PatchKey | Box2) => {
 export const bakePatchLayers = () => { }
 export const bakePatchGroundLayer = () => { }
 export const bakePatchUndergroundLayer = () => { } // or caverns
-export const bakePatchOvergroundLayer = (boundsOrPatchKey: PatchKey | Box2, objectType: WorldObjectType) => { }
+export const bakePatchOvergroundLayer = (boundsOrPatchKey: PatchKey | Box2, itemType: WorldItem) => { }
 
 
 // Battle board
@@ -152,76 +198,4 @@ export const bakePatchOvergroundLayer = (boundsOrPatchKey: PatchKey | Box2, obje
 //   await boardMap.populateEntities()
 //   const boardStub = boardMap.toStub()
 //   return boardStub
-// }
-
-/**
- * Entity queries/baking
- */
-
-export const queryEntities = (queriedRegion: Box2, queriedObjType: WorldObjectType) => {
-  const queriedObject = OvergroundObjects.getObjectInstance(queriedObjType)
-
-  // const spawnablePlaces = queriedObject.queryDistribution(queriedRegion)
-  const spawnablePlaces = WorldEntities.instance.queryDistributionMap(
-    EntityType.TREE_APPLE,
-  )(queriedRegion)
-  const spawnedEntities = spawnablePlaces
-    .map(entLoc =>
-      WorldEntities.instance.getEntityData(
-        EntityType.TREE_PINE,
-        asVect3(entLoc),
-      ),
-    )
-    .filter(entity => confirmFinalizeEntity(entity))
-  return spawnedEntities
-}
-
-/**
- *
- * @param entityPos
- * @returns
- */
-const confirmFinalizeEntity = (entity: EntityData) => {
-  const entityPos = entity.bbox.getCenter(new Vector3())
-  // use global coords in case entity center is from adjacent patch
-  const rawVal = Heightmap.instance.getRawVal(entityPos)
-  const biomeType = Biome.instance.getBiomeType(entityPos)
-  const biomeConf = Biome.instance.getBiomeConf(rawVal, biomeType)
-  const [entityType] = biomeConf.data.entities || []
-  // confirm this kind of entity can spawn over here
-  if (entityType) {
-    entity.bbox.min.y = Heightmap.instance.getGroundLevel(entityPos, rawVal)
-    entity.bbox.max.y += entity.bbox.min.y
-    return entity
-  }
-  return null
-}
-
-export const queryBakeEntities = (queriedRange: Box2) => {
-  const entitiesData = queryEntities(queriedRange)
-  return bakeEntitiesBatch(entitiesData)
-}
-
-export const bakeEntitiesBatch = (entities: EntityData[]) => {
-  // const entitiesChunks: EntityChunkStub[] = entities
-  //   .map(entityData => new EntityChunk(entityData))
-  //   .map(entityChunk => {
-  //     entityChunk.voxelize()
-  //     return entityChunk.toStub()
-  //   })
-  return [];//entitiesChunks
-}
-
-// /**
-//  * return all entity types which can spwawn over specific region
-//  */
-// const getSpawnableEntities = (region: Box2) => {
-//   // TODO
-// }
-
-// /**
-//  * granular check in transition place (spline or biome transitions)
-//  */
-// const confirmSpawnability = () => {
-
 // }
