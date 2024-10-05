@@ -1,39 +1,58 @@
 import { Vector3, Vector2, Box3 } from 'three'
 import { asVect2 } from '../common/utils'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { BlockType, PseudoDistributionMap } from '../index'
+import { BlockType } from '../index'
 
-export type TreeDef = {
-  // type: TreeKind,
-  size: number,
-  radius: number
+export enum ProcItemCategory {
+  Tree,
+  Boulder,
+  Grass
 }
 
-export abstract class ProceduralTree {
-  // type
-  size
-  radius
+export enum ProcItemType {
+  AppleTree,
+  PineTree
+}
 
-  constructor(size: number, radius: number) {
-    // super(new Box3(new Vector3(), new Vector3(2 * radius, size, 2 * radius)))
-    this.size = size
-    this.radius = radius
-    // this.type = type
+export type ProcItemConf = {
+  category: ProcItemCategory,
+  params: any
+}
+
+type TreeGenerator = (xzProj: number, y: number, range: number) => BlockType
+
+const AppleTreeGen = (xzProj: number, y: number, range: number): BlockType => {
+  const dist = Math.sqrt(Math.pow(xzProj, 2) + Math.pow(y, 2))
+  const isFoliage = dist <= range
+  return isFoliage ? BlockType.TREE_FOLIAGE : BlockType.NONE
+}
+
+const PineTreeGen = (xzProj: number, y: number, range: number): BlockType => {
+  const dist = xzProj // xzProj*(y+radius)
+  const isFoliage = dist <= range * (1 - (0.35 * (y + range)) / range)
+  return isFoliage ? BlockType.TREE_FOLIAGE_2 : BlockType.NONE
+}
+
+type ProceduralGenerator = TreeGenerator
+
+const ProceduralGenerators: Record<ProcItemType, ProceduralGenerator> = {
+  [ProcItemType.AppleTree]: AppleTreeGen,
+  [ProcItemType.PineTree]: PineTreeGen
+}
+
+export class ProceduralItemGenerator {
+
+  static voxelizeItem(itemCat: ProcItemCategory, itemParams: any, optionalDataEncoder?: () => number) {
+    switch (itemCat) {
+      case ProcItemCategory.Tree:
+        const { treeType, treeSize, treeRadius } = itemParams
+        return this.voxelizeTree(treeType, treeSize, treeRadius, optionalDataEncoder)
+    }
   }
 
-  abstract generate(xzProj: number, y: number, range: number): BlockType;
-
-  // get key() {
-  //   const { size, radius, type } = this
-  //   const treeDef = {
-  //     size, radius, type
-  //   }
-  //   return treeKey(treeDef)
-  // }
-
-  voxelize() {
-    const { size: treeSize, radius: treeRadius } = this
-    const treeBounds = new Box3(new Vector3(), new Vector3(2 * treeRadius, treeSize, 2 * treeRadius))
+  static voxelizeTree(treeType: ProcItemType, treeSize: number, treeRadius: number, dataEncoder = (blockType: BlockType) => blockType) {
+    const treeGenerator = ProceduralGenerators[treeType]
+    const treeBounds = new Box3(new Vector3(), new Vector3(2 * treeRadius, treeSize + 2 * treeRadius, 2 * treeRadius))
     const treeChunk = new ChunkContainer(treeBounds)
     const entityPos = treeBounds.getCenter(new Vector3())
     const { min, max } = treeBounds
@@ -45,47 +64,22 @@ export abstract class ProceduralTree {
       if (xzProj.length() > 0) {
         if (y < min.y + treeSize) {
           // empty space around trunk between ground and trunk top
-          treeChunk.rawData[index++] = BlockType.NONE
+          treeChunk.rawData[index++] = dataEncoder(BlockType.NONE)
         } else {
           // tree foliage
-          const blockType = this.generate(
+          const blockType = treeGenerator(
             xzProj.length(),
             y - (min.y + treeSize + treeRadius),
             treeRadius,
           )
-          treeChunk.rawData[index++] = blockType
+          treeChunk.rawData[index++] = dataEncoder(blockType)
         }
       } else {
         // tree trunk
-        treeChunk.rawData[index++] = BlockType.TREE_TRUNK
+        treeChunk.rawData[index++] = dataEncoder(BlockType.TREE_TRUNK)
       }
     }
-  }
-}
-
-export class AppleTree extends ProceduralTree {
-  distribution: PseudoDistributionMap
-  constructor(size: number, radius: number) {
-    super(size, radius)
-    this.distribution = new PseudoDistributionMap()
-  }
-  generate(xzProj: number, y: number, range: number): BlockType {
-    const dist = Math.sqrt(Math.pow(xzProj, 2) + Math.pow(y, 2))
-    const isFoliage = dist <= range
-    return isFoliage ? BlockType.TREE_FOLIAGE : BlockType.NONE
+    return treeChunk
   }
 
-}
-
-export class PineTree extends ProceduralTree {
-  distribution: PseudoDistributionMap
-  constructor(size: number, radius: number) {
-    super(size, radius)
-    this.distribution = new PseudoDistributionMap()
-  }
-  generate(xzProj: number, y: number, range: number): BlockType {
-    const dist = xzProj // xzProj*(y+radius)
-    const isFoliage = dist <= range * (1 - (0.35 * (y + range)) / range)
-    return isFoliage ? BlockType.TREE_FOLIAGE_2 : BlockType.NONE
-  }
 }

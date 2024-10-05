@@ -1,16 +1,12 @@
 import { Box2, Vector2, Vector3 } from 'three'
-
-import { EntityType, GroundPatch, WorldConf } from '../index'
+import { GroundPatch, ItemsInventory, WorldConf } from '../index'
 import { Biome, BiomeInfluence, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
-import { BiomeConfKey, Block, EntityData, NoiseLevelConf, PatchKey } from '../common/types'
+import { Block, NoiseLevelConf, PatchKey } from '../common/types'
 import { asVect2, asVect3, bilinearInterpolation, getBoundsCornerPoints } from '../common/utils'
-import { BlockConfigs, BlockData } from '../datacontainers/GroundPatch'
-import { OvergroundEntities, WorldItem } from '../datacontainers/OvergroundEntities'
-// import { BoardInputParams } from '../feats/BoardContainer'
 
 /**
- * Brain of the world which can be run in separate worker
+ * Brain of the world runnable in separate worker
  */
 
 /**
@@ -34,9 +30,9 @@ export const computeBlocksBatch = (
     const { spawnableItems } = blockData
     const queriedLoc = new Box2().setFromPoints([asVect2(blockPos)])
     queriedLoc.max.addScalar(1)
-    false && includeEntitiesBlocks && spawnableItems.forEach(entityType => {
+    false && includeEntitiesBlocks && spawnableItems.forEach(itemType => {
       // multiple (overlapping) objects may be found at queried position
-      const [spawnedEntity] = OvergroundEntities.querySpawnedEntities(entityType, queriedLoc)
+      const [spawnedEntity] = ItemsInventory.querySpawnedEntities(itemType, queriedLoc)
 
       // const [foundEntity] = queryEntities(spawnRange).map(entityData => {
       //   const { min, max } = entityData.bbox
@@ -162,9 +158,8 @@ export const retrieveOvergroundItems = (bounds: Box2) => {
   })
   const spawnedItems = {}
   Object.values(blockConfigs).forEach(blockConf => blockConf?.entities?.forEach(itemType => spawnedItems[itemType] = []))
-  Object.keys(spawnedItems).forEach(type => {
-    const itemType = parseInt(type) as WorldItem
-    const spawnablePlaces = OvergroundEntities.querySpawnedEntities(
+  Object.keys(spawnedItems).forEach(itemType => {
+    const spawnablePlaces = ItemsInventory.querySpawnedEntities(
       itemType,
       bounds,
     )
