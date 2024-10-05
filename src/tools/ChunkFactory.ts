@@ -5,12 +5,11 @@ import {
   asVect2,
   asVect3,
   chunkBoxFromId,
-  parseThreeStub,
   serializeChunkId,
 } from '../common/utils'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { OvergroundEntities, WorldItem } from '../datacontainers/OvergroundEntities'
-import { BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
+import { BlockMode, BlockType, GroundPatch, ItemsInventory, WorldConf } from '../index'
+import { ItemId } from '../misc/ItemsInventory'
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -55,7 +54,7 @@ export class ChunkFactory {
   /**
    * Assembles pieces together: ground, world objects
    */
-  chunkifyPatch(groundLayer: GroundPatch, overgroundItems: Record<WorldItem, Vector3[]>) {
+  chunkifyPatch(groundLayer: GroundPatch, overgroundItems: Record<ItemId, Vector3[]>) {
     const patchChunkIds = groundLayer.id
       ? ChunkFactory.default.genChunksIdsFromPatchId(groundLayer.id)
       : []
@@ -104,23 +103,24 @@ export class ChunkFactory {
     }
   }
 
-  mergeOvergroundItems(worldChunk: ChunkContainer, overgroundItems: Record<WorldItem, Vector3[]>) {
-    Object.entries(overgroundItems).forEach(([type, spawnPlaces]) => {
-      const itemType = parseInt(type) as WorldItem
-      const { entity } = OvergroundEntities.registered[itemType]
-      spawnPlaces.forEach(spawnLoc => {
-        const dims = entity.template.bounds.getSize(new Vector3())
-        // const translation = parseThreeStub(spawnLoc).sub(new Vector3(dims.x / 2, 0, dims.z / 2).round())
-        // const entityBounds = entity.template.bounds.clone().translate(translation)
-        const entityBounds = new Box3().setFromCenterAndSize(spawnLoc, dims)
-        entityBounds.min.y = spawnLoc.y
-        entityBounds.max.y = spawnLoc.y + dims.y
-        entityBounds.min.floor()
-        entityBounds.max.floor()
-        const entityChunk = new ChunkContainer(entityBounds, 0)
-        entityChunk.rawData.set(entity.template.rawData)
-        ChunkContainer.copySourceToTarget(entityChunk, worldChunk)
-      })
+  mergeOvergroundItems(worldChunk: ChunkContainer, overgroundItems: Record<ItemId, Vector3[]>) {
+    Object.entries(overgroundItems).forEach(([itemType, spawnPlaces]) => {
+      const itemChunk = ItemsInventory.catalog[itemType]
+      if (itemChunk) {
+        spawnPlaces.forEach(spawnLoc => {
+          const dims = itemChunk.bounds.getSize(new Vector3())
+          // const translation = parseThreeStub(spawnLoc).sub(new Vector3(dims.x / 2, 0, dims.z / 2).round())
+          // const entityBounds = entity.template.bounds.clone().translate(translation)
+          const entityBounds = new Box3().setFromCenterAndSize(spawnLoc, dims)
+          entityBounds.min.y = spawnLoc.y
+          entityBounds.max.y = spawnLoc.y + dims.y
+          entityBounds.min.floor()
+          entityBounds.max.floor()
+          const entityChunk = new ChunkContainer(entityBounds, 0)
+          entityChunk.rawData.set(itemChunk.rawData)
+          ChunkContainer.copySourceToTarget(entityChunk, worldChunk)
+        })
+      }
     })
   }
 }

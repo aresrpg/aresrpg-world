@@ -1,5 +1,5 @@
+
 export { Biome, BlockType } from './procgen/Biome'
-export { WorldItem, OvergroundEntities } from './datacontainers/OvergroundEntities'
 export { WorldConf } from './misc/WorldConfig'
 export { Heightmap } from './procgen/Heightmap'
 export { NoiseSampler } from './procgen/NoiseSampler'
@@ -13,8 +13,9 @@ export { GroundMap } from './datacontainers/GroundMap'
 export { ChunkFactory } from './tools/ChunkFactory'
 export { WorldComputeProxy } from './api/WorldComputeProxy'
 export { PatchContainer } from './datacontainers/PatchContainer'
+export { ItemsInventory } from './misc/ItemsInventory'
 export { SchematicLoader } from './tools/SchematicLoader'
-
+export { ProceduralItemGenerator, ProcItemType, ProcItemCategory } from './tools/ProceduralGenerators'
 export * as WorldCompute from './api/world-compute'
 export * as WorldUtils from './common/utils'
-export * as ProceduralGenerators from './tools/ProceduralGenerators'
+// export * as ProceduralGenerators from './tools/ProceduralGenerators'

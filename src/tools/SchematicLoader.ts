@@ -68,7 +68,6 @@ export class SchematicLoader {
         return chunkContainer
     }
 
-
     static getBlocks(schemData) {
         // Get dimensions of the schematic
         const width = schemData.value.Width.value;
