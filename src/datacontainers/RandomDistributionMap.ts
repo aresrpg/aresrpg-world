@@ -6,8 +6,9 @@ import { BlueNoisePattern } from '../procgen/BlueNoisePattern'
 import { EntityData } from '../common/types'
 import { WorldConf } from '../index'
 import { getPatchIds } from '../common/utils'
+import { ItemType } from '../misc/ItemsInventory'
 
-// import { Adjacent2dPos } from '../common/types'
+// import { SurfaceNeighbour } from '../common/types'
 // import { getAdjacent2dCoords } from '../common/utils'
 
 const probabilityThreshold = Math.pow(2, 8)
@@ -42,25 +43,13 @@ export class PseudoDistributionMap {
     this.densityMap = new ProcLayer(distParams.aleaSeed || '')
   }
 
-  spawnProbabilityEval(pos: Vector2) {
+  spawnProbabilityEval = (pos: Vector2) => {
     const maxCount = 1 // 16 * Math.round(Math.exp(10))
     const val = this.densityMap?.eval(pos)
     const adjustedVal = val
       ? (16 * Math.round(Math.exp((1 - val) * 10))) / maxCount
       : 0
     return adjustedVal
-  }
-
-  hasSpawned(itemPos: Vector2, spawnProbabilty?: number) {
-    // eval spawn probability at entity center
-    spawnProbabilty =
-      spawnProbabilty && !isNaN(spawnProbabilty)
-        ? spawnProbabilty
-        : this.spawnProbabilityEval(itemPos)
-    const itemId = itemPos.x + ':' + itemPos.y
-    const prng = alea(itemId)
-    const hasSpawned = prng() * spawnProbabilty < probabilityThreshold
-    return hasSpawned
   }
 
   /**
@@ -71,37 +60,57 @@ export class PseudoDistributionMap {
    * @returns all entities locations overlapping with input point or bounds
    */
   querySpawnLocations(
-    testRange: Vector2 | Box2,
-    overlapsTest: (testRange: Box2, entityPos: Vector2) => boolean,
-    spawnProbabilityOverride?: (entityPos?: Vector2) => number,
+    queryBoxOrLoc: Vector2 | Box2,
+    itemDims: Vector2,
     // entityMask = (_entity: EntityData) => false
   ) {
-    const testBox =
-      testRange instanceof Box2
-        ? testRange
-        : new Box2().setFromPoints([testRange])
+    const queryBox =
+      queryBoxOrLoc instanceof Box2
+        ? queryBoxOrLoc
+        : new Box2().setFromPoints([queryBoxOrLoc])
     // const offset = testBox.min.clone().divide(this.patchDimensions).floor().multiply(this.patchDimensions)
     // const localTestBox = testBox.clone().translate(offset.clone().negate())
     // const overlappingEntities = this.repeatedPattern.elements
     //   .filter(entityPos => overlapsTest(localTestBox, entityPos))
     //   .map(relativePos => relativePos.clone().add(offset))
-    const overlappingEntities: Vector2[] = []
-    const patchIds = getPatchIds(testBox, this.patchDimensions)
+    const spawnLocations: Vector2[] = []
+    const patchIds = getPatchIds(queryBox, this.patchDimensions)
     for (const patchId of patchIds) {
       const offset = patchId.clone().multiply(this.patchDimensions)
-      const localTestBox = testBox.clone().translate(offset.clone().negate())
+      const localRegionQuery = queryBox.clone().translate(offset.clone().negate())
       // look for entities overlapping with input point or area
-      for (const relativePos of this.repeatedPattern.elements) {
-        if (overlapsTest(localTestBox, relativePos)) {
-          const entityPos = relativePos.clone().add(offset)
-          overlappingEntities.push(entityPos)
+      for (const spawnLocalPos of this.repeatedPattern.elements) {
+        // eval spawn probability at entity center
+        const spawnBox = new Box2().setFromCenterAndSize(spawnLocalPos, itemDims)
+        if (spawnBox.intersectsBox(localRegionQuery)) {
+          const itemPos = spawnLocalPos.clone().add(offset)
+          spawnLocations.push(itemPos)
         }
       }
     }
-    const spawnedEntities = overlappingEntities.filter(entityPos =>
-      this.hasSpawned(entityPos, spawnProbabilityOverride?.(entityPos)),
-    )
-    return spawnedEntities
+    return spawnLocations
+  }
+
+  querySpawnedItems(queryBoxOrLoc: Vector2 | Box2, itemDims: Vector2, spawnableItems: ItemType[], spawnProbabilityEval = this.spawnProbabilityEval) {
+    const spawnedItems: Record<ItemType, Vector2[]> = {}
+    const itemsCount = spawnableItems.length
+    const spawnablePlaces = this.querySpawnLocations(queryBoxOrLoc, itemDims)
+    spawnablePlaces.forEach(itemPos => {
+      const itemId = itemPos.x + ':' + itemPos.y
+      const prng = alea(itemId)
+      const rand = prng()
+      const hasSpawned = rand * spawnProbabilityEval(itemPos) < probabilityThreshold
+      if (hasSpawned) {
+        const itemIndex = Math.round(rand * itemsCount * 10)
+        const itemKey = spawnableItems[itemIndex % itemsCount] as ItemType
+        if (itemKey !== undefined) {
+          spawnedItems[itemKey] = spawnedItems[itemKey] || [];
+          (spawnedItems[itemKey] as Vector2[]).push(itemPos)
+        }
+      }
+    })
+
+    return spawnedItems
   }
 
   // /**
@@ -123,10 +132,10 @@ export class OverlappingEntitiesMap {
   static biomeMapsLookup: Record<string, EntityData[]> = {}
   // getAdjacentEntities() {
   //   const adjacentEntities = []
-  //   const adjacentKeys = Object.values(Adjacent2dPos)
-  //     .filter(v => !isNaN(Number(v)) && v !== Adjacent2dPos.center)
+  //   const adjacentKeys = Object.values(SurfaceNeighbour)
+  //     .filter(v => !isNaN(Number(v)) && v !== SurfaceNeighbour.center)
   //     .map(adjKey => {
-  //       const adjCoords = getAdjacent2dCoords(patchCoords, adjKey as Adjacent2dPos)
+  //       const adjCoords = getAdjacent2dCoords(patchCoords, adjKey as SurfaceNeighbour)
   //       const mapKey = `map_${adjCoords.x % repeatPeriod}_${adjCoords.y % repeatPeriod}`
   //       return mapKey
   //     })
