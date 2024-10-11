@@ -34,7 +34,35 @@ export type AllCardinalDirections =
   | CardinalDirections
   | IntercardinalDirections
 
-export enum Adjacent2dPos {
+// export enum SurfaceBounds {
+//   R_DOWN, // xM,yM
+//   R_UP,   // xM,yP
+//   L_UP,   // xP,yP
+//   L_DOWN  // xP,yM
+// }
+
+export enum PatchBoundId {
+  xMyM="xMyM",
+  xMyP="xMyP",
+  xPyP="xPyP",
+  xPyM="xPyM",
+}
+
+export type PatchBoundingPoints = Record<PatchBoundId, Vector2>
+
+
+export enum ChunkBoundId {
+  xMyMzM,
+  xMyPzM,
+  xPyPzM,
+  xPyMzM,
+  xMyMzP,
+  xMyPzP,
+  xPyPzP,
+  xPyMzP,
+}
+
+export enum SurfaceNeighbour {
   center,
   left,
   right,
@@ -46,7 +74,7 @@ export enum Adjacent2dPos {
   bottomright,
 }
 
-export enum Adjacent3dPos {
+export enum VolumeNeighbour {
   xMyMzM,
   xMyMz0,
   xMyMzP,
