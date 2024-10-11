@@ -1,14 +1,16 @@
 import { Box2, Box3, Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 
 import {
-  Adjacent2dPos,
-  Adjacent3dPos,
+  SurfaceNeighbour,
+  VolumeNeighbour,
   ChunkId,
   ChunkKey,
-  MetadataFields,
+  BiomeTerrainConfigFields,
   NoiseLevelConf,
   PatchId,
   PatchKey,
+  PatchBoundId,
+  PatchBoundingPoints,
 } from './types'
 
 // Clamp number between two values:
@@ -31,8 +33,13 @@ const vectRoundToDec = (input: Vector2 | Vector3, n_pow: number) => {
   return output
 }
 
+const smoothstep = (edge0: number, edge1: number, x: number) => {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+};
+
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
-export const MappingRangeSorter = (item1: MetadataFields, item2: MetadataFields) =>
+export const MappingRangeSorter = (item1: BiomeTerrainConfigFields, item2: BiomeTerrainConfigFields) =>
   item1.x - item2.x
 
 /**
@@ -49,13 +56,14 @@ const findMatchingRange = (inputVal: number, noiseMappings: NoiseLevelConf) => {
 }
 
 /**
- *      |       |
- * y2 --+-------+--
- *      |   + P |
- *      |       |
- * y1 --+-------+--
- *      |       |
- *      x1      x2
+ * 
+ * y2 - p12-----p22
+ *       |   + p |
+ *       |       |
+ * y1 - p11-----p21
+ *       |       |
+ *       x1      x2
+ * 
  * @param p 
  * @param p11 
  * @param p12 
@@ -63,7 +71,7 @@ const findMatchingRange = (inputVal: number, noiseMappings: NoiseLevelConf) => {
  * @param p21 
  * @returns 
  */
-const bilinearInterpolation = (p: Vector2, bounds: Box2, { v11, v12, v21, v22 }: Record<any, any>) => {
+const bilinearInterpolation = <T extends Object> (p: Vector2, bounds: Box2, boundingVals: Record<PatchBoundId, T>) => {
   const { x, y } = p
   const { x: x1, y: y1 } = bounds.min
   const { x: x2, y: y2 } = bounds.max
@@ -78,7 +86,7 @@ const bilinearInterpolation = (p: Vector2, bounds: Box2, { v11, v12, v21, v22 }:
     Object.keys(first).forEach(k => res[k] = sumComponents(k, items))
     return res
   }
-  const mul = (w: number, v: any) => {
+  const mul = (w: number, v: T) => {
     const res = { ...v }
     Object.keys(res).forEach(k => res[k] *= w)
     return res
@@ -88,10 +96,10 @@ const bilinearInterpolation = (p: Vector2, bounds: Box2, { v11, v12, v21, v22 }:
   const w12 = (x2 - x) * (y - y1) / divider
   const w21 = (x - x1) * (y2 - y) / divider
   const w22 = (x - x1) * (y - y1) / divider
-  const m11 = mul(w11, v11)
-  const m12 = mul(w12, v12)
-  const m21 = mul(w21, v21)
-  const m22 = mul(w22, v22)
+  const m11 = mul(w11, boundingVals.xMyM)
+  const m12 = mul(w12, boundingVals.xMyP)
+  const m21 = mul(w21, boundingVals.xPyM)
+  const m22 = mul(w22, boundingVals.xPyP)
   const res = add(m11, m12, m21, m22)
   return res
 }
@@ -124,10 +132,10 @@ const invDistWeighting = (cornerPointsValues: [p: Vector2, v: any][], point: Vec
  * - LEFT/RIGHT
  */
 const directNeighbours2D = [
-  Adjacent2dPos.left,
-  Adjacent2dPos.right,
-  Adjacent2dPos.top,
-  Adjacent2dPos.bottom,
+  SurfaceNeighbour.left,
+  SurfaceNeighbour.right,
+  SurfaceNeighbour.top,
+  SurfaceNeighbour.bottom,
 ]
 
 /**
@@ -137,33 +145,33 @@ const directNeighbours2D = [
  * - LEFT/RIGHT
  */
 const directNeighbours3D = [
-  Adjacent3dPos.xPy0z0,
-  Adjacent3dPos.xMy0z0, // right, left
-  Adjacent3dPos.x0yPz0,
-  Adjacent3dPos.x0yMz0, // top, bottom
-  Adjacent3dPos.x0y0zP,
-  Adjacent3dPos.x0y0zM, // front, back
+  VolumeNeighbour.xPy0z0,
+  VolumeNeighbour.xMy0z0, // right, left
+  VolumeNeighbour.x0yPz0,
+  VolumeNeighbour.x0yMz0, // top, bottom
+  VolumeNeighbour.x0y0zP,
+  VolumeNeighbour.x0y0zM, // front, back
 ]
 
-const getAdjacent2dCoords = (pos: Vector2, dir: Adjacent2dPos): Vector2 => {
+const getAdjacent2dCoords = (pos: Vector2, dir: SurfaceNeighbour): Vector2 => {
   switch (dir) {
-    case Adjacent2dPos.center:
+    case SurfaceNeighbour.center:
       return pos.clone()
-    case Adjacent2dPos.left:
+    case SurfaceNeighbour.left:
       return pos.clone().add(new Vector2(-1, 0))
-    case Adjacent2dPos.right:
+    case SurfaceNeighbour.right:
       return pos.clone().add(new Vector2(1, 0))
-    case Adjacent2dPos.top:
+    case SurfaceNeighbour.top:
       return pos.clone().add(new Vector2(0, 1))
-    case Adjacent2dPos.bottom:
+    case SurfaceNeighbour.bottom:
       return pos.clone().add(new Vector2(0, -1))
-    case Adjacent2dPos.topleft:
+    case SurfaceNeighbour.topleft:
       return pos.clone().add(new Vector2(-1, 1))
-    case Adjacent2dPos.topright:
+    case SurfaceNeighbour.topright:
       return pos.clone().add(new Vector2(1, 1))
-    case Adjacent2dPos.bottomright:
+    case SurfaceNeighbour.bottomright:
       return pos.clone().add(new Vector2(-1, -1))
-    case Adjacent2dPos.bottomleft:
+    case SurfaceNeighbour.bottomleft:
       return pos.clone().add(new Vector2(1, -1))
   }
 }
@@ -174,59 +182,59 @@ const getAdjacent2dCoords = (pos: Vector2, dir: Adjacent2dPos): Vector2 => {
  * @param dir neighbour identifier
  * @returns
  */
-const getAdjacent3dCoords = (pos: Vector3, dir: Adjacent3dPos): Vector3 => {
+const getAdjacent3dCoords = (pos: Vector3, dir: VolumeNeighbour): Vector3 => {
   switch (dir) {
-    case Adjacent3dPos.xMyMzM:
+    case VolumeNeighbour.xMyMzM:
       return pos.clone().add(new Vector3(-1, -1, -1))
-    case Adjacent3dPos.xMyMz0:
+    case VolumeNeighbour.xMyMz0:
       return pos.clone().add(new Vector3(-1, -1, 0))
-    case Adjacent3dPos.xMyMzP:
+    case VolumeNeighbour.xMyMzP:
       return pos.clone().add(new Vector3(-1, -1, 1))
-    case Adjacent3dPos.xMy0zM:
+    case VolumeNeighbour.xMy0zM:
       return pos.clone().add(new Vector3(-1, 0, -1))
-    case Adjacent3dPos.xMy0z0:
+    case VolumeNeighbour.xMy0z0:
       return pos.clone().add(new Vector3(-1, 0, 0))
-    case Adjacent3dPos.xMy0zP:
+    case VolumeNeighbour.xMy0zP:
       return pos.clone().add(new Vector3(-1, 0, 1))
-    case Adjacent3dPos.xMyPzM:
+    case VolumeNeighbour.xMyPzM:
       return pos.clone().add(new Vector3(-1, 1, -1))
-    case Adjacent3dPos.xMyPz0:
+    case VolumeNeighbour.xMyPz0:
       return pos.clone().add(new Vector3(-1, 1, 0))
-    case Adjacent3dPos.xMyPzP:
+    case VolumeNeighbour.xMyPzP:
       return pos.clone().add(new Vector3(-1, 1, 1))
-    case Adjacent3dPos.x0yMzM:
+    case VolumeNeighbour.x0yMzM:
       return pos.clone().add(new Vector3(0, -1, -1))
-    case Adjacent3dPos.x0yMz0:
+    case VolumeNeighbour.x0yMz0:
       return pos.clone().add(new Vector3(0, -1, 0))
-    case Adjacent3dPos.x0yMzP:
+    case VolumeNeighbour.x0yMzP:
       return pos.clone().add(new Vector3(0, -1, 1))
-    case Adjacent3dPos.x0y0zM:
+    case VolumeNeighbour.x0y0zM:
       return pos.clone().add(new Vector3(0, 0, -1))
-    case Adjacent3dPos.x0y0zP:
+    case VolumeNeighbour.x0y0zP:
       return pos.clone().add(new Vector3(0, 0, 1))
-    case Adjacent3dPos.x0yPzM:
+    case VolumeNeighbour.x0yPzM:
       return pos.clone().add(new Vector3(0, 1, -1))
-    case Adjacent3dPos.x0yPz0:
+    case VolumeNeighbour.x0yPz0:
       return pos.clone().add(new Vector3(0, 1, 0))
-    case Adjacent3dPos.x0yPzP:
+    case VolumeNeighbour.x0yPzP:
       return pos.clone().add(new Vector3(0, 1, 1))
-    case Adjacent3dPos.xPyMzM:
+    case VolumeNeighbour.xPyMzM:
       return pos.clone().add(new Vector3(1, -1, -1))
-    case Adjacent3dPos.xPyMz0:
+    case VolumeNeighbour.xPyMz0:
       return pos.clone().add(new Vector3(1, -1, 0))
-    case Adjacent3dPos.xPyMzP:
+    case VolumeNeighbour.xPyMzP:
       return pos.clone().add(new Vector3(1, -1, 1))
-    case Adjacent3dPos.xPy0zM:
+    case VolumeNeighbour.xPy0zM:
       return pos.clone().add(new Vector3(1, 0, -1))
-    case Adjacent3dPos.xPy0z0:
+    case VolumeNeighbour.xPy0z0:
       return pos.clone().add(new Vector3(1, 0, 0))
-    case Adjacent3dPos.xPy0zP:
+    case VolumeNeighbour.xPy0zP:
       return pos.clone().add(new Vector3(1, 0, 1))
-    case Adjacent3dPos.xPyPzM:
+    case VolumeNeighbour.xPyPzM:
       return pos.clone().add(new Vector3(1, 1, -1))
-    case Adjacent3dPos.xPyPz0:
+    case VolumeNeighbour.xPyPz0:
       return pos.clone().add(new Vector3(1, 1, 0))
-    case Adjacent3dPos.xPyPzP:
+    case VolumeNeighbour.xPyPzP:
       return pos.clone().add(new Vector3(1, 1, 1))
   }
 }
@@ -237,7 +245,7 @@ const getNeighbours2D = (
 ): Vector2[] => {
   const neighbours = directNeighboursOnly
     ? directNeighbours2D
-    : Object.values(Adjacent2dPos).filter(v => !isNaN(Number(v)))
+    : Object.values(SurfaceNeighbour).filter(v => !isNaN(Number(v)))
   return neighbours.map(type => getAdjacent2dCoords(pos, type as number))
 }
 
@@ -247,17 +255,17 @@ const getNeighbours3D = (
 ): Vector3[] => {
   const neighbours = directNeighboursOnly
     ? directNeighbours3D
-    : Object.values(Adjacent3dPos).filter(v => !isNaN(Number(v)))
+    : Object.values(VolumeNeighbour).filter(v => !isNaN(Number(v)))
   return neighbours.map(type => getAdjacent3dCoords(pos, type as number))
 }
 
-const getBoundsCornerPoints = (bounds: Box2) => {
+const getPatchBoundingPoints = (bounds: Box2) => {
   const { min: xMyM, max: xPyP } = bounds
   const xMyP = xMyM.clone()
   xMyP.y = xPyP.y
   const xPyM = xMyM.clone()
   xPyM.x = xPyP.x
-  const points = [xMyM, xMyP, xPyM, xPyP]
+  const points: PatchBoundingPoints = { xMyM, xMyP, xPyM, xPyP }
   return points
 }
 
@@ -461,13 +469,14 @@ const chunkBoxFromKey = (chunkKey: string, chunkDims: Vector3) => {
 export {
   roundToDec,
   vectRoundToDec,
+  smoothstep,
   clamp,
   findMatchingRange,
   bilinearInterpolation,
   getNeighbours2D,
   getNeighbours3D,
   bboxContainsPointXZ,
-  getBoundsCornerPoints,
+  getPatchBoundingPoints,
   parseThreeStub,
   asVect2,
   asVect3,
