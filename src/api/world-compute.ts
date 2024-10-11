@@ -189,24 +189,37 @@ export const retrieveOvergroundItems = async (bounds: Box2) => {
     const block = computeGroundBlock(asVect3(pos))
     blockConfigs[block.confKey] = Biome.instance.indexedConf.get(block.confKey)?.data
   })
-  const spawnedItems = {}
-  // Object.values(blockConfigs).forEach(blockConf => blockConf?.entities?.forEach(itemType => spawnedItems[itemType] = []))
-  // Object.keys(spawnedItems).forEach(itemType => {
-  //   const spawnablePlaces = ItemsInventory.querySpawnedEntities(
-  //     itemType,
-  //     bounds,
-  //   )
-  //   spawnablePlaces.forEach(itemPos => {
-  //       // confirm entities and add spawn elevation
-  //       const blockConf = Biome.instance.indexedConf.get(itemBlock.confKey)?.data
-  //       if (blockConf?.flora)//find(val => val === itemType))
-  //       {
-  //         confirmedItems[itemType] = confirmedItems[itemType] || [];
-  //         (confirmedItems[itemType] as Vector3[]).push(asVect3(itemPos, itemBlock.level))
-  //       }
-  //     })
-  //   })
-  return spawnedItems
+const itemsSpawnMap = new PseudoDistributionMap()
+  const itemsWeightedList: ItemType[] = []
+  const itemDims = new Vector3(10, 13, 10)
+  Object.values(blockConfigs).forEach((blockConf: NoiseLevelConf) => {
+    // blockConf?.entities?.forEach(itemType => {
+    //   spawnedItems[itemType] = []
+    // })
+    Object.entries(blockConf.flora || {}).forEach(([itemType, itemWeight]) => {
+      // build weighted items array
+      while (itemWeight > 0) {
+        itemsWeightedList.push(itemType)
+        itemWeight--
+      }
+    })
+  })
+  const spawnedItems = itemsSpawnMap.querySpawnedItems(bounds, asVect2(itemDims), itemsWeightedList)
+  const confirmedItems: Record<ItemType, Vector3[]> = {}
+  Object.entries(spawnedItems)
+    .forEach(([itemType, itemSpawnLocs]) => {
+      itemSpawnLocs.map(itemPos => {
+        const itemBlock = computeGroundBlock(asVect3(itemPos))
+        // confirm entities and add spawn elevation
+        const blockConf = Biome.instance.indexedConf.get(itemBlock.confKey)?.data
+        if (blockConf?.flora)//find(val => val === itemType))
+        {
+          confirmedItems[itemType] = confirmedItems[itemType] || [];
+          (confirmedItems[itemType] as Vector3[]).push(asVect3(itemPos, itemBlock.level))
+        }
+      })
+    })
+  return confirmedItems
 }
 
 /**
