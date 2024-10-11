@@ -1,4 +1,4 @@
-import { NBTReader } from "../third-party/nbt";
+import { NBTReader } from "../third-party/nbt_custom";
 import Pako from "pako"
 import { Box3, Vector3 } from "three";
 import { BlockType } from "../procgen/Biome";
@@ -7,6 +7,7 @@ import { WorldConf } from "../misc/WorldConfig";
 
 export class SchematicLoader {
     static worldBlocksMapping: Record<string, BlockType>
+    static chunkDataEncoder = (blockType: BlockType) => blockType
 
     static async load(path: string) {
         // const schem = await Schematic.read(Buffer.from(schemData), '1.16.4')
@@ -38,7 +39,9 @@ export class SchematicLoader {
      * @param schemBlocks 
      * @returns 
      */
-    static async createChunkContainer(fileUrl: string, chunkDataEncoder = (val: BlockType) => val) {
+    static async createChunkContainer(fileUrl: string) {
+        const { chunkDataEncoder } = SchematicLoader
+
         const rawData = await SchematicLoader.load(fileUrl)
         const parsedSchematic = await SchematicLoader.parse(rawData)
         const schemBlocks = SchematicLoader.getBlocks(parsedSchematic)

@@ -9,7 +9,7 @@ import {
 } from '../common/utils'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { BlockMode, BlockType, GroundPatch, ItemsInventory, WorldConf } from '../index'
-import { ItemId } from '../misc/ItemsInventory'
+import { ItemType } from '../misc/ItemsInventory'
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -21,9 +21,9 @@ const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
 
 export class ChunkFactory {
   // eslint-disable-next-line no-use-before-define
-  static defaultInstance: ChunkFactory
+  static instance: ChunkFactory
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  voxelDataEncoder = (blockType: BlockType, _blockMode?: BlockMode) =>
+  chunkDataEncoder = (blockType: BlockType, _blockMode?: BlockMode) =>
     blockType || BlockType.NONE
 
   chunksRange = {
@@ -32,8 +32,8 @@ export class ChunkFactory {
   }
 
   static get default() {
-    this.defaultInstance = this.defaultInstance || new ChunkFactory()
-    return this.defaultInstance
+    this.instance = this.instance || new ChunkFactory()
+    return this.instance
   }
 
   setChunksGenRange(ymin: number, ymax: number) {
@@ -54,16 +54,17 @@ export class ChunkFactory {
   /**
    * Assembles pieces together: ground, world objects
    */
-  chunkifyPatch(groundLayer: GroundPatch, overgroundItems: Record<ItemId, Vector3[]>) {
+  async chunkifyPatch(groundLayer: GroundPatch, overgroundItems: Record<ItemType, Vector3[]>) {
     const patchChunkIds = groundLayer.id
       ? ChunkFactory.default.genChunksIdsFromPatchId(groundLayer.id)
       : []
-    const worldChunksStubs = patchChunkIds.map(chunkId => {
+    // const worldChunksStubs = patchChunkIds.map(async chunkId => {
+    const worldChunksStubs = await Promise.all(patchChunkIds.map(async chunkId => {
       const chunkBox = chunkBoxFromId(chunkId, WorldConf.patchSize)
       const worldChunk = new ChunkContainer(chunkBox)
       // this.mergePatchLayersToChunk(worldChunk, groundLayer, overgroundItems)
       // merge items first so they don't override ground
-      this.mergeOvergroundItems(worldChunk, overgroundItems)
+      await this.mergeOvergroundItems(worldChunk, overgroundItems)
       // merge ground layer after, overriding items blocks overlapping with ground
       this.mergeGroundLayer(worldChunk, groundLayer)
       const worldChunkStub = {
@@ -71,7 +72,7 @@ export class ChunkFactory {
         data: worldChunk.rawData,
       }
       return worldChunkStub
-    })
+    }))
     return worldChunksStubs
   }
 
@@ -90,7 +91,7 @@ export class ChunkFactory {
       let buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
       if (buffSize > 0) {
         const groundBuffer = new Uint16Array(buffSize)
-        const bufferData = this.voxelDataEncoder(
+        const bufferData = this.chunkDataEncoder(
           blockType,
           blockMode,
         )
@@ -103,9 +104,11 @@ export class ChunkFactory {
     }
   }
 
-  mergeOvergroundItems(worldChunk: ChunkContainer, overgroundItems: Record<ItemId, Vector3[]>) {
-    Object.entries(overgroundItems).forEach(([itemType, spawnPlaces]) => {
-      const itemChunk = ItemsInventory.catalog[itemType]
+  async mergeOvergroundItems(worldChunk: ChunkContainer, overgroundItems: Record<ItemType, Vector3[]>) {
+    // Object.entries(overgroundItems).forEach(([itemType, spawnPlaces]) => {
+    const entries = Object.entries(overgroundItems)
+    for await (const [itemType, spawnPlaces] of entries) {
+      const itemChunk = await ItemsInventory.getItem(itemType)
       if (itemChunk) {
         spawnPlaces.forEach(spawnLoc => {
           const dims = itemChunk.bounds.getSize(new Vector3())
@@ -121,6 +124,6 @@ export class ChunkFactory {
           ChunkContainer.copySourceToTarget(entityChunk, worldChunk)
         })
       }
-    })
+    }//)
   }
 }

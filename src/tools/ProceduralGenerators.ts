@@ -41,16 +41,18 @@ const ProceduralGenerators: Record<ProcItemType, ProceduralGenerator> = {
 }
 
 export class ProceduralItemGenerator {
+  static chunkDataEncoder = (blockType: BlockType) => blockType
 
-  static voxelizeItem(itemCat: ProcItemCategory, itemParams: any, optionalDataEncoder?: () => number) {
+  static voxelizeItem(itemCat: ProcItemCategory, itemParams: any) {
     switch (itemCat) {
       case ProcItemCategory.Tree:
         const { treeType, treeSize, treeRadius } = itemParams
-        return this.voxelizeTree(treeType, treeSize, treeRadius, optionalDataEncoder)
+        return this.voxelizeTree(treeType, treeSize, treeRadius)
     }
   }
 
-  static voxelizeTree(treeType: ProcItemType, treeSize: number, treeRadius: number, dataEncoder = (blockType: BlockType) => blockType) {
+  static voxelizeTree(treeType: ProcItemType, treeSize: number, treeRadius: number) {
+    const { chunkDataEncoder } = ProceduralItemGenerator
     const treeGenerator = ProceduralGenerators[treeType]
     const treeBounds = new Box3(new Vector3(), new Vector3(2 * treeRadius, treeSize + 2 * treeRadius, 2 * treeRadius))
     const treeChunk = new ChunkContainer(treeBounds)
@@ -64,7 +66,7 @@ export class ProceduralItemGenerator {
       if (xzProj.length() > 0) {
         if (y < min.y + treeSize) {
           // empty space around trunk between ground and trunk top
-          treeChunk.rawData[index++] = dataEncoder(BlockType.NONE)
+          treeChunk.rawData[index++] = chunkDataEncoder(BlockType.NONE)
         } else {
           // tree foliage
           const blockType = treeGenerator(
@@ -72,11 +74,11 @@ export class ProceduralItemGenerator {
             y - (min.y + treeSize + treeRadius),
             treeRadius,
           )
-          treeChunk.rawData[index++] = dataEncoder(blockType)
+          treeChunk.rawData[index++] = chunkDataEncoder(blockType)
         }
       } else {
         // tree trunk
-        treeChunk.rawData[index++] = dataEncoder(BlockType.TREE_TRUNK)
+        treeChunk.rawData[index++] = chunkDataEncoder(BlockType.TREE_TRUNK)
       }
     }
     return treeChunk

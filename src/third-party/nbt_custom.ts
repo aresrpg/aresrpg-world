@@ -1,20 +1,19 @@
 /**
- * This is code from 
+ * Customized and refactored code originating from
  * 
  * NBT.js - a JavaScript parser for NBT archives 
  * by Sijmen Mulder 
  * 
- * refactored to be more ES6 friendly
  */
 
 // var zlib = typeof require !== 'undefined' ? require('zlib') : window.zlib;
 
-function hasGzipHeader(data) {
+function hasGzipHeader(data: any) {
 	var head = new Uint8Array(data.slice(0, 2));
 	return head.length === 2 && head[0] === 0x1f && head[1] === 0x8b;
 }
 
-function decodeUTF8(array: []) {
+function decodeUTF8(array: any[]) {
 	var codepoints = [], i;
 	for (i = 0; i < array.length; i++) {
 		if ((array[i] & 0x80) === 0) {
@@ -48,9 +47,7 @@ function decodeUTF8(array: []) {
 	return String.fromCharCode.apply(null, codepoints);
 }
 
-/* Not all environments, in particular PhantomJS, supply
-   Uint8Array.slice() */
-function sliceUint8Array(array, begin, end) {
+function sliceUint8Array(array: Uint8Array, begin: number, end: number) {
 	if ('slice' in array) {
 		return array.slice(begin, end);
 	} else {
@@ -226,7 +223,7 @@ export class NBTReader {
 	 * // -> { name: 'My Level',
 	 * //      value: { foo: { type: int, value: 42 },
 	 * //               bar: { type: string, value: 'Hi!' }}} */
-	static parseUncompressed(data) {
+	static parseUncompressed(data: Iterable<number>) {
 		if (!data) { throw new Error('Argument "data" is falsy'); }
 
 		var reader = new NBTReader(data)
@@ -287,9 +284,11 @@ export class NBTReader {
 			var buffer;
 			if (data.length) {
 				buffer = data;
-			} else if (typeof Buffer !== 'undefined') {
-				buffer = new Buffer(data);
-			} else {
+			} 
+			// else if (typeof Buffer !== 'undefined') {
+			// 	buffer = new Buffer(data);
+			// } 
+			else {
 				/* In the browser? Unknown zlib library. Let's settle for
 				   Uint8Array and see what happens. */
 				buffer = new Uint8Array(data);
