@@ -154,7 +154,7 @@ export class NBTReader {
 			const slice = sliceUint8Array(this.arrayView, this.offset,
 				this.offset + length);
 			this.offset += length;
-			return decodeUTF8(slice);
+			return decodeUTF8(slice as any);
 		},
 		[DataType.LIST]: () => {
 			const type = this.read(DataType.BYTE) as DataType;
@@ -205,7 +205,7 @@ export class NBTReader {
 	read(dataType: DataType) {
 		const dataSize = DataSizeMapping[dataType] || 0
 		const callee = 'get' + DataTypeMapping[dataType]
-		var val = dataType !== DataType.END ? this.dataView[callee](this.offset) : '';
+		var val = dataType !== DataType.END ? (this.dataView as any)[callee](this.offset) : '';
 		this.offset += dataSize;
 		return val;
 	}
@@ -271,36 +271,12 @@ export class NBTReader {
 	 *     console.log(result.name);
 	 *     console.log(result.value.foo);
 	 * }); */
-	static parse(data, callback) {
+	static parse(data: any, callback: any) {
 
 		if (!hasGzipHeader(data)) {
 			callback(null, NBTReader.parseUncompressed(data));
-		} else if (!zlib) {
-			callback(new Error('NBT archive is compressed but zlib is not ' +
-				'available'), null);
 		} else {
-			/* zlib.gunzip take a Buffer, at least in Node, so try to convert
-			   if possible. */
-			var buffer;
-			if (data.length) {
-				buffer = data;
-			} 
-			// else if (typeof Buffer !== 'undefined') {
-			// 	buffer = new Buffer(data);
-			// } 
-			else {
-				/* In the browser? Unknown zlib library. Let's settle for
-				   Uint8Array and see what happens. */
-				buffer = new Uint8Array(data);
-			}
-
-			zlib.gunzip(buffer, function (error, uncompressed) {
-				if (error) {
-					callback(error, null);
-				} else {
-					callback(null, NBTReader.parseUncompressed(uncompressed));
-				}
-			});
+			callback(new Error('NBT compressed archive support is not implemented '), null);
 		}
 	};
 

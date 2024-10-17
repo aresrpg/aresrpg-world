@@ -1,4 +1,4 @@
-import { Box3, MathUtils, Vector3 } from 'three'
+import { MathUtils, Vector3 } from 'three'
 
 import { PatchId } from '../common/types'
 import {
@@ -8,8 +8,7 @@ import {
   serializeChunkId,
 } from '../common/utils'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { BlockMode, BlockType, GroundPatch, ItemsInventory, WorldConf } from '../index'
-import { ItemType } from '../misc/ItemsInventory'
+import { BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -54,17 +53,19 @@ export class ChunkFactory {
   /**
    * Assembles pieces together: ground, world objects
    */
-  async chunkifyPatch(groundLayer: GroundPatch, overgroundItems: Record<ItemType, Vector3[]>) {
+  chunkifyPatch(groundLayer: GroundPatch, chunkItems: ChunkContainer[]) {
     const patchChunkIds = groundLayer.id
       ? ChunkFactory.default.genChunksIdsFromPatchId(groundLayer.id)
       : []
     // const worldChunksStubs = patchChunkIds.map(async chunkId => {
-    const worldChunksStubs = await Promise.all(patchChunkIds.map(async chunkId => {
+    const worldChunksStubs = patchChunkIds.map(chunkId => {
       const chunkBox = chunkBoxFromId(chunkId, WorldConf.patchSize)
       const worldChunk = new ChunkContainer(chunkBox)
       // this.mergePatchLayersToChunk(worldChunk, groundLayer, overgroundItems)
-      // merge items first so they don't override ground
-      await this.mergeOvergroundItems(worldChunk, overgroundItems)
+      // merge chunk items first so they don't override ground
+      for (const chunkItem of chunkItems) {
+        ChunkContainer.copySourceToTarget(chunkItem, worldChunk)
+      }
       // merge ground layer after, overriding items blocks overlapping with ground
       this.mergeGroundLayer(worldChunk, groundLayer)
       const worldChunkStub = {
@@ -72,7 +73,7 @@ export class ChunkFactory {
         data: worldChunk.rawData,
       }
       return worldChunkStub
-    }))
+    })
     return worldChunksStubs
   }
 
@@ -102,28 +103,5 @@ export class ChunkFactory {
         worldChunk.writeBuffer(asVect2(blockLocalPos), chunkBuffer)
       }
     }
-  }
-
-  async mergeOvergroundItems(worldChunk: ChunkContainer, overgroundItems: Record<ItemType, Vector3[]>) {
-    // Object.entries(overgroundItems).forEach(([itemType, spawnPlaces]) => {
-    const entries = Object.entries(overgroundItems)
-    for await (const [itemType, spawnPlaces] of entries) {
-      const itemChunk = await ItemsInventory.getItem(itemType)
-      if (itemChunk) {
-        spawnPlaces.forEach(spawnLoc => {
-          const dims = itemChunk.bounds.getSize(new Vector3())
-          // const translation = parseThreeStub(spawnLoc).sub(new Vector3(dims.x / 2, 0, dims.z / 2).round())
-          // const entityBounds = entity.template.bounds.clone().translate(translation)
-          const entityBounds = new Box3().setFromCenterAndSize(spawnLoc, dims)
-          entityBounds.min.y = spawnLoc.y
-          entityBounds.max.y = spawnLoc.y + dims.y
-          entityBounds.min.floor()
-          entityBounds.max.floor()
-          const entityChunk = new ChunkContainer(entityBounds, 0)
-          entityChunk.rawData.set(itemChunk.rawData)
-          ChunkContainer.copySourceToTarget(entityChunk, worldChunk)
-        })
-      }
-    }//)
   }
 }

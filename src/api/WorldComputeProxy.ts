@@ -1,4 +1,4 @@
-import { Box2, Vector3 } from 'three'
+import { Box2, Vector2 } from 'three'
 
 import { Block, PatchKey } from '../common/types'
 import { GroundPatch, WorldCompute, WorldUtils } from '../index'
@@ -17,7 +17,7 @@ export type ComputeApiParams = Partial<{
 }>
 
 /**
- * Frontend exposing world APIs and proxying requests to internal modules: world-compute, world-cache, 
+ * World API frontend proxying requests to internal modules: world-compute, world-cache, 
  * When optional worker is provided all compute request are proxied to worker 
  * instead of main thread
  */
@@ -72,7 +72,7 @@ export class WorldComputeProxy {
   }
 
   async computeBlocksBatch(
-    blockPosBatch: Vector3[],
+    blockPosBatch: Vector2[],
     params = { includeEntitiesBlocks: false },
   ) {
     const blocks = !this.worker
@@ -90,13 +90,6 @@ export class WorldComputeProxy {
 
     return blocks
   }
-
-  // *iterEntitiesBaking(entityKeys: EntityKey[]) {
-  //   for (const entityKey of entityKeys) {
-  //     const entityChunk = WorldCompute.bakeChunkEntity(entityKey)
-  //     yield entityChunk
-  //   }
-  // }
 
   async queryOvergroundItems(queriedRegion: Box2) {
     const overgroundItems = !this.worker
@@ -130,18 +123,6 @@ export class WorldComputeProxy {
     // ?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
 
     return patchStub
-  }
-
-  async bakeEntities(queriedRange: Box2) {
-    // const entityChunks = !this.worker
-    //   ? WorldCompute.queryBakeEntities(queriedRange)
-    //   : await this.workerCall(ComputeApiCall.BakeEntities, [
-    //       queriedRange,
-    //     ])?.then((entityChunks: EntityChunkStub[]) =>
-    //       // parse worker's data to recreate original objects
-    //       entityChunks.map(chunkStub => EntityChunk.fromStub(chunkStub)),
-    //     )
-    return []//entityChunks
   }
 
   // async requestBattleBoard(boardCenter: Vector3, boardParams: BoardParams, lastBoardBounds: Box2) {
