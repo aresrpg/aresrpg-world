@@ -2,15 +2,24 @@ import alea from 'alea'
 import PoissonDiskSampling from 'poisson-disk-sampling'
 import { Box2, Vector2 } from 'three'
 
+export type DistributionParams = {
+  minDistance: number
+  maxDistance?: number
+  tries?: number
+  distanceFunction?: ((point: any) => number)
+  bias?: number
+  aleaSeed?: string
+}
+
 /**
  * Self repeating seamless pattern
  */
 export class BlueNoisePattern {
   bbox: Box2
-  params
+  params: DistributionParams
   elements: Vector2[] = []
 
-  constructor(bbox: Box2, distParams: any) {
+  constructor(bbox: Box2, distParams: DistributionParams) {
     this.bbox = bbox
     this.params = distParams
     this.populate()

@@ -6,27 +6,17 @@ import { MappingRangeSorter } from '../common/utils'
 import * as Utils from '../common/utils'
 
 import { ProcLayer } from './ProcLayer'
-import { BiomeConfigs, BiomeConfKey, NoiseLevelConf } from '../common/types'
+import { BiomeConfigs, BiomeLandscapeElement, BiomeLandscapeKey } from '../common/types'
 import { smoothstep } from 'three/src/math/MathUtils'
 
+// reserved native block types
 export enum BlockType {
   NONE,
-  WATER,
-  ICE,
-  TREE_TRUNK,
-  TREE_FOLIAGE,
-  TREE_FOLIAGE_2,
-  SAND,
-  GRASS,
-  MUD,
-  ROCK,
-  SNOW,
-  BOARD_HOLE,
-  DBG_LIGHT,
-  DBG_DARK,
-  DBG_PURPLE,
-  DBG_ORANGE,
-  DBG_GREEN,
+  TRUNK,
+  FOLIAGE_LIGHT,
+  FOLIAGE_DARK,
+  HOLE,
+  LAST_PLACEHOLDER
 }
 
 enum Level {
@@ -67,8 +57,6 @@ export enum BiomeType {
 }
 
 type Contribution = Record<Level, number>
-type HeatContributions = Record<HeatLevel, number>
-type RainContributions = Record<RainLevel, number>
 
 const translateContribution = <T extends HeatLevel | RainLevel>(contribution: Contribution, keyMapping: Record<Level, T>) => {
   const mappedContribution: Record<T, number> = {} as Record<T, number>
@@ -132,7 +120,7 @@ export class Biome {
     seaLevel: 0,
   }
 
-  indexedConf = new Map<BiomeConfKey, NoiseLevelConf>
+  indexedConf = new Map<BiomeLandscapeKey, BiomeLandscapeElement>
 
   constructor(biomeConf?: BiomeConfigs) {
     this.heatmap = new ProcLayer('heatmap')
@@ -154,7 +142,7 @@ export class Biome {
     return Biome.singleton
   }
 
-  getConfIndex(confKey: BiomeConfKey) {
+  getConfIndex(confKey: BiomeLandscapeKey) {
     const confKeys = [...this.indexedConf.keys()]; // Spread keys into an array
     const confIndex = confKeys.indexOf(confKey); // Find the index of 'key2'
     return confIndex
@@ -185,27 +173,27 @@ export class Biome {
 
     // LOW
     if (value < steps.lowToMid) {
-      contributions.low = 1; 
-    } 
+      contributions.low = 1;
+    }
     // dec LOW, inc MID
     else if (value < steps.mid) {
       const interp = smoothstep(value, steps.lowToMid, steps.mid);
-      contributions.low = 1 - interp; 
+      contributions.low = 1 - interp;
       contributions.mid = interp;
     }
     // MID
-     else if (value < steps.midToHigh) {
-      contributions.mid = 1; 
-    } 
+    else if (value < steps.midToHigh) {
+      contributions.mid = 1;
+    }
     // dec MID/ inc HIGH
     else if (value < steps.high) {
       const interp = smoothstep(value, steps.midToHigh, steps.high);
       contributions.mid = 1 - interp;
       contributions.high = interp;
-    } 
+    }
     // HIGH
     else {
-      contributions.high = 1; 
+      contributions.high = 1;
     }
 
     // if (value < 0.5) {
@@ -257,9 +245,15 @@ export class Biome {
   }
 
   parseBiomesConfig(biomeConfigs: BiomeConfigs) {
-    Object.entries(biomeConfigs).forEach(([biomeType, biomeConf]) => {
-      // complete missing data
-      Object.entries(biomeConf).forEach(([confId, confData]) => confData.key = biomeType + '_' + confId)
+    // Object.entries(biomeConfigs).forEach(([biomeType, biomeConf]) => {
+    // complete missing data
+    for (const item of Object.entries(biomeConfigs)) {
+      const [biomeType, biomeConf] = item
+      for (const subItem of Object.entries(biomeConf)) {
+        const [confId, confData] = subItem
+        confData.key = biomeType + '_' + confId
+      }
+
       const configItems = Object.values(biomeConf)
       const mappingRanges = LinkedList.fromArrayAfterSorting(
         configItems,
@@ -271,13 +265,14 @@ export class Biome {
       for (const conf of confIter) {
         this.indexedConf.set(conf.data.key, conf)
       }
-    })
+    }
+    // })
   }
 
-  noiseLevelTransition = (
+  landscapeTransition = (
     groundPos: Vector2,
     baseHeight: number,
-    blockMapping: NoiseLevelConf,
+    blockMapping: BiomeLandscapeElement,
   ) => {
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)

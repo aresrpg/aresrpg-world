@@ -12,7 +12,6 @@ export class SchematicLoader {
     static async load(path: string) {
         // const schem = await Schematic.read(Buffer.from(schemData), '1.16.4')
         const res = await fetch(path);
-        console.log(res);
         const blob = await res.blob();
         const rawData = await new Promise((resolve) => {
             const reader = new FileReader();
@@ -25,9 +24,9 @@ export class SchematicLoader {
         return rawData
     }
 
-    static async parse(rawData) {
-        return new Promise((resolve, reject) => {
-            NBTReader.parse(rawData, function (error, data) {
+    static async parse(rawData: any) {
+        return new Promise((resolve) => {
+            NBTReader.parse(rawData, function (error: any, data: unknown) {
                 if (error) { throw error; }
                 resolve(data);
             });
@@ -44,7 +43,7 @@ export class SchematicLoader {
 
         const rawData = await SchematicLoader.load(fileUrl)
         const parsedSchematic = await SchematicLoader.parse(rawData)
-        const schemBlocks = SchematicLoader.getBlocks(parsedSchematic)
+        const schemBlocks: any = SchematicLoader.getBlocks(parsedSchematic)
         const dims = new Vector3(schemBlocks[0].length, schemBlocks.length, schemBlocks[0][0].length)
         const orig = new Vector3(0, 0, 0)
         const end = orig.clone().add(dims)
@@ -71,7 +70,7 @@ export class SchematicLoader {
         return chunkContainer
     }
 
-    static getBlocks(schemData) {
+    static getBlocks(schemData: any) {
         // Get dimensions of the schematic
         const width = schemData.value.Width.value;
         const height = schemData.value.Height.value;
@@ -83,7 +82,7 @@ export class SchematicLoader {
 
         // Create a new 3d array
         let skippedBlocks = [];
-        let blocks = [];
+        let blocks: any = [];
         for (let y = 0; y < height; y++) {
             blocks[y] = [];
             for (let x = 0; x < width; x++) {
@@ -105,10 +104,10 @@ export class SchematicLoader {
         return blocks;
     }
 
-    static getBlockData(palette, blockId) {
+    static getBlockData(palette: any, blockId: number) {
         // Iterate through each key pair in the palette values
         for (const [key, value] of Object.entries(palette)) {
-            if (value.value === blockId) {
+            if ((value as any).value === blockId) {
                 // If the key contains a closing bracket, return only everything before the bracket
                 if (key.includes("[")) {
                     return {

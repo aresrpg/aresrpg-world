@@ -12,6 +12,7 @@ import {
 import { PseudoDistributionMap } from '../datacontainers/RandomDistributionMap'
 import { findBoundingBox } from '../common/math'
 import { BlockData, BlockMode } from '../datacontainers/GroundPatch'
+import { ItemType } from '../misc/ItemsInventory'
 
 export enum BlockCategory {
   FLAT = 0,
@@ -40,9 +41,9 @@ export type BoardInput = BoardInputParams & { center: Vector3 }
 // map block type to board block type
 const blockTypeCategoryMapper = (blockType: BlockType) => {
   switch (blockType) {
-    case BlockType.TREE_TRUNK:
+    case BlockType.TRUNK:
       return BlockCategory.OBSTACLE
-    case BlockType.BOARD_HOLE:
+    case BlockType.HOLE:
       return BlockCategory.HOLE
     default:
       return BlockCategory.FLAT
@@ -146,25 +147,34 @@ export class BoardContainer extends GroundPatch {
   }
 
   async retrieveAndTrimTrees() {
-    const trees = await WorldComputeProxy.instance.queryEntities(this.bounds)
-    const trunks = trees
-      .map(entity => {
-        const entityCenter = entity.bbox.getCenter(new Vector3())
-        const entityCenterBlock = this.getBlock(entityCenter)
-        entityCenter.y = entity.bbox.min.y
-        return entityCenterBlock
-      })
-      .filter(
-        trunkBlock => trunkBlock && this.isWithinBoard(trunkBlock.pos),
-      ) as PatchBlock[]
+    // request all entities belonging to the board
+    const items: Record<ItemType, Vector3[]> = await WorldComputeProxy.instance.queryOvergroundItems(
+      this.bounds,
+    )
+    const boardItems = []
+    const itemsChunks = []
+    for (const [itemType, spawnInstances] of Object.entries(items)) {
+      const withinBoardItems = spawnInstances.filter(spawnOrigin => this.isWithinBoard(spawnOrigin))
+      for await (const itemPos of withinBoardItems) {
+        // const itemChunk = await ItemsInventory.getItemChunkInstance(itemType, itemPos)
+        // trim chunk
+        // itemChunk?.bounds.min.y=
+        // itemChunk?.bounds.max.y=
+        // itemsChunks.push(itemChunk)
 
-    trunks.forEach(trunkBlock => {
-      trunkBlock.data.type = BlockType.TREE_TRUNK
-      trunkBlock.data.mode = BlockMode.DEFAULT
-      trunkBlock.data.level += 1
-      this.setBlock(trunkBlock.pos, trunkBlock.data)
-    })
-    return trunks.map(({ pos, data }) => ({ pos, data }) as Block)
+        const boardBlock = this.getBlock(itemPos)
+        if (boardBlock) {
+          boardBlock.pos.y += 1
+          boardBlock.data.level += 1
+          boardBlock.data.type = BlockType.TRUNK
+          boardBlock.data.mode = BlockMode.DEFAULT
+          this.setBlock(boardBlock.pos, boardBlock.data)
+          boardItems.push(boardBlock.pos)
+        }
+      }
+    }
+    const boardItemsBlocks = boardItems.map(pos => ({ pos, type: 10 }))
+    return boardItemsBlocks
   }
 
   // perform local query
@@ -196,7 +206,7 @@ export class BoardContainer extends GroundPatch {
   }
 
   digGroundHole(holeBlock: Block) {
-    holeBlock.data.type = BlockType.BOARD_HOLE
+    holeBlock.data.type = BlockType.HOLE
     holeBlock.data.level -= 1 // dig hole in the ground
     holeBlock.data.mode = BlockMode.DEFAULT
     this.setBlock(holeBlock.pos, holeBlock.data)

@@ -2,14 +2,10 @@ import alea from 'alea'
 import { Box2, Vector2 } from 'three'
 
 import { ProcLayer } from '../procgen/ProcLayer'
-import { BlueNoisePattern } from '../procgen/BlueNoisePattern'
-import { EntityData } from '../common/types'
-import { WorldConf } from '../index'
+import { BlueNoisePattern, DistributionParams } from '../procgen/BlueNoisePattern'
 import { getPatchIds } from '../common/utils'
 import { ItemType } from '../misc/ItemsInventory'
-
-// import { SurfaceNeighbour } from '../common/types'
-// import { getAdjacent2dCoords } from '../common/utils'
+import { WorldConf } from '../misc/WorldConfig'
 
 const probabilityThreshold = Math.pow(2, 8)
 const bmin = new Vector2(0, 0)
@@ -18,16 +14,10 @@ const bmax = new Vector2(
   WorldConf.defaultDistMapPeriod,
 )
 const distMapDefaultBox = new Box2(bmin, bmax)
-const distMapDefaults = {
-  aleaSeed: 'treeMap',
-  minDistance: 8,
-  maxDistance: 100,
-  tries: 20,
-}
 
 /**
- * Approximated random distribution using infinite map made from patch repetition
- * independant and deterministic
+ * Pseudo infinite random distribution from patch repetition
+ * with independant and deterministic behavior
  */
 export class PseudoDistributionMap {
   patchDimensions: Vector2
@@ -36,7 +26,7 @@ export class PseudoDistributionMap {
 
   constructor(
     bounds: Box2 = distMapDefaultBox,
-    distParams: any = distMapDefaults,
+    distParams: DistributionParams = DistributionProfiles[DistributionProfile.MEDIUM],
   ) {
     this.patchDimensions = bounds.getSize(new Vector2())
     this.repeatedPattern = new BlueNoisePattern(bounds, distParams)
@@ -91,11 +81,10 @@ export class PseudoDistributionMap {
     return spawnLocations
   }
 
-  querySpawnedItems(queryBoxOrLoc: Vector2 | Box2, itemDims: Vector2, spawnableItems: ItemType[], spawnProbabilityEval = this.spawnProbabilityEval) {
-    const spawnedItems: Record<ItemType, Vector2[]> = {}
+  getSpawnedItem(itemPos: Vector2, spawnableItems: ItemType[], spawnProbabilityEval = this.spawnProbabilityEval) {
+    // const spawnedItems: Record<ItemType, Vector2[]> = {}
     const itemsCount = spawnableItems.length
-    const spawnablePlaces = this.querySpawnLocations(queryBoxOrLoc, itemDims)
-    spawnablePlaces.forEach(itemPos => {
+    // spawnablePlaces.forEach(itemPos => {
       const itemId = itemPos.x + ':' + itemPos.y
       const prng = alea(itemId)
       const rand = prng()
@@ -103,14 +92,15 @@ export class PseudoDistributionMap {
       if (hasSpawned) {
         const itemIndex = Math.round(rand * itemsCount * 10)
         const itemKey = spawnableItems[itemIndex % itemsCount] as ItemType
-        if (itemKey !== undefined) {
-          spawnedItems[itemKey] = spawnedItems[itemKey] || [];
-          (spawnedItems[itemKey] as Vector2[]).push(itemPos)
-        }
+        // if (itemKey !== undefined) {
+        //   spawnedItems[itemKey] = spawnedItems[itemKey] || [];
+        //   (spawnedItems[itemKey] as Vector2[]).push(itemPos)
+        // }
+        return itemKey
       }
-    })
+    // })
 
-    return spawnedItems
+    // return spawnedItems
   }
 
   // /**
@@ -123,13 +113,40 @@ export class PseudoDistributionMap {
   // }
 }
 
+const distDefaults = {
+  aleaSeed: 'treeMap',
+  maxDistance: 100,
+  tries: 20,
+}
+
+export enum DistributionProfile{
+  SMALL,
+  MEDIUM,
+  LARGE
+}
+
+export const DistributionProfiles: Record<DistributionProfile, DistributionParams> = {
+  [DistributionProfile.SMALL]: {
+    ...distDefaults,
+    minDistance: 4
+  },
+  [DistributionProfile.MEDIUM]: {
+    ...distDefaults,
+    minDistance: 8
+  },
+  [DistributionProfile.LARGE]: {
+    ...distDefaults,
+    minDistance: 16
+  }
+}
+
 /**
  * Storing entities at biome level with overlap at biomes' transitions
  */
 export class OverlappingEntitiesMap {
   // extends RandomDistributionMap {
   // entities stored per biome
-  static biomeMapsLookup: Record<string, EntityData[]> = {}
+  // static biomeMapsLookup: Record<string, EntityData[]> = {}
   // getAdjacentEntities() {
   //   const adjacentEntities = []
   //   const adjacentKeys = Object.values(SurfaceNeighbour)
