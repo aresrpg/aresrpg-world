@@ -1,4 +1,5 @@
 import { Vector3, Vector2, Box3 } from 'three'
+
 import { asVect2 } from '../common/utils'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { BlockType } from '../index'
@@ -6,16 +7,16 @@ import { BlockType } from '../index'
 export enum ProcItemCategory {
   Tree,
   Boulder,
-  Grass
+  Grass,
 }
 
 export enum ProcItemType {
   AppleTree,
-  PineTree
+  PineTree,
 }
 
 export type ProcItemConf = {
-  category: ProcItemCategory,
+  category: ProcItemCategory
   params: any
 }
 
@@ -37,25 +38,32 @@ type ProceduralGenerator = TreeGenerator
 
 const ProceduralGenerators: Record<ProcItemType, ProceduralGenerator> = {
   [ProcItemType.AppleTree]: AppleTreeGen,
-  [ProcItemType.PineTree]: PineTreeGen
+  [ProcItemType.PineTree]: PineTreeGen,
 }
 
 export class ProceduralItemGenerator {
   static chunkDataEncoder = (blockType: BlockType) => blockType
 
   static voxelizeItem(itemCat: ProcItemCategory, itemParams: any) {
+    const { treeType, treeSize, treeRadius } = itemParams
     switch (itemCat) {
       case ProcItemCategory.Tree:
-        const { treeType, treeSize, treeRadius } = itemParams
         return this.voxelizeTree(treeType, treeSize, treeRadius)
     }
-    return
+    return null
   }
 
-  static voxelizeTree(treeType: ProcItemType, treeSize: number, treeRadius: number) {
+  static voxelizeTree(
+    treeType: ProcItemType,
+    treeSize: number,
+    treeRadius: number,
+  ) {
     const { chunkDataEncoder } = ProceduralItemGenerator
     const treeGenerator = ProceduralGenerators[treeType]
-    const treeBounds = new Box3(new Vector3(), new Vector3(2 * treeRadius, treeSize + 2 * treeRadius, 2 * treeRadius))
+    const treeBounds = new Box3(
+      new Vector3(),
+      new Vector3(2 * treeRadius, treeSize + 2 * treeRadius, 2 * treeRadius),
+    )
     const treeChunk = new ChunkContainer(treeBounds)
     const entityPos = treeBounds.getCenter(new Vector3())
     let index = 0
@@ -83,5 +91,4 @@ export class ProceduralItemGenerator {
     }
     return treeChunk
   }
-
 }

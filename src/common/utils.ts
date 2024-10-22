@@ -5,12 +5,12 @@ import {
   VolumeNeighbour,
   ChunkId,
   ChunkKey,
-  BiomeTerrainConfigFields,
-  NoiseLevelConf,
   PatchId,
   PatchKey,
   PatchBoundId,
   PatchBoundingPoints,
+  LandscapeFields,
+  LandscapesConf,
 } from './types'
 
 // Clamp number between two values:
@@ -34,20 +34,22 @@ const vectRoundToDec = (input: Vector2 | Vector3, n_pow: number) => {
 }
 
 const smoothstep = (edge0: number, edge1: number, x: number) => {
-  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
-};
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)))
+  return t * t * (3 - 2 * t)
+}
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
-export const MappingRangeSorter = (item1: BiomeTerrainConfigFields, item2: BiomeTerrainConfigFields) =>
-  item1.x - item2.x
+export const MappingRangeSorter = (
+  item1: LandscapeFields,
+  item2: LandscapeFields,
+) => item1.x - item2.x
 
 /**
  * find element with inputVal withing interpolation range
  * @param inputVal
  * @returns
  */
-const findMatchingRange = (inputVal: number, noiseMappings: NoiseLevelConf) => {
+const findMatchingRange = (inputVal: number, noiseMappings: LandscapesConf) => {
   let match = noiseMappings.first()
   while (match.next && inputVal > match.next.data.x) {
     match = match.next
@@ -56,75 +58,83 @@ const findMatchingRange = (inputVal: number, noiseMappings: NoiseLevelConf) => {
 }
 
 /**
- * 
+ *
  * y2 - p12-----p22
  *       |   + p |
  *       |       |
  * y1 - p11-----p21
  *       |       |
  *       x1      x2
- * 
- * @param p 
- * @param p11 
- * @param p12 
- * @param p22 
- * @param p21 
- * @returns 
+ *
+ * @param p
+ * @param p11
+ * @param p12
+ * @param p22
+ * @param p21
+ * @returns
  */
-const bilinearInterpolation = <T extends Object> (p: Vector2, bounds: Box2, boundingVals: Record<PatchBoundId, T>) => {
+const bilinearInterpolation = (
+  p: Vector2,
+  bounds: Box2,
+  boundingVals: Record<PatchBoundId, Record<string, number>>,
+) => {
   const { x, y } = p
   const { x: x1, y: y1 } = bounds.min
   const { x: x2, y: y2 } = bounds.max
   const dims = bounds.getSize(new Vector2())
 
-  const sumComponents = (componentKey, values) => {
-    return values.reduce((sum, val) => sum + val[componentKey], 0)
+  const sumComponents = (
+    componentKey: string,
+    values: Record<string, number>[],
+  ) => {
+    return values.reduce((sum, val) => sum + (val[componentKey] || 0), 0)
   }
-  const add = (...items) => {
+  const add = (...items: Record<string, number>[]) => {
     const res: any = {}
     const [first] = items
-    Object.keys(first).forEach(k => res[k] = sumComponents(k, items))
+    first && Object.keys(first).forEach(k => (res[k] = sumComponents(k, items)))
     return res
   }
-  const mul = (w: number, v: T) => {
+
+  const mul = (v: Record<string, number>, w: number) => {
     const res = { ...v }
-    Object.keys(res).forEach(k => res[k] *= w)
+    Object.keys(res).forEach(k => (res[k] = (res[k] as number) * w))
     return res
   }
   const divider = dims.x * dims.y // common divider
-  const w11 = (x2 - x) * (y2 - y) / divider
-  const w12 = (x2 - x) * (y - y1) / divider
-  const w21 = (x - x1) * (y2 - y) / divider
-  const w22 = (x - x1) * (y - y1) / divider
-  const m11 = mul(w11, boundingVals.xMyM)
-  const m12 = mul(w12, boundingVals.xMyP)
-  const m21 = mul(w21, boundingVals.xPyM)
-  const m22 = mul(w22, boundingVals.xPyP)
+  const w11 = ((x2 - x) * (y2 - y)) / divider
+  const w12 = ((x2 - x) * (y - y1)) / divider
+  const w21 = ((x - x1) * (y2 - y)) / divider
+  const w22 = ((x - x1) * (y - y1)) / divider
+  const m11 = mul(boundingVals.xMyM, w11)
+  const m12 = mul(boundingVals.xMyP, w12)
+  const m21 = mul(boundingVals.xPyM, w21)
+  const m22 = mul(boundingVals.xPyP, w22)
   const res = add(m11, m12, m21, m22)
   return res
 }
 
 /**
  * Inverse distance weighting (IDW)
- * @param cornersPoints 
- * @param point 
+ * @param cornersPoints
+ * @param point
  */
-const invDistWeighting = (cornerPointsValues: [p: Vector2, v: any][], point: Vector2) => {
-  const [firstItem] = cornerPointsValues
-  const [, firstVal] = firstItem || []
-  const initVal = { ...firstVal }
-  Object.keys(initVal).forEach(key => initVal[key] = 0)
-  let totalWeight = 0
-  const idwInterpolation = cornerPointsValues.reduce((weightedSum, [p, v]) => {
-    const d = point.distanceTo(p)
-    const w = d > 0 ? 1 / d : 1
-    Object.keys(weightedSum).forEach(k => weightedSum[k] += w * v[k])
-    totalWeight += w
-    return weightedSum
-  }, initVal)
-  Object.keys(idwInterpolation).forEach(key => idwInterpolation[key] = idwInterpolation[key] / totalWeight)
-  return idwInterpolation
-}
+// const invDistWeighting = (cornerPointsValues: [p: Vector2, v: any][], point: Vector2) => {
+//   const [firstItem] = cornerPointsValues
+//   const [, firstVal] = firstItem || []
+//   const initVal = { ...firstVal }
+//   Object.keys(initVal).forEach(key => initVal[key] = 0)
+//   let totalWeight = 0
+//   const idwInterpolation = cornerPointsValues.reduce((weightedSum, [p, v]) => {
+//     const d = point.distanceTo(p)
+//     const w = d > 0 ? 1 / d : 1
+//     Object.keys(weightedSum).forEach(k => weightedSum[k] += w * v[k])
+//     totalWeight += w
+//     return weightedSum
+//   }, initVal)
+//   Object.keys(idwInterpolation).forEach(key => idwInterpolation[key] = idwInterpolation[key] / totalWeight)
+//   return idwInterpolation
+// }
 
 /**
  * Orthogonal or direct 2D neighbours e.g.
@@ -351,10 +361,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-    parseVect3Stub(stub) ||
-    parseBox2Stub(stub) ||
-    parseVect2Stub(stub) ||
-    stub
+        parseVect3Stub(stub) ||
+        parseBox2Stub(stub) ||
+        parseVect2Stub(stub) ||
+        stub
     : stub
 }
 

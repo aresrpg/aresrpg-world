@@ -6,7 +6,7 @@ export type DistributionParams = {
   minDistance: number
   maxDistance?: number
   tries?: number
-  distanceFunction?: ((point: any) => number)
+  distanceFunction?: (point: any) => number
   bias?: number
   aleaSeed?: string
 }

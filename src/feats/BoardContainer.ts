@@ -1,6 +1,6 @@
 import { Box2, Vector2, Vector3, Vector3Like } from 'three'
 
-import { Block, PatchBlock } from '../common/types'
+import { BlockData, GroundBlock, PatchBlock } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import {
   BlockType,
@@ -8,10 +8,10 @@ import {
   GroundPatch,
   ProcLayer,
   WorldComputeProxy,
+  BlockMode,
 } from '../index'
 import { PseudoDistributionMap } from '../datacontainers/RandomDistributionMap'
 import { findBoundingBox } from '../common/math'
-import { BlockData, BlockMode } from '../datacontainers/GroundPatch'
 import { ItemType } from '../misc/ItemsInventory'
 
 export enum BlockCategory {
@@ -87,8 +87,8 @@ export class BoardContainer extends GroundPatch {
 
   async make() {
     await this.fillAndShapeBoard()
-    const obstacles: Block[] = await this.retrieveAndTrimTrees()
-    const holes: Block[] = this.getHolesAreasBis(obstacles)
+    const obstacles = await this.retrieveAndTrimTrees()
+    const holes = this.getHolesAreasBis(obstacles)
     holes.forEach(block => this.digGroundHole(block))
   }
 
@@ -148,20 +148,14 @@ export class BoardContainer extends GroundPatch {
 
   async retrieveAndTrimTrees() {
     // request all entities belonging to the board
-    const items: Record<ItemType, Vector3[]> = await WorldComputeProxy.instance.queryOvergroundItems(
-      this.bounds,
-    )
+    const items: Record<ItemType, Vector3[]> =
+      await WorldComputeProxy.instance.queryOvergroundItems(this.bounds)
     const boardItems = []
-    const itemsChunks = []
-    for (const [itemType, spawnInstances] of Object.entries(items)) {
-      const withinBoardItems = spawnInstances.filter(spawnOrigin => this.isWithinBoard(spawnOrigin))
+    for (const [, spawnInstances] of Object.entries(items)) {
+      const withinBoardItems = spawnInstances.filter(spawnOrigin =>
+        this.isWithinBoard(spawnOrigin),
+      )
       for await (const itemPos of withinBoardItems) {
-        // const itemChunk = await ItemsInventory.getItemChunkInstance(itemType, itemPos)
-        // trim chunk
-        // itemChunk?.bounds.min.y=
-        // itemChunk?.bounds.max.y=
-        // itemsChunks.push(itemChunk)
-
         const boardBlock = this.getBlock(itemPos)
         if (boardBlock) {
           boardBlock.pos.y += 1
@@ -181,14 +175,12 @@ export class BoardContainer extends GroundPatch {
   queryLocalEntities(
     boardContainer: GroundPatch,
     distMap: PseudoDistributionMap,
-    entityRadius = 2,
+    itemRadius = 2,
   ) {
-    const intersectsEntity = (testRange: Box2, entityPos: Vector2) =>
-      testRange.distanceToPoint(entityPos) <= entityRadius
+    const itemDims = new Vector2(itemRadius, itemRadius)
     const spawnLocs = distMap.querySpawnLocations(
       boardContainer.bounds,
-      intersectsEntity,
-      () => 1,
+      itemDims,
     )
     const entities = spawnLocs
       .map(loc => {
@@ -205,7 +197,7 @@ export class BoardContainer extends GroundPatch {
     return BoardContainer.holesMapDistribution.eval(testPos) < 0.15
   }
 
-  digGroundHole(holeBlock: Block) {
+  digGroundHole(holeBlock: GroundBlock) {
     holeBlock.data.type = BlockType.HOLE
     holeBlock.data.level -= 1 // dig hole in the ground
     holeBlock.data.mode = BlockMode.DEFAULT
@@ -220,7 +212,7 @@ export class BoardContainer extends GroundPatch {
     return holesSingleBlocks
   }
 
-  getHolesAreas(boardContainer: GroundPatch, forbiddenBlocks: Block[]) {
+  getHolesAreas(boardContainer: GroundPatch, forbiddenBlocks: GroundBlock[]) {
     const forbiddenPos = forbiddenBlocks.map(({ pos }) => asVect2(pos))
     const holesMono = this.queryLocalEntities(
       boardContainer,
@@ -240,15 +232,15 @@ export class BoardContainer extends GroundPatch {
         holesMulti.push(block)
       }
     })
-    return holesMulti.map(({ pos, data }) => ({ pos, data }) as Block)
+    return holesMulti.map(({ pos, data }) => ({ pos, data }) as GroundBlock)
   }
 
-  getHolesAreasBis(forbiddenBlocks: Block[]) {
+  getHolesAreasBis(forbiddenBlocks: any[]) {
     // prevent holes from spreading over forbidden blocks
     const isForbiddenPos = (testPos: Vector3) =>
       !!forbiddenBlocks.find(block => block.pos.equals(testPos))
     const blocks = this.iterBlocksQuery()
-    const holes: Block[] = []
+    const holes: PatchBlock[] = []
     for (const block of blocks) {
       const testPos = block.pos
       if (
@@ -259,7 +251,7 @@ export class BoardContainer extends GroundPatch {
         holes.push(block)
       }
     }
-    return holes.map(({ pos, data }) => ({ pos, data }) as Block)
+    return holes.map(({ pos, data }) => ({ pos, data }) as GroundBlock)
   }
 
   /**

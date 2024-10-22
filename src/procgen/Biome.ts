@@ -1,52 +1,59 @@
 import { Vector2, Vector3 } from 'three'
-
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
+import { smoothstep } from 'three/src/math/MathUtils'
+
 import { LinkedList } from '../common/misc'
 import { MappingRangeSorter } from '../common/utils'
 import * as Utils from '../common/utils'
+import {
+  BiomeLandscapeKey,
+  BiomesConf,
+  BiomesRawConf,
+  LandscapeFields,
+  LandscapesConf,
+} from '../common/types'
 
 import { ProcLayer } from './ProcLayer'
-import { BiomeConfigs, BiomeLandscapeElement, BiomeLandscapeKey } from '../common/types'
-import { smoothstep } from 'three/src/math/MathUtils'
 
 // reserved native block types
 export enum BlockType {
   NONE,
+  MUD,
   TRUNK,
   FOLIAGE_LIGHT,
   FOLIAGE_DARK,
   HOLE,
-  LAST_PLACEHOLDER
+  LAST_PLACEHOLDER,
 }
 
 enum Level {
   LOW = 'low',
   MID = 'mid',
-  HIGH = 'high'
+  HIGH = 'high',
 }
 
 enum HeatLevel {
   COLD = 'cold',
   TEMPERATE = 'temperate',
-  HOT = 'hot'
+  HOT = 'hot',
 }
 
 enum RainLevel {
   DRY = 'dry',
   MODERATE = 'mod',
-  WET = 'wet'
+  WET = 'wet',
 }
 
 const heatLevelMappings: Record<Level, HeatLevel> = {
   [Level.LOW]: HeatLevel.COLD,
   [Level.MID]: HeatLevel.TEMPERATE,
-  [Level.HIGH]: HeatLevel.HOT
+  [Level.HIGH]: HeatLevel.HOT,
 }
 
 const rainLevelMappings: Record<Level, RainLevel> = {
   [Level.LOW]: RainLevel.DRY,
   [Level.MID]: RainLevel.MODERATE,
-  [Level.HIGH]: RainLevel.WET
+  [Level.HIGH]: RainLevel.WET,
 }
 
 export enum BiomeType {
@@ -58,7 +65,10 @@ export enum BiomeType {
 
 type Contribution = Record<Level, number>
 
-const translateContribution = <T extends HeatLevel | RainLevel>(contribution: Contribution, keyMapping: Record<Level, T>) => {
+const translateContribution = <T extends HeatLevel | RainLevel>(
+  contribution: Contribution,
+  keyMapping: Record<Level, T>,
+) => {
   const mappedContribution: Record<T, number> = {} as Record<T, number>
   Object.entries(contribution).forEach(([key, val]) => {
     const targetKey = keyMapping[key as Level] as T
@@ -100,7 +110,7 @@ export class Biome {
   // heatProfile: MappingRanges
   // rainProfile: MappingRanges
 
-  mappings = {} as BiomeConfigs
+  mappings = {} as BiomesConf
   posRandomizer: ProcLayer
   /**
    * val < lowToMid=> LOW = 1
@@ -120,9 +130,9 @@ export class Biome {
     seaLevel: 0,
   }
 
-  indexedConf = new Map<BiomeLandscapeKey, BiomeLandscapeElement>
+  indexedConf = new Map<BiomeLandscapeKey, LandscapesConf>()
 
-  constructor(biomeConf?: BiomeConfigs) {
+  constructor(biomeRawConf?: BiomesRawConf) {
     this.heatmap = new ProcLayer('heatmap')
     this.heatmap.sampling.harmonicsCount = 6
     this.heatmap.sampling.periodicity = 8
@@ -134,7 +144,7 @@ export class Biome {
     // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
     this.posRandomizer = new ProcLayer('pos_random')
     this.posRandomizer.sampling.periodicity = 6
-    if (biomeConf) this.parseBiomesConfig(biomeConf)
+    if (biomeRawConf) this.parseBiomesConfig(biomeRawConf)
   }
 
   static get instance() {
@@ -143,8 +153,8 @@ export class Biome {
   }
 
   getConfIndex(confKey: BiomeLandscapeKey) {
-    const confKeys = [...this.indexedConf.keys()]; // Spread keys into an array
-    const confIndex = confKeys.indexOf(confKey); // Find the index of 'key2'
+    const confKeys = [...this.indexedConf.keys()] // Spread keys into an array
+    const confIndex = confKeys.indexOf(confKey) // Find the index of 'key2'
     return confIndex
   }
 
@@ -153,12 +163,12 @@ export class Biome {
    * @param input either blocks position, or pre-requested biome contributions
    * @returns
    */
-  getBiomeType(input: Vector3 | BiomeInfluence): BiomeType {
+  getBiomeType(input: Vector3 | BiomeInfluence) {
     const biomeContribs =
       input instanceof Vector3 ? this.getBiomeInfluence(input) : input
     const mainBiome = Object.entries(biomeContribs).sort(
       (a, b) => b[1] - a[1],
-    )[0]?.[0]
+    )[0]?.[0] as string
     return mainBiome as BiomeType
   }
 
@@ -169,31 +179,31 @@ export class Biome {
       low: 0,
       mid: 0,
       high: 0,
-    };
+    }
 
     // LOW
     if (value < steps.lowToMid) {
-      contributions.low = 1;
+      contributions.low = 1
     }
     // dec LOW, inc MID
     else if (value < steps.mid) {
-      const interp = smoothstep(value, steps.lowToMid, steps.mid);
-      contributions.low = 1 - interp;
-      contributions.mid = interp;
+      const interp = smoothstep(value, steps.lowToMid, steps.mid)
+      contributions.low = 1 - interp
+      contributions.mid = interp
     }
     // MID
     else if (value < steps.midToHigh) {
-      contributions.mid = 1;
+      contributions.mid = 1
     }
     // dec MID/ inc HIGH
     else if (value < steps.high) {
-      const interp = smoothstep(value, steps.midToHigh, steps.high);
-      contributions.mid = 1 - interp;
-      contributions.high = interp;
+      const interp = smoothstep(value, steps.midToHigh, steps.high)
+      contributions.mid = 1 - interp
+      contributions.high = interp
     }
     // HIGH
     else {
-      contributions.high = 1;
+      contributions.high = 1
     }
 
     // if (value < 0.5) {
@@ -206,7 +216,7 @@ export class Biome {
     //   contributions.high = heatLevel
     // }
 
-    return contributions;
+    return contributions
   }
 
   getBiomeInfluence(pos: Vector2 | Vector3): BiomeInfluence {
@@ -223,7 +233,6 @@ export class Biome {
     contrib = this.calculateContributions(rainVal)
     const rainContributions = translateContribution(contrib, rainLevelMappings)
 
-
     Object.entries(heatContributions).forEach(([k1, v1]) => {
       Object.entries(rainContributions).forEach(([k2, v2]) => {
         const biomeType = BiomesMapping[k1 as HeatLevel][k2 as RainLevel]
@@ -232,10 +241,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-      (biomeContribs[k as BiomeType] = Utils.roundToDec(
-        biomeContribs[k as BiomeType],
-        2,
-      )),
+        (biomeContribs[k as BiomeType] = Utils.roundToDec(
+          biomeContribs[k as BiomeType],
+          2,
+        )),
     )
 
     // biomeContribs[BiomeType.Artic] = 1
@@ -244,17 +253,15 @@ export class Biome {
     return biomeContribs
   }
 
-  parseBiomesConfig(biomeConfigs: BiomeConfigs) {
+  parseBiomesConfig(biomesRawConf: BiomesRawConf) {
     // Object.entries(biomeConfigs).forEach(([biomeType, biomeConf]) => {
     // complete missing data
-    for (const item of Object.entries(biomeConfigs)) {
-      const [biomeType, biomeConf] = item
-      for (const subItem of Object.entries(biomeConf)) {
-        const [confId, confData] = subItem
-        confData.key = biomeType + '_' + confId
+    for (const [biomeType, biomeConf] of Object.entries(biomesRawConf)) {
+      for (const [landId, landConf] of Object.entries(biomeConf)) {
+        landConf.key = biomeType + '_' + landId
       }
 
-      const configItems = Object.values(biomeConf)
+      const configItems = Object.values(biomeConf) as LandscapeFields[]
       const mappingRanges = LinkedList.fromArrayAfterSorting(
         configItems,
         MappingRangeSorter,
@@ -272,42 +279,42 @@ export class Biome {
   landscapeTransition = (
     groundPos: Vector2,
     baseHeight: number,
-    blockMapping: BiomeLandscapeElement,
+    landscapeConf: LandscapesConf,
   ) => {
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)
     const posRandomizerVal = this.posRandomizer.eval(mapCoords)
     // add some height variations to break painting monotony
-    const { amplitude }: any = blockMapping.data
+    const { amplitude }: any = landscapeConf.data
     const bounds = {
-      lower: blockMapping.data.x,
-      upper: blockMapping.next?.data.x || 1,
+      lower: landscapeConf.data.x,
+      upper: landscapeConf.next?.data.x || 1,
     }
     let blockType
     // randomize on lower side
     if (
-      blockMapping.prev &&
+      landscapeConf.prev &&
       baseHeight - bounds.lower <= bounds.upper - baseHeight &&
       baseHeight - amplitude.low < bounds.lower
     ) {
       const heightVariation = posRandomizerVal * amplitude.low
       const varyingHeight = baseHeight - heightVariation
       blockType =
-        varyingHeight < blockMapping.data.x
-          ? blockMapping.prev?.data.type
-          : blockMapping.data.type
+        varyingHeight < landscapeConf.data.x
+          ? landscapeConf.prev?.data.type
+          : landscapeConf.data.type
     }
     // randomize on upper side
-    else if (blockMapping.next && baseHeight + amplitude.high > bounds.upper) {
+    else if (landscapeConf.next && baseHeight + amplitude.high > bounds.upper) {
       //   let heightVariation =
       //   Utils.clamp(this.paintingRandomness.eval(groundPos), 0.5, 1) * randomness.high
       // heightVariation = heightVariation > 0 ? (heightVariation - 0.5) * 2 : 0
       const heightVariation = posRandomizerVal * amplitude.high
       const varyingHeight = baseHeight + heightVariation
       blockType =
-        varyingHeight > blockMapping.next.data.x
-          ? blockMapping.next.data.type
-          : blockMapping.data.type
+        varyingHeight > landscapeConf.next.data.x
+          ? landscapeConf.next.data.type
+          : landscapeConf.data.type
     }
     return blockType
   }
@@ -320,13 +327,11 @@ export class Biome {
     const { seaLevel } = this.params
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = Utils.clamp(rawVal, 0, 1)
-    const mappingRange = Utils.findMatchingRange(
-      rawVal,
-      this.mappings[biomeType],
-    )
-    const upperRange = mappingRange.next || mappingRange
-    const min = new Vector2(mappingRange.data.x, mappingRange.data.y)
-    const max = new Vector2(upperRange.data.x, upperRange.data.y)
+    const biomeConf = this.mappings[biomeType]
+    const current = Utils.findMatchingRange(rawVal, biomeConf)
+    const upper = current?.next || current
+    const min = new Vector2(current.data.x, current.data.y)
+    const max = new Vector2(upper.data.x, upper.data.y)
     const lerp = min.lerp(max, (rawVal - min.x) / (max.x - min.x))
     return lerp.y // includeSea ? Math.max(interpolated, seaLevel) : interpolated
   }
@@ -345,18 +350,12 @@ export class Biome {
   }
 
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
-    // nominal block type
-    let mappingRange = Utils.findMatchingRange(
-      rawVal as number,
-      this.mappings[biomeType],
-    )
-    while (!mappingRange.data.type && mappingRange.prev) {
-      mappingRange = mappingRange.prev
-    }
+    const firstItem = this.mappings[biomeType]
+    let currentItem = Utils.findMatchingRange(rawVal as number, firstItem)
 
-    const biomeConfKey = mappingRange.data.key
-    // const finalBlockType = this.blockRandomization(groundPos, baseHeight, currentBlockMap)
-    // if (finalBlockType !== nominalBlockType) console.log(`[getBlockType] nominal${nominalBlockType} random${finalBlock}`)
-    return this.indexedConf.get(biomeConfKey)
+    while (!currentItem?.data.type && currentItem?.prev) {
+      currentItem = currentItem.prev
+    }
+    return currentItem
   }
 }

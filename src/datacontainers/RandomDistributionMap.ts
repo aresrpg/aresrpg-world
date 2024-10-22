@@ -2,10 +2,43 @@ import alea from 'alea'
 import { Box2, Vector2 } from 'three'
 
 import { ProcLayer } from '../procgen/ProcLayer'
-import { BlueNoisePattern, DistributionParams } from '../procgen/BlueNoisePattern'
+import {
+  BlueNoisePattern,
+  DistributionParams,
+} from '../procgen/BlueNoisePattern'
 import { getPatchIds } from '../common/utils'
 import { ItemType } from '../misc/ItemsInventory'
 import { WorldConf } from '../misc/WorldConfig'
+
+const distDefaults = {
+  aleaSeed: 'treeMap',
+  maxDistance: 100,
+  tries: 20,
+}
+
+export enum DistributionProfile {
+  SMALL,
+  MEDIUM,
+  LARGE,
+}
+
+export const DistributionProfiles: Record<
+  DistributionProfile,
+  DistributionParams
+> = {
+  [DistributionProfile.SMALL]: {
+    ...distDefaults,
+    minDistance: 4,
+  },
+  [DistributionProfile.MEDIUM]: {
+    ...distDefaults,
+    minDistance: 8,
+  },
+  [DistributionProfile.LARGE]: {
+    ...distDefaults,
+    minDistance: 16,
+  },
+}
 
 const probabilityThreshold = Math.pow(2, 8)
 const bmin = new Vector2(0, 0)
@@ -26,7 +59,9 @@ export class PseudoDistributionMap {
 
   constructor(
     bounds: Box2 = distMapDefaultBox,
-    distParams: DistributionParams = DistributionProfiles[DistributionProfile.MEDIUM],
+    distParams: DistributionParams = DistributionProfiles[
+      DistributionProfile.MEDIUM
+    ],
   ) {
     this.patchDimensions = bounds.getSize(new Vector2())
     this.repeatedPattern = new BlueNoisePattern(bounds, distParams)
@@ -67,11 +102,16 @@ export class PseudoDistributionMap {
     const patchIds = getPatchIds(queryBox, this.patchDimensions)
     for (const patchId of patchIds) {
       const offset = patchId.clone().multiply(this.patchDimensions)
-      const localRegionQuery = queryBox.clone().translate(offset.clone().negate())
+      const localRegionQuery = queryBox
+        .clone()
+        .translate(offset.clone().negate())
       // look for entities overlapping with input point or area
       for (const spawnLocalPos of this.repeatedPattern.elements) {
         // eval spawn probability at entity center
-        const spawnBox = new Box2().setFromCenterAndSize(spawnLocalPos, itemDims)
+        const spawnBox = new Box2().setFromCenterAndSize(
+          spawnLocalPos,
+          itemDims,
+        )
         if (spawnBox.intersectsBox(localRegionQuery)) {
           const itemPos = spawnLocalPos.clone().add(offset)
           spawnLocations.push(itemPos)
@@ -81,26 +121,30 @@ export class PseudoDistributionMap {
     return spawnLocations
   }
 
-  getSpawnedItem(itemPos: Vector2, spawnableItems: ItemType[], spawnProbabilityEval = this.spawnProbabilityEval) {
+  getSpawnedItem(
+    itemPos: Vector2,
+    spawnableItems: ItemType[],
+    spawnProbabilityEval = this.spawnProbabilityEval,
+  ) {
     // const spawnedItems: Record<ItemType, Vector2[]> = {}
     const itemsCount = spawnableItems.length
     // spawnablePlaces.forEach(itemPos => {
-      const itemId = itemPos.x + ':' + itemPos.y
-      const prng = alea(itemId)
-      const rand = prng()
-      const hasSpawned = rand * spawnProbabilityEval(itemPos) < probabilityThreshold
-      if (hasSpawned) {
-        const itemIndex = Math.round(rand * itemsCount * 10)
-        const itemKey = spawnableItems[itemIndex % itemsCount] as ItemType
-        // if (itemKey !== undefined) {
-        //   spawnedItems[itemKey] = spawnedItems[itemKey] || [];
-        //   (spawnedItems[itemKey] as Vector2[]).push(itemPos)
-        // }
-        return itemKey
-      }
+    const itemId = itemPos.x + ':' + itemPos.y
+    const prng = alea(itemId)
+    const rand = prng()
+    const hasSpawned =
+      rand * spawnProbabilityEval(itemPos) < probabilityThreshold
+    if (hasSpawned) {
+      const itemIndex = Math.round(rand * itemsCount * 10)
+      const itemKey = spawnableItems[itemIndex % itemsCount] as ItemType
+      // if (itemKey !== undefined) {
+      //   spawnedItems[itemKey] = spawnedItems[itemKey] || [];
+      //   (spawnedItems[itemKey] as Vector2[]).push(itemPos)
+      // }
+      return itemKey
+    }
     // })
-
-    // return spawnedItems
+    return null
   }
 
   // /**
@@ -111,33 +155,6 @@ export class PseudoDistributionMap {
   //   const offset = 10
   //   return pos.x % 20 === offset && pos.y % 20 === offset
   // }
-}
-
-const distDefaults = {
-  aleaSeed: 'treeMap',
-  maxDistance: 100,
-  tries: 20,
-}
-
-export enum DistributionProfile{
-  SMALL,
-  MEDIUM,
-  LARGE
-}
-
-export const DistributionProfiles: Record<DistributionProfile, DistributionParams> = {
-  [DistributionProfile.SMALL]: {
-    ...distDefaults,
-    minDistance: 4
-  },
-  [DistributionProfile.MEDIUM]: {
-    ...distDefaults,
-    minDistance: 8
-  },
-  [DistributionProfile.LARGE]: {
-    ...distDefaults,
-    minDistance: 16
-  }
 }
 
 /**
@@ -159,14 +176,12 @@ export class OverlappingEntitiesMap {
   //   const adjacentMaps = adjacentKeys.map(mapKey => RandomDistributionMap.mapsLookup[mapKey])
   //   return adjacentEntities
   // }
-
   // Gen all entities belonging to specific biome
   // populate(blockPos: Vector3) {
   //   // find biome at given block pos
   //   // discover biome extent
   //   // generate entities over all biome
   // }
-
   // override *iterate(input: Box3 | Vector3) {
   //   // find if biome cached entities exists for given block or patch
   //   // if not populate biomes cache with entities
