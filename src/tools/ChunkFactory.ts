@@ -86,16 +86,14 @@ export class ChunkFactory {
       blockLocalPos.x += 1
       // block.localPos.y = patch.bbox.max.y
       blockLocalPos.z += 1
-      const blockType = highlightPatchBorders(blockLocalPos, block.data.type) || block.data.type
+      const blockType =
+        highlightPatchBorders(blockLocalPos, block.data.type) || block.data.type
       const blockMode = block.data.mode
       // generate ground buffer
-      let buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
+      const buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
       if (buffSize > 0) {
         const groundBuffer = new Uint16Array(buffSize)
-        const bufferData = this.chunkDataEncoder(
-          blockType,
-          blockMode,
-        )
+        const bufferData = this.chunkDataEncoder(blockType, blockMode)
         groundBuffer.fill(bufferData)
         // worldChunk.writeSector()
         const chunkBuffer = worldChunk.readBuffer(asVect2(blockLocalPos))

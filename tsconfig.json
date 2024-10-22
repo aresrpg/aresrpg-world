@@ -24,7 +24,7 @@
 
     /* Modules */
     "module": "ES6",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "bundler",
     "typeRoots": ["src/@types", "./node_modules/@types"],
 
     /* Emit */

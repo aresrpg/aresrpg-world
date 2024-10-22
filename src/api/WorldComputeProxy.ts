@@ -1,6 +1,6 @@
 import { Box2, Vector2 } from 'three'
 
-import { Block, PatchKey } from '../common/types'
+import { GroundBlock, PatchKey } from '../common/types'
 import { GroundPatch, WorldCompute, WorldUtils } from '../index'
 
 export enum ComputeApiCall {
@@ -17,8 +17,8 @@ export type ComputeApiParams = Partial<{
 }>
 
 /**
- * World API frontend proxying requests to internal modules: world-compute, world-cache, 
- * When optional worker is provided all compute request are proxied to worker 
+ * World API frontend proxying requests to internal modules: world-compute, world-cache,
+ * When optional worker is provided all compute request are proxied to worker
  * instead of main thread
  */
 export class WorldComputeProxy {
@@ -78,15 +78,15 @@ export class WorldComputeProxy {
     const blocks = !this.worker
       ? WorldCompute.computeBlocksBatch(blockPosBatch, params)
       : ((await this.workerCall(ComputeApiCall.BlocksBatchCompute, [
-        blockPosBatch,
-        params,
-      ])?.then((blocksStubs: Block[]) =>
-        // parse worker's data to recreate original objects
-        blocksStubs.map(blockStub => {
-          blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
-          return blockStub
-        }),
-      )) as Block[])
+          blockPosBatch,
+          params,
+        ])?.then((blocksStubs: GroundBlock[]) =>
+          // parse worker's data to recreate original objects
+          blocksStubs.map(blockStub => {
+            blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
+            return blockStub
+          }),
+        )) as GroundBlock[])
 
     return blocks
   }
@@ -95,9 +95,9 @@ export class WorldComputeProxy {
     const overgroundItems = !this.worker
       ? WorldCompute.retrieveOvergroundItems(queriedRegion)
       : await this.workerCall(
-        ComputeApiCall.OvergroundItemsQuery,
-        [queriedRegion], // [emptyPatch.bbox]
-      )
+          ComputeApiCall.OvergroundItemsQuery,
+          [queriedRegion], // [emptyPatch.bbox]
+        )
     return overgroundItems
   }
 
@@ -106,11 +106,11 @@ export class WorldComputeProxy {
       const patch = !this.worker
         ? WorldCompute.bakePatch(patchKey)
         : ((await this.workerCall(
-          ComputeApiCall.PatchCompute,
-          [patchKey], // [emptyPatch.bbox]
-        )?.then(patchStub =>
-          new GroundPatch().fromStub(patchStub),
-        )) as GroundPatch)
+            ComputeApiCall.PatchCompute,
+            [patchKey], // [emptyPatch.bbox]
+          )?.then(patchStub =>
+            new GroundPatch().fromStub(patchStub),
+          )) as GroundPatch)
 
       yield patch
     }

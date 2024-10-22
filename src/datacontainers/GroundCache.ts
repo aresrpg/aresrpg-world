@@ -47,10 +47,11 @@ export class PatchesContainer<T extends PatchContainer<any>> {
  * Returns block from cache if found, and precache near blocks if needed
  * If not found will compute patch containing block first,
  * and return a promise that will resolve once patch is available in cache
- * @param blockPos 
- * @param params 
+ * @param blockPos
+ * @param params
  */
 export class GroundCache extends PatchesContainer<GroundPatch> {
+  // eslint-disable-next-line no-use-before-define
   static singleton: GroundCache
 
   static get instance() {
@@ -88,22 +89,29 @@ export class GroundCache extends PatchesContainer<GroundPatch> {
 
   /**
    * Query block from cache
-   * @param blockPos 
-   * @returns 
+   * @param blockPos
+   * @returns
    */
-  queryBlock(pos: Vector2, { cacheIfMissing, precacheRadius } = { cacheIfMissing: false, precacheRadius: 0 }) {
+  queryBlock(
+    pos: Vector2,
+    { cacheIfMissing, precacheRadius } = {
+      cacheIfMissing: false,
+      precacheRadius: 0,
+    },
+  ) {
     const block = this.findPatch(pos)?.getBlock(pos)
     let pendingReq
     if ((!block && cacheIfMissing) || precacheRadius > 0) {
-      pendingReq = this.precacheAroundPos(pos, precacheRadius)
-        .then(_ => GroundCache.instance.queryBlock(pos) as PatchBlock) as Promise<PatchBlock>
+      pendingReq = this.precacheAroundPos(pos, precacheRadius).then(
+        () => GroundCache.instance.queryBlock(pos) as PatchBlock,
+      ) as Promise<PatchBlock>
     }
     return block || pendingReq
   }
 
   rebuildPatchIndex(cacheBounds: Box2) {
-    const patchKeys = getPatchIds(cacheBounds, this.patchDimensions).map(patchId =>
-      serializePatchId(patchId),
+    const patchKeys = getPatchIds(cacheBounds, this.patchDimensions).map(
+      patchId => serializePatchId(patchId),
     )
     const foundOrMissing = patchKeys.map(key => this.patchLookup[key] || key)
     const changesCount = foundOrMissing.filter(
@@ -127,10 +135,7 @@ export class GroundCache extends PatchesContainer<GroundPatch> {
       precacheRadius,
       precacheRadius,
     ).multiplyScalar(2)
-    const precache_box = new Box2().setFromCenterAndSize(
-      center,
-      precache_dims,
-    )
+    const precache_box = new Box2().setFromCenterAndSize(center, precache_dims)
     GroundCache.instance.rebuildPatchIndex(precache_box)
     return GroundCache.instance.loadEmpty(false)
   }
@@ -146,11 +151,10 @@ export class GroundMap extends GroundCache {
   //   this.loadEmpty()
   // }
 
-
   override rebuildPatchIndex(mapBounds: Box2) {
     this.mapBounds = mapBounds
-    const patchKeys = getPatchIds(mapBounds, this.patchDimensions).map(patchId =>
-      serializePatchId(patchId),
+    const patchKeys = getPatchIds(mapBounds, this.patchDimensions).map(
+      patchId => serializePatchId(patchId),
     )
     const foundOrMissing = patchKeys.map(key => this.patchLookup[key] || key)
     const changesCount = foundOrMissing.filter(

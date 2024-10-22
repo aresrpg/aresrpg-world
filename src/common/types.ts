@@ -1,18 +1,29 @@
 import { Vector2, Vector3 } from 'three'
 
-import { BlockData } from '../datacontainers/GroundPatch'
 import { ItemType } from '../misc/ItemsInventory'
 import { BiomeType, BlockType } from '../procgen/Biome'
 
 import { LinkedList } from './misc'
 
-export type Block = {
+export type Block<T> = {
   pos: Vector3
-  data: BlockData
-  buffer?: Uint16Array
+  data: T
 }
 
-export type PatchBlock = Block & {
+export enum BlockMode {
+  DEFAULT,
+  BOARD_CONTAINER,
+}
+
+export type BlockData = {
+  level: number
+  type: BlockType
+  mode?: BlockMode
+}
+
+export type GroundBlock = Block<BlockData>
+
+export type PatchBlock = GroundBlock & {
   index: number
   localPos: Vector3
 }
@@ -31,9 +42,7 @@ export enum IntercardinalDirections {
   SW,
 }
 
-export type AllCardinalDirections =
-  | CardinalDirections
-  | IntercardinalDirections
+export type AllCardinalDirections = CardinalDirections | IntercardinalDirections
 
 // export enum SurfaceBounds {
 //   R_DOWN, // xM,yM
@@ -43,14 +52,13 @@ export type AllCardinalDirections =
 // }
 
 export enum PatchBoundId {
-  xMyM = "xMyM",
-  xMyP = "xMyP",
-  xPyP = "xPyP",
-  xPyM = "xPyM",
+  xMyM = 'xMyM',
+  xMyP = 'xMyP',
+  xPyP = 'xPyP',
+  xPyM = 'xPyM',
 }
 
 export type PatchBoundingPoints = Record<PatchBoundId, Vector2>
-
 
 export enum ChunkBoundId {
   xMyMzM,
@@ -125,6 +133,11 @@ export type ProcLayerExtCfg = {
   harmonic_spread: number
 }
 
+export type PatchKey = string
+export type PatchId = Vector2
+export type ChunkKey = string
+export type ChunkId = Vector3
+
 // export enum TerrainType {
 //   SEA,
 //   BEACH,
@@ -136,27 +149,23 @@ export type ProcLayerExtCfg = {
 //   MOUNTAINS_TOP,
 // }
 
+export type LandscapeId = string // landscape id assigned to noise level
+export type BiomeLandscapeKey = string // combination of biomeType and LandscapeId
+
 export type LandscapeFields = {
-  key: BiomeLandscapeKey,
-  x: number, // noise value
-  y: number, // height noise mapping
-  type: BlockType, // ground surface
-  subtype: BlockType, // below ground or mixed with ground surface
-  mixratio: number, // mixing ratio between type/subtype
-  flora?: Record<ItemType, number>,
-  fadein: any,
+  key: BiomeLandscapeKey
+  x: number // noise value
+  y: number // height noise mapping
+  type: BlockType // ground surface
+  subtype: BlockType // below ground or mixed with ground surface
+  mixratio: number // mixing ratio between type/subtype
+  flora?: Record<ItemType, number>
+  fadein: any
   fadeout: any
 }
 
 // Biome landscapes mappings
-export type BiomeLandscapes = Record<LandscapeId, Partial<LandscapeFields>>
-export type BiomeConfigs = Record<BiomeType, BiomeLandscapes>
-export type BiomeLandscapeElement = LinkedList<LandscapeFields>
-
-export type LandscapeId = string // landscape id assigned to noise level
-export type BiomeLandscapeKey = string // combination of biomeType and LandscapeId
-
-export type PatchKey = string
-export type PatchId = Vector2
-export type ChunkKey = string
-export type ChunkId = Vector3
+export type LandscapesRawConf = Record<LandscapeId, Partial<LandscapeFields>>
+export type BiomesRawConf = Record<BiomeType, LandscapesRawConf>
+export type LandscapesConf = LinkedList<LandscapeFields>
+export type BiomesConf = Record<BiomeType, LandscapesConf>
