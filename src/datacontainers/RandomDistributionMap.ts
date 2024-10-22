@@ -6,7 +6,7 @@ import {
   BlueNoisePattern,
   DistributionParams,
 } from '../procgen/BlueNoisePattern'
-import { getPatchIds } from '../utils/common'
+import { asVect3, getPatchIds } from '../utils/common'
 import { ItemType } from '../misc/ItemsInventory'
 import { WorldConf } from '../misc/WorldConfig'
 
@@ -70,7 +70,7 @@ export class PseudoDistributionMap {
 
   spawnProbabilityEval = (pos: Vector2) => {
     const maxCount = 1 // 16 * Math.round(Math.exp(10))
-    const val = this.densityMap?.eval(pos)
+    const val = this.densityMap?.eval(asVect3(pos))
     const adjustedVal = val
       ? (16 * Math.round(Math.exp((1 - val) * 10))) / maxCount
       : 0

@@ -7,8 +7,10 @@ import {
   serializeChunkId,
 } from './common'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
+import { Biome, BlockMode, BlockType, WorldConf } from '../index'
+import { GroundPatch, parseGroundFlags } from '../datacontainers/GroundPatch'
 
+const UNDERGROUND_DEPTH = 4
 // for debug use only
 export const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
   return WorldConf.instance.debug.patch.borderHighlightColor &&
@@ -19,13 +21,13 @@ export const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) =
 
 export const genChunksIdsFromPatchId = (patchId: PatchId) => {
   const { ymin, ymax } = WorldConf.instance.chunkSettings.verticalRange
-  const chunk_ids = []
-  for (let y = ymax; y >= ymin; y--) {
-    const chunk_coords = asVect3(patchId, y)
-    chunk_ids.push(chunk_coords)
+    const chunk_ids = []
+    for (let y = ymax; y >= ymin; y--) {
+      const chunk_coords = asVect3(patchId, y)
+      chunk_ids.push(chunk_coords)
+    }
+    return chunk_ids
   }
-  return chunk_ids
-}
 
 export const getWorldChunksFromPatchId = (patchId: PatchId) => {
   const patchChunkIds = genChunksIdsFromPatchId(patchId)
@@ -50,54 +52,65 @@ export const getWorldChunksFromPatchId = (patchId: PatchId) => {
   // return worldChunksStubs
 }
 
-/**
-   * Assembles pieces together: ground, world objects
+  /**
+   * Assembles pieces together: ground surface, underground layer, caverns, overground items
    */
-export const chunkifyPatch = (groundLayer: GroundPatch, chunkItems: ChunkContainer[]) => {
-  const patchChunkIds = groundLayer.id
+  export const chunkifyPatch = (groundLayer: GroundPatch, chunkItems: ChunkContainer[], chunkMask: ChunkContainer) => {
+    const patchChunkIds = groundLayer.id
     ? genChunksIdsFromPatchId(groundLayer.id)
-    : []
-  // const worldChunksStubs = patchChunkIds.map(async chunkId => {
-  const worldChunksStubs = patchChunkIds.map(chunkId => {
+      : []
+    // const worldChunksStubs = patchChunkIds.map(async chunkId => {
+    const worldChunksStubs = patchChunkIds.map(chunkId => {
     const worldChunk = new ChunkContainer(serializeChunkId(chunkId))
-    // this.mergePatchLayersToChunk(worldChunk, groundLayer, overgroundItems)
-    // merge chunk items first so they don't override ground
-    for (const chunkItem of chunkItems) {
-      ChunkContainer.copySourceToTarget(chunkItem, worldChunk)
-    }
+      // this.mergePatchLayersToChunk(worldChunk, groundLayer, overgroundItems)
+      // merge chunk items first so they don't override ground
+      for (const chunkItem of chunkItems) {
+        ChunkContainer.copySourceToTarget(chunkItem, worldChunk)
+      }
     // merge ground layer after, overriding items blocks overlapping with ground
     mergeGroundLayer(worldChunk, groundLayer)
-    const worldChunkStub = {
-      key: serializeChunkId(chunkId),
-      data: worldChunk.rawData,
-    }
-    return worldChunk//worldChunkStub
-  })
-  return worldChunksStubs
-}
+      // apply chunk mask
+      ChunkContainer.applyMaskOnTarget(chunkMask, worldChunk)
+      return worldChunk//worldChunkStub
+    })
+    return worldChunksStubs
+  }
 
-export const mergeGroundLayer = (worldChunk: ChunkContainer, groundLayer: GroundPatch) => {
-  const ymin = worldChunk.extendedBounds.min.y
-  const ymax = worldChunk.extendedBounds.max.y
-  const blocks = groundLayer.iterBlocksQuery(undefined, false)
-  for (const block of blocks) {
-    const blockLocalPos = block.localPos as Vector3
-    // blockLocalPos.x += 1
-    // block.localPos.y = patch.bbox.max.y
-    // blockLocalPos.z += 1
-    const blockType =
-      highlightPatchBorders(blockLocalPos, block.data.type) || block.data.type
-    const blockMode = block.data.mode
-    // generate ground buffer
-    const buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
-    if (buffSize > 0) {
-      const groundBuffer = new Uint16Array(buffSize)
-      const encodedData = ChunkContainer.defaultDataEncoder(blockType, blockMode)
-      groundBuffer.fill(encodedData)
-      // worldChunk.writeSector()
-      const chunkBuffer = worldChunk.readBuffer(asVect2(blockLocalPos))
-      chunkBuffer.set(groundBuffer)
-      worldChunk.writeBuffer(asVect2(blockLocalPos), chunkBuffer)
+  export const mergeGroundLayer = (worldChunk: ChunkContainer, groundLayer: GroundPatch) => {
+    const ymin = worldChunk.extendedBounds.min.y
+    const ymax = worldChunk.extendedBounds.max.y
+    const blocks = groundLayer.iterBlocksQuery(undefined, false)
+    const bedrock = ChunkContainer.defaultDataEncoder(BlockType.BEDROCK)
+    for (const block of blocks) {
+      const blockLocalPos = block.localPos as Vector3
+      // blockLocalPos.x += 1
+      // block.localPos.y = patch.bbox.max.y
+      // blockLocalPos.z += 1
+      const { biome, landscapeIndex, flags } = block.data
+      let landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
+      const groundConf = landscapeConf.data
+      const groundFlags = parseGroundFlags(flags)
+      const blockType = highlightPatchBorders(blockLocalPos, groundConf.type) || groundConf.type
+      const blockMode = groundFlags.boardMode ? BlockMode.BOARD_CONTAINER : BlockMode.DEFAULT
+      const groundSurface = ChunkContainer.defaultDataEncoder(
+        blockType,
+        blockMode
+      )
+      const undergroundLayer = ChunkContainer.defaultDataEncoder(groundConf.subtype || BlockType.BEDROCK)
+      // generate ground buffer
+      const buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
+      if (buffSize > 0) {
+        const groundBuffer = new Uint16Array(block.data.level - ymin)
+        // fill with bedrock first
+        groundBuffer.fill(bedrock)
+        // add underground layer
+        groundBuffer.fill(undergroundLayer, groundBuffer.length - (UNDERGROUND_DEPTH + 1))
+        // finish with ground surface block
+        groundBuffer[groundBuffer.length - 1] = groundSurface
+        // worldChunk.writeSector()
+        const chunkBuffer = worldChunk.readBuffer(asVect2(blockLocalPos))
+        chunkBuffer.set(groundBuffer.slice(0, buffSize))
+        worldChunk.writeBuffer(asVect2(blockLocalPos), chunkBuffer)
+      }
     }
   }
-}

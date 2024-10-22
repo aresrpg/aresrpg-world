@@ -1,3 +1,4 @@
+import { Vector3 } from 'three'
 import { InputType, NoiseSampler } from './NoiseSampler'
 
 /**
@@ -36,10 +37,11 @@ export class ProcLayer {
     // )
   }
 
-  eval(rawInput: InputType) {
+  eval(rawInput: Vector3) {
+    const { scaling } = this.params
+    const { x, z } = rawInput
     this.lastInput = rawInput
-    const input = rawInput.clone().multiplyScalar(this.params.scaling)
-    const noiseVal = this.sampling.eval(input)
+    const noiseVal = this.sampling.eval(x * scaling, z * scaling)
     this.lastEval.noise = noiseVal
     const rawVal = (noiseVal - 0.5) * 2 ** this.params.spreading + 0.5
     this.lastEval.raw = rawVal
