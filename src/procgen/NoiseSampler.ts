@@ -1,4 +1,4 @@
-import { createNoise2D } from 'simplex-noise'
+import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import alea from 'alea'
 import { Vector2, Vector3 } from 'three'
 
@@ -10,6 +10,18 @@ export type Generator = (input: InputType) => number
 type Harmonic = {
   period: number
   amplitude: number
+}
+
+export enum NoiseDimension {
+  Two,
+  Three,
+  Four
+}
+
+const noiseConstructor: Record<NoiseDimension, (prng: any) => any> = {
+  [NoiseDimension.Two]: (prng: any) => createNoise2D(prng),
+  [NoiseDimension.Three]: (prng: any) => createNoise3D(prng),
+  [NoiseDimension.Four]: (prng: any) => createNoise4D(prng)
 }
 
 export class NoiseSampler {
@@ -24,21 +36,23 @@ export class NoiseSampler {
       spread: 2,
       gain: 0.5,
     },
+    dimensions: NoiseDimension.Two
   }
 
   shadowParams = {}
   stats = {}
   parent: any
 
-  constructor(seed = '') {
+  constructor(seed = '', dimensions = NoiseDimension.Two) {
     this.params.seed = seed
+    this.params.dimensions = dimensions
     this.init()
   }
 
   init() {
     // create a new random function based on the seed
     const prng = alea(this.seed)
-    this.noiseSource = createNoise2D(prng)
+    this.noiseSource = noiseConstructor[this.params.dimensions](prng)
     const { harmonics } = this.params
     const periodicity = Math.pow(2, this.params.periodicity)
     this.harmonics = Array.from(new Array(harmonics.count)).map((_v, i) => {
@@ -104,9 +118,9 @@ export class NoiseSampler {
     // this.parent?.onChange(`Sampler:${originator}`)
   }
 
-  eval(input: InputType): number {
-    const { x } = input
-    const y = input instanceof Vector2 ? input.y : input.z
+  eval(x: number, y: number, z?: number, t?: number): number {
+    // const { x, y, z } = input
+    // const y = input instanceof Vector2 ? input.y : input.z
     const density = Math.pow(2, 6) // TODO remove hardcoding
     let noiseEval
     let noise = 0
@@ -116,6 +130,8 @@ export class NoiseSampler {
         noiseEval = this.noiseSource(
           (x * density) / harmonic.period,
           (y * density) / harmonic.period,
+          (z * density) / harmonic.period,
+          t
         )
         noise += (noiseEval * 0.5 + 0.5) * harmonic.amplitude /// Math.pow(2, i + 1)
       })

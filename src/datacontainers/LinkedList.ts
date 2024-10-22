@@ -28,6 +28,26 @@ export class LinkedList<T> {
     return last
   }
 
+  nth(n: number) {
+    let curr: LinkedList<T> | undefined = this.first()
+    let i = 1
+    while (curr.next && i < n) {
+      curr = curr.next
+      i++
+    }
+    return curr
+  }
+
+  get index() {
+    let i = 1
+    let curr: LinkedList<T> | undefined = this
+    while (curr?.prev) {
+      curr = curr.prev
+      i++
+    }
+    return i
+  }
+
   *backwardIter() {
     let curr: LinkedList<T> | undefined = this
     // yield curr

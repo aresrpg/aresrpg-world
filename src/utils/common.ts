@@ -54,10 +54,12 @@ export const MappingRangeSorter = (
  */
 const findMatchingRange = (inputVal: number, noiseMappings: LandscapesConf) => {
   let match = noiseMappings.first()
+  let i = 1
   while (match.next && inputVal > match.next.data.x) {
     match = match.next
+    i++
   }
-  return match
+  return i
 }
 
 /**

@@ -1,5 +1,6 @@
 import { Vector2, Vector3 } from 'three'
 
+import { GroundBlockData } from '../datacontainers/GroundPatch'
 import { ItemType } from '../misc/ItemsInventory'
 import { BiomeType, BlockType } from '../procgen/Biome'
 
@@ -21,7 +22,7 @@ export type BlockData = {
   mode?: BlockMode
 }
 
-export type GroundBlock = Block<BlockData>
+export type GroundBlock = Block<GroundBlockData>
 
 export type PatchBlock = GroundBlock & {
   index: number

@@ -1,15 +1,17 @@
-import { Box2, Vector2, Vector3 } from 'three'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { GroundBlock, PatchKey } from '../utils/types'
 import { WorldCompute, WorldUtils } from '../index'
 import { ItemType } from '../misc/ItemsInventory'
 import { GroundPatch } from '../datacontainers/GroundPatch'
+import { ChunkContainer } from '../datacontainers/ChunkContainer'
 
 export enum ComputeApiCall {
   PatchCompute = 'bakePatch',
   BlocksBatchCompute = 'computeBlocksBatch',
   OvergroundItemsQuery = 'retrieveOvergroundItems',
   BattleBoardCompute = 'computeBoardData',
+  BakeUndergroundCaverns = 'bakeUndergroundCaverns'
 }
 
 export type ComputeApiParams = Partial<{
@@ -78,7 +80,7 @@ export class WorldComputeProxy {
     params = { includeEntitiesBlocks: false },
   ) {
     const blocks = !this.worker
-      ? WorldCompute.computeBlocksBatch(blockPosBatch, params)
+      ? await WorldCompute.computeBlocksBatch(blockPosBatch, params)
       : ((await this.workerCall(ComputeApiCall.BlocksBatchCompute, [
         blockPosBatch,
         params,
@@ -125,6 +127,16 @@ export class WorldComputeProxy {
     // ?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
 
     return patchStub
+  }
+
+  async bakeUndergroundCaverns(volumeBounds: Box3) {
+    const chunkStub = !this.worker
+      ? WorldCompute.bakeUndergroundCaverns(volumeBounds)
+      : await this.workerCall(ComputeApiCall.BakeUndergroundCaverns, [volumeBounds])
+        ?.then(chunkStub => ChunkContainer.fromStub(chunkStub))
+    // ?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
+
+    return chunkStub
   }
 
   // async requestBattleBoard(boardCenter: Vector3, boardParams: BoardParams, lastBoardBounds: Box2) {

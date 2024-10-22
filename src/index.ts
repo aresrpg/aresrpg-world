@@ -21,7 +21,7 @@ export {
   ProcItemCategory,
 } from './tools/ProceduralGenerators'
 export { BlockMode } from './utils/types'
-
+export { DensityVolume } from './procgen/DensityVolume'
 
 export * as WorldCompute from './api/world-compute'
 export * as WorldUtils from './utils/common'

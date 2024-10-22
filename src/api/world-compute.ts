@@ -1,10 +1,5 @@
-import { Box2, Vector2, Vector3 } from 'three'
-
-import {
-  ItemsInventory,
-  PseudoDistributionMap,
-  WorldConf,
-} from '../index'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { DensityVolume, ItemsInventory, PseudoDistributionMap, WorldConf } from '../index'
 import { Biome, BiomeInfluence, BiomeType, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
@@ -30,6 +25,8 @@ import {
 } from '../datacontainers/RandomDistributionMap'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { GroundPatch } from '../datacontainers/GroundPatch'
+import { GroundBlockData } from '../datacontainers/GroundPatch'
+import { ChunkContainer } from '../datacontainers/ChunkContainer'
 
 type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
@@ -117,11 +114,16 @@ export const computeGroundBlock = (
     rawVal,
     biomeInfluence,
   )
-  let usedConf = nominalConf
-  if (nominalConf.next?.data) {
-    const variation = Biome.instance.posRandomizer.eval(
-      blockPos.clone().multiplyScalar(50),
-    )
+  const isCavern = DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
+  let usedConf = nominalConf //isCavern ? nominalConf : nominalConf
+  // let isEmpty = isCavern
+  // while (isEmpty && level > 0) {
+  //   blockPos.y = level--
+  //   isEmpty = DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
+  // }
+  // const pos = new Vector3(blockPos.x, level, blockPos.z)
+  if (!isCavern && nominalConf.next?.data) {
+    const variation = Biome.instance.posRandomizer.eval(blockPos.clone().multiplyScalar(50))//Math.cos(0.1 * blockPos.length()) / 100
     const min = new Vector2(nominalConf.data.x, nominalConf.data.y)
     const max = new Vector2(nominalConf.next.data.x, nominalConf.next.data.y)
     const rangeBox = new Box2(min, max)
@@ -141,8 +143,9 @@ export const computeGroundBlock = (
 
   // }
   // level += offset
-  const output = { level, type: usedConf.data.type, confKey: usedConf.data.key }
-  return output
+  const flags = isCavern ? 0b010 : 0
+  const groundBlockData: GroundBlockData = { level, biome: biomeType, landscapeIndex: usedConf.index, flags }
+  return groundBlockData
 }
 
 /**
@@ -240,12 +243,9 @@ export const bakePatch = (boundsOrPatchKey: PatchKey | Box2) => {
 // Patch ground layer
 export const bakeGroundLayer = (boundsOrPatchKey: PatchKey | Box2) => {
   const groundPatch = new GroundPatch(boundsOrPatchKey)
+  const { valueRange } = groundPatch
   const biomeBoundsInfluences = getBiomeBoundsInfluences(groundPatch.bounds)
   const blocks = groundPatch.iterBlocksQuery(undefined, false)
-  const valueRange = {
-    min: 512,
-    max: 0,
-  }
   let blockIndex = 0
   for (const block of blocks) {
     // EXPERIMENTAL: is it faster to perform bilinear interpolation rather
@@ -278,8 +278,8 @@ export const retrieveOvergroundItems = async (bounds: Box2) => {
   )
   for (const pos of spawnPlaces) {
     const blockBiome = getBlockBiome(pos, bounds, boundsBiomeInfluences)
-    const { confKey, level } = computeGroundBlock(asVect3(pos), blockBiome)
-    const weightedItems = Biome.instance.indexedConf.get(confKey)?.data?.flora
+    const { level, biome, landscapeIndex } = computeGroundBlock(asVect3(pos), blockBiome)
+    const weightedItems = Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
     if (weightedItems) {
       const spawnableTypes: ItemType[] = []
       Object.entries(weightedItems).forEach(([itemType, spawnWeight]) => {
@@ -316,16 +316,9 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
     )
     const groundPatch = new GroundPatch(patchKey)
     const biomeBoundsInfluences = getBiomeBoundsInfluences(groundPatch.bounds)
-    const blockBiome = getBlockBiome(
-      spawnOrigin,
-      groundPatch.bounds,
-      biomeBoundsInfluences,
-    )
-    const { confKey, level } = computeGroundBlock(
-      asVect3(spawnOrigin),
-      blockBiome,
-    )
-    const spawnableTypes = Biome.instance.indexedConf.get(confKey)?.data?.flora
+    const blockBiome = getBlockBiome(spawnOrigin, groundPatch.bounds, biomeBoundsInfluences)
+    const { level, biome, landscapeIndex } = computeGroundBlock(asVect3(spawnOrigin), blockBiome)
+    let spawnableTypes = Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
     const spawnableItems: ItemType[] = []
     for (const entry of Object.entries(spawnableTypes || {})) {
       const [itemType] = entry
@@ -363,6 +356,22 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
     }
   }
   return lastBlockData
+}
+
+/**
+ * Underground patch (caverns)
+ */
+
+export const bakeUndergroundCaverns = (bounds: Box3) => {
+  bounds.min.y = 0
+  const chunkContainer = new ChunkContainer(bounds, 1)
+  const chunkIter = chunkContainer.iterateContent(undefined, false)
+  for (const block of chunkIter) {
+    block.pos
+    const isEmptyBlock = DensityVolume.instance.getBlockType(block.pos) === BlockType.NONE
+    chunkContainer.writeSector(block.pos, isEmptyBlock ? 0 : 1)
+  }
+  return chunkContainer
 }
 
 // Battle board
