@@ -183,11 +183,6 @@ export class Biome {
     return Biome.singleton
   }
 
-  getConfIndex(confKey: BiomeLandscapeKey) {
-    const confKeys = [...this.indexedConf.keys()] // Spread keys into an array
-    const confIndex = confKeys.indexOf(confKey) // Find the index of 'key2'
-    return confIndex
-  }
 
   /**
    *
@@ -200,7 +195,7 @@ export class Biome {
     const dominantBiome = Object.entries(biomeContribs).sort(
       (a, b) => b[1] - a[1],
     )[0]?.[0] as string
-    return dominantBiome as BiomeType
+    return parseInt(dominantBiome) as BiomeType
   }
 
   calculateContributions(value: number) {
@@ -278,10 +273,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-        (biomeContribs[k as BiomeType] = Utils.roundToDec(
-          biomeContribs[k as BiomeType],
-          2,
-        )),
+      (biomeContribs[k as BiomeType] = Utils.roundToDec(
+        biomeContribs[k as BiomeType],
+        2,
+      )),
     )
 
     // biomeContribs[BiomeType.Artic] = 1
@@ -303,12 +298,12 @@ export class Biome {
         configItems,
         MappingRangeSorter,
       )
-      this.mappings[biomeType as BiomeType] = mappingRanges
+      this.mappings[parseInt(biomeType) as BiomeType] = mappingRanges
       // index configs
-      const confIter = mappingRanges.first().forwardIter()
-      for (const conf of confIter) {
-        this.indexedConf.set(conf.data.key, conf)
-      }
+      // const confIter = mappingRanges.first().forwardIter()
+      // for (const conf of confIter) {
+      //   this.indexedConf.set(conf.data.key, conf)
+      // }
     }
     // })
   }
@@ -364,8 +359,12 @@ export class Biome {
     const { seaLevel } = this.params
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = Utils.clamp(rawVal, 0, 1)
-    const biomeConf = this.mappings[biomeType]
-    const current = Utils.findMatchingRange(rawVal, biomeConf)
+    const firstItem = this.mappings[biomeType]
+    const confId = Utils.findMatchingRange(
+      rawVal as number,
+      firstItem,
+    )
+    let current = firstItem.nth(confId)
     const upper = current?.next || current
     const min = new Vector2(current.data.x, current.data.y)
     const max = new Vector2(upper.data.x, upper.data.y)
@@ -389,8 +388,11 @@ export class Biome {
 
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
     const firstItem = this.mappings[biomeType]
-    let currentItem = Utils.findMatchingRange(rawVal as number, firstItem)
-
+    const confId = Utils.findMatchingRange(
+      rawVal as number,
+      firstItem,
+    )
+    let currentItem = firstItem.nth(confId)
     while (!currentItem?.data.type && currentItem?.prev) {
       currentItem = currentItem.prev
     }

@@ -1,6 +1,6 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { BlockData, GroundBlock, PatchBlock, PatchKey } from '../utils/types'
+import { GroundBlock, PatchBlock, PatchKey } from '../utils/types'
 import {
   parsePatchKey,
   parseThreeStub,
@@ -9,24 +9,41 @@ import {
 } from '../utils/common'
 import { BlockMode, WorldComputeProxy } from '../index'
 import { BlockType } from '../procgen/Biome'
-
 import { BasePatch } from './BasePatch'
+
+
+export type GroundBlockData = {
+  // rawVal: number,
+  level: number,
+  biome: BiomeType,
+  landscapeIndex: number
+  flags: number
+}
 
 export type PatchStub = {
   key?: string
+  valueRange?: { min: number, max: number }
   bounds: Box2
   rawData: Uint32Array
 }
 
-// bits allocated per block data type
-// total bits required to store a block: 9+10+3 = 22 bits
-const BlockDataBitAllocation = {
-  level: 9, // support level values ranging from 0 to 512
-  type: 10, // support up to 1024 different block types
-  mode: 3, // support for 8 different block mode
+// bits allocated per data type, total 9+4+5+3 = 21 bits
+const BitAllocation = {
+  level: 9, // level values ranging from 0 to 512
+  biome: 4,  // 16 biomes
+  landscapeIndex: 5,  // 32 landscapes per biome
+  flags: 3, // 8 additional flags
 }
 
 export type BlockIteratorRes = IteratorResult<GroundBlock, void>
+
+export const parseGroundFlags = (rawFlags: number) => {
+  const groundFlags = {
+    boardMode: (rawFlags & 1) !== 0,
+    cavern: ((rawFlags >> 1) & 1) !== 0
+  }
+  return groundFlags
+}
 /**
  * field | bits alloc | value range
  * -----|------------|--------------------------------
@@ -37,6 +54,7 @@ export type BlockIteratorRes = IteratorResult<GroundBlock, void>
  */
 export class GroundPatch extends BasePatch {
   rawData: Uint32Array
+  valueRange = { min: 512, max: 0 } // here elevation
   isEmpty = true
 
   constructor(boundsOrPatchKey: Box2 | PatchKey = new Box2(), margin = 1) {
@@ -99,36 +117,39 @@ export class GroundPatch extends BasePatch {
     }
   }
 
-  decodeBlockData(rawData: number): BlockData {
-    const shift = BlockDataBitAllocation
+  decodeBlockData(rawData: number) {
+    const shift = BitAllocation
     const level =
-      (rawData >> (shift.type + shift.mode)) & ((1 << shift.level) - 1) // Extract 9 bits for level
-    const type = (rawData >> shift.mode) & ((1 << shift.type) - 1) // Extract 10 bits for type
-    const mode = rawData & ((1 << shift.mode) - 1) // Extract 3 bits for mode
-    const blockData: BlockData = {
+      (rawData >> (shift.biome + shift.landscapeIndex + shift.flags)) & ((1 << shift.level) - 1)
+    const biome = (rawData >> (shift.landscapeIndex + shift.flags)) & ((1 << shift.biome) - 1)
+    const landscapeIndex = (rawData >> shift.flags) & ((1 << shift.landscapeIndex) - 1)
+    const flags = rawData & ((1 << shift.flags) - 1)
+    const blockData: GroundBlockData = {
       level,
-      type,
-      mode,
+      biome,
+      landscapeIndex,
+      flags
     }
     return blockData
   }
 
-  encodeBlockData(blockData: BlockData): number {
-    const { level, type, mode } = blockData
-    const shift = BlockDataBitAllocation
+  encodeBlockData(groundData: GroundBlockData): number {
+    const { level, biome, landscapeIndex, flags } = groundData
+    const shift = BitAllocation
     let blockRawVal = level
-    blockRawVal = (blockRawVal << shift.type) | type
-    blockRawVal = (blockRawVal << shift.mode) | (mode || BlockMode.DEFAULT)
+    blockRawVal = (blockRawVal << shift.biome) | biome
+    blockRawVal = (blockRawVal << shift.landscapeIndex) | landscapeIndex
+    blockRawVal = (blockRawVal << shift.flags) | (flags || BlockMode.DEFAULT)
     return blockRawVal
   }
 
-  readBlockData(blockIndex: number): BlockData {
+  readBlockData(blockIndex: number): GroundBlockData {
     const blockRawData = this.rawData[blockIndex]
     const blockData = this.decodeBlockData(blockRawData as number)
     return blockData
   }
 
-  writeBlockData(blockIndex: number, blockData: BlockData) {
+  writeBlockData(blockIndex: number, blockData: GroundBlockData) {
     this.rawData[blockIndex] = this.encodeBlockData(blockData)
   }
 
@@ -186,7 +207,7 @@ export class GroundPatch extends BasePatch {
 
   setBlock(
     inputPos: Vector2 | Vector3,
-    blockData: BlockData,
+    blockData: GroundBlockData,
     isLocalPos = false,
   ) {
     inputPos = inputPos instanceof Vector2 ? inputPos : asVect2(inputPos)
@@ -266,8 +287,8 @@ export class GroundPatch extends BasePatch {
     this.init(parseThreeStub(patchStub.bounds) as Box2)
     this.id = patchStub.key ? parsePatchKey(patchStub.key) : this.id
     this.rawData.set(patchStub.rawData)
-    this.bounds.min.y = patchStub.bounds.min.y
-    this.bounds.max.y = patchStub.bounds.max.y
+    this.valueRange.min = patchStub.valueRange?.min || this.valueRange.min
+    this.valueRange.max = patchStub.valueRange?.max || this.valueRange.max
     return this
   }
 
@@ -275,6 +296,7 @@ export class GroundPatch extends BasePatch {
     const stub: PatchStub = await WorldComputeProxy.instance.bakeGroundPatch(
       this.key || this.bounds,
     )
+    this.valueRange = stub.valueRange || this.valueRange
     this.rawData.set(stub.rawData)
     this.isEmpty = false
   }
