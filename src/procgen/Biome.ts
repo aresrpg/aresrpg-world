@@ -15,7 +15,7 @@ import {
 
 import { ProcLayer } from './ProcLayer'
 
-// reserved native block types
+// reserved native block types 
 export enum BlockType {
   NONE,
   HOLE,
@@ -369,7 +369,8 @@ export class Biome {
     const upper = current?.next || current
     const min = new Vector2(current.data.x, current.data.y)
     const max = new Vector2(upper.data.x, upper.data.y)
-    const lerp = min.lerp(max, (rawVal - min.x) / (max.x - min.x))
+    const alpha = max.x > min.x ? (rawVal - min.x) / (max.x - min.x) : 0
+    const lerp = min.lerp(max, alpha)
     return lerp.y // includeSea ? Math.max(interpolated, seaLevel) : interpolated
   }
 
