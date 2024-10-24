@@ -73,11 +73,13 @@ export enum BiomeType {
 export const BiomeNumericType: Record<BiomeType, number> = {
   [BiomeType.Temperate]: 0,
   [BiomeType.Artic]: 0,
-  [BiomeType.Desert]: 0
+  [BiomeType.Desert]: 0,
 }
 Utils.typesNumbering(BiomeNumericType)
 export const ReverseBiomeNumericType: Record<number, BiomeType> = {}
-Object.keys(BiomeNumericType).forEach((type, i) => ReverseBiomeNumericType[i] = type as BiomeType)
+Object.keys(BiomeNumericType).forEach((type, i) => {
+  ReverseBiomeNumericType[i] = type as BiomeType
+})
 
 type Contribution = Record<Level, number>
 
