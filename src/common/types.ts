@@ -1,22 +1,77 @@
-import { Box3, Vector2, Vector3 } from 'three'
+import { Vector2, Vector3 } from 'three'
 
-import { BlockData } from '../datacontainers/GroundPatch'
+import { ItemType } from '../misc/ItemsInventory'
 import { BiomeType, BlockType } from '../procgen/Biome'
 
 import { LinkedList } from './misc'
 
-export type Block = {
+export type Block<T> = {
   pos: Vector3
-  data: BlockData
-  buffer?: Uint16Array
+  data: T
 }
 
-export type PatchBlock = Block & {
+export enum BlockMode {
+  DEFAULT,
+  BOARD_CONTAINER,
+}
+
+export type BlockData = {
+  level: number
+  type: BlockType
+  mode?: BlockMode
+}
+
+export type GroundBlock = Block<BlockData>
+
+export type PatchBlock = GroundBlock & {
   index: number
   localPos: Vector3
 }
 
-export enum Adjacent2dPos {
+export enum CardinalDirections {
+  N,
+  E,
+  S,
+  W,
+}
+
+export enum IntercardinalDirections {
+  NE,
+  NW,
+  SE,
+  SW,
+}
+
+export type AllCardinalDirections = CardinalDirections | IntercardinalDirections
+
+// export enum SurfaceBounds {
+//   R_DOWN, // xM,yM
+//   R_UP,   // xM,yP
+//   L_UP,   // xP,yP
+//   L_DOWN  // xP,yM
+// }
+
+export enum PatchBoundId {
+  xMyM = 'xMyM',
+  xMyP = 'xMyP',
+  xPyP = 'xPyP',
+  xPyM = 'xPyM',
+}
+
+export type PatchBoundingPoints = Record<PatchBoundId, Vector2>
+
+export enum ChunkBoundId {
+  xMyMzM,
+  xMyPzM,
+  xPyPzM,
+  xPyMzM,
+  xMyMzP,
+  xMyPzP,
+  xPyPzP,
+  xPyMzP,
+}
+
+export enum SurfaceNeighbour {
   center,
   left,
   right,
@@ -28,7 +83,7 @@ export enum Adjacent2dPos {
   bottomright,
 }
 
-export enum Adjacent3dPos {
+export enum VolumeNeighbour {
   xMyMzM,
   xMyMz0,
   xMyMzP,
@@ -78,6 +133,11 @@ export type ProcLayerExtCfg = {
   harmonic_spread: number
 }
 
+export type PatchKey = string
+export type PatchId = Vector2
+export type ChunkKey = string
+export type ChunkId = Vector3
+
 // export enum TerrainType {
 //   SEA,
 //   BEACH,
@@ -89,44 +149,23 @@ export type ProcLayerExtCfg = {
 //   MOUNTAINS_TOP,
 // }
 
-export interface MappingData {
-  grounds: BlockType[] // which types of ground can be here
-  entities: string[] // which type of entities can spawn
-  amplitude: {
-    // amplitude used in blocks randomization
-    low: number
-    high: number
-  }
+export type LandscapeId = string // landscape id assigned to noise level
+export type BiomeLandscapeKey = string // combination of biomeType and LandscapeId
+
+export type LandscapeFields = {
+  key: BiomeLandscapeKey
+  x: number // noise value
+  y: number // height noise mapping
+  type: BlockType // ground surface
+  subtype: BlockType // below ground or mixed with ground surface
+  mixratio: number // mixing ratio between type/subtype
+  flora?: Record<ItemType, number>
+  fadein: any
+  fadeout: any
 }
 
-export interface MappingRange extends Partial<MappingData> {
-  x: number // noise
-  y: number // noise mapping
-}
-
-export type MappingConf = Record<string, MappingRange>
-export type MappingRanges = LinkedList<MappingRange>
-export type BiomeConf = Record<BiomeType, MappingConf>
-export type BiomeMappings = Record<BiomeType, MappingRanges>
-
-export enum EntityType {
-  NONE = '',
-  TREE_APPLE = 'apple_tree',
-  TREE_PINE = 'pine_tree',
-}
-
-export type EntityData = {
-  type: EntityType
-  bbox: Box3
-  params: {
-    radius: number
-    size: number
-  }
-}
-
-export type EntityKey = string
-
-export type PatchKey = string
-export type PatchId = Vector2
-export type ChunkKey = string
-export type ChunkId = Vector3
+// Biome landscapes mappings
+export type LandscapesRawConf = Record<LandscapeId, Partial<LandscapeFields>>
+export type BiomesRawConf = Record<BiomeType, LandscapesRawConf>
+export type LandscapesConf = LinkedList<LandscapeFields>
+export type BiomesConf = Record<BiomeType, LandscapesConf>

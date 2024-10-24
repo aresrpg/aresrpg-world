@@ -1,14 +1,13 @@
-import { Vector3 } from 'three'
+import { MathUtils, Vector3 } from 'three'
 
 import { PatchId } from '../common/types'
 import {
-  asBox2,
+  asVect2,
   asVect3,
   chunkBoxFromId,
   serializeChunkId,
 } from '../common/utils'
-import { EntityChunk } from '../datacontainers/EntityChunk'
-import { WorldChunk, WorldChunkStub } from '../datacontainers/WorldChunk'
+import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
 
 // for debug use only
@@ -21,9 +20,9 @@ const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
 
 export class ChunkFactory {
   // eslint-disable-next-line no-use-before-define
-  static defaultInstance: ChunkFactory
+  static instance: ChunkFactory
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  voxelDataEncoder = (blockType: BlockType, _blockMode?: BlockMode) =>
+  chunkDataEncoder = (blockType: BlockType, _blockMode?: BlockMode) =>
     blockType || BlockType.NONE
 
   chunksRange = {
@@ -32,8 +31,8 @@ export class ChunkFactory {
   }
 
   static get default() {
-    this.defaultInstance = this.defaultInstance || new ChunkFactory()
-    return this.defaultInstance
+    this.instance = this.instance || new ChunkFactory()
+    return this.instance
   }
 
   setChunksGenRange(ymin: number, ymax: number) {
@@ -52,71 +51,55 @@ export class ChunkFactory {
   }
 
   /**
-   * chunkify or chunksAssembly
-   * Assembles world building blocks (GroundPatch, EntityChunk) together
-   * to form final world chunk
+   * Assembles pieces together: ground, world objects
    */
-  chunkify(patch: GroundPatch, patchEntities: EntityChunk[]) {
-    const patchChunkIds = patch.id
-      ? ChunkFactory.default.genChunksIdsFromPatchId(patch.id)
+  chunkifyPatch(groundLayer: GroundPatch, chunkItems: ChunkContainer[]) {
+    const patchChunkIds = groundLayer.id
+      ? ChunkFactory.default.genChunksIdsFromPatchId(groundLayer.id)
       : []
+    // const worldChunksStubs = patchChunkIds.map(async chunkId => {
     const worldChunksStubs = patchChunkIds.map(chunkId => {
       const chunkBox = chunkBoxFromId(chunkId, WorldConf.patchSize)
-      const worldChunk = new WorldChunk(chunkBox)
-      // Ground pass
-      this.mergeGroundBlocks(worldChunk, patch)
-      // Entities pass
-      this.mergePatchEntities(worldChunk, patch, patchEntities)
-      const worldChunkStub: WorldChunkStub = {
+      const worldChunk = new ChunkContainer(chunkBox)
+      // this.mergePatchLayersToChunk(worldChunk, groundLayer, overgroundItems)
+      // merge chunk items first so they don't override ground
+      for (const chunkItem of chunkItems) {
+        ChunkContainer.copySourceToTarget(chunkItem, worldChunk)
+      }
+      // merge ground layer after, overriding items blocks overlapping with ground
+      this.mergeGroundLayer(worldChunk, groundLayer)
+      const worldChunkStub = {
         key: serializeChunkId(chunkId),
-        data: worldChunk.chunkData,
+        data: worldChunk.rawData,
       }
       return worldChunkStub
     })
     return worldChunksStubs
   }
 
-  mergeGroundBlocks(worldChunk: WorldChunk, patch: GroundPatch) {
-    const blocks = patch.iterBlocksQuery(undefined, false)
+  mergeGroundLayer(worldChunk: ChunkContainer, groundLayer: GroundPatch) {
+    const ymin = worldChunk.bounds.min.y
+    const ymax = worldChunk.bounds.max.y
+    const blocks = groundLayer.iterBlocksQuery(undefined, false)
     for (const block of blocks) {
-      const blockData = block.data
-      const blockType = block.data.type
       const blockLocalPos = block.localPos as Vector3
       blockLocalPos.x += 1
       // block.localPos.y = patch.bbox.max.y
       blockLocalPos.z += 1
-      blockData.type =
-        highlightPatchBorders(blockLocalPos, blockType) || blockType
-      worldChunk.writeBlock(blockLocalPos, blockData, block.buffer || [])
-    }
-  }
-
-  mergePatchEntities(
-    worldChunk: WorldChunk,
-    patch: GroundPatch,
-    patchEntities: EntityChunk[],
-  ) {
-    patchEntities.forEach(entityChunk => {
-      // return overlapping blocks between entity and container
-      const patchBlocksIter = patch.iterBlocksQuery(
-        asBox2(entityChunk.chunkBox),
-      )
-      // iter over entity blocks
-      for (const block of patchBlocksIter) {
-        // const buffer = entityChunk.data.slice(chunkBufferIndex, chunkBufferIndex + entityDims.y)
-        let bufferData = entityChunk.getBlocksBuffer(block.pos)
-        const buffOffset = entityChunk.chunkBox.min.y - block.pos.y
-        const buffSrc = Math.abs(Math.min(0, buffOffset))
-        const buffDest = Math.max(buffOffset, 0)
-        bufferData = bufferData.copyWithin(buffDest, buffSrc)
-        bufferData =
-          buffOffset < 0
-            ? bufferData.fill(BlockType.NONE, buffOffset)
-            : bufferData
-        block.localPos.x += 1
-        block.localPos.z += 1
-        worldChunk.writeBlock(block.localPos, block.data, bufferData)
+      const blockType =
+        highlightPatchBorders(blockLocalPos, block.data.type) || block.data.type
+      const blockMode = block.data.mode
+      // generate ground buffer
+      const buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
+      if (buffSize > 0) {
+        const groundBuffer = new Uint16Array(buffSize)
+        const bufferData = this.chunkDataEncoder(blockType, blockMode)
+        groundBuffer.fill(bufferData)
+        // worldChunk.writeSector()
+        const chunkBuffer = worldChunk.readBuffer(asVect2(blockLocalPos))
+        chunkBuffer.set(groundBuffer)
+        worldChunk.writeBuffer(asVect2(blockLocalPos), chunkBuffer)
       }
-    })
+    }
   }
 }

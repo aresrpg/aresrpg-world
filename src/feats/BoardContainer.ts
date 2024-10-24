@@ -1,17 +1,18 @@
 import { Box2, Vector2, Vector3, Vector3Like } from 'three'
 
-import { Block, PatchBlock } from '../common/types'
+import { BlockData, GroundBlock, PatchBlock } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import {
   BlockType,
-  DataContainer,
+  PatchContainer,
   GroundPatch,
   ProcLayer,
   WorldComputeProxy,
+  BlockMode,
 } from '../index'
 import { PseudoDistributionMap } from '../datacontainers/RandomDistributionMap'
 import { findBoundingBox } from '../common/math'
-import { BlockData, BlockMode } from '../datacontainers/GroundPatch'
+import { ItemType } from '../misc/ItemsInventory'
 
 export enum BlockCategory {
   FLAT = 0,
@@ -40,9 +41,9 @@ export type BoardInput = BoardInputParams & { center: Vector3 }
 // map block type to board block type
 const blockTypeCategoryMapper = (blockType: BlockType) => {
   switch (blockType) {
-    case BlockType.TREE_TRUNK:
+    case BlockType.TRUNK:
       return BlockCategory.OBSTACLE
-    case BlockType.BOARD_HOLE:
+    case BlockType.HOLE:
       return BlockCategory.HOLE
     default:
       return BlockCategory.FLAT
@@ -86,8 +87,8 @@ export class BoardContainer extends GroundPatch {
 
   async make() {
     await this.fillAndShapeBoard()
-    const obstacles: Block[] = await this.retrieveAndTrimTrees()
-    const holes: Block[] = this.getHolesAreasBis(obstacles)
+    const obstacles = await this.retrieveAndTrimTrees()
+    const holes = this.getHolesAreasBis(obstacles)
     holes.forEach(block => this.digGroundHole(block))
   }
 
@@ -142,43 +143,44 @@ export class BoardContainer extends GroundPatch {
     }
     // copy content over board container
     this.init(finalBounds)
-    DataContainer.copySourceOverTargetContainer(tempContainer, this)
+    PatchContainer.copySourceOverTargetContainer(tempContainer, this)
   }
 
   async retrieveAndTrimTrees() {
-    const trees = await WorldComputeProxy.instance.queryEntities(this.bounds)
-    const trunks = trees
-      .map(entity => {
-        const entityCenter = entity.bbox.getCenter(new Vector3())
-        const entityCenterBlock = this.getBlock(entityCenter)
-        entityCenter.y = entity.bbox.min.y
-        return entityCenterBlock
-      })
-      .filter(
-        trunkBlock => trunkBlock && this.isWithinBoard(trunkBlock.pos),
-      ) as PatchBlock[]
-
-    trunks.forEach(trunkBlock => {
-      trunkBlock.data.type = BlockType.TREE_TRUNK
-      trunkBlock.data.mode = BlockMode.DEFAULT
-      trunkBlock.data.level += 1
-      this.setBlock(trunkBlock.pos, trunkBlock.data)
-    })
-    return trunks.map(({ pos, data }) => ({ pos, data }) as Block)
+    // request all entities belonging to the board
+    const items: Record<ItemType, Vector3[]> =
+      await WorldComputeProxy.instance.queryOvergroundItems(this.bounds)
+    const boardItems = []
+    for (const [, spawnInstances] of Object.entries(items)) {
+      const withinBoardItems = spawnInstances.filter(spawnOrigin =>
+        this.isWithinBoard(spawnOrigin),
+      )
+      for await (const itemPos of withinBoardItems) {
+        const boardBlock = this.getBlock(itemPos)
+        if (boardBlock) {
+          boardBlock.pos.y += 1
+          boardBlock.data.level += 1
+          boardBlock.data.type = BlockType.TRUNK
+          boardBlock.data.mode = BlockMode.DEFAULT
+          this.setBlock(boardBlock.pos, boardBlock.data)
+          boardItems.push(boardBlock.pos)
+        }
+      }
+    }
+    const boardItemsBlocks = boardItems.map(pos => ({ pos, type: 10 }))
+    return boardItemsBlocks
   }
 
   // perform local query
   queryLocalEntities(
     boardContainer: GroundPatch,
     distMap: PseudoDistributionMap,
-    entityRadius = 2,
+    itemRadius = 2,
   ) {
-    const intersectsEntity = (testRange: Box2, entityPos: Vector2) =>
-      testRange.distanceToPoint(entityPos) <= entityRadius
+    const itemDims = new Vector2(itemRadius, itemRadius)
     const spawnLocs = distMap.querySpawnLocations(
       boardContainer.bounds,
-      intersectsEntity,
-      () => 1,
+      itemDims,
     )
     const entities = spawnLocs
       .map(loc => {
@@ -195,8 +197,8 @@ export class BoardContainer extends GroundPatch {
     return BoardContainer.holesMapDistribution.eval(testPos) < 0.15
   }
 
-  digGroundHole(holeBlock: Block) {
-    holeBlock.data.type = BlockType.BOARD_HOLE
+  digGroundHole(holeBlock: GroundBlock) {
+    holeBlock.data.type = BlockType.HOLE
     holeBlock.data.level -= 1 // dig hole in the ground
     holeBlock.data.mode = BlockMode.DEFAULT
     this.setBlock(holeBlock.pos, holeBlock.data)
@@ -210,7 +212,7 @@ export class BoardContainer extends GroundPatch {
     return holesSingleBlocks
   }
 
-  getHolesAreas(boardContainer: GroundPatch, forbiddenBlocks: Block[]) {
+  getHolesAreas(boardContainer: GroundPatch, forbiddenBlocks: GroundBlock[]) {
     const forbiddenPos = forbiddenBlocks.map(({ pos }) => asVect2(pos))
     const holesMono = this.queryLocalEntities(
       boardContainer,
@@ -230,15 +232,15 @@ export class BoardContainer extends GroundPatch {
         holesMulti.push(block)
       }
     })
-    return holesMulti.map(({ pos, data }) => ({ pos, data }) as Block)
+    return holesMulti.map(({ pos, data }) => ({ pos, data }) as GroundBlock)
   }
 
-  getHolesAreasBis(forbiddenBlocks: Block[]) {
+  getHolesAreasBis(forbiddenBlocks: any[]) {
     // prevent holes from spreading over forbidden blocks
     const isForbiddenPos = (testPos: Vector3) =>
       !!forbiddenBlocks.find(block => block.pos.equals(testPos))
     const blocks = this.iterBlocksQuery()
-    const holes: Block[] = []
+    const holes: PatchBlock[] = []
     for (const block of blocks) {
       const testPos = block.pos
       if (
@@ -249,7 +251,7 @@ export class BoardContainer extends GroundPatch {
         holes.push(block)
       }
     }
-    return holes.map(({ pos, data }) => ({ pos, data }) as Block)
+    return holes.map(({ pos, data }) => ({ pos, data }) as GroundBlock)
   }
 
   /**
@@ -272,7 +274,7 @@ export class BoardContainer extends GroundPatch {
       }
       data.push(boardElement)
     }
-    // DataContainer.copySourceOverTargetContainer(boardContainer, this)
+    // PatchContainer.copySourceOverTargetContainer(boardContainer, this)
     const board: BoardOutputData = { origin, size, data }
     return board
   }
