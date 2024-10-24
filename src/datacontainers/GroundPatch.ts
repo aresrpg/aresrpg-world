@@ -8,7 +8,7 @@ import {
   asVect2,
 } from '../utils/common'
 import { BlockMode, WorldComputeProxy } from '../index'
-import { BlockType } from '../procgen/Biome'
+import { BiomeNumericType, BiomeType, BlockType, ReverseBiomeNumericType } from '../procgen/Biome'
 import { BasePatch } from './BasePatch'
 
 
@@ -121,7 +121,8 @@ export class GroundPatch extends BasePatch {
     const shift = BitAllocation
     const level =
       (rawData >> (shift.biome + shift.landscapeIndex + shift.flags)) & ((1 << shift.level) - 1)
-    const biome = (rawData >> (shift.landscapeIndex + shift.flags)) & ((1 << shift.biome) - 1)
+    const biomeNum = (rawData >> (shift.landscapeIndex + shift.flags)) & ((1 << shift.biome) - 1)
+    const biome = ReverseBiomeNumericType[biomeNum] || BiomeType.Temperate
     const landscapeIndex = (rawData >> shift.flags) & ((1 << shift.landscapeIndex) - 1)
     const flags = rawData & ((1 << shift.flags) - 1)
     const blockData: GroundBlockData = {
@@ -137,7 +138,7 @@ export class GroundPatch extends BasePatch {
     const { level, biome, landscapeIndex, flags } = groundData
     const shift = BitAllocation
     let blockRawVal = level
-    blockRawVal = (blockRawVal << shift.biome) | biome
+    blockRawVal = (blockRawVal << shift.biome) | BiomeNumericType[biome]
     blockRawVal = (blockRawVal << shift.landscapeIndex) | landscapeIndex
     blockRawVal = (blockRawVal << shift.flags) | (flags || BlockMode.DEFAULT)
     return blockRawVal
