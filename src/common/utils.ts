@@ -13,9 +13,8 @@ import {
   LandscapesConf,
 } from './types'
 
-const typesNumbering = (types: Record<string, number>, offset = 0) => Object.keys(types).forEach(
-  (key, i) => (types[key] = offset + i),
-)
+const typesNumbering = (types: Record<string, number>, offset = 0) =>
+  Object.keys(types).forEach((key, i) => (types[key] = offset + i))
 
 // Clamp number between two values:
 const clamp = (num: number, min: number, max: number) =>
@@ -365,10 +364,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-    parseVect3Stub(stub) ||
-    parseBox2Stub(stub) ||
-    parseVect2Stub(stub) ||
-    stub
+        parseVect3Stub(stub) ||
+        parseBox2Stub(stub) ||
+        parseVect2Stub(stub) ||
+        stub
     : stub
 }
 

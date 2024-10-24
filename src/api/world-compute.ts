@@ -66,13 +66,13 @@ const getBiomeBoundsInfluences = (bounds: Box2) => {
   }
   const boundsPoints = getPatchBoundingPoints(bounds)
   const boundsInfluences = {} as PatchBoundingBiomes
-    ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-      const boundPos = boundsPoints[key] as Vector2
-      const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
-      boundsInfluences[key] = biomeInfluence
-      // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-      return biomeInfluence
-    })
+  ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+    const boundPos = boundsPoints[key] as Vector2
+    const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
+    boundsInfluences[key] = biomeInfluence
+    // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+    return biomeInfluence
+  })
   const allEquals =
     equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
     equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
@@ -121,7 +121,7 @@ export const computeGroundBlock = (
   if (nominalConf.next?.data) {
     const variation = Biome.instance.posRandomizer.eval(
       blockPos.clone().multiplyScalar(50),
-    ) 
+    )
     const min = new Vector2(nominalConf.data.x, nominalConf.data.y)
     const max = new Vector2(nominalConf.next.data.x, nominalConf.next.data.y)
     const rangeBox = new Box2(min, max)
@@ -187,7 +187,7 @@ export const computeBlocksBatch = async (
         biomeBoundsInfluences,
       )
       block.data = computeGroundBlock(block.pos, blockBiome)
-      // const {level, type } = 
+      // const {level, type } =
       // override with last block if specified
       if (params.includeEntitiesBlocks) {
         const lastBlockData = await queryLastBlockData(asVect2(block.pos))
