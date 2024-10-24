@@ -7,8 +7,8 @@ import {
   serializeChunkId,
 } from './common'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { Biome, BlockMode, BlockType, WorldConf } from '../index'
-import { GroundPatch, parseGroundFlags } from '../datacontainers/GroundPatch'
+import { parseGroundFlags } from '../datacontainers/GroundPatch'
+import { Biome, BiomeType, BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
 
 const UNDERGROUND_DEPTH = 4
 // for debug use only
@@ -67,11 +67,18 @@ export const getWorldChunksFromPatchId = (patchId: PatchId) => {
       for (const chunkItem of chunkItems) {
         ChunkContainer.copySourceToTarget(chunkItem, worldChunk)
       }
-    // merge ground layer after, overriding items blocks overlapping with ground
-    mergeGroundLayer(worldChunk, groundLayer)
-      // apply chunk mask
-      ChunkContainer.applyMaskOnTarget(chunkMask, worldChunk)
-      return worldChunk//worldChunkStub
+      const intermediateChunk = new ChunkContainer(serializeChunkId(chunkId), 1)
+      // merge ground surface and underground cavern layers separately, 
+      mergeGroundLayer(intermediateChunk, groundLayer)
+      // apply caves masking chunk
+      ChunkContainer.applyMaskOnTarget(chunkMask, intermediateChunk)
+      // merge ground in final chunk containing items (will override overlapping items' blocks)
+      ChunkContainer.copySourceToTarget(intermediateChunk, worldChunk)
+      const finalChunkStub = {
+        key: serializeChunkId(chunkId),
+        data: worldChunk.rawData,
+      }
+      return finalChunkStub
     })
     return worldChunksStubs
   }
@@ -81,6 +88,7 @@ export const getWorldChunksFromPatchId = (patchId: PatchId) => {
     const ymax = worldChunk.extendedBounds.max.y
     const blocks = groundLayer.iterBlocksQuery(undefined, false)
     const bedrock = ChunkContainer.defaultDataEncoder(BlockType.BEDROCK)
+    const bedrock_ice = ChunkContainer.defaultDataEncoder(BlockType.ICE)
     for (const block of blocks) {
       const blockLocalPos = block.localPos as Vector3
       // blockLocalPos.x += 1
@@ -102,7 +110,7 @@ export const getWorldChunksFromPatchId = (patchId: PatchId) => {
       if (buffSize > 0) {
         const groundBuffer = new Uint16Array(block.data.level - ymin)
         // fill with bedrock first
-        groundBuffer.fill(bedrock)
+        groundBuffer.fill(biome === BiomeType.Artic ? bedrock_ice : bedrock)
         // add underground layer
         groundBuffer.fill(undergroundLayer, groundBuffer.length - (UNDERGROUND_DEPTH + 1))
         // finish with ground surface block
