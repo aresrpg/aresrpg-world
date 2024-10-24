@@ -64,22 +64,20 @@ const rainLevelMappings: Record<Level, RainLevel> = {
 }
 
 export enum BiomeType {
-  Temperate,
-  Artic,
-  Desert,
+  Temperate = 'temperate',
+  Artic = 'artic',
+  Desert = 'desert',
   // Tropical = 'tropical',
 }
 
 export const BiomeNumericType: Record<BiomeType, number> = {
   [BiomeType.Temperate]: 0,
   [BiomeType.Artic]: 0,
-  [BiomeType.Desert]: 0,
+  [BiomeType.Desert]: 0
 }
 Utils.typesNumbering(BiomeNumericType)
 export const ReverseBiomeNumericType: Record<number, BiomeType> = {}
-Object.keys(BiomeNumericType).forEach((type, i) => {
-  ReverseBiomeNumericType[i] = type as BiomeType
-})
+Object.keys(BiomeNumericType).forEach((type, i) => ReverseBiomeNumericType[i] = type as BiomeType)
 
 type Contribution = Record<Level, number>
 
@@ -182,7 +180,7 @@ export class Biome {
     const dominantBiome = Object.entries(biomeContribs).sort(
       (a, b) => b[1] - a[1],
     )[0]?.[0] as string
-    return parseInt(dominantBiome) as BiomeType
+    return dominantBiome as BiomeType
   }
 
   calculateContributions(value: number) {
@@ -270,16 +268,16 @@ export class Biome {
     // Object.entries(biomeConfigs).forEach(([biomeType, biomeConf]) => {
     // complete missing data
     for (const [biomeType, biomeConf] of Object.entries(biomesRawConf)) {
-      for (const [landId, landConf] of Object.entries(biomeConf)) {
-        landConf.key = biomeType + '_' + landId
-      }
+      // for (const [landId, landConf] of Object.entries(biomeConf)) {
+      //   landConf.key = biomeType + '_' + landId
+      // }
 
       const configItems = Object.values(biomeConf) as LandscapeFields[]
       const mappingRanges = LinkedList.fromArrayAfterSorting(
         configItems,
         MappingRangeSorter,
       )
-      this.mappings[parseInt(biomeType) as BiomeType] = mappingRanges
+      this.mappings[biomeType as BiomeType] = mappingRanges
       // index configs
       // const confIter = mappingRanges.first().forwardIter()
       // for (const conf of confIter) {
