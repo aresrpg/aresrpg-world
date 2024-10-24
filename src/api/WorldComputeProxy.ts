@@ -1,5 +1,4 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
-
+import { Box2, Vector2, Vector3 } from 'three'
 import { GroundBlock, PatchKey } from '../utils/types'
 import { WorldCompute, WorldUtils } from '../index'
 import { ItemType } from '../misc/ItemsInventory'
@@ -129,10 +128,10 @@ export class WorldComputeProxy {
     return patchStub
   }
 
-  async bakeUndergroundCaverns(volumeBounds: Box3) {
+  async bakeUndergroundCaverns(patchBounds: Box2) {
     const chunkStub = !this.worker
-      ? WorldCompute.bakeUndergroundCaverns(volumeBounds)
-      : await this.workerCall(ComputeApiCall.BakeUndergroundCaverns, [volumeBounds])
+      ? WorldCompute.bakeUndergroundCaverns(patchBounds)
+      : await this.workerCall(ComputeApiCall.BakeUndergroundCaverns, [patchBounds])
         ?.then(chunkStub => ChunkContainer.fromStub(chunkStub))
     // ?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
 
