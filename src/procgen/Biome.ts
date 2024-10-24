@@ -18,11 +18,18 @@ import { ProcLayer } from './ProcLayer'
 // reserved native block types
 export enum BlockType {
   NONE,
+  HOLE,
+  BEDROCK,
+  WATER,
+  ICE,
   MUD,
   TRUNK,
+  SAND,
+  GRASS,
+  ROCK,
+  SNOW,
   FOLIAGE_LIGHT,
   FOLIAGE_DARK,
-  HOLE,
   LAST_PLACEHOLDER,
 }
 
@@ -62,6 +69,15 @@ export enum BiomeType {
   Desert = 'desert',
   // Tropical = 'tropical',
 }
+
+export const BiomeNumericType: Record<BiomeType, number> = {
+  [BiomeType.Temperate]: 0,
+  [BiomeType.Artic]: 0,
+  [BiomeType.Desert]: 0
+}
+Utils.typesNumbering(BiomeNumericType)
+export const ReverseBiomeNumericType: Record<number, BiomeType> = {}
+Object.keys(BiomeNumericType).forEach((type, i) => ReverseBiomeNumericType[i] = type as BiomeType)
 
 type Contribution = Record<Level, number>
 
@@ -166,10 +182,10 @@ export class Biome {
   getBiomeType(input: Vector3 | BiomeInfluence) {
     const biomeContribs =
       input instanceof Vector3 ? this.getBiomeInfluence(input) : input
-    const mainBiome = Object.entries(biomeContribs).sort(
+    const dominantBiome = Object.entries(biomeContribs).sort(
       (a, b) => b[1] - a[1],
     )[0]?.[0] as string
-    return mainBiome as BiomeType
+    return dominantBiome as BiomeType
   }
 
   calculateContributions(value: number) {
