@@ -1,6 +1,5 @@
 import { Vector3 } from 'three'
 
-import { BlockType } from './Biome'
 import { NoiseDimension, NoiseSampler } from './NoiseSampler'
 
 export class DensityVolume {
@@ -17,19 +16,13 @@ export class DensityVolume {
 
   constructor() {
     this.densityNoise = new NoiseSampler('Caverns', NoiseDimension.Three)
-    this.densityNoise.periodicity = 6
-    this.densityNoise.harmonicsCount = 6
+    this.densityNoise.periodicity = 7
+    this.densityNoise.harmonicsCount = 4
   }
 
   static get instance() {
     DensityVolume.singleton = DensityVolume.singleton || new DensityVolume()
     return DensityVolume.singleton
-  }
-
-  getDensity(blockPos: Vector3) {
-    const { scaling } = this.params
-    const { x, y, z } = blockPos.clone().multiplyScalar(scaling)
-    return this.densityNoise.eval(x * scaling, y * scaling, z * scaling)
   }
 
   /**
@@ -38,11 +31,16 @@ export class DensityVolume {
    * @param includeSea
    * @returns
    */
-  getBlockType(
+  getBlockDensity(
     blockPos: Vector3,
+    groundLevel = 512
     // includeSea?: boolean,
   ) {
-    const density = this.getDensity(blockPos)
-    return density > 0.3 ? BlockType.TRUNK : BlockType.NONE
+    const { scaling } = this.params
+    const { x, y, z } = blockPos.clone().multiplyScalar(scaling)
+    const density = this.densityNoise.eval(x * scaling, y * scaling, z * scaling)
+    // adaptative density threshold based on terrain height
+    const threshold = Math.sin((blockPos.y / groundLevel) * Math.PI) * 0.5
+    return density < threshold
   }
 }

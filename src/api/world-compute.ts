@@ -1,4 +1,4 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 import { DensityVolume, ItemsInventory, PseudoDistributionMap, WorldConf } from '../index'
 import { Biome, BiomeInfluence, BiomeType, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
@@ -11,6 +11,7 @@ import {
   PatchKey,
 } from '../utils/types'
 import {
+  asBox3,
   asVect2,
   asVect3,
   bilinearInterpolation,
@@ -63,13 +64,13 @@ const getBiomeBoundsInfluences = (bounds: Box2) => {
   }
   const boundsPoints = getPatchBoundingPoints(bounds)
   const boundsInfluences = {} as PatchBoundingBiomes
-  ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-    const boundPos = boundsPoints[key] as Vector2
-    const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
-    boundsInfluences[key] = biomeInfluence
-    // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-    return biomeInfluence
-  })
+    ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+      const boundPos = boundsPoints[key] as Vector2
+      const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
+      boundsInfluences[key] = biomeInfluence
+      // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+      return biomeInfluence
+    })
   const allEquals =
     equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
     equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
@@ -114,7 +115,7 @@ export const computeGroundBlock = (
     rawVal,
     biomeInfluence,
   )
-  const isCavern = DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
+  const isCavern = false//DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
   let usedConf = nominalConf //isCavern ? nominalConf : nominalConf
   // let isEmpty = isCavern
   // while (isEmpty && level > 0) {
@@ -362,15 +363,29 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
  * Underground patch (caverns)
  */
 
-export const bakeUndergroundCaverns = (bounds: Box3) => {
-  bounds.min.y = 0
+export const bakeUndergroundCaverns = (boundsOrPatchKey: PatchKey | Box2) => {
+  const groundLayer = bakeGroundLayer(boundsOrPatchKey)
+  const deltaLevel = groundLayer.valueRange.max - groundLayer.valueRange.min
+  // const avgLevel = groundLayer.valueRange.min + deltaLevel / 2
+  const bounds = asBox3(groundLayer.bounds)
+  bounds.max.y = groundLayer.valueRange.max
   const chunkContainer = new ChunkContainer(bounds, 1)
-  const chunkIter = chunkContainer.iterateContent(undefined, false)
-  for (const block of chunkIter) {
-    block.pos
-    const isEmptyBlock = DensityVolume.instance.getBlockType(block.pos) === BlockType.NONE
-    chunkContainer.writeSector(block.pos, isEmptyBlock ? 0 : 1)
+  const patchIter = groundLayer.iterBlocksQuery(undefined, false)
+  for (const block of patchIter) {
+    const ymax = block.pos.y
+    for (let y = 0; y <= ymax; y++) {
+      block.pos.y = y
+      const isEmptyBlock = DensityVolume.instance.getBlockDensity(block.pos, ymax + 20) //=== BlockType.NONE
+      const localPos = new Vector3(block.localPos.x, y, block.localPos.z)
+      const blockIndex = chunkContainer.getIndex(localPos)
+      chunkContainer.writeBlockData(blockIndex, isEmptyBlock ? 0 : 1)
+    }
   }
+  // const chunkIter = chunkContainer.iterateContent(undefined, false)
+  // for (const block of chunkIter) {
+  //   const isEmptyBlock = DensityVolume.instance.getBlockType(block.pos, bounds.max.y) === BlockType.NONE
+  //   chunkContainer.writeSector(block.pos, isEmptyBlock ? 0 : 1)
+  // }
   return chunkContainer
 }
 
