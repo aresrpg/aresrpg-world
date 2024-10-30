@@ -2,7 +2,7 @@ import { createNoise2D } from 'simplex-noise'
 import alea from 'alea'
 import { Vector2, Vector3 } from 'three'
 
-import * as Utils from '../common/utils'
+import * as Utils from '../utils/common'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number

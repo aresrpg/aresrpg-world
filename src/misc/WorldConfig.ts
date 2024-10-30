@@ -1,33 +1,46 @@
 import { Vector2, Vector3 } from 'three'
+import { PatchId } from '../utils/types'
+import { asVect3 } from '../utils/common'
 
 import { BlockType } from '../procgen/Biome'
 
 export class WorldConf {
-  static patchPowSize = 6 // as a power of two
-  static get patchSize() {
+  // eslint-disable-next-line no-use-before-define
+  static singleton: WorldConf
+  static get instance() {
+    this.singleton = this.singleton || new WorldConf()
+    return this.singleton
+  }
+
+  constructor(){
+
+  }
+
+  patchPowSize = 6 // as a power of two
+  get patchSize() {
     return Math.pow(2, this.patchPowSize)
   }
 
   // max cache radius as a power of two
-  static cachePowLimit = 2 // 4 => 16 patches radius
-  static get cacheLimit() {
+  cachePowLimit = 2 // 4 => 16 patches radius
+  get cacheLimit() {
     return Math.pow(2, this.cachePowLimit)
   }
 
-  static get regularPatchDimensions() {
+  get regularPatchDimensions() {
     return new Vector2(this.patchSize, this.patchSize)
   }
 
-  static get defaultChunkDimensions() {
+  get defaultChunkDimensions() {
     return new Vector3(this.patchSize, this.patchSize, this.patchSize)
   }
 
-  static defaultDistMapPeriod = 4 * WorldConf.patchSize
-  static settings = {
+  defaultDistMapPeriod = 4 * this.patchSize
+  settings = {
     useBiomeBilinearInterpolation: true,
   }
 
-  static debug = {
+  debug = {
     patch: {
       borderHighlightColor: BlockType.NONE,
     },
@@ -38,5 +51,12 @@ export class WorldConf {
     schematics: {
       missingBlockType: BlockType.NONE,
     },
+  }
+
+  chunkSettings = {
+    verticalRange: {
+      ymin: 0,
+      ymax: 5,
+    }
   }
 }
