@@ -2,20 +2,20 @@ import { Vector2, Vector3 } from 'three'
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 import { smoothstep } from 'three/src/math/MathUtils'
 
-import { LinkedList } from '../common/misc'
-import { MappingRangeSorter } from '../common/utils'
-import * as Utils from '../common/utils'
+import { LinkedList } from '../datacontainers/LinkedList'
+import { MappingRangeSorter } from '../utils/common'
+import * as Utils from '../utils/common'
 import {
   BiomeLandscapeKey,
   BiomesConf,
   BiomesRawConf,
   LandscapeFields,
   LandscapesConf,
-} from '../common/types'
+} from '../utils/types'
 
 import { ProcLayer } from './ProcLayer'
 
-// reserved native block types 
+// reserved native block types
 export enum BlockType {
   NONE,
   HOLE,

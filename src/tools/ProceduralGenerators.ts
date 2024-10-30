@@ -1,6 +1,6 @@
 import { Vector3, Vector2, Box3 } from 'three'
 
-import { asVect2 } from '../common/utils'
+import { asVect2 } from '../utils/common'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { BlockType } from '../procgen/Biome'
 
@@ -42,8 +42,6 @@ const ProceduralGenerators: Record<ProcItemType, ProceduralGenerator> = {
 }
 
 export class ProceduralItemGenerator {
-  static chunkDataEncoder = (blockType: BlockType) => blockType
-
   static voxelizeItem(itemCat: ProcItemCategory, itemParams: any) {
     const { treeType, treeSize, treeRadius } = itemParams
     switch (itemCat) {
@@ -58,7 +56,6 @@ export class ProceduralItemGenerator {
     treeSize: number,
     treeRadius: number,
   ) {
-    const { chunkDataEncoder } = ProceduralItemGenerator
     const treeGenerator = ProceduralGenerators[treeType]
     const treeBounds = new Box3(
       new Vector3(),
@@ -74,7 +71,7 @@ export class ProceduralItemGenerator {
       if (xzProj.length() > 0) {
         if (y < treeBounds.min.y + treeSize) {
           // empty space around trunk between ground and trunk top
-          treeChunk.rawData[index++] = chunkDataEncoder(BlockType.NONE)
+          treeChunk.writeBlockData(index++, BlockType.NONE)
         } else {
           // tree foliage
           const blockType = treeGenerator(
@@ -82,11 +79,11 @@ export class ProceduralItemGenerator {
             y - (treeBounds.min.y + treeSize + treeRadius),
             treeRadius,
           )
-          treeChunk.rawData[index++] = chunkDataEncoder(blockType)
+          treeChunk.writeBlockData(index++, blockType)
         }
       } else {
         // tree trunk
-        treeChunk.rawData[index++] = chunkDataEncoder(BlockType.TRUNK)
+        treeChunk.writeBlockData(index++, BlockType.TRUNK)
       }
     }
     return treeChunk

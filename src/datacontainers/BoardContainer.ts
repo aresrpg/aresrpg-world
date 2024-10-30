@@ -1,17 +1,18 @@
 import { Box2, Vector2, Vector3, Vector3Like } from 'three'
 
-import { BlockData, GroundBlock, PatchBlock } from '../common/types'
-import { asVect2, asVect3 } from '../common/utils'
+import { BlockData, GroundBlock, PatchBlock } from '../utils/types'
+import { asVect2, asVect3 } from '../utils/common'
 import {
-  PatchContainer,
-  GroundPatch,
   ProcLayer,
   WorldComputeProxy,
   BlockMode,
+  WorldContainer,
+  BoardPatch,
 } from '../index'
-import { PseudoDistributionMap } from '../datacontainers/RandomDistributionMap'
-import { findBoundingBox } from '../common/math'
+import { PseudoDistributionMap } from './RandomDistributionMap'
+import { findBoundingBox } from '../utils/math'
 import { ItemType } from '../misc/ItemsInventory'
+import { GroundPatch } from './GroundPatch'
 import { BlockType } from '../procgen/Biome'
 
 export enum BlockCategory {
@@ -31,12 +32,13 @@ export type BoardOutputData = {
   data: BoardBlock[]
 }
 
-export type BoardInputParams = {
+export type BoardParams = {
+  center: Vector3
   radius: number
   thickness: number
 }
 
-export type BoardInput = BoardInputParams & { center: Vector3 }
+// export type BoardInput = BoardInputParams & { center: Vector3 }
 
 // map block type to board block type
 const blockTypeCategoryMapper = (blockType: BlockType) => {
@@ -57,6 +59,116 @@ const holesDistParams = {
   maxDistance: 16,
   tries: 20,
 }
+
+export class BoardContainer extends WorldContainer {
+  boardParams: BoardParams = {
+    center: new Vector3,
+    radius: 0,
+    thickness: 0
+  }
+  boardBounds = new Box2()
+  static boardHolesLayer = new ProcLayer('holesMap')
+  override patchConstructor = (key: string) => new BoardPatch(key, this.boardParams);
+
+  constructor(boardRadius: number, boardThickness: number) {
+    super()
+    this.boardParams.radius = boardRadius
+    this.boardParams.thickness = boardThickness
+    BoardContainer.boardHolesLayer.sampling.periodicity = 0.25
+    // this.center = boardCenter
+  }
+
+  /**
+   * Override default behavior to reset patch index,
+   */
+  override rebuildIndexAroundPosAndRad(center: Vector2 | Vector3, radius = this.boardParams.radius) {
+    // clear previous patches to start from fresh data
+    this.patchLookup = {}
+    const patchLookup = center instanceof Vector2 ? super.rebuildIndexAroundPosAndRad(center, radius) :
+      super.rebuildIndexAroundPosAndRad(asVect2(center), radius)
+    this.boardParams.center = center instanceof Vector3 ? center : asVect3(center)
+    this.patchLookup = patchLookup || this.patchLookup
+    return patchLookup
+  }
+
+  async build() {
+    // populate patch data (should be retrieved from cache)
+    const pendingPatches = this.fillAllMissing()
+    // this.boardBounds = new Box2(asVect2(this.center), asVect2(this.center))
+    // const bakedPatches = Promise.all(pendingPatches.map(patchRequest => patchRequest.then(patch => {
+    //   return this.overridePatchData(patch)
+    // })))
+    return Promise.all(pendingPatches)
+  }
+
+  isWithinBoard(blockPos: Vector3) {
+    let isInsideBoard = false
+    const { thickness, radius, center } = this.boardParams
+    if (blockPos) {
+      const heightDiff = Math.abs(blockPos.y - center.y)
+      const dist = asVect2(blockPos).distanceTo(asVect2(center))
+      isInsideBoard = dist <= radius && heightDiff <= thickness
+    }
+    return isInsideBoard
+  }
+
+  isOverlappingBoard = (bounds: Box2) => {
+    const overlapping = this.patches.find(patch => {
+      const patchBlocks = patch.iterBlocksQuery(bounds)
+      for (const block of patchBlocks) {
+        if (this.isWithinBoard(block.pos)) {
+          return patch
+        }
+      }
+      return
+    })
+
+    return overlapping
+  }
+
+  overridePatchData(groundPatch: GroundPatch) {
+    const blocks = groundPatch.iterBlocksQuery(undefined, false)
+    // const boardBlocks = this.iterBoardBlock()
+    for (const block of blocks) {
+      // tempContainer.setBlock(boardBlock.pos, boardBlock.data, false)
+      if (this.isWithinBoard(block.pos)) {
+        block.data.mode = BlockMode.BOARD_CONTAINER
+        // block.data.type = BlockType.MUD
+        block.data.level = this.center.y
+        // override block data
+        groundPatch.writeBlockData(block.index, block.data)
+        this.boardBounds.expandByPoint(asVect2(block.pos))
+      }
+    }
+    console.log(this.boardBounds)
+  }
+
+  async addTrimmedTrees() {
+    // request all entities belonging to the board
+    const items: Record<ItemType, Vector3[]> =
+      await WorldComputeProxy.instance.queryOvergroundItems(this.bounds)
+    const boardItems = []
+    for (const [, spawnInstances] of Object.entries(items)) {
+      const withinBoardItems = spawnInstances.filter(spawnOrigin =>
+        this.isWithinBoard(spawnOrigin),
+      )
+      for await (const itemPos of withinBoardItems) {
+        const boardBlock = this.getBlock(itemPos)
+        if (boardBlock) {
+          boardBlock.pos.y += 1
+          boardBlock.data.level += 1
+          boardBlock.data.type = BlockType.TRUNK
+          boardBlock.data.mode = BlockMode.DEFAULT
+          this.setBlock(boardBlock.pos, boardBlock.data)
+          boardItems.push(boardBlock.pos)
+        }
+      }
+    }
+    const boardItemsBlocks = boardItems.map(pos => ({ pos, type: 10 }))
+    return boardItemsBlocks
+  }
+}
+
 /**
  * Building steps
  * - compute initial bounds from input
@@ -65,7 +177,7 @@ const holesDistParams = {
  * - add board entities (trimmed trees, holes)
  *
  */
-export class BoardContainer extends GroundPatch {
+export class BoardLegacyContainer extends WorldContainer {
   static holesDistribution = new PseudoDistributionMap(
     undefined,
     holesDistParams,

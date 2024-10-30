@@ -1,8 +1,9 @@
-import { Box2, Vector2 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 
-import { GroundBlock, PatchKey } from '../common/types'
-import { GroundPatch, WorldCompute } from '../index'
-import * as WorldUtils from '../common/utils'
+import { GroundBlock, PatchKey } from '../utils/types'
+import { WorldCompute, WorldUtils } from '../index'
+import { ItemType } from '../misc/ItemsInventory'
+import { GroundPatch } from '../datacontainers/GroundPatch'
 
 export enum ComputeApiCall {
   PatchCompute = 'bakePatch',
@@ -79,26 +80,26 @@ export class WorldComputeProxy {
     const blocks = !this.worker
       ? WorldCompute.computeBlocksBatch(blockPosBatch, params)
       : ((await this.workerCall(ComputeApiCall.BlocksBatchCompute, [
-          blockPosBatch,
-          params,
-        ])?.then((blocksStubs: GroundBlock[]) =>
-          // parse worker's data to recreate original objects
-          blocksStubs.map(blockStub => {
-            blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
-            return blockStub
-          }),
-        )) as GroundBlock[])
+        blockPosBatch,
+        params,
+      ])?.then((blocksStubs: GroundBlock[]) =>
+        // parse worker's data to recreate original objects
+        blocksStubs.map(blockStub => {
+          blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
+          return blockStub
+        }),
+      )) as GroundBlock[])
 
     return blocks
   }
 
   async queryOvergroundItems(queriedRegion: Box2) {
     const overgroundItems = !this.worker
-      ? WorldCompute.retrieveOvergroundItems(queriedRegion)
+      ? await WorldCompute.retrieveOvergroundItems(queriedRegion)
       : await this.workerCall(
-          ComputeApiCall.OvergroundItemsQuery,
-          [queriedRegion], // [emptyPatch.bbox]
-        )
+        ComputeApiCall.OvergroundItemsQuery,
+        [queriedRegion], // [emptyPatch.bbox]
+      ) as Record<ItemType, Vector3[]>
     return overgroundItems
   }
 
@@ -107,11 +108,11 @@ export class WorldComputeProxy {
       const patch = !this.worker
         ? WorldCompute.bakePatch(patchKey)
         : ((await this.workerCall(
-            ComputeApiCall.PatchCompute,
-            [patchKey], // [emptyPatch.bbox]
-          )?.then(patchStub =>
-            new GroundPatch().fromStub(patchStub),
-          )) as GroundPatch)
+          ComputeApiCall.PatchCompute,
+          [patchKey], // [emptyPatch.bbox]
+        )?.then(patchStub =>
+          new GroundPatch().fromStub(patchStub),
+        )) as GroundPatch)
 
       yield patch
     }

@@ -1,7 +1,6 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
 import {
-  GroundPatch,
   ItemsInventory,
   PseudoDistributionMap,
   WorldConf,
@@ -15,7 +14,7 @@ import {
   LandscapesConf,
   PatchBoundId,
   PatchKey,
-} from '../common/types'
+} from '../utils/types'
 import {
   asVect2,
   asVect3,
@@ -23,13 +22,14 @@ import {
   getPatchBoundingPoints,
   getPatchId,
   serializePatchId,
-} from '../common/utils'
+} from '../utils/common'
 import { ItemType } from '../misc/ItemsInventory'
 import {
   DistributionProfile,
   DistributionProfiles,
 } from '../datacontainers/RandomDistributionMap'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
+import { GroundPatch } from '../datacontainers/GroundPatch'
 
 type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
@@ -87,7 +87,7 @@ const getBlockBiome = (
 ) => {
   if (
     (boundingBiomes as PatchBoundingBiomes)[PatchBoundId.xMyM] &&
-    WorldConf.settings.useBiomeBilinearInterpolation
+    WorldConf.instance.settings.useBiomeBilinearInterpolation
   ) {
     return bilinearInterpolation(
       blockPos,
@@ -163,7 +163,7 @@ export const computeBlocksBatch = async (
   const blocksByPatch: Record<PatchKey, GroundBlock[]> = {}
   const blocksBatch = blockPosBatch.map(pos => {
     const patchKey = serializePatchId(
-      getPatchId(pos, WorldConf.regularPatchDimensions),
+      getPatchId(pos, WorldConf.instance.regularPatchDimensions),
     )
     const data: BlockData = {
       level: 0,
@@ -312,7 +312,7 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
   )
   for await (const spawnOrigin of spawnPlaces) {
     const patchKey = serializePatchId(
-      getPatchId(spawnOrigin, WorldConf.regularPatchDimensions),
+      getPatchId(spawnOrigin, WorldConf.instance.regularPatchDimensions),
     )
     const groundPatch = new GroundPatch(patchKey)
     const biomeBoundsInfluences = getBiomeBoundsInfluences(groundPatch.bounds)
