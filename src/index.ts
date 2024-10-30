@@ -7,13 +7,13 @@ export {
   PseudoDistributionMap,
   DistributionProfile,
 } from './datacontainers/RandomDistributionMap'
-export { GroundPatch } from './datacontainers/GroundPatch'
+export { WorldPatch } from './datacontainers/WorldPatch'
 // export { CacheContainer as WorldCacheContainer } from './datacontainers/GroundMap'
-export { GroundCache, GroundMap } from './datacontainers/GroundCache'
-export { BoardContainer } from './feats/BoardContainer'
-export { ChunkFactory } from './tools/ChunkFactory'
+export { WorldContainer, WorldCache } from './datacontainers/PatchesContainer'
+export { BoardPatch } from './datacontainers/BoardPatch'
+export { BoardContainer } from './datacontainers/BoardContainer'
+export { ChunkContainer } from './datacontainers/ChunkContainer'
 export { WorldComputeProxy } from './api/WorldComputeProxy'
-export { PatchContainer } from './datacontainers/PatchContainer'
 export { ItemsInventory } from './misc/ItemsInventory'
 export { SchematicLoader } from './tools/SchematicLoader'
 export {
@@ -21,8 +21,10 @@ export {
   ProcItemType,
   ProcItemCategory,
 } from './tools/ProceduralGenerators'
-export { BlockMode } from './common/types'
+export { BlockMode } from './utils/types'
+
 
 export * as WorldCompute from './api/world-compute'
-export * as WorldUtils from './common/utils'
+export * as WorldUtils from './utils/common'
+export * as ChunkUtils from './utils/chunks'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'

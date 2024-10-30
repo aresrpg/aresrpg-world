@@ -461,14 +461,6 @@ function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
   return chunk_ids
 }
 
-const chunkBoxFromId = (chunkId: ChunkId, patchSize: number) => {
-  const bmin = chunkId.clone().multiplyScalar(patchSize)
-  const bmax = chunkId.clone().addScalar(1).multiplyScalar(patchSize)
-  const chunkBbox = new Box3(bmin, bmax)
-  chunkBbox.expandByScalar(1)
-  return chunkBbox
-}
-
 const chunkBoxFromKey = (chunkKey: string, chunkDims: Vector3) => {
   const chunkId = parseChunkKey(chunkKey)
   const bbox = new Box3()
@@ -506,7 +498,6 @@ export {
   patchBoxFromKey,
   parseChunkKey,
   serializeChunkId,
-  chunkBoxFromId,
   chunkBoxFromKey,
   genChunkIds,
 }

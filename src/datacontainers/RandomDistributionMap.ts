@@ -6,7 +6,7 @@ import {
   BlueNoisePattern,
   DistributionParams,
 } from '../procgen/BlueNoisePattern'
-import { getPatchIds } from '../common/utils'
+import { getPatchIds } from '../utils/common'
 import { ItemType } from '../misc/ItemsInventory'
 import { WorldConf } from '../misc/WorldConfig'
 
@@ -43,8 +43,8 @@ export const DistributionProfiles: Record<
 const probabilityThreshold = Math.pow(2, 8)
 const bmin = new Vector2(0, 0)
 const bmax = new Vector2(
-  WorldConf.defaultDistMapPeriod,
-  WorldConf.defaultDistMapPeriod,
+  WorldConf.instance.defaultDistMapPeriod,
+  WorldConf.instance.defaultDistMapPeriod,
 )
 const distMapDefaultBox = new Box2(bmin, bmax)
 

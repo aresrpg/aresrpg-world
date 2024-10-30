@@ -8,7 +8,6 @@ import { WorldConf } from '../misc/WorldConfig'
 
 export class SchematicLoader {
   static worldBlocksMapping: Record<string, BlockType>
-  static chunkDataEncoder = (blockType: BlockType) => blockType
 
   static async load(path: string) {
     // const schem = await Schematic.read(Buffer.from(schemData), '1.16.4')
@@ -43,8 +42,6 @@ export class SchematicLoader {
    * @returns
    */
   static async createChunkContainer(fileUrl: string) {
-    const { chunkDataEncoder } = SchematicLoader
-
     const rawData = await SchematicLoader.load(fileUrl)
     const parsedSchematic = await SchematicLoader.parse(rawData)
     const schemBlocks: any = SchematicLoader.getBlocks(parsedSchematic)
@@ -65,15 +62,13 @@ export class SchematicLoader {
           let blockType = this.worldBlocksMapping[rawType]
           if (blockType === undefined) {
             console.warn(`missing schematic block type ${rawType}`)
-            blockType = WorldConf.debug.schematics.missingBlockType
+            blockType = WorldConf.instance.debug.schematics.missingBlockType
           }
           // worldObj.rawData[index++] = blockType
           const localPos = new Vector3(x, y, z)
           const blockIndex = chunkContainer.getIndex(localPos)
           // const encodedData = ChunkFactory.defaultInstance.voxelDataEncoder(blockType || BlockType.NONE)
-          chunkContainer.rawData[blockIndex] = chunkDataEncoder(
-            blockType || BlockType.NONE,
-          ) // encodedData
+          chunkContainer.writeBlockData(blockIndex, blockType || BlockType.NONE)
         }
       }
     }

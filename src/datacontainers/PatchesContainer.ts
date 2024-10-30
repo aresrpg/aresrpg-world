@@ -6,17 +6,24 @@
  */
 import { Box2, Vector2 } from 'three'
 
-import { PatchBlock, PatchKey } from '../common/types'
-import { getPatchId, getPatchIds, serializePatchId } from '../common/utils'
-import { GroundPatch, PatchContainer, WorldConf } from '../index'
+import { PatchBlock, PatchKey } from '../utils/types'
+import { getPatchId, getPatchIds, serializePatchId } from '../utils/common'
+import { WorldConf, WorldPatch } from '../index'
+import { BasePatch } from './BasePatch'
 
-export class PatchesContainer<T extends PatchContainer<any>> {
+/**
+ * Structure for storing either contiguous (map) or sparse (cache) generic patches 
+ * Provides utility to rebuild patch index around position and radius
+ */
+export abstract class PatchesContainer<T extends BasePatch> {
   patchLookup: Record<PatchKey, T> = {}
   patchDimensions
 
   constructor() {
-    this.patchDimensions = WorldConf.regularPatchDimensions
+    this.patchDimensions = WorldConf.instance.regularPatchDimensions
   }
+
+  abstract patchConstructor: (key: PatchKey) => T
 
   get keys() {
     return Object.keys(this.patchLookup)
@@ -41,6 +48,35 @@ export class PatchesContainer<T extends PatchContainer<any>> {
     const patch = this.patchLookup[patchKey]
     return patch
   }
+
+  /**
+   * Will output new patch index (without changing current) containing both unchanged and 
+   * created patches. Deprecated items can be found by comparing with previous index.
+   * Callee decide which action to take depending on patch category:
+   * - fill new instances
+   * - clean up deprecated patches
+   * @param cacheBounds 
+   * @returns 
+   */
+  rebuildIndexAroundPosAndRad(center: Vector2, radius: number) {
+    center = center.clone().floor()
+    const dims = new Vector2(
+      radius,
+      radius,
+    ).multiplyScalar(2)
+    const bounds = new Box2().setFromCenterAndSize(center, dims)
+    const patchLookup: Record<PatchKey, T> = {}
+    const patchKeys = getPatchIds(bounds, this.patchDimensions).map(
+      patchId => serializePatchId(patchId),
+    )
+    let changeDetected = false
+    patchKeys.forEach(key => {
+      changeDetected = changeDetected || !this.patchLookup[key]
+      patchLookup[key] = this.patchLookup[key] || this.patchConstructor(key)
+    })
+    return changeDetected ? patchLookup : null
+  }
+
 }
 
 /**
@@ -50,99 +86,83 @@ export class PatchesContainer<T extends PatchContainer<any>> {
  * @param blockPos
  * @param params
  */
-export class GroundCache extends PatchesContainer<GroundPatch> {
-  // eslint-disable-next-line no-use-before-define
-  static singleton: GroundCache
+export class WorldContainer extends PatchesContainer<WorldPatch> {
+  patchConstructor = (key: string) => new WorldPatch(key);
 
-  static get instance() {
-    this.singleton = this.singleton || new GroundCache()
-    return this.singleton
-  }
-
-  get empty() {
+  get emptyPatches() {
     const emptyPatches = this.patches.filter(patch => patch.isEmpty)
     return emptyPatches
   }
 
-  async loadEmpty(on_the_fly = true) {
-    // const patchRequests = WorldComputeProxy.instance.iterPatchCompute(batch)
-    if (on_the_fly) {
-      // progressive loading
-      const patches = this.empty
-      async function* asyncGenerator() {
-        for (const patch of patches) {
-          await patch.fillGroundData()
-          yield patch
-        }
-      }
-      return asyncGenerator()
-    } else {
-      // all at once
-      return await Promise.all(
-        this.empty.map(async patch => {
-          await patch.fillGroundData()
-          return patch
-        }),
-      )
+  gen() {
+    const pendingRequests = this.emptyPatches.map(async patch => {
+      await patch.fillGroundData()
+      await patch.retrieveOvergroundItems()
+      return patch
+    })
+    return pendingRequests//await Promise.all(pendingRequests)
+  }
+
+  async *otfGen(){
+    for await (const patch of this.emptyPatches) {
+      await patch.fillGroundData()
+      await patch.retrieveOvergroundItems()
+      yield patch
     }
+  }
+
+}
+
+export class WorldCache extends WorldContainer {
+  // eslint-disable-next-line no-use-before-define
+  static singleton: WorldCache
+
+  static get instance() {
+    this.singleton = this.singleton || new WorldCache()
+    return this.singleton
   }
 
   /**
-   * Query block from cache
-   * @param blockPos
-   * @returns
-   */
-  queryBlock(
+     * Query block from cache and/or trigger refill request if required
+     * @param blockPos
+     * @returns
+     */
+  queryPrecachedBlock(
     pos: Vector2,
-    { cacheIfMissing, precacheRadius } = {
-      cacheIfMissing: false,
+    params = {
       precacheRadius: 0,
-    },
+      cacheMissing: false
+    }
   ) {
     const block = this.findPatch(pos)?.getBlock(pos)
-    let pendingReq
-    if ((!block && cacheIfMissing) || precacheRadius > 0) {
-      pendingReq = this.precacheAroundPos(pos, precacheRadius).then(
-        () => GroundCache.instance.queryBlock(pos) as PatchBlock,
-      ) as Promise<PatchBlock>
+
+    const precacheBlocks: () => Promise<PatchBlock> = async () => {
+      this.patchLookup = this.rebuildIndexAroundPosAndRad(pos, params.precacheRadius) || this.patchLookup
+      await this.gen()
+      return WorldCache.instance.queryPrecachedBlock(pos) as PatchBlock
     }
-    return block || pendingReq
+    // conditions to trigger prechache request are block is missing or radius provided
+    const pendingReq = (!block && params.cacheMissing || params.precacheRadius > 0) && precacheBlocks()
+    return block || pendingReq as Promise<PatchBlock>
   }
 
-  rebuildPatchIndex(cacheBounds: Box2) {
-    const patchKeys = getPatchIds(cacheBounds, this.patchDimensions).map(
-      patchId => serializePatchId(patchId),
-    )
-    const foundOrMissing = patchKeys.map(key => this.patchLookup[key] || key)
-    const changesCount = foundOrMissing.filter(
-      item => typeof item === 'string',
-    ).length
-    if (changesCount > 0) {
-      const patchLookup: Record<string, GroundPatch> = {}
-      foundOrMissing
-        .map(item =>
-          item instanceof GroundPatch ? item : new GroundPatch(item),
-        )
-        .forEach(patch => (patchLookup[patch.key] = patch))
-      this.patchLookup = patchLookup
-    }
-    return changesCount
-  }
-
-  precacheAroundPos(blockPos: Vector2, precacheRadius = 0) {
-    const center = blockPos.clone().floor()
-    const precache_dims = new Vector2(
-      precacheRadius,
-      precacheRadius,
-    ).multiplyScalar(2)
-    const precache_box = new Box2().setFromCenterAndSize(center, precache_dims)
-    GroundCache.instance.rebuildPatchIndex(precache_box)
-    return GroundCache.instance.loadEmpty(false)
-  }
+  /**
+   * Override default behavior to handle deprecated patches cleanup,
+   */
+  // override rebuildIndexAroundPosAndRad(center: Vector2, radius: number) {
+    
+  // }
 }
 
-export class GroundMap extends GroundCache {
-  mapBounds: Box2 = new Box2()
+// export class GroundMap extends GroundPatchesContainer {
+//   mapBounds: Box2 = new Box2()
+
+  /**
+   * Override default behavior to reset patch index,
+   */
+  // override rebuildIndexAroundPosAndRad(center: Vector2, radius: number) {
+    
+  // }
 
   // adjustBounds(bounds: Box2) {
   //   this.bounds = bounds
@@ -151,26 +171,7 @@ export class GroundMap extends GroundCache {
   //   this.loadEmpty()
   // }
 
-  override rebuildPatchIndex(mapBounds: Box2) {
-    this.mapBounds = mapBounds
-    const patchKeys = getPatchIds(mapBounds, this.patchDimensions).map(
-      patchId => serializePatchId(patchId),
-    )
-    const foundOrMissing = patchKeys.map(key => this.patchLookup[key] || key)
-    const changesCount = foundOrMissing.filter(
-      item => typeof item === 'string',
-    ).length
-    if (changesCount > 0) {
-      const patchLookup: Record<string, GroundPatch> = {}
-      foundOrMissing
-        .map(item =>
-          item instanceof GroundPatch ? item : new GroundPatch(item),
-        )
-        .forEach(patch => (patchLookup[patch.key] = patch))
-      this.patchLookup = patchLookup
-    }
-    return changesCount
-  }
+
 
   // getBlock(blockPos: Vector3) {
   //   return this.findPatch(blockPos)?.getBlock(blockPos, false)
@@ -232,7 +233,7 @@ export class GroundMap extends GroundCache {
   //     }
   //   }
   // }
-}
+// }
 
 // get count() {
 //   return Object.keys(this.patchLookup).length
