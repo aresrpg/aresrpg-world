@@ -157,6 +157,12 @@ export class GroundPatch extends BasePatch {
     )
   }
 
+  override getLocalPosFromIndex(index: number): Vector2 {
+    const y = Math.floor(index / this.extendedDims.y)-this.margin
+    const x = index % this.extendedDims.x-this.margin
+    return new Vector2(x, y)
+  }
+
   getBlock(inputPos: Vector2 | Vector3, isLocalPos = false) {
     inputPos = inputPos instanceof Vector2 ? inputPos : asVect2(inputPos)
     const isWithingRange = isLocalPos
