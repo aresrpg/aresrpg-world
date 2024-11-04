@@ -86,7 +86,7 @@ export abstract class PatchesContainer<T extends BasePatch> {
  * @param blockPos
  * @param params
  */
-export class WorldContainer extends PatchesContainer<WorldPatch> {
+export class WorldContainer <T extends WorldPatch> extends PatchesContainer<T> {
   patchConstructor = (key: string) => new WorldPatch(key);
 
   get emptyPatches() {
