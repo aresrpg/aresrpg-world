@@ -54,9 +54,9 @@ export class WorldConf {
   }
 
   chunkSettings = {
-    verticalRange: {
-      ymin: 0,
-      ymax: 5,
+    genRange: {
+      yMinId: 0,
+      yMaxId: 5,
     }
   }
 }

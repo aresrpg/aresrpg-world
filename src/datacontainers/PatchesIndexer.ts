@@ -8,14 +8,15 @@ import { Box2, Vector2 } from 'three'
 
 import { PatchBlock, PatchKey } from '../utils/types'
 import { getPatchId, getPatchIds, serializePatchId } from '../utils/common'
-import { WorldConf, WorldPatch } from '../index'
-import { BasePatch } from './BasePatch'
+import { WorldConf } from '../index'
+import { PatchBase } from './PatchBase'
+import { GroundPatch } from './GroundPatch'
 
 /**
  * Structure for storing either contiguous (map) or sparse (cache) generic patches 
  * Provides utility to rebuild patch index around position and radius
  */
-export abstract class PatchesContainer<T extends BasePatch> {
+export abstract class PatchesIndexer<T extends PatchBase> {
   patchLookup: Record<PatchKey, T> = {}
   patchDimensions
 
@@ -86,39 +87,39 @@ export abstract class PatchesContainer<T extends BasePatch> {
  * @param blockPos
  * @param params
  */
-export class WorldContainer <T extends WorldPatch> extends PatchesContainer<T> {
-  patchConstructor = (key: string) => new WorldPatch(key);
+export class GroundContainer extends PatchesIndexer<GroundPatch> {
+  patchConstructor = (key: string) => new GroundPatch(key);
 
   get emptyPatches() {
     const emptyPatches = this.patches.filter(patch => patch.isEmpty)
     return emptyPatches
   }
 
-  gen() {
+  patchGen() {
     const pendingRequests = this.emptyPatches.map(async patch => {
       await patch.fillGroundData()
-      await patch.retrieveOvergroundItems()
+      // await patch.retrieveOvergroundItems()
       return patch
     })
     return pendingRequests//await Promise.all(pendingRequests)
   }
 
-  async *otfGen(){
+  async *patchOtfGen(){
     for await (const patch of this.emptyPatches) {
       await patch.fillGroundData()
-      await patch.retrieveOvergroundItems()
+      // await patch.retrieveOvergroundItems()
       yield patch
     }
   }
 
 }
 
-export class WorldCache extends WorldContainer {
+export class GroundCache extends GroundContainer {
   // eslint-disable-next-line no-use-before-define
-  static singleton: WorldCache
+  static singleton: GroundCache
 
   static get instance() {
-    this.singleton = this.singleton || new WorldCache()
+    this.singleton = this.singleton || new GroundCache()
     return this.singleton
   }
 
@@ -138,8 +139,8 @@ export class WorldCache extends WorldContainer {
 
     const precacheBlocks: () => Promise<PatchBlock> = async () => {
       this.patchLookup = this.rebuildIndexAroundPosAndRad(pos, params.precacheRadius) || this.patchLookup
-      await this.gen()
-      return WorldCache.instance.queryPrecachedBlock(pos) as PatchBlock
+      await this.patchGen()
+      return GroundCache.instance.queryPrecachedBlock(pos) as PatchBlock
     }
     // conditions to trigger prechache request are block is missing or radius provided
     const pendingReq = (!block && params.cacheMissing || params.precacheRadius > 0) && precacheBlocks()

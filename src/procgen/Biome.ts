@@ -230,7 +230,7 @@ export class Biome {
     return contributions
   }
 
-  getBiomeInfluence(pos: Vector2 | Vector3): BiomeInfluence {
+  getBiomeInfluence(pos: Vector3): BiomeInfluence {
     const biomeContribs: BiomeInfluence = {
       [BiomeType.Temperate]: 0,
       [BiomeType.Artic]: 0,

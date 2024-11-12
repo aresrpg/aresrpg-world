@@ -20,11 +20,12 @@ export type ChunkStub = {
     chunkKey?: string
     bounds: Box3
     rawData: Uint16Array
+    margin?: number
 }
 
 export type ChunkBuffer = {
     pos: Vector2,
-    buffer: Uint16Array
+    content: Uint16Array
 }
 
 /**
@@ -33,8 +34,10 @@ export type ChunkBuffer = {
 export class ChunkContainer {
     static defaultDataEncoder = (blockType: BlockType, _blockMode?: BlockMode) => blockType || BlockType.NONE
     bounds: Box3
+    extendedBounds: Box3
     dimensions: Vector3
-    margin = 0
+    extendedDims: Vector3
+    margin: number
     chunkKey = '' // needed for chunk export
     chunkId: ChunkId | undefined
     rawData: Uint16Array
@@ -52,9 +55,11 @@ export class ChunkContainer {
             boundsOrChunkKey instanceof Box3
                 ? boundsOrChunkKey.clone()
                 : chunkBoxFromKey(boundsOrChunkKey, WorldConf.instance.defaultChunkDimensions)
-        this.bounds = bounds
-        this.dimensions = bounds.getSize(new Vector3())
         this.margin = margin
+        this.bounds = bounds
+        this.extendedBounds = bounds.clone().expandByScalar(margin)
+        this.dimensions = bounds.getSize(new Vector3())
+        this.extendedDims = this.extendedBounds.getSize(new Vector3())
         this.axisOrder = axisOrder
         const chunkId =
             typeof boundsOrChunkKey === 'string'
@@ -77,14 +82,6 @@ export class ChunkContainer {
     set id(chunkId: Vector3 | undefined) {
         this.chunkId = chunkId
         this.chunkKey = chunkId ? serializeChunkId(chunkId) : ''
-    }
-
-    get extendedBounds() {
-        return this.bounds.clone().expandByScalar(this.margin)
-    }
-
-    get extendedDims() {
-        return this.extendedBounds.getSize(new Vector3())
     }
 
     get localBox() {
@@ -318,15 +315,23 @@ export class ChunkContainer {
     }
 
     fromStub(chunkStub: ChunkStub) {
+        const { chunkKey } = chunkStub
         this.init(parseThreeStub(chunkStub.bounds) as Box3)
-        this.chunkId = chunkStub.chunkKey ? parseChunkKey(chunkStub.chunkKey) : this.chunkId
+        this.chunkId = chunkKey?.length && chunkKey?.length > 0 ? parseChunkKey(chunkKey) : this.chunkId
         this.rawData.set(chunkStub.rawData)
         return this
     }
 
-    static fromStub(chunkStub: ChunkContainer) {
-        const chunk = new ChunkContainer(chunkStub.chunkKey || parseThreeStub(chunkStub.bounds), chunkStub.margin)
-        chunk.rawData.set(chunkStub.rawData)
+    toStub() {
+        const { chunkKey, bounds, rawData, margin } = this
+        const chunkStub = { chunkKey, bounds, rawData, margin }
+        return chunkStub
+    }
+
+    static fromStub(chunkStub: ChunkStub) {
+        const { chunkKey, bounds, rawData, margin } = chunkStub
+        const chunk = new ChunkContainer(chunkKey || parseThreeStub(bounds), margin)
+        chunk.rawData.set(rawData)
         return chunk
     }
 

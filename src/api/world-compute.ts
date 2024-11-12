@@ -1,17 +1,18 @@
-import { Box2, Vector2, Vector3 } from 'three'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
 import { DensityVolume, ItemsInventory, PseudoDistributionMap, WorldConf } from '../index'
 import { Biome, BiomeInfluence, BiomeType, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
   Block,
   BlockData,
+  ChunkKey,
   GroundBlock,
   LandscapesConf,
   PatchBoundId,
   PatchKey,
 } from '../utils/types'
 import {
-  asBox3,
+  asBox2,
   asVect2,
   asVect3,
   bilinearInterpolation,
@@ -28,6 +29,7 @@ import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { GroundPatch } from '../datacontainers/GroundPatch'
 import { GroundBlockData } from '../datacontainers/GroundPatch'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
+import { PatchBase } from '../datacontainers/PatchBase'
 
 type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
@@ -359,34 +361,76 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
   return lastBlockData
 }
 
+async function* genItemsChunks(overgroundItems: Record<string, Vector3[]>) {
+  for await (const [item_type, spawn_places] of Object.entries(overgroundItems)) {
+    for await (const spawnOrigin of spawn_places) {
+      const itemChunk = await ItemsInventory.getInstancedChunk(
+        item_type,
+        spawnOrigin,
+      )
+      yield itemChunk
+    }
+  }
+}
+
 /**
- * Underground patch (caverns)
+ * Overground chunk (items)
  */
 
-export const bakeUndergroundCaverns = (boundsOrPatchKey: PatchKey | Box2) => {
-  const groundLayer = bakeGroundLayer(boundsOrPatchKey)
-  const deltaLevel = groundLayer.valueRange.max - groundLayer.valueRange.min
-  // const avgLevel = groundLayer.valueRange.min + deltaLevel / 2
-  const bounds = asBox3(groundLayer.bounds)
-  bounds.max.y = groundLayer.valueRange.max
-  const chunkContainer = new ChunkContainer(bounds, 1)
+export const bakeMergeOvergroundChunk = async (boundsOrPatchKey: PatchKey | Box2) => {
+  const dummyPatch = new PatchBase(boundsOrPatchKey)
+  const overgroundItems = await retrieveOvergroundItems(dummyPatch.bounds)
+  // pre-compute items chunks
+  const mergedItemsBounds = new Box3()
+  const itemsChunks = []
+  const items_otf_gen = genItemsChunks(overgroundItems)
+  for await (const itemChunk of items_otf_gen) {
+    if (itemChunk) {
+      itemsChunks.push(itemChunk)
+      mergedItemsBounds.union(itemChunk?.bounds)
+    }
+  }
+  const mergedItemsChunk = new ChunkContainer(mergedItemsBounds, 1)
+  for (const itemChunk of itemsChunks) {
+    ChunkContainer.copySourceToTarget(itemChunk, mergedItemsChunk)
+  }
+  return mergedItemsChunk.toStub()
+}
+
+/**
+ * Underground chunk (caverns)
+ */
+
+export const bakeUndergroundCaverns = (boundsOrPatchKey: ChunkKey | Box3) => {
+  const chunkContainer = new ChunkContainer(boundsOrPatchKey, 1)
+  const chunkBounds = chunkContainer.bounds
+  const groundLayer = bakeGroundLayer(asBox2(chunkBounds))
+  // const bounds = asBox3(groundLayer.bounds)
+  // bounds.max.y = groundLayer.valueRange.max
+  // const chunkContainer = new ChunkContainer(bounds, 1)
+  // chunkContainer.rawData.fill(0)
   const patchIter = groundLayer.iterBlocksQuery(undefined, false)
   for (const block of patchIter) {
-    const ymax = block.pos.y
-    for (let y = 0; y <= ymax; y++) {
+    // const buffPos = asVect2(block.localPos)
+    // const chunkBuff = chunkContainer.readBuffer(buffPos)
+    const groundLevel = block.pos.y
+    const ymin = chunkContainer.extendedBounds.min.y
+    const ymax = Math.min(groundLevel, chunkContainer.extendedBounds.max.y)
+    const startLocalPos = new Vector3(block.localPos.x, - 1, block.localPos.z)
+    let startIndex = chunkContainer.getIndex(startLocalPos)
+    for (let y = ymin; y <= ymax; y++) {
       block.pos.y = y
-      const isEmptyBlock = DensityVolume.instance.getBlockDensity(block.pos, ymax + 20) //=== BlockType.NONE
-      const localPos = new Vector3(block.localPos.x, y, block.localPos.z)
-      const blockIndex = chunkContainer.getIndex(localPos)
-      chunkContainer.writeBlockData(blockIndex, isEmptyBlock ? 0 : 1)
+      let isEmptyBlock = DensityVolume.instance.getBlockDensity(block.pos, groundLevel + 20)
+      chunkContainer.rawData[startIndex++] = isEmptyBlock ? 0 : 1
     }
+    // chunkContainer.writeBuffer(buffPos, chunkBuff)
   }
   // const chunkIter = chunkContainer.iterateContent(undefined, false)
   // for (const block of chunkIter) {
   //   const isEmptyBlock = DensityVolume.instance.getBlockType(block.pos, bounds.max.y) === BlockType.NONE
   //   chunkContainer.writeSector(block.pos, isEmptyBlock ? 0 : 1)
   // }
-  return chunkContainer
+  return chunkContainer.toStub()
 }
 
 // Battle board

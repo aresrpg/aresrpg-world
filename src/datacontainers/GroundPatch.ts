@@ -9,7 +9,7 @@ import {
 } from '../utils/common'
 import { BlockMode, WorldComputeProxy } from '../index'
 import { BiomeNumericType, BiomeType, BlockType, ReverseBiomeNumericType } from '../procgen/Biome'
-import { BasePatch } from './BasePatch'
+import { PatchBase } from './PatchBase'
 
 
 export type GroundBlockData = {
@@ -52,7 +52,7 @@ export const parseGroundFlags = (rawFlags: number) => {
  * overgroundIndex  | 16 | support for 65536 different configurations
  *
  */
-export class GroundPatch extends BasePatch {
+export class GroundPatch extends PatchBase {
   rawData: Uint32Array
   valueRange = { min: 512, max: 0 } // here elevation
   isEmpty = true
@@ -170,7 +170,7 @@ export class GroundPatch extends BasePatch {
       : new Box2(this.toLocalPos(rangeMin), this.toLocalPos(rangeMax))
   }
 
-  override getIndex(localPos: Vector2 | Vector3) {
+  getIndex(localPos: Vector2 | Vector3) {
     localPos = localPos instanceof Vector2 ? localPos : asVect2(localPos)
     return (
       (localPos.y + this.margin) * this.extendedDims.x +
@@ -179,7 +179,7 @@ export class GroundPatch extends BasePatch {
     )
   }
 
-  override getLocalPosFromIndex(index: number): Vector2 {
+  getLocalPosFromIndex(index: number): Vector2 {
     const y = Math.floor(index / this.extendedDims.y)-this.margin
     const x = index % this.extendedDims.x-this.margin
     return new Vector2(x, y)
