@@ -8,10 +8,14 @@ import {
 } from '../utils/common'
 import { WorldConf } from '../index'
 
+// export class PatchChunkCommon<T> {
+
+// }
+
 /**
  * Generic patch struct
  */
-export class BasePatch {
+export class PatchBase {
   bounds: Box2
   dimensions: Vector2
   margin = 0
@@ -74,15 +78,15 @@ export class BasePatch {
     )
   }
 
-  getIndex(localPos: Vector2) {
-    return localPos.y * this.dimensions.x + localPos.x
-  }
+  // getIndex(localPos: Vector2) {
+  //   return localPos.y * this.dimensions.x + localPos.x
+  // }
 
-  getLocalPosFromIndex(index: number) {
-    const y = Math.floor(index / this.dimensions.y)
-    const x = index % this.dimensions.x
-    return new Vector2(x, y)
-  }
+  // getLocalPosFromIndex(index: number) {
+  //   const y = Math.floor(index / this.dimensions.y)
+  //   const x = index % this.dimensions.x
+  //   return new Vector2(x, y)
+  // }
 
   // toLocalPos<T = Vector2 | Vector3>(pos: T): T
   // toGlobalPos<T = Vector2 | Vector3>(pos: T): T
