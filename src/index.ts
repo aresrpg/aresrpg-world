@@ -6,12 +6,12 @@ export {
   PseudoDistributionMap,
   DistributionProfile,
 } from './datacontainers/RandomDistributionMap'
-export { WorldPatch } from './datacontainers/WorldPatch'
 // export { CacheContainer as WorldCacheContainer } from './datacontainers/GroundMap'
-export { WorldContainer, WorldCache } from './datacontainers/PatchesContainer'
+export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
 export { BoardPatch } from './datacontainers/BoardPatch'
 export { BoardContainer } from './datacontainers/BoardContainer'
 export { ChunkContainer } from './datacontainers/ChunkContainer'
+export { WorldChunkIndexer } from './datacontainers/WorldChunkIndexer'
 export { WorldComputeProxy } from './api/WorldComputeProxy'
 export { ItemsInventory } from './misc/ItemsInventory'
 export { SchematicLoader } from './tools/SchematicLoader'
@@ -25,5 +25,4 @@ export { DensityVolume } from './procgen/DensityVolume'
 
 export * as WorldCompute from './api/world-compute'
 export * as WorldUtils from './utils/common'
-export * as ChunkUtils from './utils/chunks'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'

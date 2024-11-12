@@ -1,5 +1,5 @@
-import { Box2, Vector2, Vector3 } from 'three'
-import { GroundBlock, PatchKey } from '../utils/types'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { ChunkKey, GroundBlock, PatchKey } from '../utils/types'
 import { WorldCompute, WorldUtils } from '../index'
 import { ItemType } from '../misc/ItemsInventory'
 import { GroundPatch } from '../datacontainers/GroundPatch'
@@ -10,6 +10,7 @@ export enum ComputeApiCall {
   BlocksBatchCompute = 'computeBlocksBatch',
   OvergroundItemsQuery = 'retrieveOvergroundItems',
   BattleBoardCompute = 'computeBoardData',
+  BakeMergeOvergroundItems = 'bakeMergeOvergroundChunk',
   BakeUndergroundCaverns = 'bakeUndergroundCaverns'
 }
 
@@ -128,10 +129,20 @@ export class WorldComputeProxy {
     return patchStub
   }
 
-  async bakeUndergroundCaverns(patchBounds: Box2) {
+  async bakeOvergroundChunk(patchBounds: Box2) {
     const chunkStub = !this.worker
-      ? WorldCompute.bakeUndergroundCaverns(patchBounds)
-      : await this.workerCall(ComputeApiCall.BakeUndergroundCaverns, [patchBounds])
+      ? WorldCompute.bakeMergeOvergroundChunk(patchBounds)
+      : await this.workerCall(ComputeApiCall.BakeMergeOvergroundItems, [patchBounds])
+        ?.then(chunkStub => ChunkContainer.fromStub(chunkStub))
+    // ?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
+
+    return chunkStub
+  }
+
+  async bakeUndergroundCaverns(chunkBounds: ChunkKey | Box3) {
+    const chunkStub = !this.worker
+      ? WorldCompute.bakeUndergroundCaverns(chunkBounds)
+      : await this.workerCall(ComputeApiCall.BakeUndergroundCaverns, [chunkBounds])
         ?.then(chunkStub => ChunkContainer.fromStub(chunkStub))
     // ?.then(patchStub => new GroundPatch().fromStub(patchStub)) as GroundPatch
 

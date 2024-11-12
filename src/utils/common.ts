@@ -304,8 +304,8 @@ const asBox2 = (box3: Box3) => {
   return new Box2(asVect2(box3.min), asVect2(box3.max))
 }
 
-const asBox3 = (box2: Box2) => {
-  return new Box3(asVect3(box2.min), asVect3(box2.max))
+const asBox3 = (box2: Box2, ymin = 0, ymax = 0) => {
+  return new Box3(asVect3(box2.min, ymin), asVect3(box2.max, ymax))
 }
 
 const isVect2Stub = (stub: Vector2Like) => {
@@ -383,11 +383,6 @@ const parsePatchKey = (patchKey: PatchKey) => {
   return patchId
 }
 
-const getPatchId = (position: Vector2, patchSize: Vector2) => {
-  const patchId = position.clone().divide(patchSize).floor()
-  return patchId
-}
-
 const patchUpperId = (position: Vector2, patchSize: Vector2) => {
   const patchId = position.clone().divide(patchSize).ceil()
   return patchId
@@ -410,6 +405,11 @@ const patchBoxFromKey = (patchKey: string, patchDims: Vector2) => {
     bbox.max = patchCoords.clone().addScalar(1).multiply(patchDims)
   }
   return bbox
+}
+
+const getPatchId = (position: Vector2, patchSize: Vector2) => {
+  const patchId = position.clone().divide(patchSize).floor()
+  return patchId
 }
 
 const getPatchRange = (bounds: Box2, patchDims: Vector2) => {
