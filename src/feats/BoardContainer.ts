@@ -3,7 +3,6 @@ import { Box2, Vector2, Vector3, Vector3Like } from 'three'
 import { BlockData, GroundBlock, PatchBlock } from '../common/types'
 import { asVect2, asVect3 } from '../common/utils'
 import {
-  BlockType,
   PatchContainer,
   GroundPatch,
   ProcLayer,
@@ -13,6 +12,7 @@ import {
 import { PseudoDistributionMap } from '../datacontainers/RandomDistributionMap'
 import { findBoundingBox } from '../common/math'
 import { ItemType } from '../misc/ItemsInventory'
+import { BlockType } from '../procgen/Biome'
 
 export enum BlockCategory {
   FLAT = 0,

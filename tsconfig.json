@@ -23,7 +23,7 @@
     "useUnknownInCatchVariables": true,
 
     /* Modules */
-    "module": "ES6",
+    "module": "ESNext",
     "moduleResolution": "bundler",
     "typeRoots": ["src/@types", "./node_modules/@types"],
 

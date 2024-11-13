@@ -1,6 +1,6 @@
 import { Vector2, Vector3 } from 'three'
 
-import { BlockType } from '../index'
+import { BlockType } from '../procgen/Biome'
 
 export class WorldConf {
   static patchPowSize = 6 // as a power of two
