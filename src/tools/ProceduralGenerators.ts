@@ -2,7 +2,7 @@ import { Vector3, Vector2, Box3 } from 'three'
 
 import { asVect2 } from '../common/utils'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { BlockType } from '../index'
+import { BlockType } from '../procgen/Biome'
 
 export enum ProcItemCategory {
   Tree,

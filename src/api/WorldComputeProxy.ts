@@ -1,7 +1,8 @@
 import { Box2, Vector2 } from 'three'
 
 import { GroundBlock, PatchKey } from '../common/types'
-import { GroundPatch, WorldCompute, WorldUtils } from '../index'
+import { GroundPatch, WorldCompute } from '../index'
+import * as WorldUtils from '../common/utils'
 
 export enum ComputeApiCall {
   PatchCompute = 'bakePatch',
@@ -50,11 +51,11 @@ export class WorldComputeProxy {
       }
 
       workerInstance.onerror = error => {
-        console.error(error)
+        console.error('WorldComputeProxy worker error', error)
       }
 
       workerInstance.onmessageerror = error => {
-        console.error(error)
+        console.error('WorldComputeProxy worker messageerror', error)
       }
     }
   }

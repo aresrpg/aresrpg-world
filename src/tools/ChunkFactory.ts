@@ -8,7 +8,8 @@ import {
   serializeChunkId,
 } from '../common/utils'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { BlockMode, BlockType, GroundPatch, WorldConf } from '../index'
+import { BlockMode, GroundPatch, WorldConf } from '../index'
+import { BlockType } from '../procgen/Biome'
 
 // for debug use only
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
