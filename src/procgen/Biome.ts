@@ -67,15 +67,28 @@ export enum BiomeType {
   Temperate = 'temperate',
   Artic = 'artic',
   Desert = 'desert',
-  // Tropical = 'tropical',
+  Tropical = 'tropical',
+  Scorched = 'scorched',
+  Swamp = 'swamp',
+  Glacier = 'glacier',
+  Tundra = 'tundra',
+  Steppe = 'steppe',
 }
 
 export const BiomeNumericType: Record<BiomeType, number> = {
   [BiomeType.Temperate]: 0,
   [BiomeType.Artic]: 0,
   [BiomeType.Desert]: 0,
+  [BiomeType.Tropical]: 0,
+  [BiomeType.Scorched]: 0,
+  [BiomeType.Swamp]: 0,
+  [BiomeType.Glacier]: 0,
+  [BiomeType.Tundra]: 0,
+  [BiomeType.Steppe]: 0,
 }
+
 Utils.typesNumbering(BiomeNumericType)
+
 export const ReverseBiomeNumericType: Record<number, BiomeType> = {}
 Object.keys(BiomeNumericType).forEach((type, i) => {
   ReverseBiomeNumericType[i] = type as BiomeType
@@ -100,19 +113,19 @@ export type BiomeInfluence = Record<BiomeType, number>
 
 const BiomesMapping: Record<HeatLevel, Record<RainLevel, BiomeType>> = {
   [HeatLevel.COLD]: {
-    [RainLevel.DRY]: BiomeType.Artic,
+    [RainLevel.DRY]: BiomeType.Tundra,
     [RainLevel.MODERATE]: BiomeType.Artic,
-    [RainLevel.WET]: BiomeType.Artic,
+    [RainLevel.WET]: BiomeType.Glacier,
   },
   [HeatLevel.TEMPERATE]: {
-    [RainLevel.DRY]: BiomeType.Temperate, // TODO
+    [RainLevel.DRY]: BiomeType.Steppe, // TODO
     [RainLevel.MODERATE]: BiomeType.Temperate,
-    [RainLevel.WET]: BiomeType.Temperate, // TODO
+    [RainLevel.WET]: BiomeType.Swamp, // TODO
   },
   [HeatLevel.HOT]: {
-    [RainLevel.DRY]: BiomeType.Desert,
+    [RainLevel.DRY]: BiomeType.Scorched,
     [RainLevel.MODERATE]: BiomeType.Desert,
-    [RainLevel.WET]: BiomeType.Desert, // TODO BiomeType.Tropical,
+    [RainLevel.WET]: BiomeType.Tropical,
   },
 }
 
@@ -242,6 +255,12 @@ export class Biome {
       [BiomeType.Temperate]: 0,
       [BiomeType.Artic]: 0,
       [BiomeType.Desert]: 0,
+      [BiomeType.Tropical]: 0,
+      [BiomeType.Scorched]: 0,
+      [BiomeType.Swamp]: 0,
+      [BiomeType.Glacier]: 0,
+      [BiomeType.Tundra]: 0,
+      [BiomeType.Steppe]: 0,
     }
 
     const heatVal = this.heatmap.eval(pos) // Utils.roundToDec(this.heatmap.eval(pos), 2)
