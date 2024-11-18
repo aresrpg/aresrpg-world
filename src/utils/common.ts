@@ -15,6 +15,17 @@ import {
 const typesNumbering = (types: Record<string, number>, offset = 0) =>
   Object.keys(types).forEach((key, i) => (types[key] = offset + i))
 
+const getBoundsAroundPos = (pos: Vector2, radius: number) => {
+  const center = pos.clone().floor()
+  const dims = new Vector2(
+    radius,
+    radius,
+  ).multiplyScalar(2)
+  // const sphere = new Sphere(center, rad)
+  const bounds = new Box2().setFromCenterAndSize(center, dims)
+  return bounds
+}
+
 // Clamp number between two values:
 const clamp = (num: number, min: number, max: number) =>
   Math.min(Math.max(num, min), max)
@@ -474,6 +485,7 @@ const chunkBoxFromKey = (chunkKey: string, chunkDims: Vector3) => {
 
 export {
   typesNumbering,
+  getBoundsAroundPos,
   roundToDec,
   vectRoundToDec,
   smoothstep,

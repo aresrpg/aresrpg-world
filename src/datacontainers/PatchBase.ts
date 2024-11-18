@@ -27,7 +27,7 @@ export class PatchBase {
     const bounds =
       boundsOrPatchKey instanceof Box2
         ? boundsOrPatchKey.clone()
-        : patchBoxFromKey(boundsOrPatchKey, WorldConf.instance.regularPatchDimensions)
+        : patchBoxFromKey(boundsOrPatchKey, WorldConf.instance.patchDimensions)
     this.bounds = bounds
     this.dimensions = bounds.getSize(new Vector2())
     this.margin = margin

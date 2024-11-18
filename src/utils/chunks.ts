@@ -64,7 +64,7 @@ async function* itemsOtfGen(overgroundItems: Record<ItemType, Vector3[]>) {
 
 export const bakeItemsIndividualChunks = async (patchBounds: Box2) => {
     // request all items belonging to this patch
-    const overgroundItems = await WorldComputeProxy.instance.queryOvergroundItems(patchBounds)
+    const overgroundItems = await WorldComputeProxy.current.queryOvergroundItems(patchBounds)
     // generate chunk for each item
     const itemsChunks = []
     const items_otf_gen = itemsOtfGen(overgroundItems)

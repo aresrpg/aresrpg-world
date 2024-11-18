@@ -2,7 +2,7 @@ import { Vector3, Vector2, Box2, Box3 } from "three";
 import { WorldComputeProxy } from "../api/WorldComputeProxy";
 import { WorldConf } from "../misc/WorldConfig";
 import { bakeItemsIndividualChunks, generateGroundBuffer } from "../utils/chunks";
-import { asVect2, asVect3, getPatchIds, parseChunkKey, parsePatchKey, serializeChunkId, serializePatchId } from "../utils/common";
+import { asVect2, asVect3, getBoundsAroundPos, getPatchIds, parseChunkKey, parsePatchKey, serializeChunkId, serializePatchId } from "../utils/common";
 import { ChunkId, PatchKey } from "../utils/types";
 import { ChunkContainer } from "./ChunkContainer";
 import { GroundPatch } from "./GroundPatch";
@@ -45,7 +45,7 @@ export class GroundChunk extends ChunkContainer {
 
     async applyCavesMask() {
         // compute caverns mask
-        const cavesMask = await WorldComputeProxy.instance.bakeUndergroundCaverns(this.chunkKey)
+        const cavesMask = await WorldComputeProxy.current.bakeUndergroundCaverns(this.chunkKey)
         ChunkContainer.applyMaskOnTarget(cavesMask, this)
     }
 }
@@ -54,7 +54,7 @@ enum ChunkCategory {
     Unknown,
     Empty,
     Underground,
-    Surface,
+    GroundSurface,
     Overground,
 }
 type ChunkIndex = number
@@ -105,16 +105,9 @@ export class WorldChunkIndexer {
 
     // index patch keys present within radius around pos
     reindexAroundPos(pos: Vector2, rad: number) {
-        // sphere.intersectsBox()
-        const center = pos.clone().floor()
-        const dims = new Vector2(
-            rad,
-            rad,
-        ).multiplyScalar(2)
-        // const sphere = new Sphere(center, rad)
-        const bounds = new Box2().setFromCenterAndSize(center, dims)
+        const bounds = getBoundsAroundPos(pos, rad)
         const chunksLookup: Record<PatchKey, ChunkRecords> = {}
-        const patchKeys = getPatchIds(bounds, WorldConf.instance.regularPatchDimensions).map(
+        const patchKeys = getPatchIds(bounds, WorldConf.instance.patchDimensions).map(
             patchId => serializePatchId(patchId),
         )
         let changeDetected = false
@@ -144,11 +137,13 @@ export class WorldChunkIndexer {
         return chunkKeys
     }
 
-    async *otfGroundPatchGen() {
+    async *otfGroundPatchGen(genBounds?: Box2) {
         for await (const patchKey of this.indexedPatchKeys) {
             const groundPatch = new GroundPatch(patchKey)
-            await groundPatch.fillGroundData()
-            yield groundPatch
+            if (!genBounds || genBounds.intersectsBox(groundPatch.bounds)) {
+                await groundPatch.fillGroundData()
+                yield groundPatch
+            }
         }
     }
 
@@ -158,6 +153,7 @@ export class WorldChunkIndexer {
 
     /**
      * Surface chunks = ground + overground
+     * build surface chunks batch
      */
     async *otfGroundSurfaceChunksGen(params: BakeChunkParams = defaultBakeParams) {
         // on-the-fly ground patch gen
@@ -166,7 +162,7 @@ export class WorldChunkIndexer {
             const patchKey = groundLayer.key
             // bake overground items either as whole single chunk or as individual chunks
             const overgroundChunks = params.processItemsIndividually ? await bakeItemsIndividualChunks(groundLayer.bounds) :
-                [await WorldComputeProxy.instance.bakeOvergroundChunk(groundLayer.bounds)]
+                [await WorldComputeProxy.current.bakeOvergroundChunk(groundLayer.bounds)]
             // compute ranges
             const overgroundRange = {
                 ymin: NaN,
@@ -221,6 +217,7 @@ export class WorldChunkIndexer {
                         // copy ground over items at last 
                         ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
                         // }
+                        chunkRef.category = ChunkCategory.GroundSurface
                         chunkRef.awaitingGen = false
                         yield worldChunk
                     }
@@ -232,9 +229,9 @@ export class WorldChunkIndexer {
     /**
      * Undeground chunks below ground surface
      */
-    async *otfUndegroundChunksGen() {
+    async *otfUndegroundChunksGen(genBounds?: Box2) {
         // iter over patch keys
-        const groundPatches = this.otfGroundPatchGen();
+        const groundPatches = this.otfGroundPatchGen(genBounds);
         for await (const groundLayer of groundPatches) {
             const patchKey = groundLayer.key
             const chunkKeys = this.getPatchIndexedChunkKeys(patchKey)

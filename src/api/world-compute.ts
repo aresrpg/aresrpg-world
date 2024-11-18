@@ -1,5 +1,5 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
-import { DensityVolume, ItemsInventory, PseudoDistributionMap, WorldConf } from '../index'
+import { DensityVolume, ItemsInventory, PseudoDistributionMap, WorldConf, WorldUtils } from '../index'
 import { Biome, BiomeInfluence, BiomeType, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
@@ -169,7 +169,7 @@ export const computeBlocksBatch = async (
   const blocksByPatch: Record<PatchKey, GroundBlock[]> = {}
   const blocksBatch = blockPosBatch.map(pos => {
     const patchKey = serializePatchId(
-      getPatchId(pos, WorldConf.instance.regularPatchDimensions),
+      getPatchId(pos, WorldConf.instance.patchDimensions),
     )
     const data: BlockData = {
       level: 0,
@@ -315,7 +315,7 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
   )
   for await (const spawnOrigin of spawnPlaces) {
     const patchKey = serializePatchId(
-      getPatchId(spawnOrigin, WorldConf.instance.regularPatchDimensions),
+      getPatchId(spawnOrigin, WorldConf.instance.patchDimensions),
     )
     const groundPatch = new GroundPatch(patchKey)
     const biomeBoundsInfluences = getBiomeBoundsInfluences(groundPatch.bounds)
@@ -441,3 +441,19 @@ export const bakeUndergroundCaverns = (boundsOrPatchKey: ChunkKey | Box3) => {
 //   const boardStub = boardMap.toStub()
 //   return boardStub
 // }
+export enum ComputeTask {
+  PatchCompute = 'bakePatch',
+  BlocksBatchCompute = 'computeBlocksBatch',
+  OvergroundItemsQuery = 'retrieveOvergroundItems',
+  BakeMergeOvergroundItems = 'bakeMergeOvergroundChunk',
+  BakeUndergroundCaverns = 'bakeUndergroundCaverns'
+  // BattleBoardCompute = 'computeBoardData',
+}
+
+export const WorldComputeApi: Record<ComputeTask, any> = {
+  [ComputeTask.PatchCompute]:bakePatch,
+  [ComputeTask.BlocksBatchCompute]: computeBlocksBatch,
+  [ComputeTask.OvergroundItemsQuery]: retrieveOvergroundItems,
+  [ComputeTask.BakeMergeOvergroundItems]: bakeMergeOvergroundChunk,
+  [ComputeTask.BakeUndergroundCaverns]: bakeUndergroundCaverns
+}
