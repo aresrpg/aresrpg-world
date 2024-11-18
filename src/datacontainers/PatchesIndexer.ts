@@ -21,7 +21,7 @@ export abstract class PatchesIndexer<T extends PatchBase> {
   patchDimensions
 
   constructor() {
-    this.patchDimensions = WorldConf.instance.regularPatchDimensions
+    this.patchDimensions = WorldConf.instance.patchDimensions
   }
 
   abstract patchConstructor: (key: PatchKey) => T

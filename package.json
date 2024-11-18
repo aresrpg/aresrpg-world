@@ -43,7 +43,8 @@
     "alea": "^1.0.1",
     "pako": "^2.1.0",
     "poisson-disk-sampling": "^2.3.1",
-    "simplex-noise": "^4.0.3"
+    "simplex-noise": "^4.0.3",
+    "workerpool": "^9.2.0"
   },
   "peerDependencies": {
     "three": ">=0.163.0"
