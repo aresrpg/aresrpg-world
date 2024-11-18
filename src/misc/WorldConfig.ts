@@ -1,7 +1,4 @@
 import { Vector2, Vector3 } from 'three'
-import { PatchId } from '../utils/types'
-import { asVect3 } from '../utils/common'
-
 import { BlockType } from '../procgen/Biome'
 
 export class WorldConf {
@@ -10,10 +7,6 @@ export class WorldConf {
   static get instance() {
     this.singleton = this.singleton || new WorldConf()
     return this.singleton
-  }
-
-  constructor(){
-
   }
 
   patchPowSize = 6 // as a power of two
@@ -27,11 +20,11 @@ export class WorldConf {
     return Math.pow(2, this.cachePowLimit)
   }
 
-  get regularPatchDimensions() {
+  get patchDimensions() {
     return new Vector2(this.patchSize, this.patchSize)
   }
 
-  get defaultChunkDimensions() {
+  get chunkDimensions() {
     return new Vector3(this.patchSize, this.patchSize, this.patchSize)
   }
 
@@ -58,5 +51,16 @@ export class WorldConf {
       yMinId: 0,
       yMaxId: 5,
     }
+  }
+
+  workerPool = {
+    count: 4,
+    url: '', // if undef will default to main thread
+    type: undefined
+  }
+
+  boardSettings = {
+    boardRadius: 32,
+    boardThickness: 5
   }
 }

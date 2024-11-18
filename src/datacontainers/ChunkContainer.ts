@@ -54,7 +54,7 @@ export class ChunkContainer {
         const bounds =
             boundsOrChunkKey instanceof Box3
                 ? boundsOrChunkKey.clone()
-                : chunkBoxFromKey(boundsOrChunkKey, WorldConf.instance.defaultChunkDimensions)
+                : chunkBoxFromKey(boundsOrChunkKey, WorldConf.instance.chunkDimensions)
         this.margin = margin
         this.bounds = bounds
         this.extendedBounds = bounds.clone().expandByScalar(margin)
@@ -324,7 +324,7 @@ export class ChunkContainer {
 
     toStub() {
         const { chunkKey, bounds, rawData, margin } = this
-        const chunkStub = { chunkKey, bounds, rawData, margin }
+        const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin }
         return chunkStub
     }
 

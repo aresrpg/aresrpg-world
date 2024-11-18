@@ -22,6 +22,7 @@ export {
 } from './tools/ProceduralGenerators'
 export { BlockMode } from './utils/types'
 export { DensityVolume } from './procgen/DensityVolume'
+export { WorldComputeApi } from './api/world-compute'
 
 export * as WorldCompute from './api/world-compute'
 export * as WorldUtils from './utils/common'
