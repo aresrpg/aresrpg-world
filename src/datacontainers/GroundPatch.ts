@@ -293,7 +293,7 @@ export class GroundPatch extends PatchBase {
     return this
   }
 
-  async fillGroundData() {
+  async bake() {
     const stub: PatchStub = await WorldComputeProxy.current.bakeGroundPatch(
       this.key || this.bounds,
     )
