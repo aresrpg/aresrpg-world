@@ -97,7 +97,7 @@ export class GroundContainer extends PatchesIndexer<GroundPatch> {
 
   patchGen() {
     const pendingRequests = this.emptyPatches.map(async patch => {
-      await patch.fillGroundData()
+      await patch.bake()
       // await patch.retrieveOvergroundItems()
       return patch
     })
@@ -106,7 +106,7 @@ export class GroundContainer extends PatchesIndexer<GroundPatch> {
 
   async *patchOtfGen(){
     for await (const patch of this.emptyPatches) {
-      await patch.fillGroundData()
+      await patch.bake()
       // await patch.retrieveOvergroundItems()
       yield patch
     }

@@ -1,21 +1,21 @@
-import { Vector3, Box2, Vector2 } from "three";
+import { Vector3, Box2, Vector2, Box3 } from "three";
 import { BlockData, BlockMode } from "../utils/types";
 import { asBox2, asVect2, asVect3 } from "../utils/common";
 import { BoardContainer } from "./BoardContainer";
 import { ItemsInventory } from "../misc/ItemsInventory";
 import { BlockType } from "../procgen/Biome";
-import { WorldPatch } from "./WorldPatch";
+import { ChunkContainer } from "./ChunkContainer";
 
 /**
  * Board patch generation by overriding ground patch output on-the-fly
  */
-export class BoardPatch extends WorldPatch {
+export class BoardChunkBuffer extends ChunkContainer {
     parentContainer: BoardContainer
     boardBounds: Box2 | undefined
     boardItems: Vector2[] = []
 
-    constructor(boundsOrPatchKey: string | Box2, parentContainer: BoardContainer) {
-        super(boundsOrPatchKey);
+    constructor(boundsOrChunkKey: string | Box3, parentContainer: BoardContainer) {
+        super(boundsOrChunkKey);
         this.parentContainer = parentContainer
         // this.boardBounds = new Box2()
     }

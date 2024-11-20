@@ -7,7 +7,8 @@ import {
     chunkBoxFromKey,
     parseChunkKey,
     serializeChunkId,
-    parseThreeStub
+    parseThreeStub,
+    asVect2
 } from '../utils/common'
 import { WorldConf } from '../misc/WorldConfig'
 
@@ -28,27 +29,31 @@ export type ChunkBuffer = {
     content: Uint16Array
 }
 
+export const defaultDataEncoder = (blockType: BlockType, _blockMode?: BlockMode) => blockType || BlockType.NONE
+
 /**
  * Low level multi-purpose data container
  */
 export class ChunkContainer {
-    static defaultDataEncoder = (blockType: BlockType, _blockMode?: BlockMode) => blockType || BlockType.NONE
-    bounds: Box3
-    extendedBounds: Box3
-    dimensions: Vector3
-    extendedDims: Vector3
+    // global data encoder
+    static dataEncoder = defaultDataEncoder
+    bounds = new Box3()
+    extendedBounds = new Box3()
+    dimensions = new Vector3()
+    extendedDims = new Vector3()
     margin: number
     chunkKey = '' // needed for chunk export
     chunkId: ChunkId | undefined
-    rawData: Uint16Array
+    rawData = new Uint16Array()
     axisOrder: ChunkAxisOrder
+    // local data encoder (defaulting to global)
     dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) => number
 
     constructor(
         boundsOrChunkKey: Box3 | ChunkKey = new Box3(),
         margin = 0,
-        axisOrder = ChunkAxisOrder.ZXY,
-        customDataEncoder = ChunkContainer.defaultDataEncoder
+        customDataEncoder = ChunkContainer.dataEncoder,
+        axisOrder = ChunkAxisOrder.ZXY
     ) {
         //, bitLength = BitLength.Uint16) {
         const bounds =
@@ -56,10 +61,7 @@ export class ChunkContainer {
                 ? boundsOrChunkKey.clone()
                 : chunkBoxFromKey(boundsOrChunkKey, WorldConf.instance.chunkDimensions)
         this.margin = margin
-        this.bounds = bounds
-        this.extendedBounds = bounds.clone().expandByScalar(margin)
-        this.dimensions = bounds.getSize(new Vector3())
-        this.extendedDims = this.extendedBounds.getSize(new Vector3())
+
         this.axisOrder = axisOrder
         const chunkId =
             typeof boundsOrChunkKey === 'string'
@@ -68,10 +70,8 @@ export class ChunkContainer {
         if (chunkId) {
             this.id = chunkId
         }
-        this.rawData = new Uint16Array(
-            this.extendedDims.x * this.extendedDims.y * this.extendedDims.z,
-        )
         this.dataEncoder = customDataEncoder
+        this.adjustChunkBounds(bounds)
         // this.rawData = getArrayConstructor(bitLength)
     }
 
@@ -93,9 +93,11 @@ export class ChunkContainer {
         return this.localBox.expandByScalar(this.margin)
     }
 
-    init(bounds: Box3) {
+    adjustChunkBounds(bounds: Box3) {
         this.bounds = bounds
+        this.extendedBounds = bounds.clone().expandByScalar(this.margin)
         this.dimensions = bounds.getSize(new Vector3())
+        this.extendedDims = this.extendedBounds.getSize(new Vector3())
         this.rawData = new Uint16Array(this.extendedDims.x * this.extendedDims.y * this.extendedDims.z)
     }
 
@@ -133,19 +135,11 @@ export class ChunkContainer {
         }
     }
 
-    static applyMaskOnTarget(sourceMask: ChunkContainer, targetChunk: ChunkContainer) {
-        const overlapIter = this.iterOverlap(sourceMask, targetChunk)
-        for (const { sourceIndex, targetIndex } of overlapIter) {
-            const sourceVal = sourceMask.rawData[sourceIndex]
-            targetChunk.rawData[targetIndex] *= sourceVal || 0
-        }
-    }
-
     static copySourceToTarget(sourceChunk: ChunkContainer, targetChunk: ChunkContainer) {
         const overlapIter = this.iterOverlap(sourceChunk, targetChunk)
         for (const { sourceIndex, targetIndex } of overlapIter) {
             const sourceVal = sourceChunk.rawData[sourceIndex]
-            if (sourceVal) {
+            if (sourceVal !== undefined) {
                 targetChunk.rawData[targetIndex] = sourceVal
             }
         }
@@ -157,7 +151,7 @@ export class ChunkContainer {
      * @returns buffer or block index for Vector2 or Vector3 input respectively.
      */
     getIndex(localPos: Vector2 | Vector3) {
-        localPos = localPos instanceof Vector3 ? localPos : asVect3(localPos, -1)
+        localPos = localPos instanceof Vector3 ? localPos : asVect3(localPos, -this.margin)
         return (
             (localPos.z + this.margin) * this.extendedDims.x * this.extendedDims.y +
             (localPos.x + this.margin) * this.extendedDims.y +
@@ -281,6 +275,33 @@ export class ChunkContainer {
         }
     }
 
+    /**
+     * iterate raw data
+     * @param rangeBox iteration range as global coords
+     * @param skipMargin
+     */
+    *iterChunkBuffers(iteratedBounds?: Box3 | Vector3, skipMargin = true) {
+        // convert to local coords to speed up iteration
+        const localBounds = iteratedBounds
+            ? this.adjustInputBounds(iteratedBounds)
+            : this.localExtendedBox
+
+        for (let { z } = localBounds.min; z < localBounds.max.z; z++) {
+            for (let { x } = localBounds.min; x < localBounds.max.x; x++) {
+                const buffLocPos = new Vector2(x, z)
+                const buffIndex = this.getIndex(buffLocPos)
+                const buffData = this.readBuffer(buffLocPos)
+                const res = {
+                    pos: asVect2(this.toWorldPos(asVect3(buffLocPos))),
+                    localPos: buffLocPos,
+                    index: buffIndex,
+                    data: buffData,
+                }
+                yield res
+            }
+        }
+    }
+
     encodeSectorData(sectorData: number) {
         return sectorData
     }
@@ -316,7 +337,8 @@ export class ChunkContainer {
 
     fromStub(chunkStub: ChunkStub) {
         const { chunkKey } = chunkStub
-        this.init(parseThreeStub(chunkStub.bounds) as Box3)
+        const bounds = parseThreeStub(chunkStub.bounds) as Box3
+        this.adjustChunkBounds(bounds)
         this.chunkId = chunkKey?.length && chunkKey?.length > 0 ? parseChunkKey(chunkKey) : this.chunkId
         this.rawData.set(chunkStub.rawData)
         return this
@@ -337,4 +359,15 @@ export class ChunkContainer {
 
     // abstract get chunkIds(): ChunkId[]
     // abstract toChunks(): any
+}
+
+
+export class ChunkMask extends ChunkContainer {
+    applyMaskOnTargetChunk(targetChunk: ChunkContainer) {
+        const overlapIter = ChunkContainer.iterOverlap(this, targetChunk)
+        for (const { sourceIndex, targetIndex } of overlapIter) {
+            const sourceVal = this.rawData[sourceIndex]
+            targetChunk.rawData[targetIndex] *= sourceVal || 0
+        }
+    }
 }

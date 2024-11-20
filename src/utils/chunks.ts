@@ -16,40 +16,6 @@ export const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) =
         : blockType
 }
 
-export const generateGroundBuffer = (block: PatchBlock, ymin: number, ymax: number) => {
-    const undegroundDepth = 4
-    const bedrock = ChunkContainer.defaultDataEncoder(BlockType.BEDROCK)
-    const bedrockIce = ChunkContainer.defaultDataEncoder(BlockType.ICE)
-    const { biome, landscapeIndex, flags } = block.data
-    const blockLocalPos = block.localPos as Vector3
-    let landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
-    const groundConf = landscapeConf.data
-    const groundFlags = parseGroundFlags(flags)
-    const blockType = highlightPatchBorders(blockLocalPos, groundConf.type) || groundConf.type
-    const blockMode = groundFlags.boardMode ? BlockMode.BOARD_CONTAINER : BlockMode.DEFAULT
-    const groundSurface = ChunkContainer.defaultDataEncoder(
-        blockType,
-        blockMode
-    )
-    const undergroundLayer = ChunkContainer.defaultDataEncoder(groundConf.subtype || BlockType.BEDROCK)
-    // generate ground buffer
-    const buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
-    if (buffSize > 0) {
-        const groundBuffer = new Uint16Array(block.data.level - ymin)
-        // fill with bedrock first
-        groundBuffer.fill(biome === BiomeType.Artic ? bedrockIce : bedrock)
-        // add underground layer
-        groundBuffer.fill(undergroundLayer, groundBuffer.length - (undegroundDepth + 1))
-        // finish with ground surface block
-        groundBuffer[groundBuffer.length - 1] = groundSurface
-        const chunkBuffer: ChunkBuffer = {
-            pos: asVect2(blockLocalPos),
-            content: groundBuffer.slice(0, buffSize)
-        }
-        return chunkBuffer
-    }
-}
-
 async function* itemsOtfGen(overgroundItems: Record<ItemType, Vector3[]>) {
     for await (const [item_type, spawn_places] of Object.entries(overgroundItems)) {
         for await (const spawnOrigin of spawn_places) {
