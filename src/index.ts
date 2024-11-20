@@ -8,13 +8,14 @@ export {
 } from './datacontainers/RandomDistributionMap'
 // export { CacheContainer as WorldCacheContainer } from './datacontainers/GroundMap'
 export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
-export { BoardPatch } from './datacontainers/BoardPatch'
-export { BoardContainer } from './datacontainers/BoardContainer'
 export { ChunkContainer } from './datacontainers/ChunkContainer'
-export { WorldChunkIndexer } from './datacontainers/WorldChunkIndexer'
+export { WorldChunkIndexer } from './datacontainers/ChunksIndexer'
 export { WorldComputeProxy } from './api/WorldComputeProxy'
 export { ItemsInventory } from './misc/ItemsInventory'
 export { SchematicLoader } from './tools/SchematicLoader'
+export { BoardChunkBuffer } from './datacontainers/BoardChunkBuffer'
+export { BoardContainer } from './datacontainers/BoardContainer'
+export { ChunksOTFGenerator } from './datacontainers/ChunkFactory'
 export {
   ProceduralItemGenerator,
   ProcItemType,
