@@ -1,5 +1,5 @@
 import { Vector2 } from "three";
-import { WorldConf } from "../misc/WorldConfig";
+import { WorldEnv } from "../misc/WorldEnv";
 import { getBoundsAroundPos, getPatchIds, parseChunkKey, serializePatchId } from "../utils/common";
 import { ChunkKey, PatchKey } from "../utils/types";
 import { GroundChunk, CaveChunkMask, ChunksOTFGenerator } from "./ChunkFactory";
@@ -71,7 +71,7 @@ export class WorldChunkIndexer<T = void> {
     // index patch & chunk keys found within radius around pos
     reindexAroundPos(pos: Vector2, rad: number) {
         const bounds = getBoundsAroundPos(pos, rad)
-        const patchKeys = getPatchIds(bounds, WorldConf.instance.patchDimensions).map(
+        const patchKeys = getPatchIds(bounds, WorldEnv.current.patchDimensions).map(
             patchId => serializePatchId(patchId),
         )
         const createdPatchKeys = patchKeys.filter(patchKey => !this.indexed[patchKey])

@@ -12,8 +12,8 @@ export type Block<T> = {
 }
 
 export enum BlockMode {
-  DEFAULT,
-  BOARD_CONTAINER,
+  REGULAR,
+  CHECKERBOARD,
 }
 
 export type BlockData = {

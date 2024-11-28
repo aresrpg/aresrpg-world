@@ -1,11 +1,9 @@
 import { Box3, Vector3 } from 'three'
 
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import {
-  ProceduralItemGenerator,
-  ProcItemConf,
-} from '../tools/ProceduralGenerators'
+import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
+import { WorldEnv } from './WorldEnv'
 
 export type ItemType = string
 
@@ -14,15 +12,13 @@ export type ItemType = string
  */
 
 export class ItemsInventory {
-  static externalResources: {
-    procItemsConfigs: Record<ItemType, ProcItemConf>
-    schemFileUrls: Record<ItemType, string>
-  } = {
-    procItemsConfigs: {},
-    schemFileUrls: {},
-  }
-
   static catalog: Record<ItemType, ChunkContainer> = {}
+  static get schematicFilesIndex() {
+    return WorldEnv.current.schematics.filesIndex
+  }
+  static get proceduralItemsConf() {
+    return WorldEnv.current.proceduralItems.configs
+  }
   // static spawners: Record<ItemType, PseudoDistributionMap> = {}
   /**
    * Populate from schematics
@@ -30,7 +26,7 @@ export class ItemsInventory {
    * @param optionalDataEncoder
    */
   static async importSchematic(id: ItemType) {
-    const fileUrl = this.externalResources.schemFileUrls[id]
+    const fileUrl = ItemsInventory.schematicFilesIndex[id]
     let chunk
     if (fileUrl) {
       chunk = await SchematicLoader.createChunkContainer(fileUrl)
@@ -41,7 +37,7 @@ export class ItemsInventory {
   }
 
   static importProcItem(id: ItemType) {
-    const procConf = this.externalResources.procItemsConfigs[id]
+    const procConf = ItemsInventory.proceduralItemsConf[id]
     let chunk
     if (procConf) {
       chunk = ProceduralItemGenerator.voxelizeItem(

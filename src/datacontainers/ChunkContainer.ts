@@ -10,7 +10,7 @@ import {
     parseThreeStub,
     asVect2
 } from '../utils/common'
-import { WorldConf } from '../misc/WorldConfig'
+import { WorldEnv } from '../misc/WorldEnv'
 
 enum ChunkAxisOrder {
     ZXY,
@@ -35,8 +35,6 @@ export const defaultDataEncoder = (blockType: BlockType, _blockMode?: BlockMode)
  * Low level multi-purpose data container
  */
 export class ChunkContainer {
-    // global data encoder
-    static dataEncoder = defaultDataEncoder
     bounds = new Box3()
     extendedBounds = new Box3()
     dimensions = new Vector3()
@@ -48,6 +46,10 @@ export class ChunkContainer {
     axisOrder: ChunkAxisOrder
     // local data encoder (defaulting to global)
     dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) => number
+    // global version
+    static get dataEncoder() {
+        return WorldEnv.current.chunks.dataEncoder
+    }
 
     constructor(
         boundsOrChunkKey: Box3 | ChunkKey = new Box3(),
@@ -59,7 +61,7 @@ export class ChunkContainer {
         const bounds =
             boundsOrChunkKey instanceof Box3
                 ? boundsOrChunkKey.clone()
-                : chunkBoxFromKey(boundsOrChunkKey, WorldConf.instance.chunkDimensions)
+                : chunkBoxFromKey(boundsOrChunkKey, WorldEnv.current.chunkDimensions)
         this.margin = margin
 
         this.axisOrder = axisOrder
@@ -135,11 +137,12 @@ export class ChunkContainer {
         }
     }
 
-    static copySourceToTarget(sourceChunk: ChunkContainer, targetChunk: ChunkContainer) {
+    static copySourceToTarget(sourceChunk: ChunkContainer, targetChunk: ChunkContainer, skipEmpty = true) {
         const overlapIter = this.iterOverlap(sourceChunk, targetChunk)
         for (const { sourceIndex, targetIndex } of overlapIter) {
             const sourceVal = sourceChunk.rawData[sourceIndex]
-            if (sourceVal !== undefined) {
+            const skipped = sourceVal === undefined || skipEmpty && sourceVal === BlockType.NONE
+            if (!skipped) {
                 targetChunk.rawData[targetIndex] = sourceVal
             }
         }
@@ -200,6 +203,10 @@ export class ChunkContainer {
             this.bounds.max.z <= bounds.min.z ||
             this.bounds.min.z >= bounds.max.z
         return !nonOverlapping
+    }
+
+    isEmpty() {
+        return this.rawData.reduce((sum, val) => sum + val, 0) === 0
     }
 
     containsPoint(pos: Vector3) {
@@ -316,7 +323,7 @@ export class ChunkContainer {
         return this.decodeSectorData(rawData)
     }
 
-    writeBlockData(sectorIndex: number, blockType: BlockType, blockMode = BlockMode.DEFAULT) {
+    writeBlockData(sectorIndex: number, blockType: BlockType, blockMode = BlockMode.REGULAR) {
         // const sectorIndex = this.getIndex(this.toLocalPos(pos))
         this.rawData[sectorIndex] = this.dataEncoder(blockType, blockMode)
     }

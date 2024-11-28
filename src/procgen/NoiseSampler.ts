@@ -23,12 +23,23 @@ const noiseConstructor: Record<NoiseDimension, (prng: any) => any> = {
   [NoiseDimension.Three]: (prng: any) => createNoise3D(prng),
   [NoiseDimension.Four]: (prng: any) => createNoise4D(prng)
 }
+type NoiseHarmonicsSettings = {
+  count: number,
+  spread: number,
+  gain: number
+}
+export type NoiseSamplerParams = {
+  seed: string,
+  periodicity: number,
+  harmonics: NoiseHarmonicsSettings,
+  dimensions: NoiseDimension
+}
 
 export class NoiseSampler {
   harmonics: Harmonic[] = []
   harmonicsAmplitudeSum: number = 0
   noiseSource: any
-  params = {
+  params: NoiseSamplerParams = {
     seed: '',
     periodicity: 7, // = 128 by default
     harmonics: {

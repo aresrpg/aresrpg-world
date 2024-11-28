@@ -14,6 +14,7 @@ import {
 } from '../utils/types'
 
 import { ProcLayer } from './ProcLayer'
+import { WorldEnv } from '../index'
 
 // reserved native block types
 export enum BlockType {
@@ -133,6 +134,9 @@ const BiomesMapping: Record<HeatLevel, Record<RainLevel, BiomeType>> = {
 export class Biome {
   // eslint-disable-next-line no-use-before-define
   static singleton: Biome
+  static get externalRawConf() {
+    return WorldEnv.current.biomes.rawConf
+  }
 
   heatmap: ProcLayer
   rainmap: ProcLayer
@@ -155,13 +159,9 @@ export class Biome {
     high: 0.7,
   }
 
-  params = {
-    seaLevel: 0,
-  }
-
   indexedConf = new Map<BiomeLandscapeKey, LandscapesConf>()
 
-  constructor(biomeRawConf?: BiomesRawConf) {
+  constructor() {
     this.heatmap = new ProcLayer('heatmap')
     this.heatmap.sampling.harmonicsCount = 6
     this.heatmap.sampling.periodicity = 8
@@ -173,7 +173,7 @@ export class Biome {
     // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
     this.posRandomizer = new ProcLayer('pos_random')
     this.posRandomizer.sampling.periodicity = 6
-    if (biomeRawConf) this.parseBiomesConfig(biomeRawConf)
+    if (Biome.externalRawConf) this.parseBiomesConfig(Biome.externalRawConf)
   }
 
   static get instance() {
@@ -354,7 +354,7 @@ export class Biome {
     biomeType: BiomeType,
     includeSea = false,
   ) => {
-    const { seaLevel } = this.params
+    const { seaLevel } = WorldEnv.current.biomes
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = Utils.clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]

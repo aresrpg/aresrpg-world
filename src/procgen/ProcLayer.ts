@@ -1,6 +1,11 @@
 import { Vector3 } from 'three'
 import { InputType, NoiseSampler } from './NoiseSampler'
 
+export type ProcLayerParams = {
+  spreading: number,
+  scaling: number
+}
+
 /**
  * # Procedural Generation Layer
  */
@@ -8,7 +13,7 @@ export class ProcLayer {
   name: string // layer identifier
   parent: any
   sampling!: NoiseSampler
-  params = {
+  params: ProcLayerParams = {
     spreading: 0,
     scaling: 0.001,
   }
