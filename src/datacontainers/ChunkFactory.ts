@@ -87,30 +87,39 @@ export class ChunksOTFGenerator {
     isUnderground = (chunkBounds: Box3) => chunkBounds.max.y < this.groundSurfaceRange.ymin
     // isAboveSurface = (chunkBounds: Box3) => !this.isEmpty(chunkBounds) && !this.isUnderground(chunkBounds)
 
+    async genChunk(chunkKey: ChunkKey) {
+        const worldChunk = new ChunkContainer(chunkKey, 1)
+        if (!this.isEmpty(worldChunk.bounds)) {
+            // copy items to chunk container first to prevent overriding ground
+            ChunkContainer.copySourceToTarget(this.itemsChunkLayer, worldChunk)
+            // if within ground surface range: fill with ground
+            // if (isWithinGroundSurface(worldChunk.bounds)) {
+            const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
+            const cavesMask = new CaveChunkMask(chunkKey, 1)
+            await cavesMask.bake()
+            await groundSurfaceChunk.bake(this.groundLayer, cavesMask)
+            // copy ground over items at last 
+            ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
+            // }
+        }
+        return worldChunk
+    }
+
     /**
-     * Performs chunks assembly
-        - overground only: overground items
-        - surface chunks: undeground + ground + overground
-        - undeground only: undeground + ground
+     * Sequential chunk gen
      */
     async *otfChunkGen(chunkKeys = this.chunkKeys) {
         for (const chunkKey of chunkKeys) {
-            const worldChunk = new ChunkContainer(chunkKey, 1)
-            if (!this.isEmpty(worldChunk.bounds)) {
-                // copy items to chunk container first to prevent overriding ground
-                ChunkContainer.copySourceToTarget(this.itemsChunkLayer, worldChunk)
-                // if within ground surface range: fill with ground
-                // if (isWithinGroundSurface(worldChunk.bounds)) {
-                const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
-                const cavesMask = new CaveChunkMask(chunkKey, 1)
-                await cavesMask.bake()
-                await groundSurfaceChunk.bake(this.groundLayer, cavesMask)
-                // copy ground over items at last 
-                ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
-                // }
-            }
+            const worldChunk = await this.genChunk(chunkKey)
             yield worldChunk
         }
+    }
+
+    /**
+     * Concurrent chunk gen
+     */
+    async chunksGen(chunkKeys = this.chunkKeys, onGenDone = (chunk: ChunkContainer) => chunk) {
+        return await Promise.all(chunkKeys.map(chunkKey => this.genChunk(chunkKey).then(onGenDone)))
     }
 
     static getChunkKeys(patchKey: PatchKey) {
