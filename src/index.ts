@@ -26,4 +26,5 @@ export { WorldWorkerInit } from './api/world-compute-worker'
 
 export * as WorldCompute from './api/world-compute'
 export * as WorldUtils from './utils/common'
+export * as WorldDevSetup from './demo-samples/configs/world_dev_setup'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
