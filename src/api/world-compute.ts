@@ -1,5 +1,5 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
-import { DensityVolume, ItemsInventory, PseudoDistributionMap, WorldConf, WorldUtils } from '../index'
+import { DensityVolume, ItemsInventory, PseudoDistributionMap, WorldEnv, WorldUtils } from '../index'
 import { Biome, BiomeInfluence, BiomeType, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
@@ -87,7 +87,7 @@ const getBlockBiome = (
 ) => {
   if (
     (boundingBiomes as PatchBoundingBiomes)[PatchBoundId.xMyM] &&
-    WorldConf.instance.settings.useBiomeBilinearInterpolation
+    WorldEnv.current.settings.useBiomeBilinearInterpolation
   ) {
     return bilinearInterpolation(
       blockPos,
@@ -169,7 +169,7 @@ export const computeBlocksBatch = async (
   const blocksByPatch: Record<PatchKey, GroundBlock[]> = {}
   const blocksBatch = blockPosBatch.map(pos => {
     const patchKey = serializePatchId(
-      getPatchId(pos, WorldConf.instance.patchDimensions),
+      getPatchId(pos, WorldEnv.current.patchDimensions),
     )
     const data: BlockData = {
       level: 0,
@@ -315,7 +315,7 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
   )
   for await (const spawnOrigin of spawnPlaces) {
     const patchKey = serializePatchId(
-      getPatchId(spawnOrigin, WorldConf.instance.patchDimensions),
+      getPatchId(spawnOrigin, WorldEnv.current.patchDimensions),
     )
     const groundPatch = new GroundPatch(patchKey)
     const biomeBoundsInfluences = getBiomeBoundsInfluences(groundPatch.bounds)

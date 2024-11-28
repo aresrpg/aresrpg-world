@@ -4,11 +4,9 @@ import { Box3, Vector3 } from 'three'
 import { NBTReader } from '../third-party/nbt_custom'
 import { BlockType } from '../procgen/Biome'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { WorldConf } from '../misc/WorldConfig'
+import { WorldEnv } from '../misc/WorldEnv'
 
 export class SchematicLoader {
-  static worldBlocksMapping: Record<string, BlockType>
-
   static async load(path: string) {
     // const schem = await Schematic.read(Buffer.from(schemData), '1.16.4')
     const res = await fetch(path)
@@ -59,10 +57,10 @@ export class SchematicLoader {
       for (let x = 0; x < schemBlocks[y].length; x++) {
         for (let z = 0; z < schemBlocks[y][x].length; z++) {
           const [, rawType] = schemBlocks[y][x][z].name.split(':')
-          let blockType = this.worldBlocksMapping[rawType]
+          let blockType = WorldEnv.current.schematics.blocksMapping[rawType]
           if (blockType === undefined) {
             console.warn(`missing schematic block type ${rawType}`)
-            blockType = WorldConf.instance.debug.schematics.missingBlockType
+            blockType = WorldEnv.current.debug.schematics.missingBlockType
           }
           // worldObj.rawData[index++] = blockType
           const localPos = new Vector3(x, y, z)

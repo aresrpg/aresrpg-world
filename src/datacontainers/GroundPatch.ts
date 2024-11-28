@@ -140,7 +140,7 @@ export class GroundPatch extends PatchBase {
     let blockRawVal = level
     blockRawVal = (blockRawVal << shift.biome) | BiomeNumericType[biome]
     blockRawVal = (blockRawVal << shift.landscapeIndex) | landscapeIndex
-    blockRawVal = (blockRawVal << shift.flags) | (flags || BlockMode.DEFAULT)
+    blockRawVal = (blockRawVal << shift.flags) | (flags || BlockMode.REGULAR)
     return blockRawVal
   }
 

@@ -20,7 +20,6 @@ export class Heightmap {
   // eslint-disable-next-line no-use-before-define
   static singleton: Heightmap
   parent: any
-  params = {}
   compositor = getCompositor(BlendMode.MUL)
   // maps (externally provided)
   heightmap: ProcLayer

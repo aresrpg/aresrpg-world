@@ -6,7 +6,7 @@ import {
   patchBoxFromKey,
   serializePatchId,
 } from '../utils/common'
-import { WorldConf } from '../index'
+import { WorldEnv } from '../index'
 
 // export class PatchChunkCommon<T> {
 
@@ -27,7 +27,7 @@ export class PatchBase {
     const bounds =
       boundsOrPatchKey instanceof Box2
         ? boundsOrPatchKey.clone()
-        : patchBoxFromKey(boundsOrPatchKey, WorldConf.instance.patchDimensions)
+        : patchBoxFromKey(boundsOrPatchKey, WorldEnv.current.patchDimensions)
     this.bounds = bounds
     this.dimensions = bounds.getSize(new Vector2())
     this.margin = margin

@@ -8,7 +8,7 @@ import { Box2, Vector2 } from 'three'
 
 import { PatchBlock, PatchKey } from '../utils/types'
 import { getPatchId, getPatchIds, serializePatchId } from '../utils/common'
-import { WorldConf } from '../index'
+import { WorldEnv } from '../index'
 import { PatchBase } from './PatchBase'
 import { GroundPatch } from './GroundPatch'
 
@@ -21,7 +21,7 @@ export abstract class PatchesIndexer<T extends PatchBase> {
   patchDimensions
 
   constructor() {
-    this.patchDimensions = WorldConf.instance.patchDimensions
+    this.patchDimensions = WorldEnv.current.patchDimensions
   }
 
   abstract patchConstructor: (key: PatchKey) => T

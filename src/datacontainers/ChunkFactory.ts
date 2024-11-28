@@ -1,15 +1,14 @@
 import { Vector3, Box2, Box3, Vector2, MathUtils } from "three"
 import { WorldComputeProxy } from "../api/WorldComputeProxy"
-import { WorldConf } from "../misc/WorldConfig"
+import { WorldEnv } from "../misc/WorldEnv"
 import { bakeItemsIndividualChunks, highlightPatchBorders } from "../utils/chunks"
 import { asVect2, serializePatchId, asBox3, asBox2, asVect3, parsePatchKey, serializeChunkId, parseChunkKey } from "../utils/common"
 import { BlockMode, ChunkKey, PatchBlock, PatchKey } from "../utils/types"
 import { ChunkBuffer, ChunkContainer, ChunkMask } from "./ChunkContainer"
 import { GroundPatch, parseGroundFlags } from "./GroundPatch"
-import { BoardContainer } from "./BoardContainer"
 import { BlockType, Biome, BiomeType } from "../procgen/Biome"
 
-const { genRange } = WorldConf.instance.chunkSettings
+const { genRange } = WorldEnv.current.chunks
 
 export class ChunkTemplate {
     chunkKey: ChunkKey
@@ -109,8 +108,8 @@ export class ChunksOTFGenerator {
                 // copy ground over items at last 
                 ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
                 // }
-                yield worldChunk
             }
+            yield worldChunk
         }
     }
 
@@ -139,7 +138,7 @@ export class GroundChunk extends ChunkContainer {
         const groundConf = landscapeConf.data
         const groundFlags = parseGroundFlags(flags)
         const blockType = highlightPatchBorders(blockLocalPos, groundConf.type) || groundConf.type
-        const blockMode = groundFlags.boardMode ? BlockMode.BOARD_CONTAINER : BlockMode.DEFAULT
+        const blockMode = groundFlags.boardMode ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
         const groundSurface = this.dataEncoder(
             blockType,
             blockMode
@@ -220,56 +219,6 @@ export class CaveChunkMask extends ChunkMask {
     async bake() {
         const chunkStub = await WorldComputeProxy.current.bakeUndergroundCaverns(this.chunkKey)
         this.fromStub(chunkStub)
-    }
-}
-
-export class BoardChunkBufferOverride extends GroundChunk {
-    parentBoardContainer: BoardContainer
-    constructor(chunkKey: ChunkKey, parentBoardContainer: BoardContainer) {
-        super(chunkKey, 1)
-        this.parentBoardContainer = parentBoardContainer
-    }
-    override async bake() {
-        const cavesMask = new CaveChunkMask(this.chunkKey, this.margin)
-        await cavesMask.bake()
-        return await super.bake(undefined, cavesMask)
-    }
-
-    isWithinBoard(pos: Vector3) {
-        const { thickness, radius, center } = this.parentBoardContainer.boardParams
-        if (pos) {
-            const heightDiff = Math.abs(pos.y - center.y)
-            const dist = asVect2(pos).distanceTo(asVect2(center))
-            // pos inside board
-            const isInside = dist <= radius && heightDiff <= thickness
-            // if (isInside) {
-            //     this.boardBounds = this.boardBounds || new Box2(asVect2(blockPos), asVect2(blockPos))
-            //     this.boardBounds.expandByPoint(asVect2(blockPos))
-            //     return true
-            // }
-            return isInside
-        }
-
-        // isInsideBoard && this.boardBounds.expandByPoint(asVect2(blockPos))
-        return false
-    }
-
-    genBoardMask() {
-        const { center } = this.parentBoardContainer.boardParams
-        const boardChunkMask = new ChunkMask(this.chunkKey, this.margin)
-        boardChunkMask.rawData.fill(0)
-        const chunfBuffers = this.iterChunkBuffers()
-        for (const chunkBuff of chunfBuffers) {
-            const buffData = chunkBuff.data.slice()
-            const buffLevel = buffData.findIndex(val => val === 0)
-            chunkBuff.pos.y = center.y
-            if (this.isWithinBoard(chunkBuff.pos)) {
-                // override buff data
-                buffData.fill(1)
-                boardChunkMask.writeBuffer(chunkBuff.localPos, buffData)
-            }
-        }
-        return boardChunkMask
     }
 }
 

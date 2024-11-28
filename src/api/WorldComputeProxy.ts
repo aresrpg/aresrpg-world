@@ -1,6 +1,6 @@
 import { Box2, Vector3, Box3, Vector2 } from 'three'
 import workerpool, { Pool } from 'workerpool'
-import { WorldConf, WorldUtils } from '..'
+import { WorldEnv, WorldUtils } from '..'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
 import { GroundPatch } from '../datacontainers/GroundPatch'
 import { PatchKey, ChunkKey, GroundBlock } from '../utils/types'
@@ -46,7 +46,7 @@ export class WorldComputeProxy implements WorldComputeInterface {
   // eslint-disable-next-line no-undef
 
   constructor(workerUrl?: string, workerCount?: number, workerType?: WorkerType) {
-    const { url, count, type } = WorldConf.instance.workerPool
+    const { url, count, type } = WorldEnv.current.workerPool
     workerUrl = workerUrl || url
     if (workerUrl.length > 0) {
       workerCount = workerCount || count

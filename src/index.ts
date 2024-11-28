@@ -1,7 +1,6 @@
-export { WorldConf } from './misc/WorldConfig.js'
-export { Heightmap } from './procgen/Heightmap.js'
-export { NoiseSampler } from './procgen/NoiseSampler.js'
-export { ProcLayer } from './procgen/ProcLayer.js'
+export { Biome, BiomeType, BlockType } from './procgen/Biome'
+export { WorldEnv } from './misc/WorldEnv'
+export { Heightmap } from './procgen/Heightmap'
 export {
   PseudoDistributionMap,
   DistributionProfile,
@@ -13,7 +12,6 @@ export { WorldChunkIndexer } from './datacontainers/ChunksIndexer'
 export { WorldComputeProxy } from './api/WorldComputeProxy'
 export { ItemsInventory } from './misc/ItemsInventory'
 export { SchematicLoader } from './tools/SchematicLoader'
-export { BoardChunkBuffer } from './datacontainers/BoardChunkBuffer'
 export { BoardContainer } from './datacontainers/BoardContainer'
 export { ChunksOTFGenerator } from './datacontainers/ChunkFactory'
 export {
@@ -24,6 +22,7 @@ export {
 export { BlockMode } from './utils/types'
 export { DensityVolume } from './procgen/DensityVolume'
 export { WorldComputeApi } from './api/world-compute'
+export { WorldWorkerInit } from './api/world-compute-worker'
 
 export * as WorldCompute from './api/world-compute'
 export * as WorldUtils from './utils/common'

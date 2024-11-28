@@ -2,10 +2,7 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { asVect2, parseChunkKey } from '../utils/common'
 import {
-  ProcLayer,
-  BoardChunkBuffer,
   WorldChunkIndexer,
-  WorldConf,
   ChunkContainer,
   BlockMode,
 } from '../index'
@@ -13,6 +10,8 @@ import { GroundPatch } from './GroundPatch'
 import { BlockType } from '../procgen/Biome'
 import { defaultDataEncoder } from './ChunkContainer'
 import { CaveChunkMask, GroundChunk } from './ChunkFactory'
+import { ProcLayer } from '../procgen/ProcLayer'
+import { WorldEnv } from '../misc/WorldEnv'
 
 export enum BlockCategory {
   FLAT = 0,
@@ -51,7 +50,7 @@ const blockTypeCategoryMapper = (blockType: BlockType) => {
   }
 }
 
-const getChunkYId = (y: number) => Math.floor(y / WorldConf.instance.chunkDimensions.y)
+const getChunkYId = (y: number) => Math.floor(y / WorldEnv.current.chunkDimensions.y)
 
 export class BoardCache extends WorldChunkIndexer<ChunkContainer> {
   center = new Vector3
@@ -128,7 +127,7 @@ export class BoardContainer {
   static boardHolesLayer = new ProcLayer('holesMap')
 
   constructor(boardRadius?: number, boardThickness?: number) {
-    const { boardSettings } = WorldConf.instance
+    const { boardSettings } = WorldEnv.current
     boardRadius = boardRadius || boardSettings.boardRadius
     boardThickness = boardThickness || boardSettings.boardThickness
     this.localCache = new BoardCache(boardRadius, boardThickness)
@@ -221,9 +220,16 @@ export class BoardContainer {
         const marginBlock = ChunkContainer.dataEncoder(chunkBuff.data[0] || BlockType.NONE)
         chunkBuff.data[0] = marginBlock
         // chunkBuff.data.fill(33,0,2)
-        const groundBlock = ChunkContainer.dataEncoder(chunkBuff.data[1] || BlockType.NONE, BlockMode.BOARD_CONTAINER)
-        chunkBuff.data[1] = groundBlock
-        chunkBuff.data.fill(emptyBlock, 2)
+        // find last empty block
+        const surfaceIndex = Math.max(chunkBuff.data.findIndex(val => !val) - 1, 0)
+        const surfaceBlock = ChunkContainer.dataEncoder(chunkBuff.data[surfaceIndex] || BlockType.NONE, BlockMode.CHECKERBOARD)
+        const undergroundBlock = ChunkContainer.dataEncoder(chunkBuff.data[surfaceIndex] || BlockType.NONE)
+        // const groundBlock = ChunkContainer.dataEncoder(chunkBuff.data[1] || BlockType.NONE, BlockMode.CHECKERBOARD)
+        chunkBuff.data[0] = undergroundBlock
+        chunkBuff.data[1] = undergroundBlock
+        chunkBuff.data[2] = undergroundBlock
+        chunkBuff.data[3] = surfaceBlock
+        chunkBuff.data.fill(emptyBlock, 4)
       } else {
         chunkBuff.data.forEach((val, i) => {
           chunkBuff.data[i] = ChunkContainer.dataEncoder(val)
@@ -249,7 +255,7 @@ export class BoardContainer {
     this.boardBounds = boardBounds
     // const origin = asVect3(boardBounds.min, boardElevation)
     // const size = boardBounds.getSize(new Vector2())
-    const finalBoardContainer = new BoardChunkBuffer(boardBounds, this)
+    const finalBoardContainer = new ChunkContainer(boardBounds) //new BoardChunkBuffer(boardBounds, this)
     // copy overlapping content from all board patches into single container
     for (const patch of this.patches) {
       GroundPatch.copySourceOverTargetContainer(patch, finalBoardContainer)

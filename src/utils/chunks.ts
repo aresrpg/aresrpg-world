@@ -1,18 +1,17 @@
-import { Vector3, MathUtils, Box2, Vector2 } from "three"
-import { BlockMode, WorldComputeProxy } from ".."
-import { ChunkContainer, ChunkBuffer } from "../datacontainers/ChunkContainer"
-import { parseGroundFlags, GroundPatch } from "../datacontainers/GroundPatch"
+import { Vector3, Box2, Vector2 } from "three"
+import { WorldComputeProxy } from ".."
+import { ChunkContainer } from "../datacontainers/ChunkContainer"
+import { GroundPatch } from "../datacontainers/GroundPatch"
 import { LinkedList } from "../datacontainers/LinkedList"
 import { ItemType, ItemsInventory } from "../misc/ItemsInventory"
-import { WorldConf } from "../misc/WorldConfig"
-import { BlockType, Biome, BiomeType } from "../procgen/Biome"
-import { asVect2, asVect3, serializeChunkId } from "./common"
-import { PatchBlock } from "./types"
+import { WorldEnv } from "../misc/WorldEnv"
+import { BlockType } from "../procgen/Biome"
+import { asVect3, serializeChunkId } from "./common"
 
 export const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
-    return WorldConf.instance.debug.patch.borderHighlightColor &&
+    return WorldEnv.current.debug.patch.borderHighlightColor &&
         (localPos.x === 1 || localPos.z === 1)
-        ? WorldConf.instance.debug.patch.borderHighlightColor
+        ? WorldEnv.current.debug.patch.borderHighlightColor
         : blockType
 }
 
@@ -46,7 +45,7 @@ export const bakeItemsIndividualChunks = async (patchBounds: Box2) => {
  * @param overgroundItems 
  */
 const createChunkListFromPatch = (groundLayer: GroundPatch, overgroundItems: Record<ItemType, Vector3[]>) => {
-    const { yMinId, yMaxId } = WorldConf.instance.chunkSettings.genRange
+    const { yMinId, yMaxId } = WorldEnv.current.chunks.genRange
 
     const chunks: ChunkContainer[] = []
     for (let y = yMinId; y <= yMaxId; y++) {
