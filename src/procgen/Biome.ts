@@ -65,26 +65,26 @@ const rainLevelMappings: Record<Level, RainLevel> = {
 
 export enum BiomeType {
   Temperate = 'temperate',
-  Artic = 'artic',
+  Arctic = 'arctic',
   Desert = 'desert',
   Tropical = 'tropical',
   Scorched = 'scorched',
   Swamp = 'swamp',
   Glacier = 'glacier',
-  Tundra = 'tundra',
-  Steppe = 'steppe',
+  Taiga = 'taiga',
+  Grassland = 'grassland',
 }
 
 export const BiomeNumericType: Record<BiomeType, number> = {
   [BiomeType.Temperate]: 0,
-  [BiomeType.Artic]: 0,
+  [BiomeType.Arctic]: 0,
   [BiomeType.Desert]: 0,
   [BiomeType.Tropical]: 0,
   [BiomeType.Scorched]: 0,
   [BiomeType.Swamp]: 0,
   [BiomeType.Glacier]: 0,
-  [BiomeType.Tundra]: 0,
-  [BiomeType.Steppe]: 0,
+  [BiomeType.Taiga]: 0,
+  [BiomeType.Grassland]: 0,
 }
 
 Utils.typesNumbering(BiomeNumericType)
@@ -113,14 +113,14 @@ export type BiomeInfluence = Record<BiomeType, number>
 
 const BiomesMapping: Record<HeatLevel, Record<RainLevel, BiomeType>> = {
   [HeatLevel.COLD]: {
-    [RainLevel.DRY]: BiomeType.Tundra,
-    [RainLevel.MODERATE]: BiomeType.Artic,
-    [RainLevel.WET]: BiomeType.Glacier,
+    [RainLevel.DRY]: BiomeType.Taiga,
+    [RainLevel.MODERATE]: BiomeType.Glacier,
+    [RainLevel.WET]: BiomeType.Arctic,
   },
   [HeatLevel.TEMPERATE]: {
-    [RainLevel.DRY]: BiomeType.Steppe, // TODO
+    [RainLevel.DRY]: BiomeType.Grassland,
     [RainLevel.MODERATE]: BiomeType.Temperate,
-    [RainLevel.WET]: BiomeType.Swamp, // TODO
+    [RainLevel.WET]: BiomeType.Swamp,
   },
   [HeatLevel.HOT]: {
     [RainLevel.DRY]: BiomeType.Scorched,
@@ -253,14 +253,14 @@ export class Biome {
   getBiomeInfluence(pos: Vector2 | Vector3): BiomeInfluence {
     const biomeContribs: BiomeInfluence = {
       [BiomeType.Temperate]: 0,
-      [BiomeType.Artic]: 0,
+      [BiomeType.Arctic]: 0,
       [BiomeType.Desert]: 0,
       [BiomeType.Tropical]: 0,
       [BiomeType.Scorched]: 0,
       [BiomeType.Swamp]: 0,
       [BiomeType.Glacier]: 0,
-      [BiomeType.Tundra]: 0,
-      [BiomeType.Steppe]: 0,
+      [BiomeType.Taiga]: 0,
+      [BiomeType.Grassland]: 0,
     }
 
     const heatVal = this.heatmap.eval(pos) // Utils.roundToDec(this.heatmap.eval(pos), 2)
