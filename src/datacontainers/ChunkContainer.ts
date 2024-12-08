@@ -4,7 +4,7 @@ import { BlockType } from '..'
 import { BlockMode, ChunkId, ChunkKey } from '../utils/types'
 import {
     asVect3,
-    chunkBoxFromKey,
+    asChunkBounds,
     parseChunkKey,
     serializeChunkId,
     parseThreeStub,
@@ -61,7 +61,7 @@ export class ChunkContainer {
         const bounds =
             boundsOrChunkKey instanceof Box3
                 ? boundsOrChunkKey.clone()
-                : chunkBoxFromKey(boundsOrChunkKey, WorldEnv.current.chunkDimensions)
+                : asChunkBounds(boundsOrChunkKey, WorldEnv.current.chunkDimensions)
         this.margin = margin
 
         this.axisOrder = axisOrder

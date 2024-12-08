@@ -3,7 +3,7 @@ import { Vector2, Box2 } from 'three'
 import { PatchKey } from '../utils/types'
 import {
   parsePatchKey,
-  patchBoxFromKey,
+  asPatchBounds,
   serializePatchId,
 } from '../utils/common'
 import { WorldEnv } from '../index'
@@ -27,7 +27,7 @@ export class PatchBase {
     const bounds =
       boundsOrPatchKey instanceof Box2
         ? boundsOrPatchKey.clone()
-        : patchBoxFromKey(boundsOrPatchKey, WorldEnv.current.patchDimensions)
+        : asPatchBounds(boundsOrPatchKey, WorldEnv.current.patchDimensions)
     this.bounds = bounds
     this.dimensions = bounds.getSize(new Vector2())
     this.margin = margin

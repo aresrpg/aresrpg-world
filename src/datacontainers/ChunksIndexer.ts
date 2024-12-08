@@ -1,16 +1,10 @@
 import { Vector2 } from "three";
 import { WorldEnv } from "../misc/WorldEnv";
-import { getBoundsAroundPos, getPatchIds, parseChunkKey, serializePatchId } from "../utils/common";
-import { ChunkKey, PatchKey } from "../utils/types";
-import { GroundChunk, CaveChunkMask, ChunksOTFGenerator } from "./ChunkFactory";
-
-type BakeChunkParams = {
-    processItemsIndividually: boolean,
-}
-
-const defaultBakeParams: BakeChunkParams = {
-    processItemsIndividually: false
-}
+import { getBoundsAroundPos, getPatchIds, serializePatchId } from "../utils/common";
+import { PatchKey } from "../utils/types";
+import { ChunkContainer } from "./ChunkContainer";
+import { GroundChunk, CaveChunkMask } from "./ChunkFactory";
+import { ChunkSetProcessor } from "./ChunksProcessing";
 
 enum ChunkCategory {
     Unknown,
@@ -19,99 +13,114 @@ enum ChunkCategory {
     GroundSurface,
     Overground,
 }
-type ChunkInfo = {
-    category: ChunkCategory,
-    awaitingGen: boolean
-}
-type ChunkIndex = Record<ChunkKey, boolean>
+
+// type ChunkIndex = Record<ChunkKey, boolean>
 type ChunkType = typeof GroundChunk | typeof CaveChunkMask//|typeof ChunkContainer
 export const chunkTypeMapper: Partial<Record<ChunkCategory, ChunkType>> = {
     [ChunkCategory.Underground]: CaveChunkMask,
     [ChunkCategory.GroundSurface]: GroundChunk,
     // [ChunkCategory.Overground]: ChunkContainer
 }
-/**
- * Chunks indexing
- */
-export class WorldChunkIndexer<T = void> {
-    indexed: Record<PatchKey, Record<ChunkKey, T | null>> = {}
 
-    get patchIndexes() {
-        return Object.keys(this.indexed)
+export class PatchIndexer<T = void> {
+    patchLookup: Record<PatchKey, T> = {}
+
+    get indexedKeys() {
+        return Object.keys(this.patchLookup)
     }
 
-    get chunkIds() {
-        const chunkIds = []
-        for (const chunkKeys of Object.values(this.indexed)) {
-            for (const chunkKey of Object.keys(chunkKeys)) {
-                chunkIds.push(parseChunkKey(chunkKey))
-            }
-        }
-        return chunkIds
+    get indexedElements() {
+        const items = Object.values(this.patchLookup)
+        return items
     }
 
-    get indexedChunksEntries() {
-        const indexedChunksEntries = []
-        for (const indexedChunks of Object.values(this.indexed)) {
-            for (const chunkEntry of Object.entries(indexedChunks)) {
-                indexedChunksEntries.push(chunkEntry)
-            }
-        }
-        return indexedChunksEntries
-    }
-
-    genPatchChunkIds(patchKey: PatchKey) {
-        const chunkKeys: Record<ChunkKey, T | undefined> = {}
-        ChunksOTFGenerator.getChunkKeys(patchKey).forEach(chunkKey => {
-            chunkKeys[chunkKey] = undefined
-        })
-        return chunkKeys
-    }
+    // sortKeysAroundPos(patchKeys: PatchKey[], pos: Vector2) {
+    //     const sortedKeys = patchKeys.map(patchKey => new PatchBase(patchKey))
+    //         .sort((p1, p2) => {
+    //             // const b1 = asPatchBounds(k1, patchDims)
+    //             // const b2 = asPatchBounds(k2, patchDims)
+    //             const c1 = p1.bounds.getCenter(new Vector2());
+    //             const c2 = p2.bounds.getCenter(new Vector2())
+    //             const d1 = c1.distanceTo(pos)
+    //             const d2 = c2.distanceTo(pos)
+    //             return d1 - d2
+    //         })
+    //         .map(p => p.key)
+    //     return sortedKeys
+    // }
 
     // index patch & chunk keys found within radius around pos
-    reindexAroundPos(pos: Vector2, rad: number) {
+    getIndexingChanges(pos: Vector2, rad: number) {
         const bounds = getBoundsAroundPos(pos, rad)
         const patchKeys = getPatchIds(bounds, WorldEnv.current.patchDimensions).map(
             patchId => serializePatchId(patchId),
         )
-        const createdPatchKeys = patchKeys.filter(patchKey => !this.indexed[patchKey])
+        const newPatchKeys = patchKeys.filter(patchKey => !this.patchLookup[patchKey])
         // clear previous index and override with new patch/chunk keys
-        const indexed: Record<PatchKey, Record<ChunkKey, T | null>> = {}
+        const patchLookup: Record<PatchKey, T> = {}
         for (const patchKey of patchKeys) {
-            indexed[patchKey] = this.indexed[patchKey] || this.genPatchChunkIds(patchKey)
+            const existing = this.patchLookup[patchKey]
+            if (existing)
+                patchLookup[patchKey] = existing
         }
-        this.indexed = indexed
-        return createdPatchKeys
+        this.patchLookup = patchLookup
+        return newPatchKeys
+    }
+}
+
+export class ChunksIndexer extends PatchIndexer<ChunkSetProcessor> {
+    chunkIds() {
+        const chunkIds = []
+        for (const chunkSet of this.indexedElements) {
+            chunkIds.push(...chunkSet.chunkIds)
+        }
+        return chunkIds
     }
 
-    // async *otfRegenChunksVolume(bounds: Box3) {
-    //     // filter patches within bounds
-    //     const groundPatches = this.otfGroundPatchGen(asBox2(bounds));
-    //     for await (const groundLayer of groundPatches) {
-    //         const patchKey = groundLayer.key
-    //         // bake overground as whole single chunk mergin all items or as individual chunks
-    //         const overgroundChunk = new ItemsLayerChunk(groundLayer.bounds)
-    //         await overgroundChunk.bake()
-    //         // filter chunks within bounds
-    //         const chunkKeys = this.getChunkIndexesForPatch(patchKey)
-    //         for await (const chunkKey of chunkKeys) {
-    //             const worldChunk = new ChunkContainer(chunkKey, 1)
-    //             const chunkId = parseChunkKey(chunkKey)
-    //             const chunkType = this.getChunkInfo(chunkId)?.category
-    //             const skip = !chunkType || chunkType === ChunkCategory.Empty || chunkType === ChunkCategory.Overground
-    //             if (!skip && worldChunk.bounds.intersectsBox(bounds)) {
-    //                 // copy items to chunk container first to prevent overriding ground
-    //                 ChunkContainer.copySourceToTarget(overgroundChunk, worldChunk)
-    //                 const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
-    //                 const cavesMask = new CaveChunkMask(chunkKey, 1)
-    //                 await cavesMask.bake()
-    //                 await groundSurfaceChunk.bake(groundLayer, cavesMask)
-    //                 // copy ground over items at last 
-    //                 ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
-    //                 // }
-    //                 yield worldChunk
-    //             }
-    //         }
-    //     }
-    // }
+    indexElement(patchKey: PatchKey){
+        const chunkSet = new ChunkSetProcessor(patchKey)
+        this.patchLookup[patchKey] = chunkSet
+        return chunkSet
+    }
+
+    indexElements(patchKeys: PatchKey[]) {
+        const indexed = patchKeys.map(patchKey=>this.indexElement(patchKey))
+        return indexed
+    }
 }
+
+class ChunksGridIndexer extends ChunkContainer {
+    indexingRange: {
+        near: number,
+        far: number
+    }
+
+    constructor(near, far) {
+        super();
+        this.indexingRange = { near, far }
+    }
+
+    reindexAroundPos() {
+
+    }
+
+    readPatchIndex(patchKey) {
+
+    }
+
+
+    readChunkIndex(chunkKey) {
+
+    }
+}
+
+// export class WorldChunkIndexer extends PatchIndexer<ChunkIndexer> {
+//     override getIndexingChanges(pos: Vector2, rad: number): string[] {
+//         const createdPatchKeys = super.getIndexingChanges(pos, rad)
+//         createdPatchKeys.forEach(async patchKey => {
+//             const chunksGenerator = new ChunkIndexer(patchKey)
+//             this.patchLookup[patchKey] = chunksGenerator
+//         })
+//         return createdPatchKeys
+//     }
+// }

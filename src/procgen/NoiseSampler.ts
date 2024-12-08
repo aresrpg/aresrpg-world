@@ -141,7 +141,7 @@ export class NoiseSampler {
         noiseEval = this.noiseSource(
           (x * density) / harmonic.period,
           (y * density) / harmonic.period,
-          (z * density) / harmonic.period,
+          ((z || 0) * density) / harmonic.period,
           t
         )
         noise += (noiseEval * 0.5 + 0.5) * harmonic.amplitude /// Math.pow(2, i + 1)

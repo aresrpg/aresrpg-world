@@ -313,7 +313,7 @@ export class Biome {
   ) => {
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)
-    const posRandomizerVal = this.posRandomizer.eval(mapCoords)
+    const posRandomizerVal = this.posRandomizer.eval(Utils.asVect3(mapCoords))
     // add some height variations to break painting monotony
     const { amplitude }: any = landscapeConf.data
     const bounds = {

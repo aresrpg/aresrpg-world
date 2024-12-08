@@ -1,138 +1,19 @@
-import { Vector3, Box2, Box3, Vector2, MathUtils } from "three"
+import { Vector3, Box2, MathUtils } from "three"
 import { WorldComputeProxy } from "../api/WorldComputeProxy"
 import { WorldEnv } from "../misc/WorldEnv"
-import { bakeItemsIndividualChunks, highlightPatchBorders } from "../utils/chunks"
-import { asVect2, serializePatchId, asBox3, asBox2, asVect3, parsePatchKey, serializeChunkId, parseChunkKey } from "../utils/common"
+import { asVect2, serializePatchId, asBox3, asBox2, asPatchBounds } from "../utils/common"
 import { BlockMode, ChunkKey, PatchBlock, PatchKey } from "../utils/types"
 import { ChunkBuffer, ChunkContainer, ChunkMask } from "./ChunkContainer"
 import { GroundPatch, parseGroundFlags } from "./GroundPatch"
 import { BlockType, Biome, BiomeType } from "../procgen/Biome"
+import { ItemsInventory, SpawnedItems } from "../misc/ItemsInventory"
 
-const { genRange } = WorldEnv.current.chunks
 
-export class ChunkTemplate {
-    chunkKey: ChunkKey
-    groundLayer: GroundPatch
-    itemsChunkLayer: ItemsChunkLayer
-
-    constructor(chunkKey: ChunkKey, groundLayer: GroundPatch, itemsChunkLayer: ItemsChunkLayer) {
-        this.chunkKey = chunkKey
-        this.groundLayer = groundLayer
-        this.itemsChunkLayer = itemsChunkLayer
-    }
-}
-
-/**
- *on-the-fly (volatile) chunk generator 
- */
-export class ChunksOTFGenerator {
-    groundLayer: GroundPatch
-    itemsChunkLayer: ItemsChunkLayer
-
-    constructor(patchKey: PatchKey) {
-        this.groundLayer = new GroundPatch(patchKey)
-        this.itemsChunkLayer = new ItemsChunkLayer(this.groundLayer.bounds)
-    }
-
-    async init() {
-        await this.groundLayer.bake()
-        await this.itemsChunkLayer.bake()
-    }
-
-    get overgroundRange() {
-        const overgroundRange = {
-            ymin: this.itemsChunkLayer.bounds.min.y,
-            ymax: this.itemsChunkLayer.bounds.max.y
-        }
-        return overgroundRange
-    }
-
-    get groundSurfaceRange() {
-        const groundSurfaceRange = {
-            ymin: this.groundLayer.valueRange.min,
-            ymax: this.groundLayer.valueRange.max,
-        }
-        return groundSurfaceRange
-    }
-
-    get chunkKeys() {
-        return ChunksOTFGenerator.getChunkKeys(this.groundLayer.key)
-    }
-
-    get emptyKeys() {
-        const emptyKeys = this.chunkKeys
-            .map(chunkKey => new ChunkContainer(chunkKey))
-            .filter(chunk => this.isEmpty(chunk.bounds))
-            .map(chunk => chunk.chunkKey)
-        return emptyKeys
-    }
-
-    get groundSurfaceKeys() {
-        const groundSurfaceKeys = this.chunkKeys
-            .map(chunkKey => new ChunkContainer(chunkKey))
-            .filter(chunk => !this.isEmpty(chunk.bounds) && !this.isUnderground(chunk.bounds))
-            .map(chunk => chunk.chunkKey)
-        return groundSurfaceKeys
-    }
-
-    get undegroundKeys() {
-        const undegroundKeys = this.chunkKeys
-            .map(chunkKey => new ChunkContainer(chunkKey))
-            .filter(chunk => this.isUnderground(chunk.bounds))
-            .map(chunk => chunk.chunkKey)
-        return undegroundKeys
-    }
-
-    isEmpty = (chunkBounds: Box3) => chunkBounds.min.y > this.groundSurfaceRange.ymax && chunkBounds.min.y > this.overgroundRange.ymax
-    isUnderground = (chunkBounds: Box3) => chunkBounds.max.y < this.groundSurfaceRange.ymin
-    // isAboveSurface = (chunkBounds: Box3) => !this.isEmpty(chunkBounds) && !this.isUnderground(chunkBounds)
-
-    async genChunk(chunkKey: ChunkKey) {
-        const worldChunk = new ChunkContainer(chunkKey, 1)
-        if (!this.isEmpty(worldChunk.bounds)) {
-            // copy items to chunk container first to prevent overriding ground
-            ChunkContainer.copySourceToTarget(this.itemsChunkLayer, worldChunk)
-            // if within ground surface range: fill with ground
-            // if (isWithinGroundSurface(worldChunk.bounds)) {
-            const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
-            const cavesMask = new CaveChunkMask(chunkKey, 1)
-            await cavesMask.bake()
-            await groundSurfaceChunk.bake(this.groundLayer, cavesMask)
-            // copy ground over items at last 
-            ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
-            // }
-        }
-        return worldChunk
-    }
-
-    /**
-     * Sequential chunk gen
-     */
-    async *otfChunkGen(chunkKeys = this.chunkKeys) {
-        for (const chunkKey of chunkKeys) {
-            const worldChunk = await this.genChunk(chunkKey)
-            yield worldChunk
-        }
-    }
-
-    /**
-     * Concurrent chunk gen
-     */
-    async chunksGen(chunkKeys = this.chunkKeys, onGenDone = (chunk: ChunkContainer) => chunk) {
-        return await Promise.all(chunkKeys.map(chunkKey => this.genChunk(chunkKey).then(onGenDone)))
-    }
-
-    static getChunkKeys(patchKey: PatchKey) {
-        const { yMinId, yMaxId } = genRange
-        const patchId = parsePatchKey(patchKey) as Vector2
-        const chunkKeys = []
-        for (let y = yMaxId; y >= yMinId; y--) {
-            const chunkId = asVect3(patchId, y)
-            const chunkKey = serializeChunkId(chunkId)
-            chunkKeys.push(chunkKey)
-        }
-        return chunkKeys
-    }
+const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
+    return WorldEnv.current.debug.patch.borderHighlightColor &&
+        (localPos.x === 1 || localPos.z === 1)
+        ? WorldEnv.current.debug.patch.borderHighlightColor
+        : blockType
 }
 
 export class GroundChunk extends ChunkContainer {
@@ -169,6 +50,7 @@ export class GroundChunk extends ChunkContainer {
             }
             return chunkBuffer
         }
+        return
     }
 
     async bake(groundLayer?: GroundPatch, cavesMask?: ChunkMask) {
@@ -194,39 +76,80 @@ export class GroundChunk extends ChunkContainer {
     }
 }
 
+export class EmptyChunk extends ChunkContainer {
+    constructor(chunkKey: ChunkKey) {
+        super(chunkKey, 1)
+        this.rawData = new Uint16Array()
+    }
+
+    async bake() {
+
+    }
+}
+
 export class ItemsChunkLayer extends ChunkContainer {
-    constructor(patchBounds: Box2) {
+    spawnedItems!: SpawnedItems
+    itemsChunks!: ChunkContainer[]
+
+    constructor(boundsOrPatchKey: Box2 | PatchKey) {
+        const patchBounds =
+            boundsOrPatchKey instanceof Box2
+                ? boundsOrPatchKey.clone()
+                : asPatchBounds(boundsOrPatchKey, WorldEnv.current.patchDimensions)
         super(asBox3(patchBounds), 1);
+    }
+
+    get spawnedLocs() {
+        const spawnedLocs = []
+        for (const [, spawnPlaces] of Object.entries(this.spawnedItems)) {
+            spawnedLocs.push(...spawnPlaces)
+        }
+        return spawnedLocs
+    }
+
+    async populate() {
+        this.spawnedItems = this.spawnedItems || await WorldComputeProxy.current.queryOvergroundItems(asBox2(this.bounds))
+        return this.spawnedItems
     }
 
     async bake() {
         const patchBounds = asBox2(this.bounds)
-        const mergedChunkStub = await WorldComputeProxy.current.bakeOvergroundChunk(patchBounds)
-        const chunkBounds = asBox3(patchBounds, mergedChunkStub.bounds.min.y, mergedChunkStub.bounds.max.y)
+        const mergedChunkStub = await WorldComputeProxy.current.bakeItemsChunkLayer(patchBounds)
+        // const chunkBounds = asBox3(patchBounds, mergedChunkStub.bounds.min.y, mergedChunkStub.bounds.max.y)
         // this.adjustChunkBounds(chunkBounds)
         // ChunkContainer.copySourceToTarget(mergedChunkStub, this)
         // this.rawData.set(mergedChunkStub.rawData)
         this.fromStub(mergedChunkStub)
     }
 
-    async bakeIndividually() {
-        const itemsChunksStubs = await bakeItemsIndividualChunks(asBox2(this.bounds))
+    async bakeAsIndividualChunks() {
+        // request all items belonging to this patch
+        this.itemsChunks = []
         let ymin = NaN, ymax = NaN  // compute y range
-        for (const itemChunk of itemsChunksStubs) {
-            ChunkContainer.copySourceToTarget(itemChunk, this)
-            const { min, max } = itemChunk.bounds
-            ymin = isNaN(ymin) ? min.y : Math.min(ymin, min.y)
-            ymax = isNaN(ymax) ? max.y : Math.max(ymax, max.y)
-            // ChunkContainer.copySourceToTarget(itemChunk, this)
+        for await (const [itemType, spawnPlaces] of Object.entries(this.spawnedItems)) {
+            for await (const spawnOrigin of spawnPlaces) {
+                const itemChunk = await ItemsInventory.getInstancedChunk(
+                    itemType,
+                    spawnOrigin,
+                )
+                if (itemChunk) {
+                    ChunkContainer.copySourceToTarget(itemChunk, this)
+                    const { min, max } = itemChunk.bounds
+                    ymin = isNaN(ymin) ? min.y : Math.min(ymin, min.y)
+                    ymax = isNaN(ymax) ? max.y : Math.max(ymax, max.y)
+                    this.itemsChunks.push(itemChunk)
+                }
+            }
         }
         this.bounds.min.y = ymin
         this.bounds.max.y = ymax
+        // return itemsChunks
     }
 }
 
 export class CaveChunkMask extends ChunkMask {
     async bake() {
-        const chunkStub = await WorldComputeProxy.current.bakeUndergroundCaverns(this.chunkKey)
+        const chunkStub = await WorldComputeProxy.current.bakeCavesMask(this.chunkKey)
         this.fromStub(chunkStub)
     }
 }

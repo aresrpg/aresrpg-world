@@ -7,7 +7,7 @@ import { WorldEnv } from '../../index'
 /**
  * @param worldEnv provide it to setup worker's own env or it will default to main thread env
  */
-export const WorldEnvPresets = (worldEnv = WorldEnv.current) => {
+export const EnvOverride = (worldEnv = WorldEnv.current) => {
   worldEnv.biomes.rawConf = BIOMES_LANDSCAPES_CONFIG
   // populate inventory with schematics and procedural objects
   worldEnv.schematics.blocksMapping = SCHEMATICS_BLOCKS_MAPPING

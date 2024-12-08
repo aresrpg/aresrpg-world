@@ -37,7 +37,20 @@ export class WorldEnv {
   }
 
   defaultDistMapPeriod = 4 * this.patchSize
-  cavesViewDist = 2 * this.patchSize
+
+  get nearViewDist() {
+    return this.patchViewDist.near * this.patchSize
+  }
+
+  get farViewDist() {
+    return this.patchViewDist.far * this.patchSize
+  }
+
+  // in patch unit
+  patchViewDist = {
+    near: 4,  // undeground view dist 
+    far: 8    // ground surface view dist
+  }
   settings = {
     useBiomeBilinearInterpolation: true,
   }
@@ -56,9 +69,9 @@ export class WorldEnv {
   }
 
   chunks = {
-    genRange: {
-      yMinId: 0,
-      yMaxId: 5,
+    range: {
+      bottomId: 0,
+      topId: 5,
     },
     dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) => blockType || BlockType.NONE
   }
