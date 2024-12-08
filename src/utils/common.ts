@@ -408,7 +408,7 @@ const serializePatchId = (patchId: PatchId | undefined) => {
   return patchKey
 }
 
-const patchBoxFromKey = (patchKey: string, patchDims: Vector2) => {
+const asPatchBounds = (patchKey: string, patchDims: Vector2) => {
   const patchCoords = parsePatchKey(patchKey)
   const bbox = new Box2()
   if (patchCoords) {
@@ -473,7 +473,7 @@ function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
   return chunk_ids
 }
 
-const chunkBoxFromKey = (chunkKey: string, chunkDims: Vector3) => {
+const asChunkBounds = (chunkKey: string, chunkDims: Vector3) => {
   const chunkId = parseChunkKey(chunkKey)
   const bbox = new Box3()
   if (chunkId) {
@@ -508,9 +508,9 @@ export {
   getPatchRange,
   getPatchIds,
   getRoundedBox,
-  patchBoxFromKey,
+  asPatchBounds,
   parseChunkKey,
   serializeChunkId,
-  chunkBoxFromKey,
+  asChunkBounds,
   genChunkIds,
 }

@@ -1,9 +1,9 @@
-import { Box2, Vector3, Box3, Vector2 } from 'three'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
 import workerpool, { Pool } from 'workerpool'
 import { WorldEnv, WorldUtils } from '..'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
-import { GroundPatch } from '../datacontainers/GroundPatch'
-import { PatchKey, ChunkKey, GroundBlock } from '../utils/types'
+import { SpawnedItems } from '../misc/ItemsInventory'
+import { ChunkId, ChunkKey, GroundBlock, PatchId, PatchKey } from '../utils/types'
 import { ComputeTask } from './world-compute'
 
 export type ComputeParams = Partial<{
@@ -12,31 +12,11 @@ export type ComputeParams = Partial<{
   includeEntitiesBlocks: boolean // skip or include entities blocks
 }>
 
-export type WorkerTask = {
-  id: number,
-  name: ComputeTask,
-  args: any[]
-}
-
-export interface WorldComputeInterface {
-  queryOvergroundItems(queriedRegion: Box2): Promise<Record<string, Vector3[]>>
-
-  iterPatchCompute(patchKeysBatch: PatchKey[]): AsyncGenerator<GroundPatch, void, unknown>
-
-  bakeGroundPatch(boundsOrPatchKey: Box2 | string): Promise<GroundPatch>
-
-  bakeOvergroundChunk(patchBounds: Box2): Promise<ChunkStub>
-
-  bakeUndergroundCaverns(chunkBounds: ChunkKey | Box3): Promise<ChunkStub>
-
-  computeBlocksBatch(blockPosBatch: Vector2[], params: any): Promise<GroundBlock[]>
-}
-
 /**
  * World API frontend proxying requests to internal modules: world-compute, world-cache,
  * Compute requests are proxied to worker pool or fallback to main thread
  */
-export class WorldComputeProxy implements WorldComputeInterface {
+export class WorldComputeProxy {//implements WorldComputeInterface {
   // eslint-disable-next-line no-use-before-define
   static defaultProxy: WorldComputeProxy
   static customProxy: WorldComputeProxy
@@ -85,14 +65,6 @@ export class WorldComputeProxy implements WorldComputeInterface {
   //   return this.defaultProxy
   // }
 
-  async queryOvergroundItems(queriedRegion: Box2) {
-    return WorldComputeProxy.workerPool
-      .exec(ComputeTask.OvergroundItemsQuery, [queriedRegion])
-      .then((res) => {
-        return res
-      })
-  }
-
   async *iterPatchCompute(patchKeysBatch: string[]) {
     throw new Error('Method not implemented.')
   }
@@ -105,16 +77,38 @@ export class WorldComputeProxy implements WorldComputeInterface {
       })
   }
 
-  async bakeOvergroundChunk(patchBounds: Box2) {
+  async bakeItemsChunkLayer(patchBounds: Box2) {
     return WorldComputeProxy.workerPool
-      .exec(ComputeTask.BakeMergeOvergroundItems, [patchBounds])
+      .exec(ComputeTask.BakeItemsChunkLayer, [patchBounds])
       .then(chunkStub => ChunkContainer.fromStub(chunkStub))
   }
 
-  async bakeUndergroundCaverns(chunkBounds: string | Box3) {
+  async bakeCavesMask(chunkBounds: ChunkKey | Box3) {
     return WorldComputeProxy.workerPool
-      .exec(ComputeTask.BakeUndergroundCaverns, [chunkBounds])
+      .exec(ComputeTask.BakeCavesMask, [chunkBounds])
       .then(chunkStub => ChunkContainer.fromStub(chunkStub))
+  }
+
+  async bakeSurfaceChunks(patchKey: PatchKey) {
+    const stubs: ChunkStub[] = await WorldComputeProxy.workerPool
+      .exec(ComputeTask.BakeSurfaceChunks, [patchKey])
+    const chunks = stubs.map(chunkStub => ChunkContainer.fromStub(chunkStub))
+    return chunks
+  }
+
+  async bakeUndergroundChunk(patchOrChunkId: PatchId | ChunkId) {
+    const chunkStub: ChunkStub = await WorldComputeProxy.workerPool
+      .exec(ComputeTask.BakeUndergroundChunk, [patchOrChunkId])
+    const undergroundChunk = ChunkContainer.fromStub(chunkStub)
+    return undergroundChunk
+  }
+
+  async queryOvergroundItems(queriedRegion: Box2): Promise<SpawnedItems> {
+    return WorldComputeProxy.workerPool
+      .exec(ComputeTask.OvergroundItemsQuery, [queriedRegion])
+    // .then((res: Record<ItemType, Vector3[]>) => {
+    //   return res as Record<ItemType, Vector3[]>
+    // })
   }
 
   async computeBlocksBatch(blockPosBatch: Vector2[], params: any) {

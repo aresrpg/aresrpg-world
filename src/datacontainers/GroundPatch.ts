@@ -25,6 +25,7 @@ export type PatchStub = {
   valueRange?: { min: number, max: number }
   bounds: Box2
   rawData: Uint32Array
+  margin?: number
 }
 
 // bits allocated per data type, total 9+4+5+3 = 21 bits
@@ -180,8 +181,8 @@ export class GroundPatch extends PatchBase {
   }
 
   getLocalPosFromIndex(index: number): Vector2 {
-    const y = Math.floor(index / this.extendedDims.y)-this.margin
-    const x = index % this.extendedDims.x-this.margin
+    const y = Math.floor(index / this.extendedDims.y) - this.margin
+    const x = index % this.extendedDims.x - this.margin
     return new Vector2(x, y)
   }
 
@@ -275,10 +276,12 @@ export class GroundPatch extends PatchBase {
   }
 
   toStub() {
-    const { bounds, rawData } = this
+    const { bounds, rawData, margin, valueRange } = this
     const patchStub: PatchStub = {
       bounds,
       rawData,
+      margin,
+      valueRange
     }
     if (this.key && this.key !== '') patchStub.key = this.key
     return patchStub
