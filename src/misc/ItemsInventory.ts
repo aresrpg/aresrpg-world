@@ -6,6 +6,7 @@ import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
 import { asPatchBounds, asBox3, asBox2 } from '../utils/common'
 import { PatchKey } from '../utils/types'
+
 import { WorldEnv } from './WorldEnv'
 
 export type ItemType = string
@@ -23,12 +24,15 @@ export class ItemsInventory {
     const proceduralItemsConfigs = WorldEnv.current.proceduralItems.configs
     return { schematicsFilesIndex, proceduralItemsConfigs }
   }
+
   static get schematicFilesIndex() {
     return WorldEnv.current.schematics.filesIndex
   }
+
   static get proceduralItemsConf() {
     return WorldEnv.current.proceduralItems.configs
   }
+
   // static spawners: Record<ItemType, PseudoDistributionMap> = {}
   /**
    * Populate from schematics
@@ -111,25 +115,20 @@ export class ItemsChunkLayer {
   }
 
   async populate() {
-    this.spawnedItems = await WorldComputeProxy.current.queryOvergroundItems(asBox2(this.bounds))
+    this.spawnedItems = await WorldComputeProxy.current.queryOvergroundItems(
+      asBox2(this.bounds),
+    )
     this.individualChunks = await this.bakeIndividualChunks()
-  }
-
-  async bake() {
-    const patchBounds = asBox2(this.bounds)
-    const mergedChunkStub = await WorldComputeProxy.current.bakeItemsChunkLayer(patchBounds)
-    // const chunkBounds = asBox3(patchBounds, mergedChunkStub.bounds.min.y, mergedChunkStub.bounds.max.y)
-    // this.adjustChunkBounds(chunkBounds)
-    // ChunkContainer.copySourceToTarget(mergedChunkStub, this)
-    // this.rawData.set(mergedChunkStub.rawData)
-    // this.fromStub(mergedChunkStub)
   }
 
   async bakeIndividualChunks() {
     // request all items belonging to this patch
     const individualChunks = []
-    let ymin = NaN, ymax = NaN  // compute y range
-    for await (const [itemType, spawnPlaces] of Object.entries(this.spawnedItems)) {
+    let ymin = NaN
+    let ymax = NaN // compute y range
+    for await (const [itemType, spawnPlaces] of Object.entries(
+      this.spawnedItems,
+    )) {
       for await (const spawnOrigin of spawnPlaces) {
         const itemChunk = await ItemsInventory.getInstancedChunk(
           itemType,
@@ -149,9 +148,7 @@ export class ItemsChunkLayer {
     return individualChunks
   }
 
-  mergeIndividualChunks() {
-    const mergedChunkLayer = new ChunkContainer(this.bounds, 1)
-
-
-  }
+  // mergeIndividualChunks() {
+  //   const mergedChunkLayer = new ChunkContainer(this.bounds, 1)
+  // }
 }

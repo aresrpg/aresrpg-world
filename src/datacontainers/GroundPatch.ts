@@ -8,21 +8,26 @@ import {
   asVect2,
 } from '../utils/common'
 import { BlockMode, WorldComputeProxy } from '../index'
-import { BiomeNumericType, BiomeType, BlockType, ReverseBiomeNumericType } from '../procgen/Biome'
-import { PatchBase } from './PatchBase'
+import {
+  BiomeNumericType,
+  BiomeType,
+  BlockType,
+  ReverseBiomeNumericType,
+} from '../procgen/Biome'
 
+import { PatchBase } from './PatchBase'
 
 export type GroundBlockData = {
   // rawVal: number,
-  level: number,
-  biome: BiomeType,
+  level: number
+  biome: BiomeType
   landscapeIndex: number
   flags: number
 }
 
 export type PatchStub = {
   key?: string
-  valueRange?: { min: number, max: number }
+  valueRange?: { min: number; max: number }
   bounds: Box2
   rawData: Uint32Array
   margin?: number
@@ -31,8 +36,8 @@ export type PatchStub = {
 // bits allocated per data type, total 9+4+5+3 = 21 bits
 const BitAllocation = {
   level: 9, // level values ranging from 0 to 512
-  biome: 4,  // 16 biomes
-  landscapeIndex: 5,  // 32 landscapes per biome
+  biome: 4, // 16 biomes
+  landscapeIndex: 5, // 32 landscapes per biome
   flags: 3, // 8 additional flags
 }
 
@@ -41,7 +46,7 @@ export type BlockIteratorRes = IteratorResult<GroundBlock, void>
 export const parseGroundFlags = (rawFlags: number) => {
   const groundFlags = {
     boardMode: (rawFlags & 1) !== 0,
-    cavern: ((rawFlags >> 1) & 1) !== 0
+    cavern: ((rawFlags >> 1) & 1) !== 0,
   }
   return groundFlags
 }
@@ -121,16 +126,20 @@ export class GroundPatch extends PatchBase {
   decodeBlockData(rawData: number) {
     const shift = BitAllocation
     const level =
-      (rawData >> (shift.biome + shift.landscapeIndex + shift.flags)) & ((1 << shift.level) - 1)
-    const biomeNum = (rawData >> (shift.landscapeIndex + shift.flags)) & ((1 << shift.biome) - 1)
+      (rawData >> (shift.biome + shift.landscapeIndex + shift.flags)) &
+      ((1 << shift.level) - 1)
+    const biomeNum =
+      (rawData >> (shift.landscapeIndex + shift.flags)) &
+      ((1 << shift.biome) - 1)
     const biome = ReverseBiomeNumericType[biomeNum] || BiomeType.Temperate
-    const landscapeIndex = (rawData >> shift.flags) & ((1 << shift.landscapeIndex) - 1)
+    const landscapeIndex =
+      (rawData >> shift.flags) & ((1 << shift.landscapeIndex) - 1)
     const flags = rawData & ((1 << shift.flags) - 1)
     const blockData: GroundBlockData = {
       level,
       biome,
       landscapeIndex,
-      flags
+      flags,
     }
     return blockData
   }
@@ -182,7 +191,7 @@ export class GroundPatch extends PatchBase {
 
   getLocalPosFromIndex(index: number): Vector2 {
     const y = Math.floor(index / this.extendedDims.y) - this.margin
-    const x = index % this.extendedDims.x - this.margin
+    const x = (index % this.extendedDims.x) - this.margin
     return new Vector2(x, y)
   }
 
@@ -281,7 +290,7 @@ export class GroundPatch extends PatchBase {
       bounds,
       rawData,
       margin,
-      valueRange
+      valueRange,
     }
     if (this.key && this.key !== '') patchStub.key = this.key
     return patchStub

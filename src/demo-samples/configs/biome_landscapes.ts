@@ -1,4 +1,5 @@
 import { BiomeType, BlockType } from '../../index'
+
 import { SCHEMATICS_COLLECTIONS } from './schematics_collections'
 
 const { alpine, temperate_forest, siberian } = SCHEMATICS_COLLECTIONS
@@ -73,7 +74,7 @@ const temperate = {
     fadeOut: 0,
   },
   MOUNTAINS_PEAK_2: { x: 0.95, y: 0.92 },
-  MOUNTAINS_PEAK_3: { x: 1, y: 0.9 }
+  MOUNTAINS_PEAK_3: { x: 1, y: 0.9 },
 }
 
 /**
@@ -141,7 +142,7 @@ const artic = {
     flora: { ...alpine.small },
   },
   MOUNTAINS_PEAK: { x: 0.95, y: 0.7 },
-  END: { x: 1, y: 0.7 }
+  END: { x: 1, y: 0.7 },
 }
 
 /**
@@ -157,8 +158,8 @@ const desert = {
     subtype: BlockType.NONE,
     fadeIn: 0,
     fadeOut: 1,
-  }, 
-  SEA_END: { x: 0.18, y: 0.05 }, 
+  },
+  SEA_END: { x: 0.18, y: 0.05 },
   BEACH: {
     id: 2,
     x: 0.26,
@@ -167,7 +168,7 @@ const desert = {
     subtype: BlockType.NONE,
     fadeIn: 0,
     fadeOut: 3,
-  }, 
+  },
   CLIFF: {
     id: 3,
     x: 0.33,
@@ -176,7 +177,7 @@ const desert = {
     subtype: BlockType.SAND,
     fadeIn: 2,
     fadeOut: 10,
-  }, 
+  },
   DUNES: {
     id: 4,
     x: 0.48,
@@ -185,7 +186,7 @@ const desert = {
     subtype: BlockType.NONE,
     fadeIn: 1,
     fadeOut: 10,
-  }, 
+  },
   DUNES_END: {
     id: 5,
     x: 1,
@@ -194,7 +195,7 @@ const desert = {
     subtype: BlockType.ROCK,
     fadeIn: 5,
     fadeOut: 25,
-  }
+  },
 }
 
 export const BIOMES_LANDSCAPES_CONFIG = {

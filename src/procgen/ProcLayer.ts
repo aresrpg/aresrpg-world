@@ -1,8 +1,9 @@
 import { Vector3 } from 'three'
+
 import { InputType, NoiseSampler } from './NoiseSampler'
 
 export type ProcLayerParams = {
-  spreading: number,
+  spreading: number
   scaling: number
 }
 

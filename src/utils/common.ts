@@ -17,10 +17,7 @@ const typesNumbering = (types: Record<string, number>, offset = 0) =>
 
 const getBoundsAroundPos = (pos: Vector2, radius: number) => {
   const center = pos.clone().floor()
-  const dims = new Vector2(
-    radius,
-    radius,
-  ).multiplyScalar(2)
+  const dims = new Vector2(radius, radius).multiplyScalar(2)
   // const sphere = new Sphere(center, rad)
   const bounds = new Box2().setFromCenterAndSize(center, dims)
   return bounds
@@ -376,10 +373,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-    parseVect3Stub(stub) ||
-    parseBox2Stub(stub) ||
-    parseVect2Stub(stub) ||
-    stub
+        parseVect3Stub(stub) ||
+        parseBox2Stub(stub) ||
+        parseVect2Stub(stub) ||
+        stub
     : stub
 }
 

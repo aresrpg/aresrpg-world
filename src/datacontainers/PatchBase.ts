@@ -1,11 +1,7 @@
 import { Vector2, Box2 } from 'three'
 
 import { PatchKey } from '../utils/types'
-import {
-  parsePatchKey,
-  asPatchBounds,
-  serializePatchId,
-} from '../utils/common'
+import { parsePatchKey, asPatchBounds, serializePatchId } from '../utils/common'
 import { WorldEnv } from '../index'
 
 // export class PatchChunkCommon<T> {

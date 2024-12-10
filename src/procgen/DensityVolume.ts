@@ -33,12 +33,16 @@ export class DensityVolume {
    */
   getBlockDensity(
     blockPos: Vector3,
-    groundLevel = 512
+    groundLevel = 512,
     // includeSea?: boolean,
   ) {
     const { scaling } = this.params
     const { x, y, z } = blockPos.clone().multiplyScalar(scaling)
-    const density = this.densityNoise.eval(x * scaling, y * scaling, z * scaling)
+    const density = this.densityNoise.eval(
+      x * scaling,
+      y * scaling,
+      z * scaling,
+    )
     // adaptative density threshold based on terrain height
     const threshold = Math.sin((blockPos.y / groundLevel) * Math.PI) * 0.5
     return density < threshold

@@ -1,9 +1,17 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { Box2, Box3, Vector2 } from 'three'
 import workerpool, { Pool } from 'workerpool'
-import { WorldEnv, WorldUtils } from '..'
+
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
+import { WorldEnv, WorldUtils } from '../index'
 import { SpawnedItems } from '../misc/ItemsInventory'
-import { ChunkId, ChunkKey, GroundBlock, PatchId, PatchKey } from '../utils/types'
+import {
+  ChunkId,
+  ChunkKey,
+  GroundBlock,
+  PatchId,
+  PatchKey,
+} from '../utils/types'
+
 import { ComputeTask } from './world-compute'
 
 export type ComputeParams = Partial<{
@@ -16,21 +24,28 @@ export type ComputeParams = Partial<{
  * World API frontend proxying requests to internal modules: world-compute, world-cache,
  * Compute requests are proxied to worker pool or fallback to main thread
  */
-export class WorldComputeProxy {//implements WorldComputeInterface {
+export class WorldComputeProxy {
+  // implements WorldComputeInterface {
   // eslint-disable-next-line no-use-before-define
   static defaultProxy: WorldComputeProxy
+  // eslint-disable-next-line no-use-before-define
   static customProxy: WorldComputeProxy
   // eslint-disable-next-line no-use-before-define
   static workerPool: Pool
   // static tasksQueue: ComputeTask[]
-  // eslint-disable-next-line no-undef
 
-  constructor(workerUrl?: string, workerCount?: number, workerType?: WorkerType) {
+  constructor(
+    workerUrl?: string,
+    workerCount?: number,
+    // eslint-disable-next-line no-undef
+    workerType?: WorkerType,
+  ) {
     const { url, count, type } = WorldEnv.current.workerPool
     workerUrl = workerUrl || url
-    if (workerUrl.length > 0) {
+    if (workerUrl && workerUrl.length > 0) {
       workerCount = workerCount || count
       workerType = workerType || type
+      // eslint-disable-next-line no-undef
       const workerOpts: WorkerOptions = {}
       if (workerType) {
         // By default, Vite uses a module worker in dev mode, which can cause your application to fail. Therefore, we need to use a module worker in dev mode and a classic worker in prod mode.
@@ -42,9 +57,8 @@ export class WorldComputeProxy {//implements WorldComputeInterface {
       })
     }
     // TODO: default to main thread
-    else {
-
-    }
+    // else {
+    // }
   }
 
   static get default() {
@@ -65,14 +79,14 @@ export class WorldComputeProxy {//implements WorldComputeInterface {
   //   return this.defaultProxy
   // }
 
-  async *iterPatchCompute(patchKeysBatch: string[]) {
-    throw new Error('Method not implemented.')
-  }
+  // async *iterPatchCompute(patchKeysBatch: string[]) {
+  //   throw new Error('Method not implemented.')
+  // }
 
   async bakeGroundPatch(boundsOrPatchKey: string | Box2) {
     return WorldComputeProxy.workerPool
       .exec(ComputeTask.PatchCompute, [boundsOrPatchKey])
-      .then((res) => {
+      .then(res => {
         return res
       })
   }
@@ -90,22 +104,30 @@ export class WorldComputeProxy {//implements WorldComputeInterface {
   }
 
   async bakeSurfaceChunks(patchKey: PatchKey) {
-    const stubs: ChunkStub[] = await WorldComputeProxy.workerPool
-      .exec(ComputeTask.BakeSurfaceChunks, [patchKey])
+    const stubs: ChunkStub[] = await WorldComputeProxy.workerPool.exec(
+      ComputeTask.BakeSurfaceChunks,
+      [patchKey],
+    )
     const chunks = stubs.map(chunkStub => ChunkContainer.fromStub(chunkStub))
     return chunks
   }
 
-  async bakeUndergroundChunk(patchOrChunkId: PatchId | ChunkId, genParams = { noEncoder: false }) {
-    const chunkStub: ChunkStub = await WorldComputeProxy.workerPool
-      .exec(ComputeTask.BakeUndergroundChunk, [patchOrChunkId, genParams])
+  async bakeUndergroundChunk(
+    patchOrChunkId: PatchId | ChunkId,
+    genParams = { noEncoder: false },
+  ) {
+    const chunkStub: ChunkStub = await WorldComputeProxy.workerPool.exec(
+      ComputeTask.BakeUndergroundChunk,
+      [patchOrChunkId, genParams],
+    )
     const undergroundChunk = ChunkContainer.fromStub(chunkStub)
     return undergroundChunk
   }
 
   async queryOvergroundItems(queriedRegion: Box2): Promise<SpawnedItems> {
-    return WorldComputeProxy.workerPool
-      .exec(ComputeTask.OvergroundItemsQuery, [queriedRegion])
+    return WorldComputeProxy.workerPool.exec(ComputeTask.OvergroundItemsQuery, [
+      queriedRegion,
+    ])
     // .then((res: Record<ItemType, Vector3[]>) => {
     //   return res as Record<ItemType, Vector3[]>
     // })
@@ -123,5 +145,4 @@ export class WorldComputeProxy {//implements WorldComputeInterface {
         return blocks
       })
   }
-
 }

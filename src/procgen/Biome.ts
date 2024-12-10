@@ -12,9 +12,9 @@ import {
   LandscapeFields,
   LandscapesConf,
 } from '../utils/types'
+import { WorldEnv } from '../index'
 
 import { ProcLayer } from './ProcLayer'
-import { WorldEnv } from '../index'
 
 // reserved native block types
 export enum BlockType {
@@ -91,7 +91,9 @@ export const BiomeNumericType: Record<BiomeType, number> = {
 Utils.typesNumbering(BiomeNumericType)
 
 export const ReverseBiomeNumericType: Record<number, BiomeType> = {}
-Object.keys(BiomeNumericType).forEach((type, i) => ReverseBiomeNumericType[i] = type as BiomeType)
+Object.keys(BiomeNumericType).forEach(
+  (type, i) => (ReverseBiomeNumericType[i] = type as BiomeType),
+)
 
 type Contribution = Record<Level, number>
 
@@ -180,7 +182,6 @@ export class Biome {
     Biome.singleton = Biome.singleton || new Biome()
     return Biome.singleton
   }
-
 
   /**
    *
@@ -271,10 +272,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-      (biomeContribs[k as BiomeType] = Utils.roundToDec(
-        biomeContribs[k as BiomeType],
-        2,
-      )),
+        (biomeContribs[k as BiomeType] = Utils.roundToDec(
+          biomeContribs[k as BiomeType],
+          2,
+        )),
     )
 
     // biomeContribs[BiomeType.Artic] = 1
@@ -358,11 +359,8 @@ export class Biome {
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = Utils.clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]
-    const confId = Utils.findMatchingRange(
-      rawVal as number,
-      firstItem,
-    )
-    let current = firstItem.nth(confId)
+    const confId = Utils.findMatchingRange(rawVal as number, firstItem)
+    const current = firstItem.nth(confId)
     const upper = current?.next || current
     const min = new Vector2(current.data.x, current.data.y)
     const max = new Vector2(upper.data.x, upper.data.y)
@@ -386,10 +384,7 @@ export class Biome {
 
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
     const firstItem = this.mappings[biomeType]
-    const confId = Utils.findMatchingRange(
-      rawVal as number,
-      firstItem,
-    )
+    const confId = Utils.findMatchingRange(rawVal as number, firstItem)
     let currentItem = firstItem.nth(confId)
     while (!currentItem?.data.type && currentItem?.prev) {
       currentItem = currentItem.prev
