@@ -1,5 +1,11 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
-import { DensityVolume, ItemsInventory, PseudoDistributionMap, WorldEnv, WorldUtils } from '../index'
+
+import {
+  DensityVolume,
+  ItemsInventory,
+  PseudoDistributionMap,
+  WorldEnv,
+} from '../index'
 import { Biome, BiomeInfluence, BiomeType, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
@@ -29,9 +35,12 @@ import {
   DistributionProfiles,
 } from '../datacontainers/RandomDistributionMap'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
-import { GroundPatch } from '../datacontainers/GroundPatch'
-import { GroundBlockData } from '../datacontainers/GroundPatch'
-import { ChunkContainer, ChunkMask, defaultDataEncoder } from '../datacontainers/ChunkContainer'
+import { GroundPatch, GroundBlockData } from '../datacontainers/GroundPatch'
+import {
+  ChunkContainer,
+  ChunkMask,
+  defaultDataEncoder,
+} from '../datacontainers/ChunkContainer'
 import { PatchBase } from '../datacontainers/PatchBase'
 import { GroundChunk } from '../datacontainers/ChunkFactory'
 
@@ -70,13 +79,13 @@ const getBiomeBoundsInfluences = (bounds: Box2) => {
   }
   const boundsPoints = getPatchBoundingPoints(bounds)
   const boundsInfluences = {} as PatchBoundingBiomes
-    ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-      const boundPos = boundsPoints[key] as Vector2
-      const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
-      boundsInfluences[key] = biomeInfluence
-      // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-      return biomeInfluence
-    })
+  ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+    const boundPos = boundsPoints[key] as Vector2
+    const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
+    boundsInfluences[key] = biomeInfluence
+    // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+    return biomeInfluence
+  })
   const allEquals =
     equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
     equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
@@ -121,8 +130,8 @@ export const computeGroundBlock = (
     rawVal,
     biomeInfluence,
   )
-  const isCavern = false//DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
-  let usedConf = nominalConf //isCavern ? nominalConf : nominalConf
+  const isCavern = false // DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
+  let usedConf = nominalConf // isCavern ? nominalConf : nominalConf
   // let isEmpty = isCavern
   // while (isEmpty && level > 0) {
   //   blockPos.y = level--
@@ -130,7 +139,9 @@ export const computeGroundBlock = (
   // }
   // const pos = new Vector3(blockPos.x, level, blockPos.z)
   if (!isCavern && nominalConf.next?.data) {
-    const variation = Biome.instance.posRandomizer.eval(blockPos.clone().multiplyScalar(50))//Math.cos(0.1 * blockPos.length()) / 100
+    const variation = Biome.instance.posRandomizer.eval(
+      blockPos.clone().multiplyScalar(50),
+    ) // Math.cos(0.1 * blockPos.length()) / 100
     const min = new Vector2(nominalConf.data.x, nominalConf.data.y)
     const max = new Vector2(nominalConf.next.data.x, nominalConf.next.data.y)
     const rangeBox = new Box2(min, max)
@@ -151,7 +162,12 @@ export const computeGroundBlock = (
   // }
   // level += offset
   const flags = isCavern ? 0b010 : 0
-  const groundBlockData: GroundBlockData = { level, biome: biomeType, landscapeIndex: usedConf.index, flags }
+  const groundBlockData: GroundBlockData = {
+    level,
+    biome: biomeType,
+    landscapeIndex: usedConf.index,
+    flags,
+  }
   return groundBlockData
 }
 
@@ -204,7 +220,7 @@ export const computeBlocksBatch = async (
         block.data =
           lastBlockData.level > 0 && lastBlockData.type
             ? lastBlockData
-            : block.data
+            : (block.data as any)
       }
       block.pos.y = block.data.level
     }
@@ -232,7 +248,7 @@ export const computeBlocksBatch = async (
   //   }
   //   return block
   // })
-  return blocksBatch as GroundBlock[]
+  return blocksBatch // as GroundBlock[]
 }
 
 /**
@@ -286,8 +302,12 @@ export const retrieveOvergroundItems = async (bounds: Box2) => {
   )
   for (const pos of spawnPlaces) {
     const blockBiome = getBlockBiome(pos, bounds, boundsBiomeInfluences)
-    const { level, biome, landscapeIndex } = computeGroundBlock(asVect3(pos), blockBiome)
-    const weightedItems = Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
+    const { level, biome, landscapeIndex } = computeGroundBlock(
+      asVect3(pos),
+      blockBiome,
+    )
+    const weightedItems =
+      Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
     if (weightedItems) {
       const spawnableTypes: ItemType[] = []
       Object.entries(weightedItems).forEach(([itemType, spawnWeight]) => {
@@ -324,9 +344,17 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
     )
     const groundPatch = new GroundPatch(patchKey)
     const biomeBoundsInfluences = getBiomeBoundsInfluences(groundPatch.bounds)
-    const blockBiome = getBlockBiome(spawnOrigin, groundPatch.bounds, biomeBoundsInfluences)
-    const { level, biome, landscapeIndex } = computeGroundBlock(asVect3(spawnOrigin), blockBiome)
-    let spawnableTypes = Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
+    const blockBiome = getBlockBiome(
+      spawnOrigin,
+      groundPatch.bounds,
+      biomeBoundsInfluences,
+    )
+    const { level, biome, landscapeIndex } = computeGroundBlock(
+      asVect3(spawnOrigin),
+      blockBiome,
+    )
+    const spawnableTypes =
+      Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
     const spawnableItems: ItemType[] = []
     for (const entry of Object.entries(spawnableTypes || {})) {
       const [itemType] = entry
@@ -367,7 +395,9 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
 }
 
 async function* genItemsChunks(overgroundItems: Record<string, Vector3[]>) {
-  for await (const [item_type, spawn_places] of Object.entries(overgroundItems)) {
+  for await (const [item_type, spawn_places] of Object.entries(
+    overgroundItems,
+  )) {
     for await (const spawnOrigin of spawn_places) {
       const itemChunk = await ItemsInventory.getInstancedChunk(
         item_type,
@@ -382,7 +412,9 @@ async function* genItemsChunks(overgroundItems: Record<string, Vector3[]>) {
  * Overground chunk (items)
  */
 
-export const bakeOvergroundChunk = async (boundsOrPatchKey: PatchKey | Box2) => {
+export const bakeOvergroundChunk = async (
+  boundsOrPatchKey: PatchKey | Box2,
+) => {
   const dummyPatch = new PatchBase(boundsOrPatchKey)
   const overgroundItems = await retrieveOvergroundItems(dummyPatch.bounds)
   // pre-compute items chunks
@@ -404,7 +436,7 @@ export const bakeOvergroundChunk = async (boundsOrPatchKey: PatchKey | Box2) => 
 
 /**
  * Ground surface + overground items
- * @param patchKey 
+ * @param patchKey
  */
 export const bakeSurfaceChunkset = async (patchKey: PatchKey) => {
   const itemsChunkLayer = await bakeOvergroundChunk(patchKey)
@@ -413,8 +445,14 @@ export const bakeSurfaceChunkset = async (patchKey: PatchKey) => {
   const surfaceChunks: ChunkContainer[] = []
   // compute chunk id range
   const { patchDimensions } = WorldEnv.current
-  const yMin = Math.min(itemsChunkLayer.bounds.min.y, groundLayer.valueRange.min)
-  const yMax = Math.max(itemsChunkLayer.bounds.max.y, groundLayer.valueRange.max)
+  const yMin = Math.min(
+    itemsChunkLayer.bounds.min.y,
+    groundLayer.valueRange.min,
+  )
+  const yMax = Math.max(
+    itemsChunkLayer.bounds.max.y,
+    groundLayer.valueRange.max,
+  )
   const yMinId = Math.floor(yMin / patchDimensions.y)
   const yMaxId = Math.floor(yMax / patchDimensions.y)
   // gen each surface chunk in range
@@ -429,7 +467,7 @@ export const bakeSurfaceChunkset = async (patchKey: PatchKey) => {
       const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
       const cavesMask = await bakeCavesMask(chunkKey)
       await groundSurfaceChunk.bake(groundLayer, cavesMask)
-      // copy ground over items at last 
+      // copy ground over items at last
       ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
     }
     surfaceChunks.push(worldChunk)
@@ -438,22 +476,32 @@ export const bakeSurfaceChunkset = async (patchKey: PatchKey) => {
 }
 
 /**
- * 
- * @param patchOrChunkId either patchId to discover top underground chunk or specific underground chunkId 
- * @returns top underground chunk or specified underground chunk 
+ *
+ * @param patchOrChunkId either patchId to discover top underground chunk or specific underground chunkId
+ * @returns top underground chunk or specified underground chunk
  */
-export const bakeUndergroundChunk = async (patchOrChunkId: PatchId | ChunkId, genParams = { noEncoder: false }) => {
-  const patchId = patchOrChunkId instanceof Vector2 ? patchOrChunkId : asVect2(patchOrChunkId)
+export const bakeUndergroundChunk = async (
+  patchOrChunkId: PatchId | ChunkId,
+  genParams = { noEncoder: false },
+) => {
+  const patchId =
+    patchOrChunkId instanceof Vector2 ? patchOrChunkId : asVect2(patchOrChunkId)
   const groundLayer = bakeGroundLayer(serializePatchId(patchId))
-  const topId = Math.floor(groundLayer.valueRange.min / WorldEnv.current.patchDimensions.y) - 1
-  const chunkKey = serializeChunkId(patchOrChunkId instanceof Vector3 ?
-    patchOrChunkId : asVect3(patchId, topId))
+  const topId =
+    Math.floor(
+      groundLayer.valueRange.min / WorldEnv.current.patchDimensions.y,
+    ) - 1
+  const chunkKey = serializeChunkId(
+    patchOrChunkId instanceof Vector3
+      ? patchOrChunkId
+      : asVect3(patchId, topId),
+  )
   const worldChunk = new ChunkContainer(chunkKey, 1)
   const customEncoder = genParams.noEncoder ? defaultDataEncoder : undefined
   const groundSurfaceChunk = new GroundChunk(chunkKey, 1, customEncoder)
   const cavesMask = await bakeCavesMask(chunkKey)
   await groundSurfaceChunk.bake(groundLayer, cavesMask)
-  // copy ground over items at last 
+  // copy ground over items at last
   ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
   // }
   return worldChunk
@@ -478,15 +526,13 @@ export const bakeUndergroundChunk = async (patchOrChunkId: PatchId | ChunkId, ge
 //       const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
 //       const cavesMask = await bakeCavesMask(chunkKey)
 //       await groundSurfaceChunk.bake(groundLayer, cavesMask)
-//       // copy ground over items at last 
+//       // copy ground over items at last
 //       ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
 //     }
 //     undergroundChunks.push(worldChunk)
 //   }
 //   return undergroundChunks
 // }
-
-
 
 /**
  * Underground chunk (caverns)
@@ -507,11 +553,14 @@ export const bakeCavesMask = (boundsOrPatchKey: ChunkKey | Box3) => {
     const groundLevel = block.pos.y
     const ymin = chunkContainer.extendedBounds.min.y
     const ymax = Math.min(groundLevel, chunkContainer.extendedBounds.max.y)
-    const startLocalPos = new Vector3(block.localPos.x, - 1, block.localPos.z)
+    const startLocalPos = new Vector3(block.localPos.x, -1, block.localPos.z)
     let startIndex = chunkContainer.getIndex(startLocalPos)
     for (let y = ymin; y <= ymax; y++) {
       block.pos.y = y
-      let isEmptyBlock = DensityVolume.instance.getBlockDensity(block.pos, groundLevel + 20)
+      const isEmptyBlock = DensityVolume.instance.getBlockDensity(
+        block.pos,
+        groundLevel + 20,
+      )
       chunkContainer.rawData[startIndex++] = isEmptyBlock ? 0 : 1
     }
     // chunkContainer.writeBuffer(buffPos, chunkBuff)
@@ -523,7 +572,6 @@ export const bakeCavesMask = (boundsOrPatchKey: ChunkKey | Box3) => {
   // }
   return chunkContainer
 }
-
 
 // Battle board
 // export const computeBoardData = (boardPos: Vector3, boardParams: BoardInputParams, lastBoardBounds: Box2) => {

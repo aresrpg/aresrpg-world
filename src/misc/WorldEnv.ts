@@ -1,7 +1,9 @@
 import { Vector2, Vector3 } from 'three'
+
 import { BlockType } from '../procgen/Biome'
 import { ProcItemConf } from '../tools/ProceduralGenerators'
-import { BiomesRawConf, BlockMode } from '../utils/types'
+import { BiomesRawConf } from '../utils/types'
+
 import { ItemType } from './ItemsInventory'
 // import { NoiseSamplerParams } from '../procgen/NoiseSampler'
 // import { ProcLayerParams } from '../procgen/ProcLayer'
@@ -13,6 +15,7 @@ export class WorldEnv {
     this.currentConf = this.currentConf || new WorldEnv()
     return this.currentConf
   }
+
   static set current(externalConf: WorldEnv) {
     this.currentConf = externalConf
   }
@@ -48,9 +51,10 @@ export class WorldEnv {
 
   // in patch unit
   patchViewDist = {
-    near: 4,  // undeground view dist 
-    far: 8    // ground surface view dist
+    near: 4, // undeground view dist
+    far: 8, // ground surface view dist
   }
+
   settings = {
     useBiomeBilinearInterpolation: true,
   }
@@ -73,43 +77,41 @@ export class WorldEnv {
       bottomId: 0,
       topId: 5,
     },
-    dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) => blockType || BlockType.NONE
+    dataEncoder: (blockType: BlockType) => blockType || BlockType.NONE,
   }
 
   schematics: {
-    blocksMapping: Record<string, BlockType>,
+    blocksMapping: Record<string, BlockType>
     filesIndex: Record<ItemType, string>
   } = {
-      blocksMapping: {
-      },
-      filesIndex: {
-      }
-    }
+    blocksMapping: {},
+    filesIndex: {},
+  }
 
   proceduralItems: {
     configs: Record<ItemType, ProcItemConf>
   } = {
-      configs: {}
-    }
+    configs: {},
+  }
 
   workerPool = {
     count: 4,
     url: '', // if undef will default to main thread
-    type: undefined
+    type: undefined,
   }
 
   boardSettings = {
     boardRadius: 32,
-    boardThickness: 5
+    boardThickness: 5,
   }
 
   biomes: {
-    rawConf: BiomesRawConf,
+    rawConf: BiomesRawConf
     seaLevel: number
   } = {
-      rawConf: {} as any,
-      seaLevel: 0
-    }
+    rawConf: {} as any,
+    seaLevel: 0,
+  }
 
   get seaLevel() {
     return this.biomes.seaLevel

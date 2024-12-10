@@ -3,7 +3,6 @@ import { Vector2, Vector3 } from 'three'
 import { GroundBlockData } from '../datacontainers/GroundPatch'
 import { ItemType } from '../misc/ItemsInventory'
 import { BiomeType, BlockType } from '../procgen/Biome'
-
 import { LinkedList } from '../datacontainers/LinkedList'
 
 export type Block<T> = {

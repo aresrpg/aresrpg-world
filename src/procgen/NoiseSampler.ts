@@ -15,23 +15,23 @@ type Harmonic = {
 export enum NoiseDimension {
   Two,
   Three,
-  Four
+  Four,
 }
 
 const noiseConstructor: Record<NoiseDimension, (prng: any) => any> = {
   [NoiseDimension.Two]: (prng: any) => createNoise2D(prng),
   [NoiseDimension.Three]: (prng: any) => createNoise3D(prng),
-  [NoiseDimension.Four]: (prng: any) => createNoise4D(prng)
+  [NoiseDimension.Four]: (prng: any) => createNoise4D(prng),
 }
 type NoiseHarmonicsSettings = {
-  count: number,
-  spread: number,
+  count: number
+  spread: number
   gain: number
 }
 export type NoiseSamplerParams = {
-  seed: string,
-  periodicity: number,
-  harmonics: NoiseHarmonicsSettings,
+  seed: string
+  periodicity: number
+  harmonics: NoiseHarmonicsSettings
   dimensions: NoiseDimension
 }
 
@@ -47,7 +47,7 @@ export class NoiseSampler {
       spread: 2,
       gain: 0.5,
     },
-    dimensions: NoiseDimension.Two
+    dimensions: NoiseDimension.Two,
   }
 
   shadowParams = {}
@@ -142,7 +142,7 @@ export class NoiseSampler {
           (x * density) / harmonic.period,
           (y * density) / harmonic.period,
           ((z || 0) * density) / harmonic.period,
-          t
+          t,
         )
         noise += (noiseEval * 0.5 + 0.5) * harmonic.amplitude /// Math.pow(2, i + 1)
       })

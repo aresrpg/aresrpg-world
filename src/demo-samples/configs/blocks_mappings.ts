@@ -1,4 +1,4 @@
-import { BlockType, WorldUtils } from "../../index"
+import { BlockType, WorldUtils } from '../../index'
 
 /**
  * Extending world reserved blocks
@@ -51,7 +51,10 @@ const EXTENDED_BLOCKS_COLOR_MAPPINGS = {
   [ExtBlock.DBG_PURPLE]: 0x8a2be2, // 0x673ab7,//0x9c27b0,
 }
 
-export const BLOCKS_COLOR_MAPPING = {...RESERVED_BLOCKS_COLOR_MAPPING, ...EXTENDED_BLOCKS_COLOR_MAPPINGS}
+export const BLOCKS_COLOR_MAPPING = {
+  ...RESERVED_BLOCKS_COLOR_MAPPING,
+  ...EXTENDED_BLOCKS_COLOR_MAPPINGS,
+}
 
 export const SCHEMATICS_BLOCKS_MAPPING = {
   air: BlockType.NONE,

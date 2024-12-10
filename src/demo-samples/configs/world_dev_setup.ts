@@ -1,8 +1,12 @@
 // import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index'
+import { WorldEnv } from '../../index'
+
 import { BIOMES_LANDSCAPES_CONFIG } from './biome_landscapes'
 import { PROC_ITEMS_CONFIG } from './procedural_items'
-import { BLOCKS_COLOR_MAPPING, SCHEMATICS_BLOCKS_MAPPING } from './blocks_mappings'
-import { WorldEnv } from '../../index'
+import {
+  BLOCKS_COLOR_MAPPING,
+  SCHEMATICS_BLOCKS_MAPPING,
+} from './blocks_mappings'
 
 /**
  * @param worldEnv provide it to setup worker's own env or it will default to main thread env
@@ -22,10 +26,7 @@ export const EnvOverride = (worldEnv = WorldEnv.current) => {
 
 export const BlocksColorMapping = BLOCKS_COLOR_MAPPING
 
-
 /**
  * Unified world setup to ensure having same settings everywhere (workers, main thread)
  */
-export class WorldConfOverride extends WorldEnv {
-
-}
+export class WorldConfOverride extends WorldEnv {}
