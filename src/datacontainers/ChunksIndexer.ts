@@ -30,8 +30,7 @@ export class PatchIndexer<T = void> {
     }
 
     get indexedElements() {
-        const items = Object.values(this.patchLookup)
-        return items
+        return Object.values(this.patchLookup)
     }
 
     // sortKeysAroundPos(patchKeys: PatchKey[], pos: Vector2) {

@@ -89,7 +89,7 @@ export class ChunkSetProcessor {
         const undegroundTopId = undegroundTopChunk.chunkId?.y || 0
         const remainingChunks = []
         // then infer remaining chunk keys and iter over them
-        for await (let yId = undegroundTopId - 1; yId >= chunksRange.bottomId; yId--) {
+        for (let yId = undegroundTopId - 1; yId >= chunksRange.bottomId; yId--) {
             const chunkId = asVect3(this.patchId, yId)
             const currentChunk = await WorldComputeProxy.current.bakeUndergroundChunk(chunkId)
             remainingChunks.push(currentChunk)

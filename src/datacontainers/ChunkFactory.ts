@@ -1,12 +1,11 @@
 import { Vector3, Box2, MathUtils } from "three"
 import { WorldComputeProxy } from "../api/WorldComputeProxy"
 import { WorldEnv } from "../misc/WorldEnv"
-import { asVect2, serializePatchId, asBox3, asBox2, asPatchBounds } from "../utils/common"
-import { BlockMode, ChunkKey, PatchBlock, PatchKey } from "../utils/types"
+import { asVect2, serializePatchId } from "../utils/common"
+import { BlockMode, ChunkKey, PatchBlock } from "../utils/types"
 import { ChunkBuffer, ChunkContainer, ChunkMask } from "./ChunkContainer"
 import { GroundPatch, parseGroundFlags } from "./GroundPatch"
 import { BlockType, Biome, BiomeType } from "../procgen/Biome"
-import { ItemsInventory, SpawnedItems } from "../misc/ItemsInventory"
 
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -84,66 +83,6 @@ export class EmptyChunk extends ChunkContainer {
 
     async bake() {
 
-    }
-}
-
-export class ItemsChunkLayer extends ChunkContainer {
-    spawnedItems!: SpawnedItems
-    itemsChunks!: ChunkContainer[]
-
-    constructor(boundsOrPatchKey: Box2 | PatchKey) {
-        const patchBounds =
-            boundsOrPatchKey instanceof Box2
-                ? boundsOrPatchKey.clone()
-                : asPatchBounds(boundsOrPatchKey, WorldEnv.current.patchDimensions)
-        super(asBox3(patchBounds), 1);
-    }
-
-    get spawnedLocs() {
-        const spawnedLocs = []
-        for (const [, spawnPlaces] of Object.entries(this.spawnedItems)) {
-            spawnedLocs.push(...spawnPlaces)
-        }
-        return spawnedLocs
-    }
-
-    async populate() {
-        this.spawnedItems = this.spawnedItems || await WorldComputeProxy.current.queryOvergroundItems(asBox2(this.bounds))
-        return this.spawnedItems
-    }
-
-    async bake() {
-        const patchBounds = asBox2(this.bounds)
-        const mergedChunkStub = await WorldComputeProxy.current.bakeItemsChunkLayer(patchBounds)
-        // const chunkBounds = asBox3(patchBounds, mergedChunkStub.bounds.min.y, mergedChunkStub.bounds.max.y)
-        // this.adjustChunkBounds(chunkBounds)
-        // ChunkContainer.copySourceToTarget(mergedChunkStub, this)
-        // this.rawData.set(mergedChunkStub.rawData)
-        this.fromStub(mergedChunkStub)
-    }
-
-    async bakeAsIndividualChunks() {
-        // request all items belonging to this patch
-        this.itemsChunks = []
-        let ymin = NaN, ymax = NaN  // compute y range
-        for await (const [itemType, spawnPlaces] of Object.entries(this.spawnedItems)) {
-            for await (const spawnOrigin of spawnPlaces) {
-                const itemChunk = await ItemsInventory.getInstancedChunk(
-                    itemType,
-                    spawnOrigin,
-                )
-                if (itemChunk) {
-                    ChunkContainer.copySourceToTarget(itemChunk, this)
-                    const { min, max } = itemChunk.bounds
-                    ymin = isNaN(ymin) ? min.y : Math.min(ymin, min.y)
-                    ymax = isNaN(ymax) ? max.y : Math.max(ymax, max.y)
-                    this.itemsChunks.push(itemChunk)
-                }
-            }
-        }
-        this.bounds.min.y = ymin
-        this.bounds.max.y = ymax
-        // return itemsChunks
     }
 }
 

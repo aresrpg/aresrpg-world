@@ -12,7 +12,7 @@ export { ChunksIndexer } from './datacontainers/ChunksIndexer'
 export { WorldComputeProxy } from './api/WorldComputeProxy'
 export { ItemsInventory } from './misc/ItemsInventory'
 export { SchematicLoader } from './tools/SchematicLoader'
-export { BoardContainer } from './datacontainers/BoardContainer'
+export { BoardContainer, BlockCategory } from './datacontainers/BoardContainer'
 export {
   ProceduralItemGenerator,
   ProcItemType,
