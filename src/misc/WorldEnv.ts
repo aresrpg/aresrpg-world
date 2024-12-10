@@ -2,7 +2,7 @@ import { Vector2, Vector3 } from 'three'
 
 import { BlockType } from '../procgen/Biome'
 import { ProcItemConf } from '../tools/ProceduralGenerators'
-import { BiomesRawConf } from '../utils/types'
+import { BiomesRawConf, BlockMode } from '../utils/types'
 
 import { ItemType } from './ItemsInventory'
 // import { NoiseSamplerParams } from '../procgen/NoiseSampler'
@@ -77,7 +77,9 @@ export class WorldEnv {
       bottomId: 0,
       topId: 5,
     },
-    dataEncoder: (blockType: BlockType) => blockType || BlockType.NONE,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) =>
+      blockType || BlockType.NONE,
   }
 
   schematics: {

@@ -278,7 +278,7 @@ export class Biome {
         )),
     )
 
-    // biomeContribs[BiomeType.Artic] = 1
+    // biomeContribs[BiomeType.Arctic] = 1
     // biomeContribs[BiomeType.Desert] = 0
     // biomeContribs[BiomeType.Temperate] = 0
     return biomeContribs

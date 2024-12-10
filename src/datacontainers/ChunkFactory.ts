@@ -40,7 +40,7 @@ export class GroundChunk extends ChunkContainer {
     if (buffSize > 0) {
       const groundBuffer = new Uint16Array(block.data.level - ymin)
       // fill with bedrock first
-      groundBuffer.fill(biome === BiomeType.Artic ? bedrockIce : bedrock)
+      groundBuffer.fill(biome === BiomeType.Arctic ? bedrockIce : bedrock)
       // add underground layer
       groundBuffer.fill(
         undergroundLayer,
@@ -54,6 +54,7 @@ export class GroundChunk extends ChunkContainer {
       }
       return chunkBuffer
     }
+    return undefined
   }
 
   async bake(groundLayer?: GroundPatch, cavesMask?: ChunkMask) {
