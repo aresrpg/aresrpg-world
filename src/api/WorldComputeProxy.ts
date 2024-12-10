@@ -96,9 +96,9 @@ export class WorldComputeProxy {//implements WorldComputeInterface {
     return chunks
   }
 
-  async bakeUndergroundChunk(patchOrChunkId: PatchId | ChunkId) {
+  async bakeUndergroundChunk(patchOrChunkId: PatchId | ChunkId, genParams = { noEncoder: false }) {
     const chunkStub: ChunkStub = await WorldComputeProxy.workerPool
-      .exec(ComputeTask.BakeUndergroundChunk, [patchOrChunkId])
+      .exec(ComputeTask.BakeUndergroundChunk, [patchOrChunkId, genParams])
     const undergroundChunk = ChunkContainer.fromStub(chunkStub)
     return undergroundChunk
   }

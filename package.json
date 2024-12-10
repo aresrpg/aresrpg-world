@@ -3,25 +3,6 @@
   "version": "1.5.2",
   "description": "Procedural voxel terrain generation for AresRPG",
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./worldUtils": {
-      "types": "./dist/common/utils.d.ts",
-      "import": "./dist/common/utils.js"
-    },
-    "./biomes": {
-      "types": "./dist/procgen/Biome.d.ts",
-      "import": "./dist/procgen/Biome.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "watch": "tsc --watch",
     "build": "tsc",
