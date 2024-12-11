@@ -14,7 +14,12 @@ import {
 export const EnvOverride = (worldEnv = WorldEnv.current) => {
   worldEnv.biomes.rawConf = BIOMES_LANDSCAPES_CONFIG
   // populate inventory with schematics and procedural objects
-  worldEnv.schematics.blocksMapping = SCHEMATICS_BLOCKS_MAPPING
+  worldEnv.schematics.globalBlocksMapping = { ...worldEnv.schematics.globalBlocksMapping, ...SCHEMATICS_BLOCKS_MAPPING }
+  // override schematics blocks mapping here
+  // worldEnv.schematics.localBlocksMapping['trees/palmtree_big_1'] = { 
+  //   jungle_leaves: BlockType.SNOW,
+  //   jungle_wood: BlockType.SAND,
+  //  }
   worldEnv.proceduralItems.configs = PROC_ITEMS_CONFIG
   // worldEnv.schematics.filesIndex = SCHEMATICS_FILES_INDEX
   // worldEnv.chunks.dataEncoder = chunk_data_encoder
@@ -29,4 +34,4 @@ export const BlocksColorMapping = BLOCKS_COLOR_MAPPING
 /**
  * Unified world setup to ensure having same settings everywhere (workers, main thread)
  */
-export class WorldConfOverride extends WorldEnv {}
+// export class WorldConfOverride extends WorldEnv { }
