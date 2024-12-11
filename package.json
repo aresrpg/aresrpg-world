@@ -35,6 +35,7 @@
     "@parcel/transformer-typescript-types": "^2.13.2",
     "@types/poisson-disk-sampling": "^2.2.4",
     "@types/three": "^0.170.0",
+    "@types/workerpool": "^6.4.7",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
     "eslint": "^8.57.1",
