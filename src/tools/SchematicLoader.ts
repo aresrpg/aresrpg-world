@@ -6,6 +6,8 @@ import { BlockType } from '../procgen/Biome'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { WorldEnv } from '../misc/WorldEnv'
 
+export type SchematicsBlocksMapping = Record<string, BlockType>
+
 export class SchematicLoader {
   static async load(path: string) {
     // const schem = await Schematic.read(Buffer.from(schemData), '1.16.4')
@@ -39,7 +41,7 @@ export class SchematicLoader {
    * @param schemBlocks
    * @returns
    */
-  static async createChunkContainer(fileUrl: string) {
+  static async createChunkContainer(fileUrl: string, localBlocksMapping?: SchematicsBlocksMapping) {
     const rawData = await SchematicLoader.load(fileUrl)
     const parsedSchematic = await SchematicLoader.parse(rawData)
     const schemBlocks: any = SchematicLoader.getBlocks(parsedSchematic)
@@ -53,11 +55,13 @@ export class SchematicLoader {
     const bbox = new Box3(orig, end)
     const chunkContainer = new ChunkContainer(bbox)
 
+    const { globalBlocksMapping } = WorldEnv.current.schematics
+
     for (let y = 0; y < schemBlocks.length; y++) {
       for (let x = 0; x < schemBlocks[y].length; x++) {
         for (let z = 0; z < schemBlocks[y][x].length; z++) {
           const [, rawType] = schemBlocks[y][x][z].name.split(':')
-          let blockType = WorldEnv.current.schematics.blocksMapping[rawType]
+          let blockType = localBlocksMapping?.[rawType] || globalBlocksMapping[rawType]
           if (blockType === undefined) {
             console.warn(`missing schematic block type ${rawType}`)
             blockType = WorldEnv.current.debug.schematics.missingBlockType

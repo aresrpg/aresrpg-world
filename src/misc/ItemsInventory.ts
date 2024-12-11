@@ -43,7 +43,8 @@ export class ItemsInventory {
     const fileUrl = ItemsInventory.schematicFilesIndex[id]
     let chunk
     if (fileUrl) {
-      chunk = await SchematicLoader.createChunkContainer(fileUrl)
+      const customBlocksMapping = WorldEnv.current.schematics.localBlocksMapping[id]
+      chunk = await SchematicLoader.createChunkContainer(fileUrl, customBlocksMapping)
       // const spawner = new PseudoDistributionMap()
       ItemsInventory.catalog[id] = chunk
     }

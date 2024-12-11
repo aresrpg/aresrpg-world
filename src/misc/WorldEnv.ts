@@ -2,6 +2,7 @@ import { Vector2, Vector3 } from 'three'
 
 import { BlockType } from '../procgen/Biome'
 import { ProcItemConf } from '../tools/ProceduralGenerators'
+import { SchematicsBlocksMapping } from '../tools/SchematicLoader'
 import { BiomesRawConf, BlockMode } from '../utils/types'
 
 import { ItemType } from './ItemsInventory'
@@ -83,18 +84,20 @@ export class WorldEnv {
   }
 
   schematics: {
-    blocksMapping: Record<string, BlockType>
+    globalBlocksMapping: SchematicsBlocksMapping
+    localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>
     filesIndex: Record<ItemType, string>
   } = {
-    blocksMapping: {},
-    filesIndex: {},
-  }
+      globalBlocksMapping: {},
+      localBlocksMapping: {},
+      filesIndex: {},
+    }
 
   proceduralItems: {
     configs: Record<ItemType, ProcItemConf>
   } = {
-    configs: {},
-  }
+      configs: {},
+    }
 
   workerPool = {
     count: 4,
@@ -111,9 +114,9 @@ export class WorldEnv {
     rawConf: BiomesRawConf
     seaLevel: number
   } = {
-    rawConf: {} as any,
-    seaLevel: 0,
-  }
+      rawConf: {} as any,
+      seaLevel: 0,
+    }
 
   get seaLevel() {
     return this.biomes.seaLevel
