@@ -73,9 +73,9 @@ export class ChunkSetProcessor {
       bottom: groundSurfaceChunks[0]?.chunkId?.y || 0,
       top: groundSurfaceChunks[lastSurfaceIndex]?.chunkId?.y || 0,
     }
-    console.log(
-      `processed surface chunks: ${this.printChunkset(groundSurfaceChunks)}`,
-    )
+    // console.log(
+    //   `processed surface chunks: ${this.printChunkset(groundSurfaceChunks)}`,
+    // )
     // empty chunks start 1 chunk above ground surface
     const emptyChunks = []
     for (let y = surfaceRange.top + 1; y <= chunksRange.topId; y++) {
@@ -84,7 +84,7 @@ export class ChunkSetProcessor {
       const emptyChunk = new EmptyChunk(chunkKey)
       emptyChunks.push(emptyChunk)
     }
-    console.log(`processed empty chunks: ${this.printChunkset(emptyChunks)}`)
+    // console.log(`processed empty chunks: ${this.printChunkset(emptyChunks)}`)
     return [...groundSurfaceChunks, ...emptyChunks]
   }
 
@@ -107,9 +107,9 @@ export class ChunkSetProcessor {
       remainingChunks.push(currentChunk)
     }
     const undergoundChunks = [undegroundTopChunk, ...remainingChunks]
-    console.log(
-      `processed undeground chunkset: ${this.printChunkset(undergoundChunks)}`,
-    )
+    // console.log(
+    //   `processed undeground chunkset: ${this.printChunkset(undergoundChunks)}`,
+    // )
     return undergoundChunks
   }
 

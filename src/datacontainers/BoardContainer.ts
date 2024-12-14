@@ -21,6 +21,7 @@ import { ItemsChunkLayer } from '../misc/ItemsInventory'
 
 import { PatchIndexer } from './ChunksIndexer'
 import { GroundPatch } from './GroundPatch'
+import { PatchBase } from './PatchBase'
 
 export enum BlockCategory {
   EMPTY = 0,
@@ -40,10 +41,14 @@ export type BoardParams = {
   thickness: number
 }
 
-export type BoardContent = {
+export type BoardStub = {
   bounds: Box2
-  elevation: number
-  data: BlockCategory[]
+  content: Uint8Array
+}
+
+type BoardContent = {
+  chunk: ChunkContainer,
+  patch: BoardPatch
 }
 
 type ChunkIndex = Record<ChunkKey, ChunkContainer>
@@ -68,6 +73,24 @@ const blockTypeCategoryMapper = (blockType: BlockType) => {
 
 const getChunkYId = (y: number) =>
   Math.floor(y / WorldEnv.current.chunkDimensions.y)
+
+class BoardPatch extends PatchBase {
+  rawData: Uint8Array
+
+  constructor(bounds: Box2, margin = 0) {
+    super(bounds, margin)
+    this.rawData = new Uint8Array(this.extendedDims.x * this.extendedDims.y)
+  }
+
+  override toStub(): BoardStub {
+    const { rawData, bounds } = this
+    return {
+      bounds,
+      // elevation: 0,
+      content: rawData
+    }
+  }
+}
 
 export class BoardCache extends PatchIndexer<BoardCacheData> {
   center = new Vector3()
@@ -115,13 +138,12 @@ export class BoardCache extends PatchIndexer<BoardCacheData> {
     this.center = center
     const indexChanges = super.getIndexingChanges(asVect2(center), radius)
     // insert new keys in index
-    Promise.all(indexChanges.map(patchKey => this.initCacheIndex(patchKey)))
+    await Promise.all(indexChanges.map(patchKey => this.initCacheIndex(patchKey)))
     const indexEntries = Object.entries(this.patchLookup)
     // refresh chunks required for board construction
     for await (const [patchKey, cacheData] of indexEntries) {
       const patchId = parsePatchKey(patchKey) as Vector2
       const { chunkIndex } = cacheData
-
       // cache chunks only related to boards
       for (
         let yId = boardChunksRange.bottomId;
@@ -138,14 +160,6 @@ export class BoardCache extends PatchIndexer<BoardCacheData> {
           chunkIndex[chunkKey] = chunk
         }
       }
-      // const boardChunksGenerator = new ChunksOTFGenerator(patchKey)
-      // await boardChunksGenerator.init()
-      // const boardChunkIds = Object.keys(this.indexed[patchKey])
-      // const chunksOtfGen = boardChunksGenerator.otfChunkGen(boardChunkIds)
-      // for await (const chunk of chunksOtfGen) {
-      //   const { chunkKey } = chunk
-      //   this.indexed[patchKey][chunkKey] = chunk
-      // }
     }
   }
 
@@ -192,13 +206,7 @@ export class BoardContainer {
     radius: 0,
     thickness: 0,
   }
-
-  // board output
-  boardData: BoardContent = {
-    bounds: new Box2(),
-    elevation: 0,
-    data: [],
-  }
+  finalBounds = new Box2()
 
   // board content
   static boardHolesLayer = new ProcLayer('holesMap')
@@ -214,62 +222,30 @@ export class BoardContainer {
     // this.center = boardCenter
   }
 
-  get boardInitialDims() {
+  get initialDims() {
     const { radius, thickness } = this.boardParams
     const boardDims = new Vector3(radius, thickness, radius).multiplyScalar(2)
     return boardDims
   }
 
-  get boardInitialBounds() {
+  get initialBounds() {
     const { center } = this.boardParams
     const initialBounds = new Box3().setFromCenterAndSize(
       center,
-      this.boardInitialDims,
+      this.initialDims,
     )
     return initialBounds
   }
 
-  get boardBounds() {
-    return this.boardData.bounds
-  }
-
-  set boardBounds(val: Box2) {
-    this.boardData.bounds = val
-  }
-
-  get boardElevation() {
-    return this.boardData.elevation
-  }
-
-  set boardElevation(val: number) {
-    this.boardData.elevation = val
-  }
-
-  isWithinBoard(pos: Vector2) {
-    const { radius, center } = this.boardParams
-    const distToCenter = pos.distanceTo(asVect2(center))
-    return distToCenter <= radius
-  }
-
-  isBufferWithinBoard(buffPos: Vector2, buffer: Uint16Array) {
+  isWithinBoard(buffPos: Vector2, buffer: Uint16Array) {
     const { radius, center } = this.boardParams
     if (buffPos) {
-      // const marginBlock = buffer[0]
-      // const lastMarginBlock = buffer[buffer.length - 1]
-      // const firstBlock = buffer[1]
-      // const isFull = buffer.slice(1, -1).find(val => val === 0) === undefined
       const lastBlock = buffer[buffer.length - 2]
       const isEmpty =
         buffer.slice(1, -1).reduce((sum, val) => sum + val, 0) === 0
-      // const heightDiff = Math.abs(blockPos.y - center.y)
+      // const isFull = buffer.slice(1, -1).find(val => val === 0) === undefined
       const centerDist = buffPos.distanceTo(asVect2(center))
-      // pos inside board
       const isInside = centerDist <= radius && !isEmpty && lastBlock === 0
-      // if (isInside) {
-      //     this.boardBounds = this.boardBounds || new Box2(asVect2(blockPos), asVect2(blockPos))
-      //     this.boardBounds.expandByPoint(asVect2(blockPos))
-      //     return true
-      // }
       return isInside
     }
     // isInsideBoard && this.boardBounds.expandByPoint(asVect2(blockPos))
@@ -277,67 +253,82 @@ export class BoardContainer {
   }
 
   overlapsBoard(bounds: Box2) {
+    const { radius, center } = this.boardParams
     const dummyPatch = new GroundPatch(bounds)
+    const isInsideBoard = (pos: Vector2) => pos.distanceTo(asVect2(center)) <= radius
     const patchBlocks = dummyPatch.iterBlocksQuery(bounds)
     for (const block of patchBlocks) {
-      if (this.isWithinBoard(asVect2(block.pos))) {
+      if (isInsideBoard(asVect2(block.pos))) {
         return true
       }
     }
     return false
   }
 
-  genBoardBuffer(center: Vector3) {
+  genBoardContent(center: Vector3) {
     this.boardParams.center = center
-    this.boardBounds.setFromPoints([asVect2(center)])
+    this.finalBounds.setFromPoints([asVect2(center)])
     const emptyBlock = ChunkContainer.dataEncoder(BlockType.NONE)
-    const boardBuffer = new ChunkContainer(this.boardInitialBounds, 1)
-    // fill buffer from cache
-    this.localCache.fillTargetChunk(boardBuffer)
-    const chunkBuffers = boardBuffer.iterChunkBuffers()
-    for (const chunkBuff of chunkBuffers) {
+    const initialPatchBounds = asBox2(this.initialBounds)
+    const boardPatch = new BoardPatch(initialPatchBounds)
+    const boardChunk = new ChunkContainer(this.initialBounds, 1)
+    // fill chunk from cache
+    this.localCache.fillTargetChunk(boardChunk)
+    // const chunkHeightBuffers = boardChunk.iterChunkBuffers()
+    // for (const heightBuff of chunkHeightBuffers) {
+
+    for (const patchIter of boardPatch.iterDataQuery(undefined, false)) {
+      const heightBuff = boardChunk.readBuffer(patchIter.localPos)
       // const empty = chunkBuff.data.reduce((sum, val) => sum + val, 0) === 0
       // const full = chunkBuff.data.find(val => val === 0) === undefined
-      if (this.isBufferWithinBoard(chunkBuff.pos, chunkBuff.data)) {
-        this.boardBounds.expandByPoint(chunkBuff.pos)
+      if (this.isWithinBoard(patchIter.pos, heightBuff)) {
+        this.finalBounds.expandByPoint(patchIter.pos)
         const marginBlock = ChunkContainer.dataEncoder(
-          chunkBuff.data[0] || BlockType.NONE,
+          heightBuff[0] || BlockType.NONE,
         )
-        chunkBuff.data[0] = marginBlock
+        heightBuff[0] = marginBlock
         // chunkBuff.data.fill(33,0,2)
         // find last empty block
         const surfaceIndex = Math.max(
-          chunkBuff.data.findIndex(val => !val) - 1,
+          heightBuff.findIndex(val => !val) - 1,
           0,
         )
         const surfaceBlock = ChunkContainer.dataEncoder(
-          chunkBuff.data[surfaceIndex] || BlockType.NONE,
+          heightBuff[surfaceIndex] || BlockType.NONE,
           BlockMode.CHECKERBOARD,
         )
         const undergroundBlock = ChunkContainer.dataEncoder(
-          chunkBuff.data[surfaceIndex] || BlockType.NONE,
+          heightBuff[surfaceIndex] || BlockType.NONE,
         )
-        // const groundBlock = ChunkContainer.dataEncoder(chunkBuff.data[1] || BlockType.NONE, BlockMode.CHECKERBOARD)
+        // const groundBlock = ChunkContainer.dataEncoder(heightBuff[1] || BlockType.NONE, BlockMode.CHECKERBOARD)
         const { thickness: boardThickness } = this.boardParams
         for (let i = 0; i < boardThickness; i++) {
-          chunkBuff.data[i] = undergroundBlock
+          heightBuff[i] = undergroundBlock
         }
-        chunkBuff.data[boardThickness] = surfaceBlock
-        chunkBuff.data.fill(emptyBlock, boardThickness + 1)
+        heightBuff[boardThickness] = surfaceBlock
+        heightBuff.fill(emptyBlock, boardThickness + 1)
+        boardPatch.rawData[patchIter.index] = BlockCategory.FLAT
       } else {
-        chunkBuff.data.forEach((val, i) => {
-          chunkBuff.data[i] = ChunkContainer.dataEncoder(val)
+        heightBuff.forEach((val, i) => {
+          heightBuff[i] = ChunkContainer.dataEncoder(val)
         })
+        boardPatch.rawData[patchIter.index] = BlockCategory.EMPTY
       }
-      boardBuffer.writeBuffer(chunkBuff.localPos, chunkBuff.data)
+      boardChunk.writeBuffer(patchIter.localPos, heightBuff)
+      // boardPatch.
     }
-    const finalBounds = asBox3(this.boardBounds)
-    finalBounds.min.y = boardBuffer.bounds.min.y
-    finalBounds.max.y = boardBuffer.bounds.max.y
-    const finalBoardBuffer = new ChunkContainer(finalBounds, 1)
-    ChunkContainer.copySourceToTarget(boardBuffer, finalBoardBuffer)
+    // compute final bounds and related patch and chunk
+    const finalBounds = asBox3(this.finalBounds)
+    finalBounds.min.y = boardChunk.bounds.min.y
+    finalBounds.max.y = boardChunk.bounds.max.y
+    const boardContent: BoardContent = {
+      patch: new BoardPatch(this.finalBounds),
+      chunk: new ChunkContainer(finalBounds, 1)
+    }
+    PatchBase.copySourceOverTargetContainer(boardPatch, boardContent.patch)
+    ChunkContainer.copySourceToTarget(boardChunk, boardContent.chunk)
     const boardSpawnedItems = this.localCache.querySpawnedItems(
-      finalBoardBuffer.bounds,
+      boardContent.chunk.bounds,
     )
     // add trimmed items
     for (const itemChunk of boardSpawnedItems) {
@@ -345,45 +336,9 @@ export class BoardContainer {
       // const spawnLocalPos = asVect2(boardBuffer.toLocalPos(spawnPos))
       // const treeBuff = []
       // boardBuffer.writeBuffer(spawnLocalPos, treeBuff);
-      ChunkContainer.copySourceToTarget(itemChunk, finalBoardBuffer)
+      // TODO: compute item's footprint on board's ground to mark block as obstacles
+      ChunkContainer.copySourceToTarget(itemChunk, boardContent.chunk)
     }
-    // const indexedPatchEntries = this.localCache.indexedPatchEntries
-    // for (const [patchKey, cachedData] of indexedPatchEntries){
-
-    // }
-    // boardBuffer.rawData.fill(33)
-    // for (const boardChunk of this.boardChunks) {
-    //   ChunkContainer.copySourceToTarget(boardChunk, boardBuffer)
-    // }
-    return finalBoardBuffer
-  }
-
-  genBoardData() {
-    const dummyPatch = new GroundPatch(this.boardBounds)
-
-    // convert blocks to board data format
-    const boardBlocks = dummyPatch.iterBlocksQuery()
-    const data = []
-    for (const block of boardBlocks) {
-      // const blockType = this.isWithinBoard(asVect2(block.pos))
-      //   ? block.data.type
-      //   : BlockType.NONE
-      const blockCat = this.isWithinBoard(asVect2(block.pos))
-        ? blockTypeCategoryMapper(BlockType.GRASS)
-        : BlockCategory.EMPTY
-      // const boardElement: BoardBlock = {
-      //   type: blockType,
-      //   category: blockCat,
-      // }
-      // data.push(boardElement)
-      data.push(blockCat)
-    }
-    // PatchContainer.copySourceOverTargetContainer(boardContainer, this)
-    const boardData: BoardContent = {
-      bounds: this.boardBounds,
-      elevation: this.boardParams.center.y,
-      data,
-    }
-    return boardData
+    return boardContent
   }
 }
