@@ -31,13 +31,13 @@
     "three": ">=0.163.0"
   },
   "devDependencies": {
-    "@parcel/packager-ts": "^2.13.2",
-    "@parcel/transformer-typescript-types": "^2.13.2",
+    "@parcel/packager-ts": "^2.13.3",
+    "@parcel/transformer-typescript-types": "^2.13.3",
     "@types/poisson-disk-sampling": "^2.2.4",
-    "@types/three": "^0.170.0",
+    "@types/three": "^0.171.0",
     "@types/workerpool": "^6.4.7",
-    "@typescript-eslint/eslint-plugin": "^8.18.0",
-    "@typescript-eslint/parser": "^8.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "9.1.0",
     "eslint-config-standard": "17.1.0",
