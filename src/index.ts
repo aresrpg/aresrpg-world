@@ -1,4 +1,5 @@
 export * as WorldUtils from './utils/index'
+export { BlocksBatch } from './datacontainers/BlocksBatch'
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { WorldEnv } from './misc/WorldEnv'
 export { Heightmap } from './procgen/Heightmap'
@@ -21,6 +22,7 @@ export {
 } from './tools/ProceduralGenerators'
 export { BlockMode } from './utils/types'
 export { DensityVolume } from './procgen/DensityVolume'
+export { WorldProcessing } from './api/WorldProcessing'
 export { WorldComputeApi } from './api/world-compute'
 export { WorldWorkerInit } from './api/world-compute-worker'
 

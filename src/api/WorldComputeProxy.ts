@@ -73,6 +73,10 @@ export class WorldComputeProxy {
     this.customProxy = customProxy
   }
 
+  isReady(){
+    return !!WorldComputeProxy.workerPool
+  }
+
   // static get custom() {
   //   this.defaultProxy = this.defaultProxy || new WorldComputeProxy()
   //   return this.defaultProxy

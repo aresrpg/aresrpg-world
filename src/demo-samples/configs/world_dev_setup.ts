@@ -5,6 +5,7 @@ import { BIOMES_LANDSCAPES_CONFIG } from './biome_landscapes'
 import { PROC_ITEMS_CONFIG } from './procedural_items'
 import {
   BLOCKS_COLOR_MAPPING,
+  ExtBlock,
   SCHEMATICS_BLOCKS_MAPPING,
 } from './blocks_mappings'
 
@@ -25,11 +26,11 @@ export const EnvOverride = (worldEnv = WorldEnv.current) => {
   // worldEnv.chunks.dataEncoder = chunk_data_encoder
 
   // DEBUG: uncomment following lines to enable debugging feats
-  // WorldEnv.debug.patch.borderHighlightColor = block_type.DBG_LIGHT
-  // WorldEnv.debug.schematics.missingBlockType = block_type.DBG_DARK
+  WorldEnv.current.debug.patch.borderHighlightColor = ExtBlock.DBG_LIGHT
+  WorldEnv.current.debug.schematics.missingBlockType = ExtBlock.DBG_DARK
 }
 
-export const BlocksColorMapping = BLOCKS_COLOR_MAPPING
+export const BlocksColorOverride = (blocksColorMapping: Record<number, number>) => ({ ...blocksColorMapping, ...BLOCKS_COLOR_MAPPING })
 
 /**
  * Unified world setup to ensure having same settings everywhere (workers, main thread)

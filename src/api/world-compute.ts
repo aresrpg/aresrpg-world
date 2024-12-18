@@ -456,7 +456,6 @@ export const bakeCavesMask = (boundsOrPatchKey: ChunkKey | Box3) => {
 // }
 export enum ComputeTask {
   PatchCompute = 'bakePatch',
-  // BlocksBatchCompute = 'computeBlocksBatch',
   OvergroundItemsQuery = 'retrieveOvergroundItems',
   BakeSurfaceChunks = 'bakeSurfaceChunks',
   BakeUndergroundChunk = 'bakeUndergroundChunk',
@@ -469,7 +468,6 @@ export enum ComputeTask {
 
 export const WorldComputeApi: Record<ComputeTask, any> = {
   [ComputeTask.PatchCompute]: bakePatch,
-  // [ComputeTask.BlocksBatchCompute]: computeBlocksBatch,
   [ComputeTask.OvergroundItemsQuery]: retrieveOvergroundItems,
   [ComputeTask.BakeSurfaceChunks]: bakeSurfaceChunkset,
   [ComputeTask.BakeUndergroundChunk]: bakeUndergroundChunk,
