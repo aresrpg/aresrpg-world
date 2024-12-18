@@ -1,13 +1,12 @@
-import { Box2, Box3, Vector2 } from 'three'
+import { Box2, Box3 } from 'three'
 import workerpool, { Pool } from 'workerpool'
 
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
-import { WorldEnv, WorldUtils } from '../index'
+import { WorldEnv } from '../index'
 import { SpawnedItems } from '../misc/ItemsInventory'
 import {
   ChunkId,
   ChunkKey,
-  GroundBlock,
   PatchId,
   PatchKey,
 } from '../utils/types'
@@ -133,16 +132,16 @@ export class WorldComputeProxy {
     // })
   }
 
-  async computeBlocksBatch(blockPosBatch: Vector2[], params: any) {
-    return WorldComputeProxy.workerPool
-      .exec(ComputeTask.BlocksBatchCompute, [blockPosBatch, params])
-      .then((blocksStubs: GroundBlock[]) => {
-        // parse worker's data to recreate original objects
-        const blocks = blocksStubs.map(blockStub => {
-          blockStub.pos = WorldUtils.parseThreeStub(blockStub.pos)
-          return blockStub
-        }) as GroundBlock[]
-        return blocks
-      })
-  }
+  // async computeBlocksBatch(blockPosBatch: Vector2[], params: any) {
+  //   return WorldComputeProxy.workerPool
+  //     .exec(ComputeTask.BlocksBatchCompute, [blockPosBatch, params])
+  //     .then((blocksStubs: GroundBlock[]) => {
+  //       // parse worker's data to recreate original objects
+  //       const blocks = blocksStubs.map(blockStub => {
+  //         blockStub.pos = WorldUtils.convert.parseThreeStub(blockStub.pos)
+  //         return blockStub
+  //       }) as GroundBlock[]
+  //       return blocks
+  //     })
+  // }
 }

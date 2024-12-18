@@ -1,8 +1,7 @@
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import alea from 'alea'
 import { Vector2, Vector3 } from 'three'
-
-import * as Utils from '../utils/common'
+import { clamp } from '../utils/math'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
@@ -147,6 +146,6 @@ export class NoiseSampler {
         noise += (noiseEval * 0.5 + 0.5) * harmonic.amplitude /// Math.pow(2, i + 1)
       })
     noise /= this.harmonicsAmplitudeSum
-    return Utils.clamp(noise, 0, 1)
+    return clamp(noise, 0, 1)
   }
 }

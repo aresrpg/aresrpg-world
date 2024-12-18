@@ -1,16 +1,17 @@
 import { Vector2, Box2, Vector3 } from 'three'
-import { PatchBlock, PatchKey } from '../utils/types'
-import { parsePatchKey, asPatchBounds, serializePatchId, asVect2, asVect3, parseThreeStub } from '../utils/common'
-import { BlockType, WorldEnv } from '../index'
+import { PatchKey } from '../utils/types'
+import { parsePatchKey, asPatchBounds, serializePatchId, asVect2, parseThreeStub } from '../utils/convert'
+import { WorldEnv } from '../index'
 
 // export class PatchChunkCommon<T> {
 
 // }
 
-type PatchSectorAddr = {
+export type PatchElement<T> = {
   pos: Vector2,
   index: number,
-  localPos: Vector2
+  localPos: Vector2,
+  data: T
 }
 
 export type PatchStub = {
@@ -22,7 +23,7 @@ export type PatchStub = {
 /**
  * Generic patch struct
  */
-export class PatchBase {
+export class PatchBase<T> {
   bounds: Box2
   dimensions: Vector2
   margin = 0
@@ -196,46 +197,15 @@ export class PatchBase {
         if (!skipMargin || !isMarginBlock(localPos)) {
           index = iterBounds ? this.getIndex(localPos) : index
           // const data = this.readData(index) || BlockType.NONE
-          const sectorAddr: PatchSectorAddr = {
+          const patchElem: PatchElement<T | undefined> = {
             index,
             pos: this.toWorldPos(localPos),
             localPos,
+            data: undefined
           }
-          yield sectorAddr
+          yield patchElem
         }
         index++
-      }
-    }
-  }
-
-  // copy occurs only on the overlapping global pos region of both containers
-  static copySourceOverTargetContainer(source: any, target: any) {
-    const adjustOverlapMargins = (overlap: Box2) => {
-      const margin = Math.min(target.margin, source.margin) || 0
-      overlap.min.x -= target.bounds.min.x === overlap.min.x ? margin : 0
-      overlap.min.y -= target.bounds.min.y === overlap.min.y ? margin : 0
-      overlap.max.x += target.bounds.max.x === overlap.max.x ? margin : 0
-      overlap.max.y += target.bounds.max.y === overlap.max.y ? margin : 0
-    }
-
-    if (source.bounds.intersectsBox(target.bounds)) {
-      const overlap = target.bounds.clone().intersect(source.bounds)
-      adjustOverlapMargins(overlap)
-      for (let { y } = overlap.min; y < overlap.max.y; y++) {
-        // const globalStartPos = new Vector3(x, 0, overlap.min.y)
-        const globalStartPos = new Vector2(overlap.min.x, y)
-        const targetLocalStartPos = target.toLocalPos(globalStartPos)
-        const sourceLocalStartPos = source.toLocalPos(globalStartPos)
-        let targetIndex = target.getIndex(targetLocalStartPos)
-        let sourceIndex = source.getIndex(sourceLocalStartPos)
-        for (let { x } = overlap.min; x < overlap.max.x; x++) {
-          const sourceVal = source.rawData[sourceIndex]
-          if (sourceVal) {
-            target.rawData[targetIndex] = sourceVal
-          }
-          sourceIndex++
-          targetIndex++
-        }
       }
     }
   }
@@ -259,3 +229,13 @@ export class PatchBase {
   // abstract get chunkIds(): ChunkId[]
   // abstract toChunks(): any
 }
+
+// export type DataContainer = PatchBase & {
+//   rawData: Uint8Array | Uint16Array | Uint32Array
+// }
+
+export interface DataContainer {
+  rawData: Uint8Array | Uint16Array | Uint32Array
+}
+
+export type PatchDataContainer = PatchBase<number> & DataContainer

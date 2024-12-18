@@ -1,13 +1,7 @@
-import { Vector2 } from 'three'
-
+import { Box2, Vector2 } from 'three'
+import { WorldUtils } from '../index'
 import { WorldEnv } from '../misc/WorldEnv'
-import {
-  getBoundsAroundPos,
-  getPatchIds,
-  serializePatchId,
-} from '../utils/common'
 import { PatchKey } from '../utils/types'
-
 import { GroundChunk, CaveChunkMask } from './ChunkFactory'
 import { ChunkSetProcessor } from './ChunksProcessing'
 
@@ -55,9 +49,12 @@ export class PatchIndexer<T = void> {
 
   // index patch & chunk keys found within radius around pos
   getIndexingChanges(pos: Vector2, rad: number) {
-    const bounds = getBoundsAroundPos(pos, rad)
-    const patchKeys = getPatchIds(bounds, WorldEnv.current.patchDimensions).map(
-      patchId => serializePatchId(patchId),
+    const center = pos.clone().floor()
+    const dims = new Vector2(rad, rad).multiplyScalar(2)
+    // const sphere = new Sphere(center, rad)
+    const bounds = new Box2().setFromCenterAndSize(center, dims)
+    const patchKeys = WorldUtils.convert.getPatchIds(bounds, WorldEnv.current.patchDimensions).map(
+      patchId => WorldUtils.convert.serializePatchId(patchId),
     )
     const newPatchKeys = patchKeys.filter(
       patchKey => !this.patchLookup[patchKey],

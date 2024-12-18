@@ -5,17 +5,15 @@ import {
   ItemsInventory,
   PseudoDistributionMap,
   WorldEnv,
+  WorldUtils,
 } from '../index'
-import { Biome, BiomeInfluence, BiomeType, BlockType } from '../procgen/Biome'
+import { Biome, BiomeInfluence, BlockType } from '../procgen/Biome'
 import { Heightmap } from '../procgen/Heightmap'
 import {
-  Block,
   BlockData,
   ChunkId,
   ChunkKey,
-  GroundBlock,
   LandscapesConf,
-  PatchBoundId,
   PatchId,
   PatchKey,
 } from '../utils/types'
@@ -23,12 +21,10 @@ import {
   asBox2,
   asVect2,
   asVect3,
-  bilinearInterpolation,
-  getPatchBoundingPoints,
   getPatchId,
   serializeChunkId,
   serializePatchId,
-} from '../utils/common'
+} from '../utils/convert'
 import { ItemType } from '../misc/ItemsInventory'
 import {
   DistributionProfile,
@@ -44,7 +40,7 @@ import {
 import { PatchBase } from '../datacontainers/PatchBase'
 import { GroundChunk } from '../datacontainers/ChunkFactory'
 
-type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
+
 
 const defaultDistribution: DistributionParams = {
   ...DistributionProfiles[DistributionProfile.MEDIUM],
@@ -67,49 +63,6 @@ const defaultItemDims = new Vector3(10, 13, 10)
 /**
  * Common
  */
-
-const getBiomeBoundsInfluences = (bounds: Box2) => {
-  const { xMyM, xMyP, xPyM, xPyP } = PatchBoundId
-  // eval biome at patch corners
-  const equals = (v1: BiomeInfluence, v2: BiomeInfluence) => {
-    const different = Object.keys(v1)
-      // .map(k => parseInt(k) as BiomeType)
-      .find(k => v1[k as BiomeType] !== v2[k as BiomeType])
-    return !different
-  }
-  const boundsPoints = getPatchBoundingPoints(bounds)
-  const boundsInfluences = {} as PatchBoundingBiomes
-  ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-    const boundPos = boundsPoints[key] as Vector2
-    const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
-    boundsInfluences[key] = biomeInfluence
-    // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-    return biomeInfluence
-  })
-  const allEquals =
-    equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
-    equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
-    equals(boundsInfluences[xMyM], boundsInfluences[xPyP])
-  return allEquals ? boundsInfluences[xMyM] : boundsInfluences
-}
-
-const getBlockBiome = (
-  blockPos: Vector2,
-  patchBounds: Box2,
-  boundingBiomes: BiomeInfluence | PatchBoundingBiomes,
-) => {
-  if (
-    (boundingBiomes as PatchBoundingBiomes)[PatchBoundId.xMyM] &&
-    WorldEnv.current.settings.useBiomeBilinearInterpolation
-  ) {
-    return bilinearInterpolation(
-      blockPos,
-      patchBounds,
-      boundingBiomes as PatchBoundingBiomes,
-    ) as BiomeInfluence
-  }
-  return boundingBiomes as BiomeInfluence
-}
 
 export const computeGroundBlock = (
   blockPos: Vector3,
@@ -172,86 +125,6 @@ export const computeGroundBlock = (
 }
 
 /**
- * Ground blocks
- */
-
-/**
- *
- * @param blockPosBatch
- * @param params
- * @returns
- */
-export const computeBlocksBatch = async (
-  blockPosBatch: Vector2[],
-  params = { includeEntitiesBlocks: false },
-) => {
-  // sort blocks by patch
-  const blocksByPatch: Record<PatchKey, GroundBlock[]> = {}
-  const blocksBatch = blockPosBatch.map(pos => {
-    const patchKey = serializePatchId(
-      getPatchId(pos, WorldEnv.current.patchDimensions),
-    )
-    const data: BlockData = {
-      level: 0,
-      type: BlockType.NONE,
-    }
-    const block: Block<BlockData> = {
-      pos: asVect3(pos),
-      data,
-    }
-    blocksByPatch[patchKey] = blocksByPatch[patchKey] || []
-    blocksByPatch[patchKey]?.push(block as any)
-    return block
-  })
-  for await (const [patchKey, patchBlocks] of Object.entries(blocksByPatch)) {
-    const groundPatch = new GroundPatch(patchKey)
-    const biomeBoundsInfluences = getBiomeBoundsInfluences(groundPatch.bounds)
-    for await (const block of patchBlocks) {
-      const blockBiome = getBlockBiome(
-        asVect2(block.pos),
-        groundPatch.bounds,
-        biomeBoundsInfluences,
-      )
-      block.data = computeGroundBlock(block.pos, blockBiome)
-      // const {level, type } =
-      // override with last block if specified
-      if (params.includeEntitiesBlocks) {
-        const lastBlockData = await queryLastBlockData(asVect2(block.pos))
-        block.data =
-          lastBlockData.level > 0 && lastBlockData.type
-            ? lastBlockData
-            : (block.data as any)
-      }
-      block.pos.y = block.data.level
-    }
-  }
-
-  // const blocksBatch = blockPosBatch.map((pos) => {
-  //   const blockPos = asVect3(pos)
-  //   const blockData = computeGroundBlock(blockPos)
-  //   const { spawnableItems } = blockData
-  //   const queriedLoc = new Box2().setFromPoints([asVect2(blockPos)])
-  //   queriedLoc.max.addScalar(1)
-  //   false && includeEntitiesBlocks && spawnableItems.forEach(itemType => {
-  //     // several (overlapping) objects may be found at queried position
-  //     const [spawnedEntity] = ItemsInventory.querySpawnedEntities(itemType, queriedLoc)
-  //     const lastBlockIndex = blocksBuffer?.findLastIndex(elt => elt)
-  //     if (blocksBuffer && lastBlockIndex && lastBlockIndex >= 0) {
-  //       blockData.level += lastBlockIndex
-  //       blockData.type = blocksBuffer[lastBlockIndex] as BlockType
-  //     }
-  //   })
-  //   blockPos.y = blockData.level
-  //   const block: Block = {
-  //     pos: blockPos,
-  //     data: blockData,
-  //   }
-  //   return block
-  // })
-  return blocksBatch // as GroundBlock[]
-}
-
-/**
  * Ground patch
  */
 
@@ -267,14 +140,14 @@ export const bakePatch = (boundsOrPatchKey: PatchKey | Box2) => {
 export const bakeGroundLayer = (boundsOrPatchKey: PatchKey | Box2) => {
   const groundPatch = new GroundPatch(boundsOrPatchKey)
   const { valueRange } = groundPatch
-  const biomeBoundsInfluences = getBiomeBoundsInfluences(groundPatch.bounds)
+  const biomeBoundsInfluences = Biome.instance.getBoundsInfluences(groundPatch.bounds)
   const blocks = groundPatch.iterBlocksQuery(undefined, false)
   let blockIndex = 0
   for (const block of blocks) {
     // EXPERIMENTAL: is it faster to perform bilinear interpolation rather
     // than sampling biome for each block?
     // if biome is the same at each patch corners, no need to interpolate
-    const blockBiome = getBlockBiome(
+    const blockBiome = WorldUtils.process.getBlockBiome(
       asVect2(block.pos),
       groundPatch.bounds,
       biomeBoundsInfluences,
@@ -293,7 +166,7 @@ export const bakeGroundLayer = (boundsOrPatchKey: PatchKey | Box2) => {
  * Overground patch (items)
  */
 export const retrieveOvergroundItems = async (bounds: Box2) => {
-  const boundsBiomeInfluences = getBiomeBoundsInfluences(bounds)
+  const boundsBiomeInfluences = Biome.instance.getBoundsInfluences(bounds)
 
   const spawnedItems: Record<ItemType, Vector3[]> = {}
   const spawnPlaces = defaultSpawnMap.querySpawnLocations(
@@ -301,7 +174,7 @@ export const retrieveOvergroundItems = async (bounds: Box2) => {
     asVect2(defaultItemDims),
   )
   for (const pos of spawnPlaces) {
-    const blockBiome = getBlockBiome(pos, bounds, boundsBiomeInfluences)
+    const blockBiome = WorldUtils.process.getBlockBiome(pos, bounds, boundsBiomeInfluences)
     const { level, biome, landscapeIndex } = computeGroundBlock(
       asVect3(pos),
       blockBiome,
@@ -343,8 +216,8 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
       getPatchId(spawnOrigin, WorldEnv.current.patchDimensions),
     )
     const groundPatch = new GroundPatch(patchKey)
-    const biomeBoundsInfluences = getBiomeBoundsInfluences(groundPatch.bounds)
-    const blockBiome = getBlockBiome(
+    const biomeBoundsInfluences = Biome.instance.getBoundsInfluences(groundPatch.bounds)
+    const blockBiome = WorldUtils.process.getBlockBiome(
       spawnOrigin,
       groundPatch.bounds,
       biomeBoundsInfluences,
@@ -583,7 +456,7 @@ export const bakeCavesMask = (boundsOrPatchKey: ChunkKey | Box3) => {
 // }
 export enum ComputeTask {
   PatchCompute = 'bakePatch',
-  BlocksBatchCompute = 'computeBlocksBatch',
+  // BlocksBatchCompute = 'computeBlocksBatch',
   OvergroundItemsQuery = 'retrieveOvergroundItems',
   BakeSurfaceChunks = 'bakeSurfaceChunks',
   BakeUndergroundChunk = 'bakeUndergroundChunk',
@@ -596,7 +469,7 @@ export enum ComputeTask {
 
 export const WorldComputeApi: Record<ComputeTask, any> = {
   [ComputeTask.PatchCompute]: bakePatch,
-  [ComputeTask.BlocksBatchCompute]: computeBlocksBatch,
+  // [ComputeTask.BlocksBatchCompute]: computeBlocksBatch,
   [ComputeTask.OvergroundItemsQuery]: retrieveOvergroundItems,
   [ComputeTask.BakeSurfaceChunks]: bakeSurfaceChunkset,
   [ComputeTask.BakeUndergroundChunk]: bakeUndergroundChunk,

@@ -1,18 +1,18 @@
-import { Vector2, Vector3 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 import { smoothstep } from 'three/src/math/MathUtils'
 
 import { LinkedList } from '../datacontainers/LinkedList'
-import { MappingRangeSorter } from '../utils/common'
-import * as Utils from '../utils/common'
+
 import {
   BiomeLandscapeKey,
   BiomesConf,
   BiomesRawConf,
   LandscapeFields,
   LandscapesConf,
+  PatchBoundId,
 } from '../utils/types'
-import { WorldEnv } from '../index'
+import { WorldEnv, WorldUtils } from '../index'
 
 import { ProcLayer } from './ProcLayer'
 
@@ -88,7 +88,7 @@ export const BiomeNumericType: Record<BiomeType, number> = {
   [BiomeType.Grassland]: 0,
 }
 
-Utils.typesNumbering(BiomeNumericType)
+WorldUtils.misc.typesNumbering(BiomeNumericType)
 
 export const ReverseBiomeNumericType: Record<number, BiomeType> = {}
 Object.keys(BiomeNumericType).forEach(
@@ -111,6 +111,7 @@ const translateContribution = <T extends HeatLevel | RainLevel>(
 }
 
 export type BiomeInfluence = Record<BiomeType, number>
+export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
 const BiomesMapping: Record<HeatLevel, Record<RainLevel, BiomeType>> = {
   [HeatLevel.COLD]: {
@@ -272,7 +273,7 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-        (biomeContribs[k as BiomeType] = Utils.roundToDec(
+        (biomeContribs[k as BiomeType] = WorldUtils.math.roundToDec(
           biomeContribs[k as BiomeType],
           2,
         )),
@@ -282,6 +283,31 @@ export class Biome {
     // biomeContribs[BiomeType.Desert] = 0
     // biomeContribs[BiomeType.Temperate] = 0
     return biomeContribs
+  }
+
+  getBoundsInfluences(bounds: Box2) {
+    const { xMyM, xMyP, xPyM, xPyP } = PatchBoundId
+    // eval biome at patch corners
+    const equals = (v1: BiomeInfluence, v2: BiomeInfluence) => {
+      const different = Object.keys(v1)
+        // .map(k => parseInt(k) as BiomeType)
+        .find(k => v1[k as BiomeType] !== v2[k as BiomeType])
+      return !different
+    }
+    const boundsPoints = WorldUtils.spatial.getPatchBoundingPoints(bounds)
+    const boundsInfluences = {} as PatchBoundingBiomes
+    ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+      const boundPos = boundsPoints[key] as Vector2
+      const biomeInfluence = this.getBiomeInfluence(WorldUtils.convert.asVect3(boundPos))
+      boundsInfluences[key] = biomeInfluence
+      // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+      return biomeInfluence
+    })
+    const allEquals =
+      equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
+      equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
+      equals(boundsInfluences[xMyM], boundsInfluences[xPyP])
+    return allEquals ? boundsInfluences[xMyM] : boundsInfluences
   }
 
   parseBiomesConfig(biomesRawConf: BiomesRawConf) {
@@ -295,7 +321,7 @@ export class Biome {
       const configItems = Object.values(biomeConf) as LandscapeFields[]
       const mappingRanges = LinkedList.fromArrayAfterSorting(
         configItems,
-        MappingRangeSorter,
+        WorldUtils.misc.MappingRangeSorter,
       )
       this.mappings[biomeType as BiomeType] = mappingRanges
       // index configs
@@ -314,7 +340,7 @@ export class Biome {
   ) => {
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)
-    const posRandomizerVal = this.posRandomizer.eval(Utils.asVect3(mapCoords))
+    const posRandomizerVal = this.posRandomizer.eval(WorldUtils.convert.asVect3(mapCoords))
     // add some height variations to break painting monotony
     const { amplitude }: any = landscapeConf.data
     const bounds = {
@@ -357,9 +383,9 @@ export class Biome {
   ) => {
     const { seaLevel } = WorldEnv.current.biomes
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
-    rawVal = Utils.clamp(rawVal, 0, 1)
+    rawVal = WorldUtils.math.clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]
-    const confId = Utils.findMatchingRange(rawVal as number, firstItem)
+    const confId = WorldUtils.misc.findMatchingRange(rawVal as number, firstItem)
     const current = firstItem.nth(confId)
     const upper = current?.next || current
     const min = new Vector2(current.data.x, current.data.y)
@@ -384,7 +410,7 @@ export class Biome {
 
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
     const firstItem = this.mappings[biomeType]
-    const confId = Utils.findMatchingRange(rawVal as number, firstItem)
+    const confId = WorldUtils.misc.findMatchingRange(rawVal as number, firstItem)
     let currentItem = firstItem.nth(confId)
     while (!currentItem?.data.type && currentItem?.prev) {
       currentItem = currentItem.prev
