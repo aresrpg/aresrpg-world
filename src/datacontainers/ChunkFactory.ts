@@ -2,7 +2,7 @@ import { Vector3, MathUtils } from 'three'
 
 import { WorldComputeProxy } from '../api/WorldComputeProxy'
 import { WorldEnv } from '../misc/WorldEnv'
-import { asVect2, serializePatchId } from '../utils/common'
+import { asVect2, serializePatchId } from '../utils/convert'
 import { BlockMode, ChunkKey, PatchBlock } from '../utils/types'
 import { BlockType, Biome, BiomeType } from '../procgen/Biome'
 

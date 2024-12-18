@@ -17,7 +17,7 @@ export const ExtBlock = {
 }
 
 // assing an enum id to each additional type
-WorldUtils.typesNumbering(ExtBlock, BlockType.LAST_PLACEHOLDER)
+WorldUtils.misc.typesNumbering(ExtBlock, BlockType.LAST_PLACEHOLDER)
 
 /**
  * Blocks color mapping

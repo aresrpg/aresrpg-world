@@ -4,7 +4,7 @@ import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { WorldComputeProxy } from '../index'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
-import { asPatchBounds, asBox3, asBox2 } from '../utils/common'
+import { asPatchBounds, asBox3, asBox2 } from '../utils/convert'
 import { PatchKey } from '../utils/types'
 
 import { WorldEnv } from './WorldEnv'

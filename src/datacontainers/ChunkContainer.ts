@@ -1,6 +1,4 @@
 import { Vector2, Box3, Vector3 } from 'three'
-
-import { BlockType } from '..'
 import { BlockMode, ChunkId, ChunkKey } from '../utils/types'
 import {
   asVect3,
@@ -9,8 +7,11 @@ import {
   serializeChunkId,
   parseThreeStub,
   asVect2,
-} from '../utils/common'
+  asBox3,
+  asBox2,
+} from '../utils/convert'
 import { WorldEnv } from '../misc/WorldEnv'
+import { BlockType } from '../index'
 
 enum ChunkAxisOrder {
   ZXY,
@@ -302,7 +303,7 @@ export class ChunkContainer {
    * @param rangeBox iteration range as global coords
    * @param skipMargin
    */
-  *iterChunkBuffers(iteratedBounds?: Box3 | Vector3) {
+  *iterChunkSlice(iteratedBounds?: Box3 | Vector3) {
     // convert to local coords to speed up iteration
     const localBounds = iteratedBounds
       ? this.adjustInputBounds(iteratedBounds)

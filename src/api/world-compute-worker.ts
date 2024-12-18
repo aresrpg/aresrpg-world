@@ -1,13 +1,12 @@
 import { WorldUtils } from '../index'
-
 import { WorldComputeApi } from './world-compute'
 
 export const WorldWorkerInit = (workerPool: any) => {
   const rawArgsConverter = (...rawArgs: any) => {
     const args = rawArgs.map((arg: any) =>
       arg instanceof Array
-        ? arg.map(item => WorldUtils.parseThreeStub(item))
-        : WorldUtils.parseThreeStub(arg),
+        ? arg.map(item => WorldUtils.convert.parseThreeStub(item))
+        : WorldUtils.convert.parseThreeStub(arg),
     )
     return args
   }

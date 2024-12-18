@@ -7,7 +7,7 @@ import {
   asVect3,
   serializeChunkId,
   asPatchBounds,
-} from '../utils/common'
+} from '../utils/convert'
 import { PatchKey } from '../utils/types'
 
 import { ChunkContainer } from './ChunkContainer'

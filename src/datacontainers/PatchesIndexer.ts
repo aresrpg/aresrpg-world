@@ -7,7 +7,7 @@
 import { Box2, Vector2 } from 'three'
 
 import { PatchBlock, PatchKey } from '../utils/types'
-import { getPatchId, getPatchIds, serializePatchId } from '../utils/common'
+import { getPatchId, getPatchIds, serializePatchId } from '../utils/convert'
 import { WorldEnv } from '../index'
 
 import { PatchBase } from './PatchBase'
@@ -17,7 +17,7 @@ import { GroundPatch } from './GroundPatch'
  * Structure for storing either contiguous (map) or sparse (cache) generic patches
  * Provides utility to rebuild patch index around position and radius
  */
-export abstract class PatchesIndexer<T extends PatchBase> {
+export abstract class PatchesIndexer<T extends PatchBase<any>> {
   patchLookup: Record<PatchKey, T> = {}
   patchDimensions
 
