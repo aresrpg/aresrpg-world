@@ -1,7 +1,7 @@
-import { Box2, Box3, Vector3 } from 'three'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { WorldComputeProxy } from '../index'
+import { BlocksBatch, WorldComputeProxy } from '../index'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
 import { asPatchBounds, asBox3, asBox2 } from '../utils/convert'
@@ -140,6 +140,19 @@ export class ItemsChunkLayer {
           const { min, max } = itemChunk.bounds
           ymin = isNaN(ymin) ? min.y : Math.min(ymin, min.y)
           ymax = isNaN(ymax) ? max.y : Math.max(ymax, max.y)
+          const chunkBottomBlocks: Vector2[] = []
+          // iter slice blocks
+          for (const heightBuff of itemChunk.iterChunkSlice()) {
+            if (heightBuff.data[0]) chunkBottomBlocks.push(heightBuff.pos)
+          }
+          // compute blocks batch to find lower element
+          const blocksBatch = await BlocksBatch.proxyGen(chunkBottomBlocks)
+          const lowestBlock = blocksBatch.sort((b1, b2) => b1.data.level - b2.data.level)[0]
+          const lowestLevel = lowestBlock?.data.level || 0
+          const yOffset = itemChunk.bounds.min.y - lowestLevel
+          const offset = new Vector3(0, yOffset, 0)
+          itemChunk.bounds.translate(offset)
+          // adjust chunk elevation according to lower element
           individualChunks.push(itemChunk)
         }
       }

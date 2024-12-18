@@ -7,8 +7,6 @@ import {
   serializeChunkId,
   parseThreeStub,
   asVect2,
-  asBox3,
-  asBox2,
 } from '../utils/convert'
 import { WorldEnv } from '../misc/WorldEnv'
 import { BlockType } from '../index'
