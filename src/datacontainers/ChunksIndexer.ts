@@ -2,6 +2,7 @@ import { Box2, Vector2 } from 'three'
 
 import { WorldUtils } from '../index'
 import { WorldEnv } from '../misc/WorldEnv'
+import { asPatchBounds } from '../utils/convert'
 import { PatchKey } from '../utils/types'
 
 import { GroundChunk, CaveChunkMask } from './ChunkFactory'
@@ -57,10 +58,16 @@ export class PatchIndexer<T = void> {
     const bounds = new Box2().setFromCenterAndSize(center, dims)
     const patchKeys = WorldUtils.convert
       .getPatchIds(bounds, WorldEnv.current.patchDimensions)
+      .sort((v1, v2) => v1.distanceTo(pos) - v2.distanceTo(pos))
       .map(patchId => WorldUtils.convert.serializePatchId(patchId))
-    const newPatchKeys = patchKeys.filter(
-      patchKey => !this.patchLookup[patchKey],
-    )
+    const newPatchKeys = patchKeys.filter(patchKey => !this.patchLookup[patchKey])
+    newPatchKeys.sort((k1, k2) => {
+      const b1 = asPatchBounds(k1, WorldEnv.current.patchDimensions)
+      const b2 = asPatchBounds(k2, WorldEnv.current.patchDimensions)
+      const c1 = b1.getCenter(new Vector2())
+      const c2 = b2.getCenter(new Vector2())
+      return c1.distanceTo(pos) - c2.distanceTo(pos)
+    })
     // clear previous index and override with new patch/chunk keys
     const patchLookup: Record<PatchKey, T> = {}
     for (const patchKey of patchKeys) {

@@ -353,7 +353,7 @@ export class BoardContainer {
         for (const heightBuff of itemChunk.iterChunkSlice()) {
           const itemBlockData = heightBuff.data[itemOffset]
           // if blocks belongs to board
-          if (itemBlockData && this.boardData.containsPoint(heightBuff.pos)) {
+          if (itemBlockData && boardPatch.containsPoint(heightBuff.pos)) {
             const itemBlockPos = asVect3(heightBuff.pos, this.boardElevation)
             const chunkLocalPos = boardChunk.toLocalPos(itemBlockPos)
             const chunkIndex = boardChunk.getIndex(chunkLocalPos)
