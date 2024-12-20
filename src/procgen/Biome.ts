@@ -3,7 +3,6 @@ import { Box2, Vector2, Vector3 } from 'three'
 import { smoothstep } from 'three/src/math/MathUtils'
 
 import { LinkedList } from '../datacontainers/LinkedList'
-
 import {
   BiomeLandscapeKey,
   BiomesConf,
@@ -298,7 +297,9 @@ export class Biome {
     const boundsInfluences = {} as PatchBoundingBiomes
     ;[xMyM, xMyP, xPyM, xPyP].map(key => {
       const boundPos = boundsPoints[key] as Vector2
-      const biomeInfluence = this.getBiomeInfluence(WorldUtils.convert.asVect3(boundPos))
+      const biomeInfluence = this.getBiomeInfluence(
+        WorldUtils.convert.asVect3(boundPos),
+      )
       boundsInfluences[key] = biomeInfluence
       // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
       return biomeInfluence
@@ -340,7 +341,9 @@ export class Biome {
   ) => {
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)
-    const posRandomizerVal = this.posRandomizer.eval(WorldUtils.convert.asVect3(mapCoords))
+    const posRandomizerVal = this.posRandomizer.eval(
+      WorldUtils.convert.asVect3(mapCoords),
+    )
     // add some height variations to break painting monotony
     const { amplitude }: any = landscapeConf.data
     const bounds = {
@@ -385,7 +388,10 @@ export class Biome {
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = WorldUtils.math.clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]
-    const confId = WorldUtils.misc.findMatchingRange(rawVal as number, firstItem)
+    const confId = WorldUtils.misc.findMatchingRange(
+      rawVal as number,
+      firstItem,
+    )
     const current = firstItem.nth(confId)
     const upper = current?.next || current
     const min = new Vector2(current.data.x, current.data.y)
@@ -410,7 +416,10 @@ export class Biome {
 
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
     const firstItem = this.mappings[biomeType]
-    const confId = WorldUtils.misc.findMatchingRange(rawVal as number, firstItem)
+    const confId = WorldUtils.misc.findMatchingRange(
+      rawVal as number,
+      firstItem,
+    )
     let currentItem = firstItem.nth(confId)
     while (!currentItem?.data.type && currentItem?.prev) {
       currentItem = currentItem.prev

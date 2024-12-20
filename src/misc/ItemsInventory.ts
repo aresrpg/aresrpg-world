@@ -43,8 +43,12 @@ export class ItemsInventory {
     const fileUrl = ItemsInventory.schematicFilesIndex[id]
     let chunk
     if (fileUrl) {
-      const customBlocksMapping = WorldEnv.current.schematics.localBlocksMapping[id]
-      chunk = await SchematicLoader.createChunkContainer(fileUrl, customBlocksMapping)
+      const customBlocksMapping =
+        WorldEnv.current.schematics.localBlocksMapping[id]
+      chunk = await SchematicLoader.createChunkContainer(
+        fileUrl,
+        customBlocksMapping,
+      )
       // const spawner = new PseudoDistributionMap()
       ItemsInventory.catalog[id] = chunk
     }
@@ -147,7 +151,9 @@ export class ItemsChunkLayer {
           }
           // compute blocks batch to find lower element
           const blocksBatch = await BlocksBatch.proxyGen(chunkBottomBlocks)
-          const lowestBlock = blocksBatch.sort((b1, b2) => b1.data.level - b2.data.level)[0]
+          const [lowestBlock] = blocksBatch.sort(
+            (b1, b2) => b1.data.level - b2.data.level,
+          )
           const lowestLevel = lowestBlock?.data.level || 0
           const yOffset = itemChunk.bounds.min.y - lowestLevel
           const offset = new Vector3(0, yOffset, 0)

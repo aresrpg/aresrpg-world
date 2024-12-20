@@ -1,10 +1,11 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
+
 import { PatchBoundId } from './types'
 
 /**
  * @param point input point inside bounding box
  * @param points surrounding points which must remain outside bounding box
- * @param bounds 
+ * @param bounds
  * @returns largest bounding box including input point while excluding surrounding points
  */
 export const findBoundingBox = (

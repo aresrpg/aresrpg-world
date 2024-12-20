@@ -88,16 +88,16 @@ export class WorldEnv {
     localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>
     filesIndex: Record<ItemType, string>
   } = {
-      globalBlocksMapping: {},
-      localBlocksMapping: {},
-      filesIndex: {},
-    }
+    globalBlocksMapping: {},
+    localBlocksMapping: {},
+    filesIndex: {},
+  }
 
   proceduralItems: {
     configs: Record<ItemType, ProcItemConf>
   } = {
-      configs: {},
-    }
+    configs: {},
+  }
 
   workerPool = {
     count: 4,
@@ -114,9 +114,9 @@ export class WorldEnv {
     rawConf: BiomesRawConf
     seaLevel: number
   } = {
-      rawConf: {} as any,
-      seaLevel: 0,
-    }
+    rawConf: {} as any,
+    seaLevel: 0,
+  }
 
   get seaLevel() {
     return this.biomes.seaLevel

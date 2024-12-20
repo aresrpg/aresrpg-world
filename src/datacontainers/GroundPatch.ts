@@ -1,10 +1,7 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
 import { GroundBlock, PatchBlock, PatchKey } from '../utils/types'
-import {
-  asVect3,
-  asVect2,
-} from '../utils/convert'
+import { asVect3, asVect2 } from '../utils/convert'
 import { BlockMode, WorldComputeProxy } from '../index'
 import {
   BiomeNumericType,
@@ -53,7 +50,10 @@ export const parseGroundFlags = (rawFlags: number) => {
  * overgroundIndex  | 16 | support for 65536 different configurations
  *
  */
-export class GroundPatch extends PatchBase<number> implements PatchDataContainer {
+export class GroundPatch
+  extends PatchBase<number>
+  implements PatchDataContainer
+{
   rawData: Uint32Array
   valueRange = { min: 512, max: 0 } // here elevation
   isEmpty = true
@@ -205,9 +205,8 @@ export class GroundPatch extends PatchBase<number> implements PatchDataContainer
   }
 
   async bake() {
-    const stub: GroundPatchStub = await WorldComputeProxy.current.bakeGroundPatch(
-      this.key || this.bounds,
-    )
+    const stub: GroundPatchStub =
+      await WorldComputeProxy.current.bakeGroundPatch(this.key || this.bounds)
     this.valueRange = stub.valueRange || this.valueRange
     this.rawData.set(stub.rawData)
     this.isEmpty = false

@@ -40,8 +40,6 @@ import {
 import { PatchBase } from '../datacontainers/PatchBase'
 import { GroundChunk } from '../datacontainers/ChunkFactory'
 
-
-
 const defaultDistribution: DistributionParams = {
   ...DistributionProfiles[DistributionProfile.MEDIUM],
   minDistance: 10,
@@ -140,7 +138,9 @@ export const bakePatch = (boundsOrPatchKey: PatchKey | Box2) => {
 export const bakeGroundLayer = (boundsOrPatchKey: PatchKey | Box2) => {
   const groundPatch = new GroundPatch(boundsOrPatchKey)
   const { valueRange } = groundPatch
-  const biomeBoundsInfluences = Biome.instance.getBoundsInfluences(groundPatch.bounds)
+  const biomeBoundsInfluences = Biome.instance.getBoundsInfluences(
+    groundPatch.bounds,
+  )
   const blocks = groundPatch.iterBlocksQuery(undefined, false)
   let blockIndex = 0
   for (const block of blocks) {
@@ -174,7 +174,11 @@ export const retrieveOvergroundItems = async (bounds: Box2) => {
     asVect2(defaultItemDims),
   )
   for (const pos of spawnPlaces) {
-    const blockBiome = WorldUtils.process.getBlockBiome(pos, bounds, boundsBiomeInfluences)
+    const blockBiome = WorldUtils.process.getBlockBiome(
+      pos,
+      bounds,
+      boundsBiomeInfluences,
+    )
     const { level, biome, landscapeIndex } = computeGroundBlock(
       asVect3(pos),
       blockBiome,
@@ -216,7 +220,9 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
       getPatchId(spawnOrigin, WorldEnv.current.patchDimensions),
     )
     const groundPatch = new GroundPatch(patchKey)
-    const biomeBoundsInfluences = Biome.instance.getBoundsInfluences(groundPatch.bounds)
+    const biomeBoundsInfluences = Biome.instance.getBoundsInfluences(
+      groundPatch.bounds,
+    )
     const blockBiome = WorldUtils.process.getBlockBiome(
       spawnOrigin,
       groundPatch.bounds,

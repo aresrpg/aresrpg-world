@@ -41,7 +41,10 @@ export class SchematicLoader {
    * @param schemBlocks
    * @returns
    */
-  static async createChunkContainer(fileUrl: string, localBlocksMapping?: SchematicsBlocksMapping) {
+  static async createChunkContainer(
+    fileUrl: string,
+    localBlocksMapping?: SchematicsBlocksMapping,
+  ) {
     const rawData = await SchematicLoader.load(fileUrl)
     const parsedSchematic = await SchematicLoader.parse(rawData)
     const schemBlocks: any = SchematicLoader.getBlocks(parsedSchematic)
@@ -61,7 +64,8 @@ export class SchematicLoader {
       for (let x = 0; x < schemBlocks[y].length; x++) {
         for (let z = 0; z < schemBlocks[y][x].length; z++) {
           const [, rawType] = schemBlocks[y][x][z].name.split(':')
-          let blockType = localBlocksMapping?.[rawType] || globalBlocksMapping[rawType]
+          let blockType =
+            localBlocksMapping?.[rawType] || globalBlocksMapping[rawType]
           if (blockType === undefined) {
             console.warn(`missing schematic block type ${rawType}`)
             blockType = WorldEnv.current.debug.schematics.missingBlockType

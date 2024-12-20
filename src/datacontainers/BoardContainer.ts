@@ -46,11 +46,6 @@ export type BoardStub = {
   content: Uint8Array
 }
 
-type BoardContent = {
-  chunk: ChunkContainer,
-  patch: BoardPatch
-}
-
 type ChunkIndex = Record<ChunkKey, ChunkContainer>
 type BoardCacheData = {
   itemsLayer: ItemsChunkLayer
@@ -73,11 +68,15 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
     return {
       bounds,
       // elevation: 0,
-      content: rawData
+      content: rawData,
     }
   }
 
-  override *iterDataQuery(iterBounds?: Box2 | Vector2 | undefined, skipMargin?: boolean, skipEmpty = true) {
+  override *iterDataQuery(
+    iterBounds?: Box2 | Vector2 | undefined,
+    skipMargin?: boolean,
+    skipEmpty = true,
+  ) {
     const elements = super.iterDataQuery(iterBounds, skipMargin)
     for (const element of elements) {
       const { index } = element
@@ -98,7 +97,11 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
     const val = this.rawData[index]
     return !!val
   }
+}
 
+type BoardContent = {
+  chunk: ChunkContainer
+  patch: BoardPatch
 }
 
 export class BoardCache extends PatchIndexer<BoardCacheData> {
@@ -147,7 +150,9 @@ export class BoardCache extends PatchIndexer<BoardCacheData> {
     this.center = center
     const indexChanges = super.getIndexingChanges(asVect2(center), radius)
     // insert new keys in index
-    await Promise.all(indexChanges.map(patchKey => this.initCacheIndex(patchKey)))
+    await Promise.all(
+      indexChanges.map(patchKey => this.initCacheIndex(patchKey)),
+    )
     const indexEntries = Object.entries(this.patchLookup)
     // refresh chunks required for board construction
     for await (const [patchKey, cacheData] of indexEntries) {
@@ -214,6 +219,7 @@ export class BoardContainer {
     radius: 0,
     thickness: 0,
   }
+
   finalBounds = new Box2()
 
   boardData!: BoardPatch
@@ -266,9 +272,8 @@ export class BoardContainer {
 
   overlapsBoard(bounds: Box2) {
     if (this.boardData) {
-      for (const _boardIter of this.boardData.iterDataQuery(bounds, true)) {
-        return true
-      }
+      const boardIter = this.boardData.iterDataQuery(bounds, true)
+      return !!boardIter.next()
     }
     return false
   }
@@ -296,10 +301,7 @@ export class BoardContainer {
         heightBuff[0] = marginBlock
         // chunkBuff.data.fill(33,0,2)
         // find last empty block
-        const surfaceIndex = Math.max(
-          heightBuff.findIndex(val => !val) - 1,
-          0,
-        )
+        const surfaceIndex = Math.max(heightBuff.findIndex(val => !val) - 1, 0)
         const surfaceBlock = ChunkContainer.dataEncoder(
           heightBuff[surfaceIndex] || BlockType.NONE,
           BlockMode.CHECKERBOARD,
@@ -330,7 +332,7 @@ export class BoardContainer {
     finalChunkBounds.max.y = boardChunk.bounds.max.y
     const boardContent: BoardContent = {
       patch: new BoardPatch(this.finalBounds),
-      chunk: new ChunkContainer(finalChunkBounds, 1)
+      chunk: new ChunkContainer(finalChunkBounds, 1),
     }
     WorldUtils.data.copySourceToTargetPatch(boardPatch, boardContent.patch)
     ChunkContainer.copySourceToTarget(boardChunk, boardContent.chunk)
@@ -341,7 +343,9 @@ export class BoardContainer {
 
   // trim items spawning inside board
   addTrimmedItems(boardPatch: BoardPatch, boardChunk: ChunkContainer) {
-    const boardSpawnedItems = this.localCache.querySpawnedItems(boardChunk.bounds)
+    const boardSpawnedItems = this.localCache.querySpawnedItems(
+      boardChunk.bounds,
+    )
     for (const itemChunk of boardSpawnedItems) {
       const itemOffset = this.boardElevation - itemChunk.bounds.min.y + 1
       // iter slice from item which is at same level as the board
