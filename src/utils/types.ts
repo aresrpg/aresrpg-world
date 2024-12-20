@@ -176,5 +176,5 @@ export interface WorldProcess {
 }
 
 export enum ProcessType {
-  BlocksBatch = 'BlocksBatch'
+  BlocksBatch = 'BlocksBatch',
 }

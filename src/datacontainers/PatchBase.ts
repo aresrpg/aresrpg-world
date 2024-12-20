@@ -1,6 +1,13 @@
 import { Vector2, Box2, Vector3 } from 'three'
+
 import { PatchKey } from '../utils/types'
-import { parsePatchKey, asPatchBounds, serializePatchId, asVect2, parseThreeStub } from '../utils/convert'
+import {
+  parsePatchKey,
+  asPatchBounds,
+  serializePatchId,
+  asVect2,
+  parseThreeStub,
+} from '../utils/convert'
 import { WorldEnv } from '../index'
 
 // export class PatchChunkCommon<T> {
@@ -8,9 +15,9 @@ import { WorldEnv } from '../index'
 // }
 
 export type PatchElement<T> = {
-  pos: Vector2,
-  index: number,
-  localPos: Vector2,
+  pos: Vector2
+  index: number
+  localPos: Vector2
   data: T
 }
 
@@ -201,7 +208,7 @@ export class PatchBase<T> {
             index,
             pos: this.toWorldPos(localPos),
             localPos,
-            data: undefined
+            data: undefined,
           }
           yield patchElem
         }

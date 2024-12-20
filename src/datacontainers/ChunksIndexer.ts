@@ -1,7 +1,9 @@
 import { Box2, Vector2 } from 'three'
+
 import { WorldUtils } from '../index'
 import { WorldEnv } from '../misc/WorldEnv'
 import { PatchKey } from '../utils/types'
+
 import { GroundChunk, CaveChunkMask } from './ChunkFactory'
 import { ChunkSetProcessor } from './ChunksProcessing'
 
@@ -53,9 +55,9 @@ export class PatchIndexer<T = void> {
     const dims = new Vector2(rad, rad).multiplyScalar(2)
     // const sphere = new Sphere(center, rad)
     const bounds = new Box2().setFromCenterAndSize(center, dims)
-    const patchKeys = WorldUtils.convert.getPatchIds(bounds, WorldEnv.current.patchDimensions).map(
-      patchId => WorldUtils.convert.serializePatchId(patchId),
-    )
+    const patchKeys = WorldUtils.convert
+      .getPatchIds(bounds, WorldEnv.current.patchDimensions)
+      .map(patchId => WorldUtils.convert.serializePatchId(patchId))
     const newPatchKeys = patchKeys.filter(
       patchKey => !this.patchLookup[patchKey],
     )

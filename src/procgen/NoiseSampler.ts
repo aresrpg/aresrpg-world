@@ -1,6 +1,7 @@
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import alea from 'alea'
 import { Vector2, Vector3 } from 'three'
+
 import { clamp } from '../utils/math'
 
 export type InputType = Vector2 | Vector3

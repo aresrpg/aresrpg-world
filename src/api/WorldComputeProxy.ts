@@ -4,12 +4,7 @@ import workerpool, { Pool } from 'workerpool'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
 import { WorldEnv } from '../index'
 import { SpawnedItems } from '../misc/ItemsInventory'
-import {
-  ChunkId,
-  ChunkKey,
-  PatchId,
-  PatchKey,
-} from '../utils/types'
+import { ChunkId, ChunkKey, PatchId, PatchKey } from '../utils/types'
 
 import { ComputeTask } from './world-compute'
 
@@ -73,7 +68,7 @@ export class WorldComputeProxy {
     this.customProxy = customProxy
   }
 
-  isReady(){
+  isReady() {
     return !!WorldComputeProxy.workerPool
   }
 
