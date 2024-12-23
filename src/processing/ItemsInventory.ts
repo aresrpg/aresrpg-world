@@ -1,5 +1,4 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
-import { computeGroundBlock } from '../api/world-compute'
 
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { PatchStub } from '../datacontainers/PatchBase'
@@ -12,14 +11,15 @@ import { asPatchBounds, asBox3, asBox2, asVect2, asVect3, parsePatchKey } from '
 import { PatchKey, ProcessType, WorldProcess } from '../utils/types'
 
 import { WorldEnv } from '../config/WorldEnv'
+import { GroundPatch } from './GroundPatch'
 
 export type ItemType = string
 export type SpawnedItems = Record<ItemType, Vector3[]>
 
 /**
- * Referencing  all items generated from procedural or external schematic templates
+ * Referencing all items either procedurally generated or coming from schematic definitions 
  */
-// TODO rename class in ItemsChunksFactory
+// rename as ItemsFactory ?
 export class ItemsInventory {
   // TODO rename catalog as inventory
   static catalog: Record<ItemType, ChunkContainer> = {}
@@ -118,6 +118,24 @@ type ItemsLayerStub = {
   individualChunks: ChunkContainer[]
 }
 
+export enum ItemsProcessMode {
+  NONE,
+  INDIVIDUAL,
+  MERGED
+}
+
+export type ItemsProcessingParams = {
+  mode: ItemsProcessMode
+}
+
+const defaultProcessingParams: ItemsProcessingParams = {
+  mode: ItemsProcessMode.INDIVIDUAL
+}
+
+/**
+ * Process all items found in given patch
+ * rename as ItemsProcessing?
+ */
 export class ItemsChunkLayer implements WorldProcess {
   bounds: Box3
   patch: PatchStub = {
@@ -151,19 +169,29 @@ export class ItemsChunkLayer implements WorldProcess {
     return this.patch.id
   }
 
-  async proxyProcess(processingUnit = WorldComputeProxy.workerPool) {
-    await processingUnit
-      .exec(ProcessType.ItemsLayer, [this.patch.key || this.patchBounds])
-      .then((stub: ItemsLayerStub) => {
-        // fill object from worker's data
-        this.spawnedItems = stub.spawnedItems
-        this.individualChunks = stub.individualChunks
-      })
-  }
-
-  async process() {
-    this.spawnedItems = this.retrieveOvergroundItems()
-    this.individualChunks = await this.bakeIndividualChunks()
+  async process(processingParams = defaultProcessingParams, processingUnit = WorldComputeProxy.workerPool) {
+    if (processingUnit) {
+      await processingUnit
+        .exec(ProcessType.ItemsLayer, [this.patch.key || this.patchBounds, processingParams])
+        .then((stub: ItemsLayerStub) => {
+          // fill object from worker's data
+          this.spawnedItems = stub.spawnedItems
+          this.individualChunks = stub.individualChunks || this.individualChunks
+        })
+    } else {
+      const { mode } = processingParams
+      this.retrieveOvergroundItems()
+      switch (mode) {
+        case ItemsProcessMode.INDIVIDUAL:
+          await this.bakeIndividualChunks()
+          break;
+        case ItemsProcessMode.MERGED:
+          await this.bakeIndividualChunks()
+          const mergeChunk = await this.mergeIndividualChunks()
+          return mergeChunk
+        default:
+      }
+    }
   }
 
   toStub() {
@@ -185,7 +213,8 @@ export class ItemsChunkLayer implements WorldProcess {
   }
 
   retrieveOvergroundItems() {
-    const boundsBiomeInfluences = Biome.instance.getBoundsInfluences(this.patchBounds)
+    const groundPatch = new GroundPatch(this.patchBounds)
+    groundPatch.preprocess()
 
     const spawnedItems: Record<ItemType, Vector3[]> = {}
     const spawnPlaces = defaultSpawnMap.querySpawnLocations(
@@ -193,15 +222,7 @@ export class ItemsChunkLayer implements WorldProcess {
       asVect2(defaultItemDims),
     )
     for (const pos of spawnPlaces) {
-      const blockBiome = WorldUtils.process.getBlockBiome(
-        pos,
-        this.patchBounds,
-        boundsBiomeInfluences,
-      )
-      const { level, biome, landscapeIndex } = computeGroundBlock(
-        asVect3(pos),
-        blockBiome,
-      )
+      const { level, biome, landscapeIndex } = groundPatch.computeGroundBlock(asVect3(pos))
       const weightedItems =
         Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
       if (weightedItems) {
@@ -222,7 +243,7 @@ export class ItemsChunkLayer implements WorldProcess {
         }
       }
     }
-    return spawnedItems
+    this.spawnedItems = spawnedItems
   }
 
   async bakeIndividualChunks() {
@@ -251,7 +272,7 @@ export class ItemsChunkLayer implements WorldProcess {
           // compute blocks batch to find lowest element
           const blocksBatch = new BlocksBatch(chunkBottomBlocks) //await BlocksBatch.proxyGen(chunkBottomBlocks)
           await blocksBatch.process()
-          const [lowestBlock] = blocksBatch.blocks.sort(
+          const [lowestBlock] = blocksBatch.output.sort(
             (b1, b2) => b1.data.level - b2.data.level,
           )
           const lowestLevel = lowestBlock?.data.level || 0
@@ -265,7 +286,7 @@ export class ItemsChunkLayer implements WorldProcess {
     }
     this.bounds.min.y = ymin
     this.bounds.max.y = ymax
-    return individualChunks
+    this.individualChunks = individualChunks
   }
 
   mergeIndividualChunks() {

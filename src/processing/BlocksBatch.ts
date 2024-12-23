@@ -1,13 +1,13 @@
-import { Vector2 } from 'three'
-
-import { computeGroundBlock } from '../api/world-compute'
-import { WorldEnv, Biome, WorldUtils, WorldComputeProxy } from '../index'
+import { Vector2, Vector3 } from 'three'
+import { WorldEnv, WorldUtils, WorldComputeProxy, Biome } from '../index'
 import { serializePatchId, getPatchId, asVect3 } from '../utils/convert'
 import {
   PatchKey,
   GroundBlock,
   WorldProcess,
   ProcessType,
+  Block,
+  BlockData,
 } from '../utils/types'
 
 import { GroundPatch } from './GroundPatch'
@@ -16,9 +16,20 @@ export type BlocksBatchArgs = {
   posBatch: Vector2[]
 }
 
+export type BlocksBatchProcessingParams = {
+  groundHeight: false,
+}
+
+const defaultProcessingParams: BlocksBatchProcessingParams = {
+  groundHeight: false
+}
+
 export class BlocksBatch implements WorldProcess {
+  localPatchCache: Record<PatchKey, GroundPatch> = {}
   patchIndex: Record<PatchKey, Vector2[]> = {}
   blocks: any[] = []
+  input: Vector2[] = []
+  output: any[] = []
   constructor(posBatch: Vector2[]) {
     // sort input blocks by patch
     // const blocksByPatch: Record<PatchKey, GroundBlock[]> = {}
@@ -28,38 +39,54 @@ export class BlocksBatch implements WorldProcess {
       this.patchIndex[patchKey] = this.patchIndex[patchKey] || []
       this.patchIndex[patchKey]?.push(pos)
     }
+    this.input = posBatch
   }
 
-  bake() {}
+  asBatch() {
+    const posBatch: Vector2[] = []
+    Object.values(this.patchIndex).forEach(posArr => posBatch.push(...posArr))
+    return posBatch
+  }
 
-  async process() {
-    // const blocksBatch = posBatch.map(pos => {
+  initCache() {
+    for (const patchKey of Object.keys(this.patchIndex)) {
+      const groundLayer = new GroundPatch(patchKey)
+      groundLayer.preprocess()
+      this.localPatchCache[patchKey] = groundLayer
+    }
+  }
 
-    //     const data: BlockData = {
-    //         level: 0,
-    //         type: BlockType.NONE,
-    //     }
-    //     const block: Block<BlockData> = {
-    //         pos: asVect3(pos),
-    //         data,
-    //     }
+  bake() { }
 
-    //     return block
-    // })
-    const blocksBatch = []
-    for (const [patchKey, posBatch] of Object.entries(this.patchIndex)) {
-      const groundPatch = new GroundPatch(patchKey)
-      const biomeBoundsInfluences = Biome.instance.getBoundsInfluences(
-        groundPatch.bounds,
-      )
-      for (const blockPos of posBatch) {
-        const blockBiome = WorldUtils.process.getBlockBiome(
-          blockPos,
-          groundPatch.bounds,
-          biomeBoundsInfluences,
-        )
-        const blockData = computeGroundBlock(asVect3(blockPos), blockBiome)
-        // const {level, type } =
+  async process(processingParams = defaultProcessingParams, processingUnit = WorldComputeProxy.workerPool) {
+    if (processingUnit) {
+      this.output = await processingUnit
+        .exec(ProcessType.BlocksBatch, [this.input])
+        .then((batchRes: GroundBlock[]) => batchRes.map(pos => {
+          // blockStub.pos = WorldUtils.convert.parseThreeStub(blockStub.pos)
+          return WorldUtils.convert.parseThreeStub(pos)
+        }) as GroundBlock[])
+    } else {
+      this.initCache()
+      const batchOutput = this.input.map(pos => {
+        const patchId = getPatchId(pos, WorldEnv.current.patchDimensions)
+        const patchKey = serializePatchId(patchId)
+        const groundPatch = this.localPatchCache[patchKey]
+        const groundData = groundPatch?.computeGroundBlock(asVect3(pos))
+        if (groundData) {
+          const { biome, landscapeIndex, level } = groundData
+          const landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
+          const groundConf = landscapeConf.data
+          const blockData: BlockData = {
+            level: level,
+            type: groundConf.type
+          }
+          const block: Block<BlockData> = {
+            pos: asVect3(pos),
+            data: blockData
+          }
+          return block
+        }
         // override with last block if specified
         // if (params.includeEntitiesBlocks) {
         //     const lastBlockData = await queryLastBlockData(blockPos)
@@ -68,42 +95,32 @@ export class BlocksBatch implements WorldProcess {
         //             ? lastBlockData
         //             : (block.data as any)
         // }
-        blockPos.y = blockData.level
-        const block = {
-          pos: asVect3(blockPos),
-          data: blockData,
-        }
-        blocksBatch.push(block)
-      }
+        // return block //blockData?.level || 0//getHeight()
+      })
+      this.output = batchOutput
+
+      // this.blocks = blocksBatch
+      // return blocksBatch
+      // const blocksBatch = blockPosBatch.map((pos) => {
+      //   const blockPos = asVect3(pos)
+      //   const blockData = computeGroundBlock(blockPos)
+      //   const { spawnableItems } = blockData
+      //   const queriedLoc = new Box2().setFromPoints([asVect2(blockPos)])
+      //   queriedLoc.max.addScalar(1)
+      //   false && includeEntitiesBlocks && spawnableItems.forEach(itemType => {
+      //     // several (overlapping) objects may be found at queried position
+      //     const [spawnedEntity] = ItemsInventory.querySpawnedEntities(itemType, queriedLoc)
+      //     const lastBlockIndex = blocksBuffer?.findLastIndex(elt => elt)
+      //     if (blocksBuffer && lastBlockIndex && lastBlockIndex >= 0) {
+      //       blockData.level += lastBlockIndex
+      //       blockData.type = blocksBuffer[lastBlockIndex] as BlockType
+      //     }
+      //   })
     }
-    this.blocks = blocksBatch
-    // return blocksBatch
-    // const blocksBatch = blockPosBatch.map((pos) => {
-    //   const blockPos = asVect3(pos)
-    //   const blockData = computeGroundBlock(blockPos)
-    //   const { spawnableItems } = blockData
-    //   const queriedLoc = new Box2().setFromPoints([asVect2(blockPos)])
-    //   queriedLoc.max.addScalar(1)
-    //   false && includeEntitiesBlocks && spawnableItems.forEach(itemType => {
-    //     // several (overlapping) objects may be found at queried position
-    //     const [spawnedEntity] = ItemsInventory.querySpawnedEntities(itemType, queriedLoc)
-    //     const lastBlockIndex = blocksBuffer?.findLastIndex(elt => elt)
-    //     if (blocksBuffer && lastBlockIndex && lastBlockIndex >= 0) {
-    //       blockData.level += lastBlockIndex
-    //       blockData.type = blocksBuffer[lastBlockIndex] as BlockType
-    //     }
-    //   })
-    //   blockPos.y = blockData.level
-    //   const block: Block = {
-    //     pos: blockPos,
-    //     data: blockData,
-    //   }
-    //   return block
-    // })
   }
 
   toStub() {
-    return this.blocks
+    return this.output
   }
 
   // byProxy
@@ -111,16 +128,12 @@ export class BlocksBatch implements WorldProcess {
     posBatch: Vector2[],
     processingUnit = WorldComputeProxy.workerPool,
   ) {
-    const res = (await processingUnit
+    const res = await processingUnit
       .exec(ProcessType.BlocksBatch, [posBatch])
-      .then((blocksStubs: GroundBlock[]) => {
-        // parse worker's data to recreate original objects
-        const blocks = blocksStubs.map(blockStub => {
-          blockStub.pos = WorldUtils.convert.parseThreeStub(blockStub.pos)
-          return blockStub
-        }) as GroundBlock[]
-        return blocks
-      })) as GroundBlock[]
+      .then((blocksStubs: GroundBlock[]) => blocksStubs.map(blockStub => {
+        blockStub.pos = WorldUtils.convert.parseThreeStub(blockStub.pos)
+        return blockStub
+      }) as GroundBlock[])
     return res
   }
 }

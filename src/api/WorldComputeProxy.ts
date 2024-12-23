@@ -81,14 +81,6 @@ export class WorldComputeProxy {
   //   throw new Error('Method not implemented.')
   // }
 
-  async bakeGroundPatch(boundsOrPatchKey: string | Box2) {
-    return WorldComputeProxy.workerPool
-      .exec(ComputeTask.PatchCompute, [boundsOrPatchKey])
-      .then(res => {
-        return res
-      })
-  }
-
   async bakeItemsChunkLayer(patchBounds: Box2) {
     return WorldComputeProxy.workerPool
       .exec(ComputeTask.BakeItemsChunkLayer, [patchBounds])

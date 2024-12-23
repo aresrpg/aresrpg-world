@@ -5,7 +5,7 @@ import { ProcessType, WorldProcess } from '../utils/types'
 
 type WorldProcessImpl = new (args: any) => WorldProcess // typeof WorldProcess
 
-export const ProcessMapping: Record<ProcessType, WorldProcessImpl> = {
+export const ProcessMappings: Record<ProcessType, WorldProcessImpl> = {
   [ProcessType.BlocksBatch]: BlocksBatch,
   [ProcessType.ItemsLayer]: ItemsChunkLayer,
 }
@@ -19,11 +19,11 @@ export class WorldProcessing {
     return args
   }
 
-  static async process(processType: ProcessType, processArgs: any) {
-    processArgs = WorldProcessing.parseArgs(processArgs)
-    const ProcessClass = ProcessMapping[processType]
-    const processInstance = new ProcessClass(processArgs)
-    await processInstance.process()
+  static async process(objectType: ProcessType, callArgs: any, processingParams: any) {
+    callArgs = WorldProcessing.parseArgs(callArgs)
+    const ObjectClass = ProcessMappings[objectType]
+    const processInstance = new ObjectClass(callArgs)
+    await processInstance.process(processingParams, undefined)
     return processInstance.toStub()
   }
 }

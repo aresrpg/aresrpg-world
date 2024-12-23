@@ -18,7 +18,7 @@ import {
 } from '../index'
 import { ProcLayer } from '../procgen/ProcLayer'
 import { ChunkKey, PatchKey } from '../utils/types'
-import { ItemsChunkLayer } from './ItemsInventory'
+import { ItemsChunkLayer, ItemsProcessingParams, ItemsProcessMode } from './ItemsInventory'
 
 import { PatchIndexer } from '../datacontainers/ChunksIndexer'
 import { DataContainer, PatchBase, PatchElement } from '../datacontainers/PatchBase'
@@ -129,8 +129,12 @@ export class BoardCache extends PatchIndexer<BoardCacheData> {
 
   async initCacheIndex(patchIndex: PatchKey) {
     if (!this.patchLookup[patchIndex]) {
+      const processingParams: ItemsProcessingParams = {
+        mode: ItemsProcessMode.INDIVIDUAL
+      }
       const itemsLayer = new ItemsChunkLayer(patchIndex)
-      await itemsLayer.proxyProcess()
+      await itemsLayer.process(processingParams)
+      await itemsLayer.bakeIndividualChunks()
       // await itemsLayer.bakeAsIndividualChunks()
       const chunkIndex = {}
       const cacheData: BoardCacheData = {
@@ -347,7 +351,7 @@ export class BoardContainer {
       boardChunk.bounds,
     )
     for (const itemChunk of boardSpawnedItems) {
-      const itemOffset = this.boardElevation - itemChunk.bounds.min.y + 1
+      const itemOffset = this.boardElevation - itemChunk.bounds.min.y
       // iter slice from item which is at same level as the board
       if (itemOffset >= 0) {
         for (const heightBuff of itemChunk.iterChunkSlice()) {

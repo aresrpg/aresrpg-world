@@ -34,8 +34,8 @@ export const WorldWorkerInit = (workerPool: any) => {
   workerPool.worker({
     ...worldComputeApiWrap,
     [ProcessType.BlocksBatch]: async (...rawArgs: any) =>
-      WorldProcessing.process(ProcessType.BlocksBatch, rawArgs[0]),
+      WorldProcessing.process(ProcessType.BlocksBatch, rawArgs[0], rawArgs[1]),
     [ProcessType.ItemsLayer]: async (...rawArgs: any) =>
-      WorldProcessing.process(ProcessType.ItemsLayer, rawArgs[0]),
+      WorldProcessing.process(ProcessType.ItemsLayer, rawArgs[0], rawArgs[1]),
   })
 }

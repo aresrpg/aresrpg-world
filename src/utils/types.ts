@@ -171,7 +171,7 @@ export type LandscapesConf = LinkedList<LandscapeFields>
 export type BiomesConf = Record<BiomeType, LandscapesConf>
 
 export interface WorldProcess {
-  process(): any
+  process(processingParams: any, processingUnit: any): any
   toStub(): any
 }
 

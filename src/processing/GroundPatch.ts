@@ -1,9 +1,11 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { GroundBlock, PatchBlock, PatchKey } from '../utils/types'
+import { GroundBlock, LandscapesConf, PatchBlock, PatchBoundId, PatchKey } from '../utils/types'
 import { asVect3, asVect2 } from '../utils/convert'
-import { BlockMode, WorldComputeProxy } from '../index'
+import { BlockMode, Heightmap, WorldEnv } from '../index'
 import {
+  Biome,
+  BiomeInfluence,
   BiomeNumericType,
   BiomeType,
   BlockType,
@@ -11,6 +13,10 @@ import {
 } from '../procgen/Biome'
 
 import { PatchBase, PatchDataContainer, PatchStub } from '../datacontainers/PatchBase'
+import { getPatchBoundingPoints } from '../utils/spatial'
+import { bilinearInterpolation } from '../utils/math'
+
+export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
 export type GroundBlockData = {
   // rawVal: number,
@@ -52,8 +58,8 @@ export const parseGroundFlags = (rawFlags: number) => {
  */
 export class GroundPatch
   extends PatchBase<number>
-  implements PatchDataContainer
-{
+  implements PatchDataContainer {
+  biomeInfluence: BiomeInfluence | PatchBoundingBiomes | undefined
   rawData: Uint32Array
   valueRange = { min: 512, max: 0 } // here elevation
   isEmpty = true
@@ -204,12 +210,134 @@ export class GroundPatch
     return this
   }
 
-  async bake() {
-    const stub: GroundPatchStub =
-      await WorldComputeProxy.current.bakeGroundPatch(this.key || this.bounds)
-    this.valueRange = stub.valueRange || this.valueRange
-    this.rawData.set(stub.rawData)
+  preprocess() {
+    this.biomeInfluence = this.getBiomeInfluence()
+
+    //   const stub: GroundPatchStub =
+    //   await WorldComputeProxy.current.bakeGroundPatch(this.key || this.bounds)
+    // this.valueRange = stub.valueRange || this.valueRange
+    // this.rawData.set(stub.rawData)
+    // this.isEmpty = false
+
+  }
+
+  getBiomeInfluence() {
+    const { xMyM, xMyP, xPyM, xPyP } = PatchBoundId
+    // eval biome at patch corners
+    const equals = (v1: BiomeInfluence, v2: BiomeInfluence) => {
+      const different = Object.keys(v1)
+        // .map(k => parseInt(k) as BiomeType)
+        .find(k => v1[k as BiomeType] !== v2[k as BiomeType])
+      return !different
+    }
+    const boundsPoints = getPatchBoundingPoints(this.bounds)
+    const boundsInfluences = {} as PatchBoundingBiomes
+      ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+        const boundPos = boundsPoints[key] as Vector2
+        const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
+        boundsInfluences[key] = biomeInfluence
+        // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+        return biomeInfluence
+      })
+    const allEquals =
+      equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
+      equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
+      equals(boundsInfluences[xMyM], boundsInfluences[xPyP])
+    return allEquals ? boundsInfluences[xMyM] : boundsInfluences
+  }
+
+  getBlockBiome(
+    blockPos: Vector2,
+  ) {
+    if (
+      (this.biomeInfluence as PatchBoundingBiomes)[PatchBoundId.xMyM] &&
+      WorldEnv.current.settings.useBiomeBilinearInterpolation
+    ) {
+      return bilinearInterpolation(
+        blockPos,
+        this.bounds,
+        this.biomeInfluence as PatchBoundingBiomes,
+      ) as BiomeInfluence
+    }
+    return this.biomeInfluence as BiomeInfluence
+  }
+
+  computeGroundBlock = (
+    blockPos: Vector3,
+  ) => {
+    const biomeInfluence = this.getBlockBiome(asVect2(blockPos))
+    // const biomeInfluenceBis = Biome.instance.getBiomeInfluence(blockPos)
+    const biomeType = Biome.instance.getBiomeType(biomeInfluence)
+    const rawVal = Heightmap.instance.getRawVal(blockPos)
+    const nominalConf = Biome.instance.getBiomeConf(
+      rawVal,
+      biomeType,
+    ) as LandscapesConf
+    // const confIndex = Biome.instance.getConfIndex(currLevelConf.key)
+    // const confData = Biome.instance.indexedConf.get(confIndex)
+    const level = Heightmap.instance.getGroundLevel(
+      blockPos,
+      rawVal,
+      biomeInfluence,
+    )
+    const isCavern = false // DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
+    let usedConf = nominalConf // isCavern ? nominalConf : nominalConf
+    // let isEmpty = isCavern
+    // while (isEmpty && level > 0) {
+    //   blockPos.y = level--
+    //   isEmpty = DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
+    // }
+    // const pos = new Vector3(blockPos.x, level, blockPos.z)
+    if (!isCavern && nominalConf.next?.data) {
+      const variation = Biome.instance.posRandomizer.eval(
+        blockPos.clone().multiplyScalar(50),
+      ) // Math.cos(0.1 * blockPos.length()) / 100
+      const min = new Vector2(nominalConf.data.x, nominalConf.data.y)
+      const max = new Vector2(nominalConf.next.data.x, nominalConf.next.data.y)
+      const rangeBox = new Box2(min, max)
+      const dims = rangeBox.getSize(new Vector2())
+      // const slope = dims.y / dims.x
+      const distRatio = (rawVal - min.x) / dims.x
+      const threshold = 4 * distRatio
+      usedConf =
+        variation > threshold && nominalConf.prev?.data.type
+          ? nominalConf.prev
+          : nominalConf
+    }
+
+    if (isNaN(usedConf.data.type)) {
+      console.log(nominalConf.data)
+    }
+
+    // }
+    // level += offset
+    const flags = isCavern ? 0b010 : 0
+    const groundBlockData: GroundBlockData = {
+      level,
+      biome: biomeType,
+      landscapeIndex: usedConf.index,
+      flags,
+    }
+    return groundBlockData
+  }
+
+  bake() {
+    this.preprocess()
+    const { valueRange } = this
+    const blocks = this.iterBlocksQuery(undefined, false)
+    let blockIndex = 0
+    for (const block of blocks) {
+      // EXPERIMENTAL: is it faster to perform bilinear interpolation rather
+      // than sampling biome for each block?
+      // if biome is the same at each patch corners, no need to interpolate
+      const blockData = this.computeGroundBlock(block.pos)
+      valueRange.min = Math.min(valueRange.min, blockData.level)
+      valueRange.max = Math.max(valueRange.max, blockData.level)
+      this.writeBlockData(blockIndex, blockData)
+      blockIndex++
+    }
     this.isEmpty = false
+    // return groundPatch
   }
 
   // getBlocksRow(zRowIndex: number) {

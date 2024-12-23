@@ -110,7 +110,6 @@ const translateContribution = <T extends HeatLevel | RainLevel>(
 }
 
 export type BiomeInfluence = Record<BiomeType, number>
-export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
 const BiomesMapping: Record<HeatLevel, Record<RainLevel, BiomeType>> = {
   [HeatLevel.COLD]: {
@@ -282,33 +281,6 @@ export class Biome {
     // biomeContribs[BiomeType.Desert] = 0
     // biomeContribs[BiomeType.Temperate] = 0
     return biomeContribs
-  }
-
-  getBoundsInfluences(bounds: Box2) {
-    const { xMyM, xMyP, xPyM, xPyP } = PatchBoundId
-    // eval biome at patch corners
-    const equals = (v1: BiomeInfluence, v2: BiomeInfluence) => {
-      const different = Object.keys(v1)
-        // .map(k => parseInt(k) as BiomeType)
-        .find(k => v1[k as BiomeType] !== v2[k as BiomeType])
-      return !different
-    }
-    const boundsPoints = WorldUtils.spatial.getPatchBoundingPoints(bounds)
-    const boundsInfluences = {} as PatchBoundingBiomes
-    ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-      const boundPos = boundsPoints[key] as Vector2
-      const biomeInfluence = this.getBiomeInfluence(
-        WorldUtils.convert.asVect3(boundPos),
-      )
-      boundsInfluences[key] = biomeInfluence
-      // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-      return biomeInfluence
-    })
-    const allEquals =
-      equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
-      equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
-      equals(boundsInfluences[xMyM], boundsInfluences[xPyP])
-    return allEquals ? boundsInfluences[xMyM] : boundsInfluences
   }
 
   parseBiomesConfig(biomesRawConf: BiomesRawConf) {
