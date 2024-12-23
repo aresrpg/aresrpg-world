@@ -25,20 +25,20 @@ import {
   serializeChunkId,
   serializePatchId,
 } from '../utils/convert'
-import { ItemType } from '../misc/ItemsInventory'
+import { ItemsChunkLayer, ItemType } from '../processing/ItemsInventory'
 import {
   DistributionProfile,
   DistributionProfiles,
-} from '../datacontainers/RandomDistributionMap'
+} from '../processing/RandomDistributionMap'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
-import { GroundPatch, GroundBlockData } from '../datacontainers/GroundPatch'
+import { GroundPatch, GroundBlockData } from '../processing/GroundPatch'
 import {
   ChunkContainer,
   ChunkMask,
   defaultDataEncoder,
 } from '../datacontainers/ChunkContainer'
 import { PatchBase } from '../datacontainers/PatchBase'
-import { GroundChunk } from '../datacontainers/ChunkFactory'
+import { GroundChunk } from '../processing/ChunkFactory'
 
 const defaultDistribution: DistributionParams = {
   ...DistributionProfiles[DistributionProfile.MEDIUM],
@@ -162,50 +162,6 @@ export const bakeGroundLayer = (boundsOrPatchKey: PatchKey | Box2) => {
   return groundPatch
 }
 
-/**
- * Overground patch (items)
- */
-export const retrieveOvergroundItems = async (bounds: Box2) => {
-  const boundsBiomeInfluences = Biome.instance.getBoundsInfluences(bounds)
-
-  const spawnedItems: Record<ItemType, Vector3[]> = {}
-  const spawnPlaces = defaultSpawnMap.querySpawnLocations(
-    bounds,
-    asVect2(defaultItemDims),
-  )
-  for (const pos of spawnPlaces) {
-    const blockBiome = WorldUtils.process.getBlockBiome(
-      pos,
-      bounds,
-      boundsBiomeInfluences,
-    )
-    const { level, biome, landscapeIndex } = computeGroundBlock(
-      asVect3(pos),
-      blockBiome,
-    )
-    const weightedItems =
-      Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
-    if (weightedItems) {
-      const spawnableTypes: ItemType[] = []
-      Object.entries(weightedItems).forEach(([itemType, spawnWeight]) => {
-        while (spawnWeight > 0) {
-          spawnableTypes.push(itemType)
-          spawnWeight--
-        }
-      })
-      const itemType = defaultSpawnMap.getSpawnedItem(
-        pos,
-        spawnableTypes,
-      ) as ItemType
-      if (itemType) {
-        spawnedItems[itemType] = spawnedItems[itemType] || []
-        spawnedItems[itemType]?.push(asVect3(pos, level))
-      }
-    }
-  }
-  return spawnedItems
-}
-
 export const queryLastBlockData = async (queriedLoc: Vector2) => {
   const lastBlockData: BlockData = {
     level: 0,
@@ -273,63 +229,25 @@ export const queryLastBlockData = async (queriedLoc: Vector2) => {
   return lastBlockData
 }
 
-async function* genItemsChunks(overgroundItems: Record<string, Vector3[]>) {
-  for await (const [item_type, spawn_places] of Object.entries(
-    overgroundItems,
-  )) {
-    for await (const spawnOrigin of spawn_places) {
-      const itemChunk = await ItemsInventory.getInstancedChunk(
-        item_type,
-        spawnOrigin,
-      )
-      yield itemChunk
-    }
-  }
-}
-
-/**
- * Overground chunk (items)
- */
-
-export const bakeOvergroundChunk = async (
-  boundsOrPatchKey: PatchKey | Box2,
-) => {
-  const dummyPatch = new PatchBase(boundsOrPatchKey)
-  const overgroundItems = await retrieveOvergroundItems(dummyPatch.bounds)
-  // pre-compute items chunks
-  const mergedItemsBounds = new Box3()
-  const individualChunks = []
-  const items_otf_gen = genItemsChunks(overgroundItems)
-  for await (const itemChunk of items_otf_gen) {
-    if (itemChunk) {
-      individualChunks.push(itemChunk)
-      mergedItemsBounds.union(itemChunk?.bounds)
-    }
-  }
-  const mergedItemsChunk = new ChunkContainer(mergedItemsBounds, 1)
-  for (const itemChunk of individualChunks) {
-    ChunkContainer.copySourceToTarget(itemChunk, mergedItemsChunk)
-  }
-  return mergedItemsChunk
-}
-
 /**
  * Ground surface + overground items
  * @param patchKey
  */
 export const bakeSurfaceChunkset = async (patchKey: PatchKey) => {
-  const itemsChunkLayer = await bakeOvergroundChunk(patchKey)
+  const itemsLayer = new ItemsChunkLayer(patchKey) 
+  await itemsLayer.process()
+  const itemsMergedChunk = itemsLayer.mergeIndividualChunks()
   const groundLayer = bakeGroundLayer(patchKey)
   const patchId = groundLayer.patchId as PatchId
   const surfaceChunks: ChunkContainer[] = []
   // compute chunk id range
   const { patchDimensions } = WorldEnv.current
   const yMin = Math.min(
-    itemsChunkLayer.bounds.min.y,
+    itemsMergedChunk.bounds.min.y,
     groundLayer.valueRange.min,
   )
   const yMax = Math.max(
-    itemsChunkLayer.bounds.max.y,
+    itemsMergedChunk.bounds.max.y,
     groundLayer.valueRange.max,
   )
   const yMinId = Math.floor(yMin / patchDimensions.y)
@@ -340,7 +258,7 @@ export const bakeSurfaceChunkset = async (patchKey: PatchKey) => {
     const chunkKey = serializeChunkId(chunkId)
     const worldChunk = new ChunkContainer(chunkKey, 1)
     // copy items layer first to prevent overriding ground
-    ChunkContainer.copySourceToTarget(itemsChunkLayer, worldChunk)
+    ChunkContainer.copySourceToTarget(itemsMergedChunk, worldChunk)
     if (worldChunk.bounds.min.y < groundLayer.valueRange.max) {
       // bake ground and undeground separately
       const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
@@ -462,10 +380,8 @@ export const bakeCavesMask = (boundsOrPatchKey: ChunkKey | Box3) => {
 // }
 export enum ComputeTask {
   PatchCompute = 'bakePatch',
-  OvergroundItemsQuery = 'retrieveOvergroundItems',
   BakeSurfaceChunks = 'bakeSurfaceChunks',
   BakeUndergroundChunk = 'bakeUndergroundChunk',
-  BakeItemsChunkLayer = 'bakeItemsChunkLayer',
   BakeCavesMask = 'bakeCavesMask',
   // BakeUpperChunks = 'bakeUpperChunks', // empty, overground and surface
   // BakeLowerChunks = 'bakeLowerChunks', // undeground
@@ -474,9 +390,7 @@ export enum ComputeTask {
 
 export const WorldComputeApi: Record<ComputeTask, any> = {
   [ComputeTask.PatchCompute]: bakePatch,
-  [ComputeTask.OvergroundItemsQuery]: retrieveOvergroundItems,
   [ComputeTask.BakeSurfaceChunks]: bakeSurfaceChunkset,
   [ComputeTask.BakeUndergroundChunk]: bakeUndergroundChunk,
-  [ComputeTask.BakeItemsChunkLayer]: bakeOvergroundChunk,
   [ComputeTask.BakeCavesMask]: bakeCavesMask,
 }

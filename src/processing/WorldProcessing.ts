@@ -1,20 +1,21 @@
-import { BlocksBatch } from '../datacontainers/BlocksBatch'
+import { BlocksBatch } from './BlocksBatch'
 import { WorldUtils } from '../index'
+import { ItemsChunkLayer } from './ItemsInventory'
 import { ProcessType, WorldProcess } from '../utils/types'
 
 type WorldProcessImpl = new (args: any) => WorldProcess // typeof WorldProcess
 
 export const ProcessMapping: Record<ProcessType, WorldProcessImpl> = {
   [ProcessType.BlocksBatch]: BlocksBatch,
+  [ProcessType.ItemsLayer]: ItemsChunkLayer,
 }
 
 export class WorldProcessing {
   static parseArgs(rawArgs: any) {
-    const args = rawArgs.map((arg: any) =>
-      arg instanceof Array
-        ? arg.map(item => WorldUtils.convert.parseThreeStub(item))
-        : WorldUtils.convert.parseThreeStub(arg),
-    )
+    // const args = rawArgs.map((arg: any) =>
+    const args = rawArgs instanceof Array
+      ? rawArgs.map(arg => WorldUtils.convert.parseThreeStub(arg))
+      : WorldUtils.convert.parseThreeStub(rawArgs)
     return args
   }
 

@@ -1,7 +1,7 @@
 import { Vector2, Vector3 } from 'three'
 
-import { GroundBlockData } from '../datacontainers/GroundPatch'
-import { ItemType } from '../misc/ItemsInventory'
+import { GroundBlockData } from '../processing/GroundPatch'
+import { ItemType } from '../processing/ItemsInventory'
 import { BiomeType, BlockType } from '../procgen/Biome'
 import { LinkedList } from '../datacontainers/LinkedList'
 
@@ -177,4 +177,5 @@ export interface WorldProcess {
 
 export enum ProcessType {
   BlocksBatch = 'BlocksBatch',
+  ItemsLayer = 'ItemsLayer'
 }

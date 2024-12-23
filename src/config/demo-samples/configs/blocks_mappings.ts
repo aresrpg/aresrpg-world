@@ -1,4 +1,4 @@
-import { BlockType, WorldUtils } from '../../index'
+import { BlockType, WorldUtils } from '../../../index'
 
 /**
  * Extending world reserved blocks

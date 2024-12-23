@@ -7,8 +7,8 @@ import {
   DistributionParams,
 } from '../procgen/BlueNoisePattern'
 import { asVect3, getPatchIds } from '../utils/convert'
-import { ItemType } from '../misc/ItemsInventory'
-import { WorldEnv } from '../misc/WorldEnv'
+import { ItemType } from './ItemsInventory'
+import { WorldEnv } from '../config/WorldEnv'
 
 const distDefaults = {
   aleaSeed: 'treeMap',

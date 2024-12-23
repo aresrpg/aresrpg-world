@@ -1,12 +1,12 @@
 import { Box2, Vector2 } from 'three'
 
 import { WorldUtils } from '../index'
-import { WorldEnv } from '../misc/WorldEnv'
+import { WorldEnv } from '../config/WorldEnv'
 import { asPatchBounds } from '../utils/convert'
 import { PatchKey } from '../utils/types'
 
-import { GroundChunk, CaveChunkMask } from './ChunkFactory'
-import { ChunkSetProcessor } from './ChunksProcessing'
+import { GroundChunk, CaveChunkMask } from '../processing/ChunkFactory'
+import { ChunkSetProcessor } from '../processing/ChunksProcessing'
 
 enum ChunkCategory {
   Unknown,

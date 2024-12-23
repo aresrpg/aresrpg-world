@@ -1,12 +1,12 @@
 import { Vector3, MathUtils } from 'three'
 
 import { WorldComputeProxy } from '../api/WorldComputeProxy'
-import { WorldEnv } from '../misc/WorldEnv'
+import { WorldEnv } from '../config/WorldEnv'
 import { asVect2, serializePatchId } from '../utils/convert'
 import { BlockMode, ChunkKey, PatchBlock } from '../utils/types'
 import { BlockType, Biome, BiomeType } from '../procgen/Biome'
 
-import { ChunkBuffer, ChunkContainer, ChunkMask } from './ChunkContainer'
+import { ChunkBuffer, ChunkContainer, ChunkMask } from '../datacontainers/ChunkContainer'
 import { GroundPatch, parseGroundFlags } from './GroundPatch'
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {

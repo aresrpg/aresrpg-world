@@ -1,5 +1,5 @@
 // import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index'
-import { WorldEnv } from '../../index'
+import { WorldEnv } from '../../../index'
 
 import { BIOMES_LANDSCAPES_CONFIG } from './biome_landscapes'
 import { PROC_ITEMS_CONFIG } from './procedural_items'

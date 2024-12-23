@@ -1,7 +1,7 @@
 import { Vector2 } from 'three'
 
 import { WorldComputeProxy } from '../api/WorldComputeProxy'
-import { WorldEnv } from '../misc/WorldEnv'
+import { WorldEnv } from '../config/WorldEnv'
 import {
   parsePatchKey,
   asVect3,
@@ -10,7 +10,7 @@ import {
 } from '../utils/convert'
 import { PatchKey } from '../utils/types'
 
-import { ChunkContainer } from './ChunkContainer'
+import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { EmptyChunk } from './ChunkFactory'
 const chunksRange = WorldEnv.current.chunks.range
 const patchDims = WorldEnv.current.patchDimensions

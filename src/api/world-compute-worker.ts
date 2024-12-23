@@ -2,7 +2,7 @@ import { WorldUtils } from '../index'
 import { ProcessType } from '../utils/types'
 
 import { WorldComputeApi } from './world-compute'
-import { WorldProcessing } from './WorldProcessing'
+import { WorldProcessing } from '../processing/WorldProcessing'
 
 export const WorldWorkerInit = (workerPool: any) => {
   const rawArgsConverter = (...rawArgs: any) => {
@@ -35,5 +35,7 @@ export const WorldWorkerInit = (workerPool: any) => {
     ...worldComputeApiWrap,
     [ProcessType.BlocksBatch]: async (...rawArgs: any) =>
       WorldProcessing.process(ProcessType.BlocksBatch, rawArgs[0]),
+    [ProcessType.ItemsLayer]: async (...rawArgs: any) =>
+      WorldProcessing.process(ProcessType.ItemsLayer, rawArgs[0]),
   })
 }

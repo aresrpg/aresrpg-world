@@ -1,4 +1,4 @@
-import { BiomeType, BlockType } from '../../index'
+import { BiomeType, BlockType } from '../../../index'
 
 import { SCHEMATICS_COLLECTIONS } from './schematics_collections'
 
@@ -42,7 +42,15 @@ const temperate = {
     subtype: BlockType.MUD,
     fadeIn: 0,
     fadeOut: 0.2,
-    flora: { ...temperate_forest.medium },
+    flora: {
+      ...temperate_forest.medium,
+      'trees/palmtree_big_1': 1,
+      'trees/palmtree_big_2': 1,
+      // 'trees/palmtree_big_3': 1,
+      // 'rocks/boulder_small_1': 1,
+      // 'rocks/boulder_small_2': 1,
+      // 'rocks/boulder_small_3': 1,
+    },
   },
   MOUNTAINS_LOW: {
     x: 0.68,

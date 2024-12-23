@@ -23,6 +23,7 @@ export type PatchElement<T> = {
 
 export type PatchStub = {
   key?: string
+  id?: Vector2
   bounds: Box2
   margin?: number
 }
@@ -35,7 +36,7 @@ export class PatchBase<T> {
   dimensions: Vector2
   margin = 0
   key = '' // needed for patch export
-  patchId: Vector2 | undefined
+  id: Vector2 | undefined
 
   constructor(boundsOrPatchKey: Box2 | PatchKey = new Box2(), margin = 0) {
     //, bitLength = BitLength.Uint16) {
@@ -46,23 +47,23 @@ export class PatchBase<T> {
     this.bounds = bounds
     this.dimensions = bounds.getSize(new Vector2())
     this.margin = margin
-    const patchId =
-      typeof boundsOrPatchKey === 'string'
-        ? parsePatchKey(boundsOrPatchKey)
-        : null
-    if (patchId) {
-      this.id = patchId
+    if (typeof boundsOrPatchKey === 'string') {
+      this.patchKey = boundsOrPatchKey
     }
     // this.rawData = getArrayConstructor(bitLength)
   }
 
-  get id() {
-    return this.patchId
+  get patchId(){
+    return this.id
   }
 
-  set id(patchId: Vector2 | undefined) {
-    this.patchId = patchId
-    this.key = serializePatchId(patchId)
+  get patchKey() {
+    return this.key
+  }
+
+  set patchKey(patchKey: string) {
+    this.key = patchKey
+    this.id = parsePatchKey(patchKey)
   }
 
   get localBox() {
@@ -223,7 +224,7 @@ export class PatchBase<T> {
       bounds,
       margin,
     }
-    if (this.key && this.key !== '') patchStub.key = this.key
+    if (this.patchKey && this.patchKey !== '') patchStub.key = this.patchKey
     return patchStub
   }
 

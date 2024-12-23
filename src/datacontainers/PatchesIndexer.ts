@@ -11,7 +11,7 @@ import { getPatchId, getPatchIds, serializePatchId } from '../utils/convert'
 import { WorldEnv } from '../index'
 
 import { PatchBase } from './PatchBase'
-import { GroundPatch } from './GroundPatch'
+import { GroundPatch } from '../processing/GroundPatch'
 
 /**
  * Structure for storing either contiguous (map) or sparse (cache) generic patches

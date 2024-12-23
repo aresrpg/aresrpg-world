@@ -9,7 +9,7 @@ import {
   parseThreeStub,
   asVect2,
 } from '../utils/convert'
-import { WorldEnv } from '../misc/WorldEnv'
+import { WorldEnv } from '../config/WorldEnv'
 import { BlockType } from '../index'
 
 enum ChunkAxisOrder {

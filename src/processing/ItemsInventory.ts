@@ -1,13 +1,17 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { computeGroundBlock } from '../api/world-compute'
 
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { BlocksBatch, WorldComputeProxy } from '../index'
+import { PatchStub } from '../datacontainers/PatchBase'
+import { DistributionProfiles } from './RandomDistributionMap'
+import { Biome, BlocksBatch, DistributionProfile, PseudoDistributionMap, WorldComputeProxy, WorldUtils } from '../index'
+import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
-import { asPatchBounds, asBox3, asBox2 } from '../utils/convert'
-import { PatchKey } from '../utils/types'
+import { asPatchBounds, asBox3, asBox2, asVect2, asVect3, parsePatchKey } from '../utils/convert'
+import { PatchKey, ProcessType, WorldProcess } from '../utils/types'
 
-import { WorldEnv } from './WorldEnv'
+import { WorldEnv } from '../config/WorldEnv'
 
 export type ItemType = string
 export type SpawnedItems = Record<ItemType, Vector3[]>
@@ -98,8 +102,27 @@ export class ItemsInventory {
   }
 }
 
-export class ItemsChunkLayer {
+
+const defaultDistribution: DistributionParams = {
+  ...DistributionProfiles[DistributionProfile.MEDIUM],
+  minDistance: 10,
+}
+const defaultSpawnMap = new PseudoDistributionMap(
+  undefined,
+  defaultDistribution,
+)
+const defaultItemDims = new Vector3(10, 13, 10)
+
+type ItemsLayerStub = {
+  spawnedItems: SpawnedItems,
+  individualChunks: ChunkContainer[]
+}
+
+export class ItemsChunkLayer implements WorldProcess {
   bounds: Box3
+  patch: PatchStub = {
+    bounds: new Box2,
+  }
   spawnedItems: SpawnedItems = {}
   individualChunks: ChunkContainer[] = []
 
@@ -109,6 +132,48 @@ export class ItemsChunkLayer {
         ? boundsOrPatchKey.clone()
         : asPatchBounds(boundsOrPatchKey, WorldEnv.current.patchDimensions)
     this.bounds = asBox3(patchBounds)
+    this.patch.bounds = patchBounds
+    if (typeof boundsOrPatchKey === 'string') {
+      this.patchKey = boundsOrPatchKey
+    }
+  }
+
+  get patchKey() {
+    return this.patch.key || ''
+  }
+
+  set patchKey(patchKey: string) {
+    this.patch.key = patchKey
+    this.patch.id = parsePatchKey(patchKey) as Vector2
+  }
+
+  get patchId() {
+    return this.patch.id
+  }
+
+  async proxyProcess(processingUnit = WorldComputeProxy.workerPool) {
+    await processingUnit
+      .exec(ProcessType.ItemsLayer, [this.patch.key || this.patchBounds])
+      .then((stub: ItemsLayerStub) => {
+        // fill object from worker's data
+        this.spawnedItems = stub.spawnedItems
+        this.individualChunks = stub.individualChunks
+      })
+  }
+
+  async process() {
+    this.spawnedItems = this.retrieveOvergroundItems()
+    this.individualChunks = await this.bakeIndividualChunks()
+  }
+
+  toStub() {
+    const { spawnedItems, individualChunks } = this
+    // return { spawnedItems, individualChunks }
+    return { spawnedItems }
+  }
+
+  get patchBounds() {
+    return asBox2(this.bounds)
   }
 
   get spawnedLocs() {
@@ -119,11 +184,45 @@ export class ItemsChunkLayer {
     return spawnedLocs
   }
 
-  async populate() {
-    this.spawnedItems = await WorldComputeProxy.current.queryOvergroundItems(
-      asBox2(this.bounds),
+  retrieveOvergroundItems() {
+    const boundsBiomeInfluences = Biome.instance.getBoundsInfluences(this.patchBounds)
+
+    const spawnedItems: Record<ItemType, Vector3[]> = {}
+    const spawnPlaces = defaultSpawnMap.querySpawnLocations(
+      this.patchBounds,
+      asVect2(defaultItemDims),
     )
-    this.individualChunks = await this.bakeIndividualChunks()
+    for (const pos of spawnPlaces) {
+      const blockBiome = WorldUtils.process.getBlockBiome(
+        pos,
+        this.patchBounds,
+        boundsBiomeInfluences,
+      )
+      const { level, biome, landscapeIndex } = computeGroundBlock(
+        asVect3(pos),
+        blockBiome,
+      )
+      const weightedItems =
+        Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
+      if (weightedItems) {
+        const spawnableTypes: ItemType[] = []
+        Object.entries(weightedItems).forEach(([itemType, spawnWeight]) => {
+          while (spawnWeight > 0) {
+            spawnableTypes.push(itemType)
+            spawnWeight--
+          }
+        })
+        const itemType = defaultSpawnMap.getSpawnedItem(
+          pos,
+          spawnableTypes,
+        ) as ItemType
+        if (itemType) {
+          spawnedItems[itemType] = spawnedItems[itemType] || []
+          spawnedItems[itemType]?.push(asVect3(pos, level))
+        }
+      }
+    }
+    return spawnedItems
   }
 
   async bakeIndividualChunks() {
@@ -149,16 +248,17 @@ export class ItemsChunkLayer {
           for (const heightBuff of itemChunk.iterChunkSlice()) {
             if (heightBuff.data[0]) chunkBottomBlocks.push(heightBuff.pos)
           }
-          // compute blocks batch to find lower element
-          const blocksBatch = await BlocksBatch.proxyGen(chunkBottomBlocks)
-          const [lowestBlock] = blocksBatch.sort(
+          // compute blocks batch to find lowest element
+          const blocksBatch = new BlocksBatch(chunkBottomBlocks) //await BlocksBatch.proxyGen(chunkBottomBlocks)
+          await blocksBatch.process()
+          const [lowestBlock] = blocksBatch.blocks.sort(
             (b1, b2) => b1.data.level - b2.data.level,
           )
           const lowestLevel = lowestBlock?.data.level || 0
           const yOffset = itemChunk.bounds.min.y - lowestLevel
-          const offset = new Vector3(0, yOffset, 0)
+          const offset = new Vector3(0, -yOffset, 0)
+          // adjust chunk elevation according to lowest element
           itemChunk.bounds.translate(offset)
-          // adjust chunk elevation according to lower element
           individualChunks.push(itemChunk)
         }
       }
@@ -168,7 +268,15 @@ export class ItemsChunkLayer {
     return individualChunks
   }
 
-  // mergeIndividualChunks() {
-  //   const mergedChunkLayer = new ChunkContainer(this.bounds, 1)
-  // }
+  mergeIndividualChunks() {
+    const mergeChunkBounds = new Box3()
+    for (const itemChunk of this.individualChunks) {
+      mergeChunkBounds.union(itemChunk?.bounds)
+    }
+    const mergeChunk = new ChunkContainer(mergeChunkBounds, 1)
+    for (const itemChunk of this.individualChunks) {
+      ChunkContainer.copySourceToTarget(itemChunk, mergeChunk)
+    }
+    return mergeChunk
+  }
 }

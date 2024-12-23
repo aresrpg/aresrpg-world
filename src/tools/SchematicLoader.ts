@@ -4,7 +4,7 @@ import { Box3, Vector3 } from 'three'
 import { NBTReader } from '../third-party/nbt_custom'
 import { BlockType } from '../procgen/Biome'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { WorldEnv } from '../misc/WorldEnv'
+import { WorldEnv } from '../config/WorldEnv'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
 

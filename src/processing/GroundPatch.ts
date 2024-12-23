@@ -10,7 +10,7 @@ import {
   ReverseBiomeNumericType,
 } from '../procgen/Biome'
 
-import { PatchBase, PatchDataContainer, PatchStub } from './PatchBase'
+import { PatchBase, PatchDataContainer, PatchStub } from '../datacontainers/PatchBase'
 
 export type GroundBlockData = {
   // rawVal: number,

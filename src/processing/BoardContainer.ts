@@ -18,10 +18,10 @@ import {
 } from '../index'
 import { ProcLayer } from '../procgen/ProcLayer'
 import { ChunkKey, PatchKey } from '../utils/types'
-import { ItemsChunkLayer } from '../misc/ItemsInventory'
+import { ItemsChunkLayer } from './ItemsInventory'
 
-import { PatchIndexer } from './ChunksIndexer'
-import { DataContainer, PatchBase, PatchElement } from './PatchBase'
+import { PatchIndexer } from '../datacontainers/ChunksIndexer'
+import { DataContainer, PatchBase, PatchElement } from '../datacontainers/PatchBase'
 
 export enum BlockCategory {
   EMPTY = 0,
@@ -130,7 +130,7 @@ export class BoardCache extends PatchIndexer<BoardCacheData> {
   async initCacheIndex(patchIndex: PatchKey) {
     if (!this.patchLookup[patchIndex]) {
       const itemsLayer = new ItemsChunkLayer(patchIndex)
-      await itemsLayer.populate()
+      await itemsLayer.proxyProcess()
       // await itemsLayer.bakeAsIndividualChunks()
       const chunkIndex = {}
       const cacheData: BoardCacheData = {

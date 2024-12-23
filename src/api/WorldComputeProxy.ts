@@ -3,7 +3,7 @@ import workerpool, { Pool } from 'workerpool'
 
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
 import { WorldEnv } from '../index'
-import { SpawnedItems } from '../misc/ItemsInventory'
+import { SpawnedItems } from '../processing/ItemsInventory'
 import { ChunkId, ChunkKey, PatchId, PatchKey } from '../utils/types'
 
 import { ComputeTask } from './world-compute'
