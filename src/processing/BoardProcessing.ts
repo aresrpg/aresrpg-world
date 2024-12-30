@@ -13,15 +13,15 @@ import {
   WorldEnv,
   ChunkContainer,
   BlockMode,
-  WorldComputeProxy,
   WorldUtils,
 } from '../index'
 import { ProcLayer } from '../procgen/ProcLayer'
 import { ChunkKey, PatchKey } from '../utils/types'
-import { ItemsChunkLayer, ItemsProcessingParams, ItemsProcessMode } from './ItemsInventory'
+import { ItemsChunkLayer, ItemsProcessingParams, ItemsProcessMode } from './ItemsProcessing'
 
 import { PatchIndexer } from '../datacontainers/ChunksIndexer'
 import { DataContainer, PatchBase, PatchElement } from '../datacontainers/PatchBase'
+import { UndegroundChunkset } from './ChunksProcessing'
 
 export enum BlockCategory {
   EMPTY = 0,
@@ -171,10 +171,9 @@ export class BoardCache extends PatchIndexer<BoardCacheData> {
         const chunkId = asVect3(patchId, yId)
         const chunkKey = serializeChunkId(chunkId)
         if (!chunkIndex[chunkKey]) {
-          const chunk = await WorldComputeProxy.current.bakeUndergroundChunk(
-            chunkId,
-            { noEncoder: true },
-          )
+          const undegroundChunksProcessing = new UndegroundChunkset(patchKey)
+          const processingParams = { skipEncoding: true, chunkId }
+          const chunk = await undegroundChunksProcessing.delegate(processingParams)
           chunkIndex[chunkKey] = chunk
         }
       }
@@ -276,8 +275,9 @@ export class BoardContainer {
 
   overlapsBoard(bounds: Box2) {
     if (this.boardData) {
-      const boardIter = this.boardData.iterDataQuery(bounds, true)
-      return !!boardIter.next()
+      // const boardIter = this.boardData.iterDataQuery(bounds, true)
+      // return !!boardIter.next()
+      return this.boardData.bounds.intersectsBox(bounds)
     }
     return false
   }

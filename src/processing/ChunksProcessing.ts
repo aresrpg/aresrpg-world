@@ -1,4 +1,4 @@
-import { Vector2 } from 'three'
+import { Box3, MathUtils, Vector2, Vector3 } from 'three'
 
 import { WorldEnv } from '../config/WorldEnv'
 import {
@@ -6,18 +6,140 @@ import {
   asVect3,
   serializeChunkId,
   asPatchBounds,
+  asVect2,
+  serializePatchId,
+  asBox2,
 } from '../utils/convert'
-import { PatchId, PatchKey } from '../utils/types'
+import { BlockMode, ChunkKey, PatchBlock, PatchId, PatchKey } from '../utils/types'
 
-import { ChunkContainer, ChunkStub, defaultDataEncoder } from '../datacontainers/ChunkContainer'
-import { EmptyChunk, GroundChunk } from './ChunkFactory'
-import { bakeCavesMask } from '../api/world-compute'
-import { GroundPatch } from './GroundPatch'
-import { ItemsChunkLayer } from './ItemsInventory'
+import { ChunkBuffer, ChunkContainer, ChunkMask, ChunkStub, defaultDataEncoder } from '../datacontainers/ChunkContainer'
+import { GroundPatch, parseGroundFlags } from './GroundPatch'
+import { ItemsChunkLayer } from './ItemsProcessing'
 import { ProcessingState, WorldProcessing } from './WorldProcessing'
+import { BlockType, Biome, BiomeType, DensityVolume } from '../index'
 const chunksRange = WorldEnv.current.chunks.range
 const patchDims = WorldEnv.current.patchDimensions
 
+
+export class EmptyChunk extends ChunkContainer {
+  constructor(chunkKey: ChunkKey) {
+    super(chunkKey, 1)
+    this.rawData = new Uint16Array()
+  }
+
+  async bake() {}
+}
+
+const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
+  return WorldEnv.current.debug.patch.borderHighlightColor &&
+    (localPos.x === 1 || localPos.z === 1)
+    ? WorldEnv.current.debug.patch.borderHighlightColor
+    : blockType
+}
+
+export class GroundChunk extends ChunkContainer {
+  generateGroundBuffer(block: PatchBlock, ymin: number, ymax: number) {
+    const undegroundDepth = 4
+    const bedrock = this.dataEncoder(BlockType.BEDROCK)
+    const bedrockIce = this.dataEncoder(BlockType.ICE)
+    const { biome, landscapeIndex, flags } = block.data
+    const blockLocalPos = block.localPos as Vector3
+    const landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
+    const groundConf = landscapeConf.data
+    const groundFlags = parseGroundFlags(flags)
+    const blockType =
+      highlightPatchBorders(blockLocalPos, groundConf.type) || groundConf.type
+    const blockMode = groundFlags.boardMode
+      ? BlockMode.CHECKERBOARD
+      : BlockMode.REGULAR
+    const groundSurface = this.dataEncoder(blockType, blockMode)
+    const undergroundLayer = this.dataEncoder(
+      groundConf.subtype || BlockType.BEDROCK,
+    )
+    // generate ground buffer
+    const buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
+    if (buffSize > 0) {
+      const groundBuffer = new Uint16Array(block.data.level - ymin)
+      // fill with bedrock first
+      groundBuffer.fill(biome === BiomeType.Arctic ? bedrockIce : bedrock)
+      // add underground layer
+      groundBuffer.fill(
+        undergroundLayer,
+        groundBuffer.length - (undegroundDepth + 1),
+      )
+      // finish with ground surface block
+      groundBuffer[groundBuffer.length - 1] = groundSurface
+      const chunkBuffer: ChunkBuffer = {
+        pos: asVect2(blockLocalPos),
+        content: groundBuffer.slice(0, buffSize),
+      }
+      return chunkBuffer
+    }
+    return undefined
+  }
+
+  async bake(groundLayer?: GroundPatch, cavesMask?: ChunkMask) {
+    const patchId = asVect2(this.chunkId as Vector3)
+    const patchKey = serializePatchId(patchId)
+    groundLayer = groundLayer || new GroundPatch(patchKey)
+    groundLayer.isEmpty && (await groundLayer.bake())
+
+    const ymin = this.extendedBounds.min.y
+    const ymax = this.extendedBounds.max.y
+
+    const blocks = groundLayer.iterBlocksQuery(undefined, false)
+    for (const block of blocks) {
+      const groundBuff = this.generateGroundBuffer(block, ymin, ymax)
+      if (groundBuff) {
+        const chunk_buffer = this.readBuffer(groundBuff.pos)
+        chunk_buffer.set(groundBuff.content)
+        this.writeBuffer(groundBuff.pos, chunk_buffer)
+      }
+    }
+
+    cavesMask?.applyMaskOnTargetChunk(this)
+  }
+}
+
+/**
+ * Underground chunk (caverns)
+ */
+
+export const bakeCavesMask = (boundsOrPatchKey: ChunkKey | Box3) => {
+  const chunkContainer = new ChunkMask(boundsOrPatchKey, 1)
+  const chunkBounds = chunkContainer.bounds
+  const groundLayer = new GroundPatch(asBox2(chunkBounds))
+  groundLayer.bake()
+  // const bounds = asBox3(groundLayer.bounds)
+  // bounds.max.y = groundLayer.valueRange.max
+  // const chunkContainer = new ChunkContainer(bounds, 1)
+  // chunkContainer.rawData.fill(0)
+  const patchIter = groundLayer.iterBlocksQuery(undefined, false)
+  for (const block of patchIter) {
+    // const buffPos = asVect2(block.localPos)
+    // const chunkBuff = chunkContainer.readBuffer(buffPos)
+    const groundLevel = block.pos.y
+    const ymin = chunkContainer.extendedBounds.min.y
+    const ymax = Math.min(groundLevel, chunkContainer.extendedBounds.max.y)
+    const startLocalPos = new Vector3(block.localPos.x, -1, block.localPos.z)
+    let startIndex = chunkContainer.getIndex(startLocalPos)
+    for (let y = ymin; y <= ymax; y++) {
+      block.pos.y = y
+      const isEmptyBlock = DensityVolume.instance.getBlockDensity(
+        block.pos,
+        groundLevel + 20,
+      )
+      chunkContainer.rawData[startIndex++] = isEmptyBlock ? 0 : 1
+    }
+    // chunkContainer.writeBuffer(buffPos, chunkBuff)
+  }
+  // const chunkIter = chunkContainer.iterateContent(undefined, false)
+  // for (const block of chunkIter) {
+  //   const isEmptyBlock = DensityVolume.instance.getBlockType(block.pos, bounds.max.y) === BlockType.NONE
+  //   chunkContainer.writeSector(block.pos, isEmptyBlock ? 0 : 1)
+  // }
+  return chunkContainer
+}
 
 
 /**
@@ -76,7 +198,7 @@ export class ChunkSet extends WorldProcessing {
     }
     return canceled
   }
-  
+
   override reconcile(stubs: ChunkStub[]) {
     const chunks = stubs.map(stub => ChunkContainer.fromStub(stub))
     return chunks

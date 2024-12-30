@@ -12,7 +12,7 @@ export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
 export { ChunkContainer } from './datacontainers/ChunkContainer'
 export { ChunksIndexer } from './datacontainers/ChunksIndexer'
 export { SchematicLoader } from './tools/SchematicLoader'
-export { BoardContainer, BlockCategory } from './processing/BoardContainer'
+export { BoardContainer, BlockCategory } from './processing/BoardProcessing'
 export {
   ProceduralItemGenerator,
   ProcItemType,
@@ -20,12 +20,9 @@ export {
 } from './tools/ProceduralGenerators'
 export { BlockMode } from './utils/types'
 export { DensityVolume } from './procgen/DensityVolume'
-export { ItemsInventory } from './processing/ItemsInventory'
+export { ItemsInventory } from './processing/ItemsProcessing'
 export { BlocksBatch } from './processing/BlocksBatch'
-export { WorldComputeProxy } from './api/WorldComputeProxy'
-export { WorldComputeApi } from './api/world-compute'
 
-export * as WorldCompute from './api/world-compute'
 export * as WorldDevSetup from './config/demo-samples/configs/world_dev_setup'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
 export {ChunkSet} from './processing/ChunksProcessing'

@@ -1,10 +1,9 @@
 import { Vector2 } from 'three'
-import { WorldEnv, WorldUtils, WorldComputeProxy, Biome, WorldProcessing } from '../index'
+import { WorldEnv, WorldUtils, Biome, WorldProcessing } from '../index'
 import { serializePatchId, getPatchId, asVect3 } from '../utils/convert'
 import {
   PatchKey,
   GroundBlock,
-  ProcessType,
   Block,
   BlockData,
 } from '../utils/types'
@@ -16,11 +15,11 @@ export type BlocksBatchArgs = {
 }
 
 export type BlocksBatchProcessingParams = {
-  groundHeight: false,
+  groundLevel: false,
 }
 
 const defaultProcessingParams: BlocksBatchProcessingParams = {
-  groundHeight: false
+  groundLevel: false
 }
 
 export class BlocksBatch extends WorldProcessing {
@@ -56,17 +55,20 @@ export class BlocksBatch extends WorldProcessing {
     }
   }
 
-  override async delegate(processingParams = defaultProcessingParams, processingUnit = WorldComputeProxy.workerPool) {
-    // super.delegate(processingParams, processingUnit)
-    this.output = await processingUnit
-      .exec(ProcessType.BlocksBatch, [this.input])
-      .then((batchRes: GroundBlock[]) => batchRes.map(pos => {
-        // blockStub.pos = WorldUtils.convert.parseThreeStub(blockStub.pos)
-        return WorldUtils.convert.parseThreeStub(pos)
-      }) as GroundBlock[])
+  override get inputs() {
+    return ([this.input])
+  }
+
+  override reconcile(stubs: GroundBlock[]) {
+    return stubs.map(pos => {
+      // blockStub.pos = WorldUtils.convert.parseThreeStub(blockStub.pos)
+      return WorldUtils.convert.parseThreeStub(pos)
+    }) as GroundBlock[]
   }
 
   override async process(processingParams = defaultProcessingParams) {
+    const { groundLevel } = processingParams
+    console.log(groundLevel)
     this.initCache()
     const batchOutput = this.input.map(pos => {
       const patchId = getPatchId(pos, WorldEnv.current.patchDimensions)
@@ -120,20 +122,6 @@ export class BlocksBatch extends WorldProcessing {
 
   toStub() {
     return this.output
-  }
-
-  // byProxy
-  static async proxyGen(
-    posBatch: Vector2[],
-    processingUnit = WorldComputeProxy.workerPool,
-  ) {
-    const res = await processingUnit
-      .exec(ProcessType.BlocksBatch, [posBatch])
-      .then((blocksStubs: GroundBlock[]) => blocksStubs.map(blockStub => {
-        blockStub.pos = WorldUtils.convert.parseThreeStub(blockStub.pos)
-        return blockStub
-      }) as GroundBlock[])
-    return res
   }
 }
 

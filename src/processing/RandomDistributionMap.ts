@@ -7,7 +7,7 @@ import {
   DistributionParams,
 } from '../procgen/BlueNoisePattern'
 import { asVect3, getPatchIds } from '../utils/convert'
-import { ItemType } from './ItemsInventory'
+import { ItemType } from './ItemsProcessing'
 import { WorldEnv } from '../config/WorldEnv'
 
 const distDefaults = {

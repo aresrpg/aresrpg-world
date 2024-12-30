@@ -5,7 +5,7 @@ import { ProcItemConf } from '../tools/ProceduralGenerators'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader'
 import { BiomesRawConf, BlockMode } from '../utils/types'
 
-import { ItemType } from '../processing/ItemsInventory'
+import { ItemType } from '../processing/ItemsProcessing'
 // import { NoiseSamplerParams } from '../procgen/NoiseSampler'
 // import { ProcLayerParams } from '../procgen/ProcLayer'
 

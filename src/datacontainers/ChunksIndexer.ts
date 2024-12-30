@@ -4,25 +4,7 @@ import { ChunkSet, WorldUtils } from '../index'
 import { WorldEnv } from '../config/WorldEnv'
 import { asPatchBounds } from '../utils/convert'
 import { PatchKey } from '../utils/types'
-
-import { GroundChunk, CaveChunkMask } from '../processing/ChunkFactory'
 import { GroundSurfaceChunkset, UndegroundChunkset } from '../processing/ChunksProcessing'
-
-enum ChunkCategory {
-  Unknown,
-  Empty,
-  Underground,
-  GroundSurface,
-  Overground,
-}
-
-// type ChunkIndex = Record<ChunkKey, boolean>
-type ChunkType = typeof GroundChunk | typeof CaveChunkMask // |typeof ChunkContainer
-export const chunkTypeMapper: Partial<Record<ChunkCategory, ChunkType>> = {
-  [ChunkCategory.Underground]: CaveChunkMask,
-  [ChunkCategory.GroundSurface]: GroundChunk,
-  // [ChunkCategory.Overground]: ChunkContainer
-}
 
 export class PatchIndexer<T = void> {
   patchLookup: Record<PatchKey, T> = {}

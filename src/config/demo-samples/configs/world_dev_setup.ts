@@ -5,7 +5,7 @@ import { BIOMES_LANDSCAPES_CONFIG } from './biome_landscapes'
 import { PROC_ITEMS_CONFIG } from './procedural_items'
 import {
   BLOCKS_COLOR_MAPPING,
-  ExtBlock,
+  // ExtBlock,
   SCHEMATICS_BLOCKS_MAPPING,
 } from './blocks_mappings'
 

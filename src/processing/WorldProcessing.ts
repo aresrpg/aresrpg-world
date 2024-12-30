@@ -1,4 +1,6 @@
-import { WorldComputeProxy, WorldUtils } from '../index'
+import { WorldEnv, WorldUtils } from '../index'
+import workerpool from 'workerpool'
+
 
 const toStubs = (res: any) =>
   res instanceof Array
@@ -38,10 +40,24 @@ export class WorldProcessing {
   //   WorldProcessing.instances.push(this)
   // }
 
-  static initWorkerPool(workerPool: any) {
-    console.log(`world compute worker init`)
-    const { replicate } = WorldProcessing
-    workerPool.worker({ replicate })
+  static initWorkerPool(workerUrl?: string, workerCount?: number, workerType?: any){
+    const { url, count, type } = WorldEnv.current.workerPool
+    workerUrl = workerUrl || url
+    if (workerUrl && workerUrl.length > 0) {
+      workerCount = workerCount || count
+      workerType = workerType || type
+      // eslint-disable-next-line no-undef
+      const workerOpts: WorkerOptions = {}
+      if (workerType) {
+        // By default, Vite uses a module worker in dev mode, which can cause your application to fail. 
+        // Therefore, we need to use a module worker in dev mode and a classic worker in prod mode.
+        workerOpts.type = workerType
+      }
+      this.workerPool = workerpool.pool(workerUrl, {
+        maxWorkers: workerCount,
+        workerOpts,
+      })
+    }
   }
 
   /**
@@ -73,14 +89,14 @@ export class WorldProcessing {
    * @param processingParams 
    * @param processingUnit 
    */
-  async delegate(processingParams = {}, processingUnit = WorldComputeProxy.workerPool) {
+  async delegate(processingParams = {}, processingUnit = WorldProcessing.workerPool) {
     if (this.processingState === ProcessingState.Done) return
     else {
       const targetObj = this.constructor.name
       const targetArgs = this.inputs
       this.processingState = ProcessingState.Pending
       this.pendingTask = processingUnit.exec('replicate', [targetObj, targetArgs, processingParams])
-        .catch((e) => {
+        .catch((e: any) => {
           console.log(e)
           this.processingState = ProcessingState.Postponed
           return
@@ -132,7 +148,7 @@ export class WorldProcessing {
    * - either from main thread
    * - or worker if processing was delegated and after original object's replication 
    */
-  process(processingParams: any) {
+  process(_processingParams: any) {
     if (this.processingState === ProcessingState.Done) return
     // else this.processingState = ProcessingState.Pending
   }

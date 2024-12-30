@@ -1,7 +1,7 @@
 import { Vector2, Vector3 } from 'three'
 
 import { GroundBlockData } from '../processing/GroundPatch'
-import { ItemType } from '../processing/ItemsInventory'
+import { ItemType } from '../processing/ItemsProcessing'
 import { BiomeType, BlockType } from '../procgen/Biome'
 import { LinkedList } from '../datacontainers/LinkedList'
 

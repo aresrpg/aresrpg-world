@@ -1,4 +1,4 @@
-import { Box2, Vector2, Vector3 } from 'three'
+import { Vector2, Vector3 } from 'three'
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 import { smoothstep } from 'three/src/math/MathUtils'
 
@@ -9,7 +9,6 @@ import {
   BiomesRawConf,
   LandscapeFields,
   LandscapesConf,
-  PatchBoundId,
 } from '../utils/types'
 import { WorldEnv, WorldUtils } from '../index'
 

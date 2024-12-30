@@ -3,12 +3,12 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { PatchStub } from '../datacontainers/PatchBase'
 import { DistributionProfiles } from './RandomDistributionMap'
-import { Biome, BlocksBatch, DistributionProfile, PseudoDistributionMap, WorldComputeProxy, WorldProcessing, WorldUtils } from '../index'
+import { Biome, BlocksBatch, DistributionProfile, PseudoDistributionMap, WorldProcessing } from '../index'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
 import { asPatchBounds, asBox3, asBox2, asVect2, asVect3, parsePatchKey } from '../utils/convert'
-import { PatchKey, ProcessType } from '../utils/types'
+import { PatchKey } from '../utils/types'
 
 import { WorldEnv } from '../config/WorldEnv'
 import { GroundPatch } from './GroundPatch'
@@ -170,15 +170,15 @@ export class ItemsChunkLayer extends WorldProcessing {
     return this.patch.id
   }
 
-  override async delegate(processingParams = defaultProcessingParams, processingUnit = WorldComputeProxy.workerPool) {
-    // super.delegate(processingParams, processingUnit)
-    await processingUnit
-      .exec(ProcessType.ItemsLayer, [this.patch.key || this.patchBounds, processingParams])
-      .then((stub: ItemsLayerStub) => {
-        // fill object from worker's data
-        this.spawnedItems = stub.spawnedItems
-        this.individualChunks = stub.individualChunks || this.individualChunks
-      })
+  override get inputs() {
+    return ([this.patch.key || this.patchBounds])
+  }
+
+  override reconcile(stubs: ItemsLayerStub) {
+    const { spawnedItems, individualChunks } = stubs
+    // fill object from worker's data
+    this.spawnedItems = spawnedItems
+    this.individualChunks = individualChunks || this.individualChunks
   }
 
   override async process(processingParams = defaultProcessingParams) {
@@ -197,7 +197,7 @@ export class ItemsChunkLayer extends WorldProcessing {
   }
 
   toStub() {
-    const { spawnedItems, individualChunks } = this
+    const { spawnedItems } = this
     // return { spawnedItems, individualChunks }
     return { spawnedItems }
   }
@@ -272,7 +272,7 @@ export class ItemsChunkLayer extends WorldProcessing {
             if (heightBuff.data[0]) chunkBottomBlocks.push(heightBuff.pos)
           }
           // compute blocks batch to find lowest element
-          const blocksBatch = new BlocksBatch(chunkBottomBlocks) //await BlocksBatch.proxyGen(chunkBottomBlocks)
+          const blocksBatch = new BlocksBatch(chunkBottomBlocks)
           await blocksBatch.process()
           const [lowestBlock] = blocksBatch.output.sort(
             (b1, b2) => b1.data.level - b2.data.level,

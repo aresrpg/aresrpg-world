@@ -4,7 +4,6 @@ import { PatchKey } from '../utils/types'
 import {
   parsePatchKey,
   asPatchBounds,
-  serializePatchId,
   asVect2,
   parseThreeStub,
 } from '../utils/convert'
