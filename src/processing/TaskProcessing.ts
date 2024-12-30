@@ -19,6 +19,7 @@ export enum ProcessingState {
   Pending = 'pending',
   Waiting = 'waiting',
   Postponed = 'postponed',
+  Interrupted = 'interrupted',
   Done = 'done'
 }
 
@@ -28,16 +29,16 @@ export enum ProcessingState {
  * - replication to replicate original object inside worker
  * - reconcilitation to merge data back from worker into original object
  */
-export class WorldProcessing {
-  static registeredObjects: Record<string, new (args: any) => WorldProcessing> = {}
+export class ProcessingTask {
+  static registeredObjects: Record<string, new (args: any) => ProcessingTask> = {}
   static workerPool: any
   processingState: ProcessingState = ProcessingState.Waiting
   pendingTask: any
 
-  // static instances: WorldProcessing[] = []
+  // static instances: ProcessingTask[] = []
 
   // constructor(){
-  //   WorldProcessing.instances.push(this)
+  //   ProcessingTask.instances.push(this)
   // }
 
   static initWorkerPool(workerUrl?: string, workerCount?: number, workerType?: any){
@@ -70,7 +71,7 @@ export class WorldProcessing {
   static async replicate(...input: any) {
     const [targetObjName, targetRawArgs, processingParams] = input
     const targetArgs = parseArgs(...targetRawArgs)
-    const TargetObj = WorldProcessing.registeredObjects[targetObjName]
+    const TargetObj = ProcessingTask.registeredObjects[targetObjName]
     if (TargetObj) {
       const targetObj = new TargetObj(...targetArgs)
       const res = await targetObj.process(processingParams)
@@ -89,7 +90,7 @@ export class WorldProcessing {
    * @param processingParams 
    * @param processingUnit 
    */
-  async delegate(processingParams = {}, processingUnit = WorldProcessing.workerPool) {
+  async delegate(processingParams = {}, processingUnit = ProcessingTask.workerPool) {
     if (this.processingState === ProcessingState.Done) return
     else {
       const targetObj = this.constructor.name

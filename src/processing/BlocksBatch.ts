@@ -1,5 +1,5 @@
 import { Vector2 } from 'three'
-import { WorldEnv, WorldUtils, Biome, WorldProcessing } from '../index'
+import { WorldEnv, WorldUtils, Biome, ProcessingTask } from '../index'
 import { serializePatchId, getPatchId, asVect3 } from '../utils/convert'
 import {
   PatchKey,
@@ -22,7 +22,7 @@ const defaultProcessingParams: BlocksBatchProcessingParams = {
   groundLevel: false
 }
 
-export class BlocksBatch extends WorldProcessing {
+export class BlocksBatch extends ProcessingTask {
   localPatchCache: Record<PatchKey, GroundPatch> = {}
   patchIndex: Record<PatchKey, Vector2[]> = {}
   blocks: any[] = []
@@ -68,7 +68,7 @@ export class BlocksBatch extends WorldProcessing {
 
   override async process(processingParams = defaultProcessingParams) {
     const { groundLevel } = processingParams
-    console.log(groundLevel)
+    // console.log(groundLevel)
     this.initCache()
     const batchOutput = this.input.map(pos => {
       const patchId = getPatchId(pos, WorldEnv.current.patchDimensions)
@@ -125,5 +125,5 @@ export class BlocksBatch extends WorldProcessing {
   }
 }
 
-WorldProcessing.registeredObjects[BlocksBatch.name] = BlocksBatch
+ProcessingTask.registeredObjects[BlocksBatch.name] = BlocksBatch
 

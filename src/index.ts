@@ -1,28 +1,35 @@
+// Utils
 export * as WorldUtils from './utils/index'
-export { WorldProcessing } from './processing/WorldProcessing'
-export { Biome, BiomeType, BlockType } from './procgen/Biome'
-export { WorldEnv } from './config/WorldEnv'
-export { Heightmap } from './procgen/Heightmap'
+export { BlockMode } from './utils/types'
+// Processing
+export { ProcessingTask } from './processing/TaskProcessing'
+export { BatchProcess } from './processing/BatchProcessing'
+export { BlocksBatch } from './processing/BlocksBatch'
+export { BoardContainer, BlockCategory } from './processing/BoardProcessing'
 export {
   PseudoDistributionMap,
   DistributionProfile,
 } from './processing/RandomDistributionMap'
-// export { CacheContainer as WorldCacheContainer } from './datacontainers/GroundMap'
+export { ChunkSet } from './processing/ChunksProcessing'
+// Procgen
+export { Biome, BiomeType, BlockType } from './procgen/Biome'
+export { Heightmap } from './procgen/Heightmap'
+export { DensityVolume } from './procgen/DensityVolume'
+// Data structures
 export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
 export { ChunkContainer } from './datacontainers/ChunkContainer'
 export { ChunksIndexer } from './datacontainers/ChunksIndexer'
+// Factory
+export { ItemsInventory } from './factory/ItemsFactory'
+export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory'
+// Tools
 export { SchematicLoader } from './tools/SchematicLoader'
-export { BoardContainer, BlockCategory } from './processing/BoardProcessing'
 export {
   ProceduralItemGenerator,
   ProcItemType,
   ProcItemCategory,
 } from './tools/ProceduralGenerators'
-export { BlockMode } from './utils/types'
-export { DensityVolume } from './procgen/DensityVolume'
-export { ItemsInventory } from './processing/ItemsProcessing'
-export { BlocksBatch } from './processing/BlocksBatch'
-
-export * as WorldDevSetup from './config/demo-samples/configs/world_dev_setup'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
-export {ChunkSet} from './processing/ChunksProcessing'
+// Config
+export { WorldEnv } from './config/WorldEnv'
+export * as WorldDevSetup from './config/demo-samples/configs/world_dev_setup'

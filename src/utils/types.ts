@@ -1,9 +1,9 @@
 import { Vector2, Vector3 } from 'three'
 
 import { GroundBlockData } from '../processing/GroundPatch'
-import { ItemType } from '../processing/ItemsProcessing'
 import { BiomeType, BlockType } from '../procgen/Biome'
 import { LinkedList } from '../datacontainers/LinkedList'
+import { ItemType } from '../factory/ItemsFactory'
 
 export type Block<T> = {
   pos: Vector3
