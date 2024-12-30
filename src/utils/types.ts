@@ -169,13 +169,3 @@ export type LandscapesRawConf = Record<LandscapeId, Partial<LandscapeFields>>
 export type BiomesRawConf = Record<BiomeType, LandscapesRawConf>
 export type LandscapesConf = LinkedList<LandscapeFields>
 export type BiomesConf = Record<BiomeType, LandscapesConf>
-
-export interface WorldProcess {
-  process(processingParams: any, processingUnit: any): any
-  toStub(): any
-}
-
-export enum ProcessType {
-  BlocksBatch = 'BlocksBatch',
-  ItemsLayer = 'ItemsLayer'
-}

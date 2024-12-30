@@ -29,8 +29,8 @@ export const EnvOverride = (worldEnv = WorldEnv.current) => {
   // worldEnv.chunks.dataEncoder = chunk_data_encoder
 
   // DEBUG: uncomment following lines to enable debugging feats
-  WorldEnv.current.debug.patch.borderHighlightColor = ExtBlock.DBG_LIGHT
-  WorldEnv.current.debug.schematics.missingBlockType = ExtBlock.DBG_DARK
+  // WorldEnv.current.debug.patch.borderHighlightColor = ExtBlock.DBG_LIGHT
+  // WorldEnv.current.debug.schematics.missingBlockType = ExtBlock.DBG_DARK
 }
 
 export const BlocksColorOverride = (

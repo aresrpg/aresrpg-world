@@ -1,12 +1,12 @@
 import { Box2, Vector2 } from 'three'
 
-import { WorldUtils } from '../index'
+import { ChunkSet, WorldUtils } from '../index'
 import { WorldEnv } from '../config/WorldEnv'
 import { asPatchBounds } from '../utils/convert'
 import { PatchKey } from '../utils/types'
 
 import { GroundChunk, CaveChunkMask } from '../processing/ChunkFactory'
-import { ChunkSetProcessor } from '../processing/ChunksProcessing'
+import { GroundSurfaceChunkset, UndegroundChunkset } from '../processing/ChunksProcessing'
 
 enum ChunkCategory {
   Unknown,
@@ -79,24 +79,58 @@ export class PatchIndexer<T = void> {
   }
 }
 
-export class ChunksIndexer extends PatchIndexer<ChunkSetProcessor> {
+type ChunksData = {
+  above: ChunkSet,
+  below: ChunkSet
+}
+
+export class ChunksIndexer extends PatchIndexer<ChunksData> {
   chunkIds() {
     const chunkIds = []
-    for (const chunkSet of this.indexedElements) {
-      chunkIds.push(...chunkSet.chunkIds)
+    for (const indexedElement of this.indexedElements) {
+      chunkIds.push(...indexedElement.above.chunkIds, ...indexedElement.below.chunkIds)
     }
     return chunkIds
   }
 
   indexElement(patchKey: PatchKey) {
-    const chunkSet = new ChunkSetProcessor(patchKey)
-    this.patchLookup[patchKey] = chunkSet
-    return chunkSet
+    // const chunkSet = new ChunkSet(patchKey)
+    const indexedElement = {
+      above: new GroundSurfaceChunkset(patchKey),
+      below: new UndegroundChunkset(patchKey)
+    }
+    this.patchLookup[patchKey] = indexedElement
+    return indexedElement
   }
 
   indexElements(patchKeys: PatchKey[]) {
     const indexed = patchKeys.map(patchKey => this.indexElement(patchKey))
     return indexed
+  }
+
+  get upperChunksetElements() {
+    return Object.values(this.patchLookup).map(item => item.above)
+      // .filter(item => item.processingState !== ProcessingState.Done && item.processingState !== ProcessingState.Pending)
+  }
+
+  get lowerChunksetElements() {
+    return Object.values(this.patchLookup).map(item => item.below)
+      // .filter(item => item.processingState !== ProcessingState.Done && item.processingState !== ProcessingState.Pending)
+  }
+
+  get chunksetElements() {
+    return [...this.lowerChunksetElements, ...this.upperChunksetElements]
+  }
+
+  get pendingTasks() {
+    return this.chunksetElements.filter(item => item.pendingTask)
+  }
+
+  cancelPendingTasks() {
+    const pendingTasks = this.pendingTasks
+    pendingTasks.forEach(item => item.cancelPendingTask())
+    if (pendingTasks.length > 0)
+      console.log(`[ChunksIndexer] canceled ${pendingTasks.length} pending tasks`)
   }
 }
 

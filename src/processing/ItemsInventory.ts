@@ -3,12 +3,12 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { PatchStub } from '../datacontainers/PatchBase'
 import { DistributionProfiles } from './RandomDistributionMap'
-import { Biome, BlocksBatch, DistributionProfile, PseudoDistributionMap, WorldComputeProxy, WorldUtils } from '../index'
+import { Biome, BlocksBatch, DistributionProfile, PseudoDistributionMap, WorldComputeProxy, WorldProcessing, WorldUtils } from '../index'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
 import { asPatchBounds, asBox3, asBox2, asVect2, asVect3, parsePatchKey } from '../utils/convert'
-import { PatchKey, ProcessType, WorldProcess } from '../utils/types'
+import { PatchKey, ProcessType } from '../utils/types'
 
 import { WorldEnv } from '../config/WorldEnv'
 import { GroundPatch } from './GroundPatch'
@@ -136,7 +136,7 @@ const defaultProcessingParams: ItemsProcessingParams = {
  * Process all items found in given patch
  * rename as ItemsProcessing?
  */
-export class ItemsChunkLayer implements WorldProcess {
+export class ItemsChunkLayer extends WorldProcessing {
   bounds: Box3
   patch: PatchStub = {
     bounds: new Box2,
@@ -145,6 +145,7 @@ export class ItemsChunkLayer implements WorldProcess {
   individualChunks: ChunkContainer[] = []
 
   constructor(boundsOrPatchKey: Box2 | PatchKey) {
+    super()
     const patchBounds =
       boundsOrPatchKey instanceof Box2
         ? boundsOrPatchKey.clone()
@@ -169,28 +170,29 @@ export class ItemsChunkLayer implements WorldProcess {
     return this.patch.id
   }
 
-  async process(processingParams = defaultProcessingParams, processingUnit = WorldComputeProxy.workerPool) {
-    if (processingUnit) {
-      await processingUnit
-        .exec(ProcessType.ItemsLayer, [this.patch.key || this.patchBounds, processingParams])
-        .then((stub: ItemsLayerStub) => {
-          // fill object from worker's data
-          this.spawnedItems = stub.spawnedItems
-          this.individualChunks = stub.individualChunks || this.individualChunks
-        })
-    } else {
-      const { mode } = processingParams
-      this.retrieveOvergroundItems()
-      switch (mode) {
-        case ItemsProcessMode.INDIVIDUAL:
-          await this.bakeIndividualChunks()
-          break;
-        case ItemsProcessMode.MERGED:
-          await this.bakeIndividualChunks()
-          const mergeChunk = await this.mergeIndividualChunks()
-          return mergeChunk
-        default:
-      }
+  override async delegate(processingParams = defaultProcessingParams, processingUnit = WorldComputeProxy.workerPool) {
+    // super.delegate(processingParams, processingUnit)
+    await processingUnit
+      .exec(ProcessType.ItemsLayer, [this.patch.key || this.patchBounds, processingParams])
+      .then((stub: ItemsLayerStub) => {
+        // fill object from worker's data
+        this.spawnedItems = stub.spawnedItems
+        this.individualChunks = stub.individualChunks || this.individualChunks
+      })
+  }
+
+  override async process(processingParams = defaultProcessingParams) {
+    const { mode } = processingParams
+    this.retrieveOvergroundItems()
+    switch (mode) {
+      case ItemsProcessMode.INDIVIDUAL:
+        await this.bakeIndividualChunks()
+        break;
+      case ItemsProcessMode.MERGED:
+        await this.bakeIndividualChunks()
+        const mergeChunk = await this.mergeIndividualChunks()
+        return mergeChunk
+      default:
     }
   }
 
@@ -301,3 +303,5 @@ export class ItemsChunkLayer implements WorldProcess {
     return mergeChunk
   }
 }
+
+WorldProcessing.registeredObjects[ItemsChunkLayer.name] = ItemsChunkLayer
