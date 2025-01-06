@@ -1,11 +1,11 @@
 import { Vector2, Vector3 } from 'three'
+import { ItemType } from '../factory/ItemsFactory'
 
 import { BlockType } from '../procgen/Biome'
 import { ProcItemConf } from '../tools/ProceduralGenerators'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader'
 import { BiomesRawConf, BlockMode } from '../utils/types'
 
-import { ItemType } from '../processing/ItemsProcessing'
 // import { NoiseSamplerParams } from '../procgen/NoiseSampler'
 // import { ProcLayerParams } from '../procgen/ProcLayer'
 
@@ -43,15 +43,15 @@ export class WorldEnv {
   defaultDistMapPeriod = 4 * this.patchSize
 
   get nearViewDist() {
-    return this.patchViewDist.near * this.patchSize
+    return this.patchViewCount.near * this.patchSize
   }
 
   get farViewDist() {
-    return this.patchViewDist.far * this.patchSize
+    return this.patchViewCount.far * this.patchSize
   }
 
   // in patch unit
-  patchViewDist = {
+  patchViewCount = {
     near: 4, // undeground view dist
     far: 8, // ground surface view dist
   }

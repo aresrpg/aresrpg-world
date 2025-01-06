@@ -6,6 +6,7 @@ export { ProcessingTask } from './processing/TaskProcessing'
 export { BatchProcess } from './processing/BatchProcessing'
 export { BlocksBatch } from './processing/BlocksBatch'
 export { BoardContainer, BlockCategory } from './processing/BoardProcessing'
+export { ChunksBatch, LowerChunksBatch, UpperChunksBatch } from './processing/ChunksBatch'
 export {
   PseudoDistributionMap,
   DistributionProfile,
@@ -18,7 +19,6 @@ export { DensityVolume } from './procgen/DensityVolume'
 // Data structures
 export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
 export { ChunkContainer } from './datacontainers/ChunkContainer'
-export { ChunksIndexer } from './datacontainers/ChunksIndexer'
 // Factory
 export { ItemsInventory } from './factory/ItemsFactory'
 export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory'

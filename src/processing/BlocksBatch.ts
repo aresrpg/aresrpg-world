@@ -8,7 +8,7 @@ import {
   BlockData,
 } from '../utils/types'
 
-import { GroundPatch } from './GroundPatch'
+import { GroundBlockData, GroundPatch } from './GroundPatch'
 
 export type BlocksBatchArgs = {
   posBatch: Vector2[]
@@ -68,27 +68,30 @@ export class BlocksBatch extends ProcessingTask {
 
   override async process(processingParams = defaultProcessingParams) {
     const { groundLevel } = processingParams
-    // console.log(groundLevel)
+    console.log(groundLevel)
     this.initCache()
+
+    // const groundBlocksData = this.input.map(pos => {
     const batchOutput = this.input.map(pos => {
       const patchId = getPatchId(pos, WorldEnv.current.patchDimensions)
       const patchKey = serializePatchId(patchId)
       const groundPatch = this.localPatchCache[patchKey]
       const groundData = groundPatch?.computeGroundBlock(asVect3(pos))
-      if (groundData) {
-        const { biome, landscapeIndex, level } = groundData
-        const landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
-        const groundConf = landscapeConf.data
-        const blockData: BlockData = {
-          level: level,
-          type: groundConf.type
-        }
-        const block: Block<BlockData> = {
-          pos: asVect3(pos),
-          data: blockData
-        }
-        return block
+      // return groundData
+      // }).filter(val => val) as GroundBlockData[]
+      // const batchOutput = groundBlocksData.map(groundData => {
+      const { biome, landscapeIndex, level } = groundData as GroundBlockData
+      const landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
+      const groundConf = landscapeConf.data
+      const blockData: BlockData = {
+        level: level,
+        type: groundConf.type
       }
+      const block: Block<BlockData> = {
+        pos: asVect3(pos),
+        data: blockData
+      }
+      return block
       // override with last block if specified
       // if (params.includeEntitiesBlocks) {
       //     const lastBlockData = await queryLastBlockData(blockPos)

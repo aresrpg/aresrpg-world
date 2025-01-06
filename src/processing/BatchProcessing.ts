@@ -1,73 +1,123 @@
 import { ProcessingState, ProcessingTask } from "./TaskProcessing";
 
-export class BatchProcess {
-    static batches: BatchProcess[] = []
-    static batchId = 0
-    tasksQueue: ProcessingTask[] = []
+export class BatchProcess<T extends ProcessingTask> {
+    static batchQueue: BatchProcess<ProcessingTask>[] = []
+    static batchCount = 0
+    static queuePointer = 0
+    processingQueue: T[] = []
     count = 0
     processed = 0
     status = ProcessingState.Waiting
     batchId
+    onTaskCompleted = (taskRes: any) => taskRes
+    onBatchSuspended: any
 
-    constructor(batch: ProcessingTask[]) {
-        this.tasksQueue = batch
+    constructor(batch: T[], onTaskCompleted?: any) {
+        this.processingQueue = batch
         this.count = batch.length
-        this.batchId = BatchProcess.batchId++
+        this.batchId = BatchProcess.batchCount++
+        this.onTaskCompleted = onTaskCompleted || this.onTaskCompleted
+        BatchProcess.batchQueue.push(this)
+    }
+
+    static async processNextBatch() {
+        const { nextBatch } = this
+        if (nextBatch && !this.isBusy) {
+            nextBatch.status = ProcessingState.Pending
+            await nextBatch.run()
+            nextBatch.status = nextBatch.isDone ? ProcessingState.Done : nextBatch.status
+            this.processNextBatch()
+        }
+    }
+
+    static get isBusy() {
+        return !!this.batchQueue.find(batch => batch.status === ProcessingState.Pending || batch.pendingTasks.length > 0)
+    }
+
+    static get nextBatch() {
+        return this.batchQueue.find(batch => batch.status === ProcessingState.Waiting)
     }
 
     get isDone() {
-        return this.tasksQueue.length === 0 && this.processed === this.count //&& this.cancelled === false
-    }
-
-    get isInterrupted() {
-        return this.status === ProcessingState.Interrupted && this.tasksQueue.length > 0
+        return !this.nextTask && this.pendingTasks.length === 0 //&& this.processed === this.count //&& this.cancelled === false
     }
 
     get isTerminated() {
-        return this.isDone || this.status === ProcessingState.Interrupted
+        return this.pendingTasks.length === 0 //this.isInterrupted
     }
 
-    interrupt() {
-        this.status = ProcessingState.Interrupted
+    get nextTask() {
+        return this.processingQueue.find(task => task.processingState === ProcessingState.Waiting) //this.processingQueue.pop()
     }
 
-    async run(onTaskCompleted: any) {
+    get leftTasks() {
+        return this.processingQueue.filter(task => task.processingState === ProcessingState.Waiting)
+    }
+
+    get pendingTasks() {
+        return this.processingQueue.filter(task => task.processingState === ProcessingState.Pending)
+    }
+
+    suspend(): Promise<any> | undefined {
+        if (this.status === ProcessingState.Pending) {
+            // this.status = ProcessingState.Suspended
+            const suspending = new Promise((resolve) => {
+                this.printLog(`suspending execution`)
+                this.status = ProcessingState.Suspended
+                this.onBatchSuspended = resolve
+            })
+            return suspending
+        }
+        return undefined
+    }
+
+    resume() {
+        if (this.status === ProcessingState.Suspended) {
+            this.printLog(`resuming execution`)
+            this.status = ProcessingState.Pending
+        }
+    }
+
+    async run(onTaskCompleted = this.onTaskCompleted) {
         const startTime = Date.now()
-        const pendingBatch = new Promise((resolve, reject) => {
-            while (ProcessingTask.workerPool.tasks.length === 0 && this.tasksQueue.length > 0) {
-                this.printLog(`scaling up`)
-                this.processNextTask(onTaskCompleted, resolve)
-            }
+        const pendingBatch = new Promise((resolve) => {
+            while (ProcessingTask.workerPool.tasks.length === 0 && this.leftTasks.length > 0) this.processNextTask(onTaskCompleted, resolve)
         })
         await pendingBatch
+        // this.status = this.isDone ? ProcessingState.Done : ProcessingState.Interrupted
         const elapsedTime = Date.now() - startTime
-        const log = this.isDone ? `completed in ${elapsedTime}ms, ${this.processed} items processed ` :
-            `terminated prematurely after ${elapsedTime}ms, ${this.processed} processed, ${this.tasksQueue.length} remaining`
+        const log_end = this.leftTasks.length > 0 ? `, ${this.leftTasks.length} tasks left in the queue` : ``
+        const log = this.isDone ? `${this.processed} tasks processed in ${elapsedTime} ms ` :
+            `was suspended after ${this.processed} tasks processed in ${elapsedTime}ms` + log_end
         this.printLog(log)
-        BatchProcess.cleanTerminated()
+        // BatchProcess.processNextBatch()
+        // BatchProcess.cleanTerminated()
     }
 
     processNextTask(onTaskCompleted: any, onBatchTerminated: any) {
-        const nextTask = this.tasksQueue.pop()
+        const { nextTask } = this
         if (nextTask) {
-            nextTask.delegate().then(res => {
+            const pendingTask = nextTask.delegate()
+            // const taskRes = await pendingTask
+            pendingTask.then(taskRes => {
                 this.processed++
-                // console.log(`processed: ${this.processed}, remaining: ${remaining}`)
-                onTaskCompleted(res)
-                this.isTerminated ? onBatchTerminated() : this.processNextTask(onTaskCompleted, onBatchTerminated)
+                // this.printLog(`processed: ${this.processed}, left: ${this.leftTasks.length}`)
+                onTaskCompleted(taskRes)
+                if (this.isTerminated) {
+                    this.status === ProcessingState.Suspended ? onBatchTerminated() : this.onBatchSuspended?.()
+                }
+                else if (this.status === ProcessingState.Pending)
+                    this.processNextTask(onTaskCompleted, onBatchTerminated)
             })
         }
-        // else {
-        //     this.onBatchCompleted()
-        // }
     }
 
     printLog(log: string) {
-        const logPrefix = `Batch#${this.batchId} `
+        const logPrefix = `Batch_#${this.batchId} `
         console.log(logPrefix + log)
     }
 
     static cleanTerminated() {
-        this.batches = this.batches.filter(item => !item.isTerminated)
+        this.batchQueue = this.batchQueue.filter(item => !item.isTerminated)
     }
 }

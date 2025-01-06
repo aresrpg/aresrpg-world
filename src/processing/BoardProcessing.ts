@@ -14,6 +14,7 @@ import {
   ChunkContainer,
   BlockMode,
   WorldUtils,
+  ChunkSet,
 } from '../index'
 import { ProcLayer } from '../procgen/ProcLayer'
 import { ChunkKey, PatchKey } from '../utils/types'
@@ -21,7 +22,7 @@ import { ItemsChunkLayer, ItemsProcessingParams, ItemsProcessMode } from './Item
 
 import { PatchIndexer } from '../datacontainers/ChunksIndexer'
 import { DataContainer, PatchBase, PatchElement } from '../datacontainers/PatchBase'
-import { UndegroundChunkset } from './ChunksProcessing'
+// import { UndegroundChunkset } from './ChunksProcessing'
 
 export enum BlockCategory {
   EMPTY = 0,
@@ -171,7 +172,7 @@ export class BoardCache extends PatchIndexer<BoardCacheData> {
         const chunkId = asVect3(patchId, yId)
         const chunkKey = serializeChunkId(chunkId)
         if (!chunkIndex[chunkKey]) {
-          const undegroundChunksProcessing = new UndegroundChunkset(patchKey)
+          const undegroundChunksProcessing = new ChunkSet(patchKey)
           const processingParams = { skipEncoding: true, chunkId }
           const chunk = await undegroundChunksProcessing.delegate(processingParams)
           chunkIndex[chunkKey] = chunk

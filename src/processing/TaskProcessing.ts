@@ -19,7 +19,7 @@ export enum ProcessingState {
   Pending = 'pending',
   Waiting = 'waiting',
   Postponed = 'postponed',
-  Interrupted = 'interrupted',
+  Suspended = 'suspended',
   Done = 'done'
 }
 
@@ -33,7 +33,7 @@ export class ProcessingTask {
   static registeredObjects: Record<string, new (args: any) => ProcessingTask> = {}
   static workerPool: any
   processingState: ProcessingState = ProcessingState.Waiting
-  pendingTask: any
+  // pendingTask: any
 
   // static instances: ProcessingTask[] = []
 
@@ -41,7 +41,7 @@ export class ProcessingTask {
   //   ProcessingTask.instances.push(this)
   // }
 
-  static initWorkerPool(workerUrl?: string, workerCount?: number, workerType?: any){
+  static initWorkerPool(workerUrl?: string, workerCount?: number, workerType?: any) {
     const { url, count, type } = WorldEnv.current.workerPool
     workerUrl = workerUrl || url
     if (workerUrl && workerUrl.length > 0) {
@@ -77,6 +77,8 @@ export class ProcessingTask {
       const res = await targetObj.process(processingParams)
       const stubs = toStubs(res)
       return stubs //targetObj.toStub()
+    } else {
+      console.warn(`cannot replicate unregistered object ${targetObjName}, should be registered first`)
     }
   }
 
@@ -96,32 +98,32 @@ export class ProcessingTask {
       const targetObj = this.constructor.name
       const targetArgs = this.inputs
       this.processingState = ProcessingState.Pending
-      this.pendingTask = processingUnit.exec('replicate', [targetObj, targetArgs, processingParams])
+      const pendingTask = processingUnit.exec('replicate', [targetObj, targetArgs, processingParams])
         .catch((e: any) => {
           console.log(e)
           this.processingState = ProcessingState.Postponed
           return
           // throw e
         })
-      const stubs = await this.pendingTask
+      const stubs = await pendingTask
       const output = stubs ? this.reconcile(stubs) : null
       this.processingState = this.processingState === ProcessingState.Pending ? ProcessingState.Done : this.processingState
-      this.pendingTask = null
+      // this.pendingTask = null
       return output //this.reconcile(stubs)
     }
 
   }
 
-  cancelPendingTask() {
-    if (!this.pendingTask) {
-      console.warn(`no pending task running`)
-      return false
-    } else {
-      this.pendingTask?.cancel()
-      this.pendingTask = null
-      return true
-    }
-  }
+  // cancelPendingTask() {
+  //   if (!this.pendingTask) {
+  //     console.warn(`no pending task running`)
+  //     return false
+  //   } else {
+  //     this.pendingTask?.cancel()
+  //     this.pendingTask = null
+  //     return true
+  //   }
+  // }
 
   /**
    * reconcile data coming from worker into original object
