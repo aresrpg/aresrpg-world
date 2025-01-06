@@ -2,15 +2,28 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { PatchStub } from '../datacontainers/PatchBase'
-import { DistributionProfiles } from './RandomDistributionMap'
-import { Biome, BlocksBatch, DistributionProfile, ProcessingTask, PseudoDistributionMap } from '../index'
+import {
+  Biome,
+  BlocksBatch,
+  DistributionProfile,
+  ProcessingTask,
+  PseudoDistributionMap,
+} from '../index'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
-import { asPatchBounds, asBox3, asBox2, asVect2, asVect3, parsePatchKey } from '../utils/convert'
+import {
+  asPatchBounds,
+  asBox3,
+  asBox2,
+  asVect2,
+  asVect3,
+  parsePatchKey,
+} from '../utils/convert'
 import { PatchKey } from '../utils/types'
-
 import { WorldEnv } from '../config/WorldEnv'
-import { GroundPatch } from './GroundPatch'
 import { ItemsInventory, ItemType, SpawnedItems } from '../factory/ItemsFactory'
+
+import { GroundPatch } from './GroundPatch'
+import { DistributionProfiles } from './RandomDistributionMap'
 
 const defaultDistribution: DistributionParams = {
   ...DistributionProfiles[DistributionProfile.MEDIUM],
@@ -23,14 +36,14 @@ const defaultSpawnMap = new PseudoDistributionMap(
 const defaultItemDims = new Vector3(10, 13, 10)
 
 type ItemsLayerStub = {
-  spawnedItems: SpawnedItems,
+  spawnedItems: SpawnedItems
   individualChunks: ChunkContainer[]
 }
 
 export enum ItemsProcessMode {
   NONE,
   INDIVIDUAL,
-  MERGED
+  MERGED,
 }
 
 export type ItemsProcessingParams = {
@@ -38,7 +51,7 @@ export type ItemsProcessingParams = {
 }
 
 const defaultProcessingParams: ItemsProcessingParams = {
-  mode: ItemsProcessMode.INDIVIDUAL
+  mode: ItemsProcessMode.INDIVIDUAL,
 }
 
 /**
@@ -48,8 +61,9 @@ const defaultProcessingParams: ItemsProcessingParams = {
 export class ItemsChunkLayer extends ProcessingTask {
   bounds: Box3
   patch: PatchStub = {
-    bounds: new Box2,
+    bounds: new Box2(),
   }
+
   spawnedItems: SpawnedItems = {}
   individualChunks: ChunkContainer[] = []
 
@@ -80,7 +94,7 @@ export class ItemsChunkLayer extends ProcessingTask {
   }
 
   override get inputs() {
-    return ([this.patch.key || this.patchBounds])
+    return [this.patch.key || this.patchBounds]
   }
 
   override reconcile(stubs: ItemsLayerStub) {
@@ -96,11 +110,11 @@ export class ItemsChunkLayer extends ProcessingTask {
     switch (mode) {
       case ItemsProcessMode.INDIVIDUAL:
         await this.bakeIndividualChunks()
-        break;
+        break
       case ItemsProcessMode.MERGED:
         await this.bakeIndividualChunks()
-        const mergeChunk = await this.mergeIndividualChunks()
-        return mergeChunk
+        await this.mergeIndividualChunks()
+        break
       default:
     }
   }
@@ -133,7 +147,9 @@ export class ItemsChunkLayer extends ProcessingTask {
       asVect2(defaultItemDims),
     )
     for (const pos of spawnPlaces) {
-      const { level, biome, landscapeIndex } = groundPatch.computeGroundBlock(asVect3(pos))
+      const { level, biome, landscapeIndex } = groundPatch.computeGroundBlock(
+        asVect3(pos),
+      )
       const weightedItems =
         Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
       if (weightedItems) {

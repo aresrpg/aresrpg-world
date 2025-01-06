@@ -8,12 +8,16 @@ import {
   asPatchBounds,
 } from '../utils/convert'
 import { PatchId, PatchKey } from '../utils/types'
+import {
+  ChunkContainer,
+  ChunkStub,
+  defaultDataEncoder,
+} from '../datacontainers/ChunkContainer'
+import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory'
 
-import { ChunkContainer, ChunkStub, defaultDataEncoder } from '../datacontainers/ChunkContainer'
 import { GroundPatch } from './GroundPatch'
 import { ItemsChunkLayer } from './ItemsProcessing'
 import { ProcessingState, ProcessingTask } from './TaskProcessing'
-import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory'
 const chunksRange = WorldEnv.current.chunks.range
 const patchDims = WorldEnv.current.patchDimensions
 
@@ -23,16 +27,16 @@ enum ChunksGenSide {
 }
 
 export type ChunksProcessingParams = {
-  skipChunksEncoding?: boolean,
+  skipChunksEncoding?: boolean
   genSide?: ChunksGenSide
 }
 
 export const lowerChunksProcessingParams: ChunksProcessingParams = {
-  genSide: ChunksGenSide.Lower
+  genSide: ChunksGenSide.Lower,
 }
 
 export const upperChunksProcessingParams: ChunksProcessingParams = {
-  genSide: ChunksGenSide.Upper
+  genSide: ChunksGenSide.Upper,
 }
 
 /**
@@ -83,7 +87,7 @@ export class ChunkSet extends ProcessingTask {
     chunkset.reduce((concat, chunk) => concat + chunk.chunkKey + ', ', '')
 
   override get inputs() {
-    return ([this.patchKey])
+    return [this.patchKey]
   }
 
   // override cancelPendingTask() {
@@ -106,7 +110,9 @@ export class ChunkSet extends ProcessingTask {
     const { skipChunksEncoding, genSide } = processingParams
     const lowerGen = genSide === undefined || genSide === ChunksGenSide.Lower
     const upperGen = genSide === undefined || genSide === ChunksGenSide.Upper
-    const lowerChunks = lowerGen ? await this.lowerChunksGen(skipChunksEncoding) : []
+    const lowerChunks = lowerGen
+      ? await this.lowerChunksGen(skipChunksEncoding)
+      : []
     const upperChunks = upperGen ? await this.upperChunksGen() : []
     this.processingState = ProcessingState.Done
     return [...lowerChunks, ...upperChunks]
@@ -179,10 +185,9 @@ export class ChunkSet extends ProcessingTask {
     // find upper chunkId
     const groundLayer = new GroundPatch(this.patchKey)
     groundLayer.bake()
-    const upperId =
-      Math.floor(
-        groundLayer.valueRange.min / WorldEnv.current.patchDimensions.y,
-      ) //- 1
+    const upperId = Math.floor(
+      groundLayer.valueRange.min / WorldEnv.current.patchDimensions.y,
+    ) // - 1
     const lowerChunks = []
     // then iter until bottom is reached
     for (let yId = upperId; yId >= chunksRange.bottomId; yId--) {

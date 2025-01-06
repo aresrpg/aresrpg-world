@@ -1,6 +1,12 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { GroundBlock, LandscapesConf, PatchBlock, PatchBoundId, PatchKey } from '../utils/types'
+import {
+  GroundBlock,
+  LandscapesConf,
+  PatchBlock,
+  PatchBoundId,
+  PatchKey,
+} from '../utils/types'
 import { asVect3, asVect2 } from '../utils/convert'
 import { BlockMode, Heightmap, WorldEnv } from '../index'
 import {
@@ -11,8 +17,11 @@ import {
   BlockType,
   ReverseBiomeNumericType,
 } from '../procgen/Biome'
-
-import { PatchBase, PatchDataContainer, PatchStub } from '../datacontainers/PatchBase'
+import {
+  PatchBase,
+  PatchDataContainer,
+  PatchStub,
+} from '../datacontainers/PatchBase'
 import { getPatchBoundingPoints } from '../utils/spatial'
 import { bilinearInterpolation } from '../utils/math'
 
@@ -58,7 +67,8 @@ export const parseGroundFlags = (rawFlags: number) => {
  */
 export class GroundPatch
   extends PatchBase<number>
-  implements PatchDataContainer {
+  implements PatchDataContainer
+{
   biomeInfluence: BiomeInfluence | PatchBoundingBiomes | undefined
   rawData: Uint32Array
   valueRange = { min: 512, max: 0 } // here elevation
@@ -218,7 +228,6 @@ export class GroundPatch
     // this.valueRange = stub.valueRange || this.valueRange
     // this.rawData.set(stub.rawData)
     // this.isEmpty = false
-
   }
 
   getBiomeInfluence() {
@@ -232,13 +241,13 @@ export class GroundPatch
     }
     const boundsPoints = getPatchBoundingPoints(this.bounds)
     const boundsInfluences = {} as PatchBoundingBiomes
-      ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-        const boundPos = boundsPoints[key] as Vector2
-        const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
-        boundsInfluences[key] = biomeInfluence
-        // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-        return biomeInfluence
-      })
+    ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+      const boundPos = boundsPoints[key] as Vector2
+      const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
+      boundsInfluences[key] = biomeInfluence
+      // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+      return biomeInfluence
+    })
     const allEquals =
       equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
       equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
@@ -246,9 +255,7 @@ export class GroundPatch
     return allEquals ? boundsInfluences[xMyM] : boundsInfluences
   }
 
-  getBlockBiome(
-    blockPos: Vector2,
-  ) {
+  getBlockBiome(blockPos: Vector2) {
     if (
       (this.biomeInfluence as PatchBoundingBiomes)[PatchBoundId.xMyM] &&
       WorldEnv.current.settings.useBiomeBilinearInterpolation
@@ -262,9 +269,7 @@ export class GroundPatch
     return this.biomeInfluence as BiomeInfluence
   }
 
-  computeGroundBlock = (
-    blockPos: Vector3,
-  ) => {
+  computeGroundBlock = (blockPos: Vector3) => {
     const biomeInfluence = this.getBlockBiome(asVect2(blockPos))
     // const biomeInfluenceBis = Biome.instance.getBiomeInfluence(blockPos)
     const biomeType = Biome.instance.getBiomeType(biomeInfluence)

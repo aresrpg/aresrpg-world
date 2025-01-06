@@ -52,7 +52,7 @@ export class PatchBase<T> {
     // this.rawData = getArrayConstructor(bitLength)
   }
 
-  get patchId(){
+  get patchId() {
     return this.id
   }
 

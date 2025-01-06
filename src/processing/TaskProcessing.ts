@@ -1,17 +1,16 @@
-import { WorldEnv, WorldUtils } from '../index'
 import workerpool from 'workerpool'
 
+import { WorldEnv, WorldUtils } from '../index'
 
 const toStubs = (res: any) =>
-  res instanceof Array
-    ? res.map(item => item.toStub())
-    : res.toStub?.() || res
+  res instanceof Array ? res.map(item => item.toStub()) : res.toStub?.() || res
 
 const parseArgs = (...rawArgs: any) => {
   // const args = rawArgs.map((arg: any) =>
-  const args = rawArgs instanceof Array
-    ? rawArgs.map(arg => WorldUtils.convert.parseThreeStub(arg))
-    : WorldUtils.convert.parseThreeStub(rawArgs)
+  const args =
+    rawArgs instanceof Array
+      ? rawArgs.map(arg => WorldUtils.convert.parseThreeStub(arg))
+      : WorldUtils.convert.parseThreeStub(rawArgs)
   return args
 }
 
@@ -20,8 +19,11 @@ export enum ProcessingState {
   Waiting = 'waiting',
   Postponed = 'postponed',
   Suspended = 'suspended',
-  Done = 'done'
+  Done = 'done',
 }
+
+// eslint-disable-next-line no-use-before-define
+type ProcessingTasksIndex = Record<string, new (...args: any) => ProcessingTask>
 
 /**
  * Any object extending this class will support
@@ -30,7 +32,8 @@ export enum ProcessingState {
  * - reconcilitation to merge data back from worker into original object
  */
 export class ProcessingTask {
-  static registeredObjects: Record<string, new (args: any) => ProcessingTask> = {}
+  static registeredObjects: ProcessingTasksIndex = {}
+
   static workerPool: any
   processingState: ProcessingState = ProcessingState.Waiting
   // pendingTask: any
@@ -41,7 +44,11 @@ export class ProcessingTask {
   //   ProcessingTask.instances.push(this)
   // }
 
-  static initWorkerPool(workerUrl?: string, workerCount?: number, workerType?: any) {
+  static initWorkerPool(
+    workerUrl?: string,
+    workerCount?: number,
+    workerType?: any,
+  ) {
     const { url, count, type } = WorldEnv.current.workerPool
     workerUrl = workerUrl || url
     if (workerUrl && workerUrl.length > 0) {
@@ -50,7 +57,7 @@ export class ProcessingTask {
       // eslint-disable-next-line no-undef
       const workerOpts: WorkerOptions = {}
       if (workerType) {
-        // By default, Vite uses a module worker in dev mode, which can cause your application to fail. 
+        // By default, Vite uses a module worker in dev mode, which can cause your application to fail.
         // Therefore, we need to use a module worker in dev mode and a classic worker in prod mode.
         workerOpts.type = workerType
       }
@@ -63,10 +70,10 @@ export class ProcessingTask {
 
   /**
    * replicate original object in worker to process it
-   * @param objectType 
-   * @param callArgs 
-   * @param processingParams 
-   * @returns 
+   * @param objectType
+   * @param callArgs
+   * @param processingParams
+   * @returns
    */
   static async replicate(...input: any) {
     const [targetObjName, targetRawArgs, processingParams] = input
@@ -76,42 +83,52 @@ export class ProcessingTask {
       const targetObj = new TargetObj(...targetArgs)
       const res = await targetObj.process(processingParams)
       const stubs = toStubs(res)
-      return stubs //targetObj.toStub()
+      return stubs // targetObj.toStub()
     } else {
-      console.warn(`cannot replicate unregistered object ${targetObjName}, should be registered first`)
+      console.warn(
+        `cannot replicate unregistered object ${targetObjName}, should be registered first`,
+      )
     }
   }
 
   get awaitingProcessing() {
-    return this.processingState !== ProcessingState.Done &&
+    return (
+      this.processingState !== ProcessingState.Done &&
       this.processingState !== ProcessingState.Pending
+    )
   }
 
   /**
    * pass object's creation parameters to worker for replication
-   * @param processingParams 
-   * @param processingUnit 
+   * @param processingParams
+   * @param processingUnit
    */
-  async delegate(processingParams = {}, processingUnit = ProcessingTask.workerPool) {
-    if (this.processingState === ProcessingState.Done) return
+  async delegate(
+    processingParams = {},
+    processingUnit = ProcessingTask.workerPool,
+  ) {
+    if (this.processingState === ProcessingState.Done) return undefined
     else {
       const targetObj = this.constructor.name
       const targetArgs = this.inputs
       this.processingState = ProcessingState.Pending
-      const pendingTask = processingUnit.exec('replicate', [targetObj, targetArgs, processingParams])
+      const pendingTask = processingUnit
+        .exec('replicate', [targetObj, targetArgs, processingParams])
         .catch((e: any) => {
           console.log(e)
           this.processingState = ProcessingState.Postponed
-          return
+
           // throw e
         })
       const stubs = await pendingTask
       const output = stubs ? this.reconcile(stubs) : null
-      this.processingState = this.processingState === ProcessingState.Pending ? ProcessingState.Done : this.processingState
+      this.processingState =
+        this.processingState === ProcessingState.Pending
+          ? ProcessingState.Done
+          : this.processingState
       // this.pendingTask = null
-      return output //this.reconcile(stubs)
+      return output // this.reconcile(stubs)
     }
-
   }
 
   // cancelPendingTask() {
@@ -133,27 +150,26 @@ export class ProcessingTask {
   }
 
   /**
-   * parameters used for object's creation required for object's replication  
+   * parameters used for object's creation required for object's replication
    */
   get inputs() {
     return [] as any[]
   }
 
   /**
- * transferrable data after object was processed inside worker
- */
-  get stubs() {
-    return
-  }
+   * transferrable data after object was processed inside worker
+   */
+  // get stubs() {
+
+  // }
 
   /**
    * This will be called :
    * - either from main thread
-   * - or worker if processing was delegated and after original object's replication 
+   * - or worker if processing was delegated and after original object's replication
    */
-  process(_processingParams: any) {
-    if (this.processingState === ProcessingState.Done) return
-    // else this.processingState = ProcessingState.Pending
+  process(processingParams: any): any {
+    console.log(processingParams)
   }
 
   // toStub(): any {
@@ -162,5 +178,4 @@ export class ProcessingTask {
   //     ? stubs.map(item => item.toStub())
   //     : outputs.toStub?.() || outputs
   // }
-
 }

@@ -1,12 +1,8 @@
 import { Vector2 } from 'three'
+
 import { WorldEnv, WorldUtils, Biome, ProcessingTask } from '../index'
 import { serializePatchId, getPatchId, asVect3 } from '../utils/convert'
-import {
-  PatchKey,
-  GroundBlock,
-  Block,
-  BlockData,
-} from '../utils/types'
+import { PatchKey, GroundBlock, Block, BlockData } from '../utils/types'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch'
 
@@ -15,11 +11,11 @@ export type BlocksBatchArgs = {
 }
 
 export type BlocksBatchProcessingParams = {
-  groundLevel: false,
+  groundLevel: false
 }
 
 const defaultProcessingParams: BlocksBatchProcessingParams = {
-  groundLevel: false
+  groundLevel: false,
 }
 
 export class BlocksBatch extends ProcessingTask {
@@ -56,7 +52,7 @@ export class BlocksBatch extends ProcessingTask {
   }
 
   override get inputs() {
-    return ([this.input])
+    return [this.input]
   }
 
   override reconcile(stubs: GroundBlock[]) {
@@ -84,12 +80,12 @@ export class BlocksBatch extends ProcessingTask {
       const landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
       const groundConf = landscapeConf.data
       const blockData: BlockData = {
-        level: level,
-        type: groundConf.type
+        level,
+        type: groundConf.type,
       }
       const block: Block<BlockData> = {
         pos: asVect3(pos),
-        data: blockData
+        data: blockData,
       }
       return block
       // override with last block if specified
@@ -129,4 +125,3 @@ export class BlocksBatch extends ProcessingTask {
 }
 
 ProcessingTask.registeredObjects[BlocksBatch.name] = BlocksBatch
-

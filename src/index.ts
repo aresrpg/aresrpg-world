@@ -6,7 +6,11 @@ export { ProcessingTask } from './processing/TaskProcessing'
 export { BatchProcess } from './processing/BatchProcessing'
 export { BlocksBatch } from './processing/BlocksBatch'
 export { BoardContainer, BlockCategory } from './processing/BoardProcessing'
-export { ChunksBatch, LowerChunksBatch, UpperChunksBatch } from './processing/ChunksBatch'
+export {
+  ChunksBatch,
+  LowerChunksBatch,
+  UpperChunksBatch,
+} from './processing/ChunksBatch'
 export {
   PseudoDistributionMap,
   DistributionProfile,

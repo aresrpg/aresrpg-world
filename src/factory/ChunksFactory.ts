@@ -1,14 +1,13 @@
 import { MathUtils, Vector3 } from 'three'
 
 import { WorldEnv } from '../config/WorldEnv'
-import {
-  asVect2,
-  serializePatchId,
-  asBox2,
-} from '../utils/convert'
+import { asVect2, serializePatchId, asBox2 } from '../utils/convert'
 import { BlockMode, ChunkKey, PatchBlock } from '../utils/types'
-
-import { ChunkBuffer, ChunkContainer, ChunkMask } from '../datacontainers/ChunkContainer'
+import {
+  ChunkBuffer,
+  ChunkContainer,
+  ChunkMask,
+} from '../datacontainers/ChunkContainer'
 import { BlockType, Biome, BiomeType, DensityVolume } from '../index'
 import { GroundPatch, parseGroundFlags } from '../processing/GroundPatch'
 
@@ -18,7 +17,7 @@ export class EmptyChunk extends ChunkContainer {
     this.rawData = new Uint16Array()
   }
 
-  async bake() { }
+  async bake() {}
 }
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -97,7 +96,6 @@ export class GroundChunk extends ChunkContainer {
  */
 
 export class CavesMask extends ChunkMask {
-
   bake() {
     const groundLayer = new GroundPatch(asBox2(this.bounds))
     groundLayer.bake()

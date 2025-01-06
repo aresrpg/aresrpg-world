@@ -1,6 +1,6 @@
 import { Vector2, Vector3 } from 'three'
-import { ItemType } from '../factory/ItemsFactory'
 
+import { ItemType } from '../factory/ItemsFactory'
 import { BlockType } from '../procgen/Biome'
 import { ProcItemConf } from '../tools/ProceduralGenerators'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader'

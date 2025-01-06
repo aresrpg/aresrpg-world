@@ -1,16 +1,15 @@
-import {Box3, Vector3 } from 'three'
+import { Box3, Vector3 } from 'three'
 
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
-
 import { WorldEnv } from '../config/WorldEnv'
 
 export type ItemType = string
 export type SpawnedItems = Record<ItemType, Vector3[]>
 
 /**
- * Referencing all items either procedurally generated or coming from schematic definitions 
+ * Referencing all items either procedurally generated or coming from schematic definitions
  */
 // rename as ItemsFactory ?
 export class ItemsInventory {

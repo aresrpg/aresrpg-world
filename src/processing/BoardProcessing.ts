@@ -18,10 +18,18 @@ import {
 } from '../index'
 import { ProcLayer } from '../procgen/ProcLayer'
 import { ChunkKey, PatchKey } from '../utils/types'
-import { ItemsChunkLayer, ItemsProcessingParams, ItemsProcessMode } from './ItemsProcessing'
-
 import { PatchIndexer } from '../datacontainers/ChunksIndexer'
-import { DataContainer, PatchBase, PatchElement } from '../datacontainers/PatchBase'
+import {
+  DataContainer,
+  PatchBase,
+  PatchElement,
+} from '../datacontainers/PatchBase'
+
+import {
+  ItemsChunkLayer,
+  ItemsProcessingParams,
+  ItemsProcessMode,
+} from './ItemsProcessing'
 // import { UndegroundChunkset } from './ChunksProcessing'
 
 export enum BlockCategory {
@@ -131,7 +139,7 @@ export class BoardCache extends PatchIndexer<BoardCacheData> {
   async initCacheIndex(patchIndex: PatchKey) {
     if (!this.patchLookup[patchIndex]) {
       const processingParams: ItemsProcessingParams = {
-        mode: ItemsProcessMode.INDIVIDUAL
+        mode: ItemsProcessMode.INDIVIDUAL,
       }
       const itemsLayer = new ItemsChunkLayer(patchIndex)
       await itemsLayer.process(processingParams)
@@ -174,7 +182,8 @@ export class BoardCache extends PatchIndexer<BoardCacheData> {
         if (!chunkIndex[chunkKey]) {
           const undegroundChunksProcessing = new ChunkSet(patchKey)
           const processingParams = { skipEncoding: true, chunkId }
-          const chunk = await undegroundChunksProcessing.delegate(processingParams)
+          const chunk =
+            await undegroundChunksProcessing.delegate(processingParams)
           chunkIndex[chunkKey] = chunk
         }
       }

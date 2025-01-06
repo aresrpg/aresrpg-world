@@ -9,9 +9,9 @@ import { Box2, Vector2 } from 'three'
 import { PatchBlock, PatchKey } from '../utils/types'
 import { getPatchId, getPatchIds, serializePatchId } from '../utils/convert'
 import { WorldEnv } from '../index'
+import { GroundPatch } from '../processing/GroundPatch'
 
 import { PatchBase } from './PatchBase'
-import { GroundPatch } from '../processing/GroundPatch'
 
 /**
  * Structure for storing either contiguous (map) or sparse (cache) generic patches
