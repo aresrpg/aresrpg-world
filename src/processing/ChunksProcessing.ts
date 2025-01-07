@@ -19,7 +19,7 @@ import { GroundPatch } from './GroundPatch'
 import { ItemsChunkLayer } from './ItemsProcessing'
 import { ProcessingState, ProcessingTask } from './TaskProcessing'
 const chunksRange = WorldEnv.current.chunks.range
-const patchDims = WorldEnv.current.patchDimensions
+const { patchDimensions: patchDims } = WorldEnv.current
 
 enum ChunksGenSide {
   Lower,
@@ -130,7 +130,6 @@ export class ChunkSet extends ProcessingTask {
     const patchId = groundLayer.patchId as PatchId
     const upperChunks: ChunkContainer[] = []
     // compute chunk id range
-    const { patchDimensions } = WorldEnv.current
     const yMin = Math.min(
       itemsMergedChunk.bounds.min.y,
       groundLayer.valueRange.min,
@@ -140,8 +139,8 @@ export class ChunkSet extends ProcessingTask {
       groundLayer.valueRange.max,
     )
     const surfaceIds = {
-      yMinId: Math.floor(yMin / patchDimensions.y),
-      yMaxId: Math.floor(yMax / patchDimensions.y),
+      yMinId: Math.floor(yMin / patchDims.y),
+      yMaxId: Math.floor(yMax / patchDims.y),
     }
 
     // gen each surface chunk in range
@@ -186,8 +185,8 @@ export class ChunkSet extends ProcessingTask {
     const groundLayer = new GroundPatch(this.patchKey)
     groundLayer.bake()
     const upperId = Math.floor(
-      groundLayer.valueRange.min / WorldEnv.current.patchDimensions.y,
-    ) // - 1
+      groundLayer.valueRange.min / patchDims.y,
+    ) - 1
     const lowerChunks = []
     // then iter until bottom is reached
     for (let yId = upperId; yId >= chunksRange.bottomId; yId--) {
