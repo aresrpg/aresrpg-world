@@ -49,15 +49,22 @@ export class ChunkContainer {
   axisOrder: ChunkAxisOrder
   // local data encoder (defaulting to global)
   dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) => number
+  dataDecoder: (rawVal: number) => number
+
   // global version
   static get dataEncoder() {
     return WorldEnv.current.chunks.dataEncoder
+  }
+
+  static get dataDecoder() {
+    return WorldEnv.current.chunks.dataDecoder
   }
 
   constructor(
     boundsOrChunkKey: Box3 | ChunkKey = new Box3(),
     margin = 0,
     customDataEncoder = ChunkContainer.dataEncoder,
+    customDataDecoder = ChunkContainer.dataDecoder,
     axisOrder = ChunkAxisOrder.ZXY,
   ) {
     //, bitLength = BitLength.Uint16) {
@@ -76,6 +83,7 @@ export class ChunkContainer {
       this.id = chunkId
     }
     this.dataEncoder = customDataEncoder
+    this.dataDecoder = customDataDecoder
     this.adjustChunkBounds(bounds)
     // this.rawData = getArrayConstructor(bitLength)
   }

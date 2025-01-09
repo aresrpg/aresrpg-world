@@ -4,7 +4,7 @@ import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { PatchStub } from '../datacontainers/PatchBase'
 import {
   Biome,
-  BlocksBatch,
+  BlocksProcessing,
   DistributionProfile,
   ProcessingTask,
   PseudoDistributionMap,
@@ -150,14 +150,14 @@ export class ItemsChunkLayer extends ProcessingTask {
       const { level, biome, landscapeIndex } = groundPatch.computeGroundBlock(
         asVect3(pos),
       )
-      const weightedItems =
+      const weightedTypes =
         Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
-      if (weightedItems) {
+      if (weightedTypes) {
         const spawnableTypes: ItemType[] = []
-        Object.entries(weightedItems).forEach(([itemType, spawnWeight]) => {
-          while (spawnWeight > 0) {
+        Object.entries(weightedTypes).forEach(([itemType, typeWeight]) => {
+          while (typeWeight > 0) {
             spawnableTypes.push(itemType)
-            spawnWeight--
+            typeWeight--
           }
         })
         const itemType = defaultSpawnMap.getSpawnedItem(
@@ -171,6 +171,25 @@ export class ItemsChunkLayer extends ProcessingTask {
       }
     }
     this.spawnedItems = spawnedItems
+  }
+
+  // takes 
+  async adjustHeight(itemChunk: ChunkContainer) {
+    const chunkBottomBlocks: Vector2[] = []
+    // iter slice blocks
+    for (const heightBuff of itemChunk.iterChunkSlice()) {
+      if (heightBuff.data[0]) chunkBottomBlocks.push(heightBuff.pos)
+    }
+    // compute blocks batch to find lowest element
+    const blocksBatch = new BlocksProcessing(chunkBottomBlocks)
+    const batchRes = await blocksBatch.process()
+    const [lowestBlock] = batchRes.sort(
+      (b1, b2) => b1.data.level - b2.data.level,
+    )
+    const lowestHeight = lowestBlock?.data.level || 0
+    const heightOffset = itemChunk.bounds.min.y - lowestHeight
+    // adjust chunk elevation according to lowest element
+    itemChunk.bounds.translate(new Vector3(0, -heightOffset, 0))
   }
 
   async bakeIndividualChunks() {
@@ -191,22 +210,9 @@ export class ItemsChunkLayer extends ProcessingTask {
           const { min, max } = itemChunk.bounds
           ymin = isNaN(ymin) ? min.y : Math.min(ymin, min.y)
           ymax = isNaN(ymax) ? max.y : Math.max(ymax, max.y)
-          const chunkBottomBlocks: Vector2[] = []
-          // iter slice blocks
-          for (const heightBuff of itemChunk.iterChunkSlice()) {
-            if (heightBuff.data[0]) chunkBottomBlocks.push(heightBuff.pos)
-          }
-          // compute blocks batch to find lowest element
-          const blocksBatch = new BlocksBatch(chunkBottomBlocks)
-          await blocksBatch.process()
-          const [lowestBlock] = blocksBatch.output.sort(
-            (b1, b2) => b1.data.level - b2.data.level,
-          )
-          const lowestLevel = lowestBlock?.data.level || 0
-          const yOffset = itemChunk.bounds.min.y - lowestLevel
-          const offset = new Vector3(0, -yOffset, 0)
-          // adjust chunk elevation according to lowest element
-          itemChunk.bounds.translate(offset)
+          await this.adjustHeight(itemChunk)
+
+
           individualChunks.push(itemChunk)
         }
       }
@@ -226,6 +232,40 @@ export class ItemsChunkLayer extends ProcessingTask {
       ChunkContainer.copySourceToTarget(itemChunk, mergeChunk)
     }
     return mergeChunk
+  }
+
+  /**
+   * Provides all items blocks at specific pos
+   * several spawned overlapping objects may be found at queried position
+   */
+  async queryIndividualPos(requestedPos: Vector3) {
+    const mergeBuffer: number[] = []
+    for await (const [itemType, spawnPlaces] of Object.entries(
+      this.spawnedItems,
+    )) {
+      for await (const spawnOrigin of spawnPlaces) {
+        const templateChunk = await ItemsInventory.getTemplateChunk(itemType)
+        const shallowInstance = await ItemsInventory.getInstancedChunk(itemType, spawnOrigin, true, true)
+
+        if (templateChunk && shallowInstance) {
+          const localPos = shallowInstance.toLocalPos(requestedPos)
+          const yOffset = requestedPos.y - spawnOrigin.y
+          const sliceSectorData = templateChunk.readBuffer(asVect2(localPos))
+          const sourceOffset = Math.max(yOffset, 0)
+          const targetOffset = -Math.min(yOffset, 0)
+          sliceSectorData.slice(sourceOffset).forEach((val, i) => {
+            const index = i + targetOffset
+            while (mergeBuffer.length <= index) mergeBuffer.push(0);
+            mergeBuffer[i + targetOffset] = val
+          })
+          // const sliceSectors = templateChunk.iterChunkSlice(location)
+          // for (const sliceSector of sliceSectors) {
+          //   sliceSectorData = sliceSector.data
+          // }
+        }
+      }
+    }
+    return mergeBuffer
   }
 }
 

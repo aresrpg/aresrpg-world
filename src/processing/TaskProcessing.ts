@@ -3,14 +3,15 @@ import workerpool from 'workerpool'
 import { WorldEnv, WorldUtils } from '../index'
 
 const toStubs = (res: any) =>
-  res instanceof Array ? res.map(item => item.toStub()) : res.toStub?.() || res
+  res instanceof Array ? res.map(item => item.toStub?.() || item) : res.toStub?.() || res
 
 const parseArgs = (...rawArgs: any) => {
-  // const args = rawArgs.map((arg: any) =>
-  const args =
-    rawArgs instanceof Array
-      ? rawArgs.map(arg => WorldUtils.convert.parseThreeStub(arg))
-      : WorldUtils.convert.parseThreeStub(rawArgs)
+  const args = rawArgs.map((rawArg: any) => {
+    const arg = rawArg instanceof Array
+      ? rawArg.map(item => WorldUtils.convert.parseThreeStub(item))
+      : WorldUtils.convert.parseThreeStub(rawArg)
+    return arg
+  })
   return args
 }
 
