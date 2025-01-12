@@ -250,9 +250,9 @@ type BoardContent = {
  * - `start` to create unique board instance at specific location
  * - `terminate` to remove board instance
  */
-export class BoardContainer {
+export class BoardProcessor {
   // eslint-disable-next-line no-use-before-define
-  static singleton: BoardContainer | null
+  static singleton: BoardProcessor | null
   localCache: BoardCache
   // dedicatedWorker:
   // board input
@@ -278,7 +278,7 @@ export class BoardContainer {
    * create board instance running in background
    */
   static createInstance(boardPosition: Vector3) {
-    this.singleton = this.singleton || new BoardContainer(boardPosition)
+    this.singleton = this.singleton || new BoardProcessor(boardPosition)
     return this.singleton
   }
 
@@ -300,7 +300,7 @@ export class BoardContainer {
     this.boardParams.center = boardCenter.clone().floor()
     this.boardParams.radius = boardRadius
     this.boardParams.thickness = boardThickness
-    BoardContainer.boardHolesLayer.sampling.periodicity = 0.25
+    BoardProcessor.boardHolesLayer.sampling.periodicity = 0.25
     this.localCache = new BoardCache(this.centerPatchId, this.patchRange)
     this.localCache.build()
     // this.center = boardCenter

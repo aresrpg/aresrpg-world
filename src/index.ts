@@ -8,7 +8,7 @@ export {
   BlocksProcessing,
   BlocksProcessingMode,
 } from './processing/BlocksProcessing'
-export { BoardContainer, BlockCategory } from './processing/BoardProcessing'
+export { BoardProcessor, BlockCategory } from './processing/BoardProcessing'
 export {
   ViewChunksBatch,
   LowerChunksBatch,
@@ -24,7 +24,7 @@ export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'
 export { DensityVolume } from './procgen/DensityVolume'
 // Data structures
-export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
+// export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
 export { ChunkContainer } from './datacontainers/ChunkContainer'
 // Factory
 export { ItemsInventory } from './factory/ItemsFactory'
