@@ -7,7 +7,7 @@ import {
   serializeChunkId,
   asPatchBounds,
 } from '../utils/convert'
-import { PatchId, PatchKey } from '../utils/types'
+import { ChunkIndex, ChunkKey, PatchId, PatchKey } from '../utils/types'
 import {
   ChunkContainer,
   ChunkStub,
@@ -16,8 +16,8 @@ import {
 import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory'
 
 import { GroundPatch } from './GroundPatch'
-import { ItemsChunkLayer } from './ItemsProcessing'
 import { ProcessingState, ProcessingTask } from './TaskProcessing'
+import { ItemsBaker } from './ItemsProcessing'
 const chunksRange = WorldEnv.current.chunks.range
 const { patchDimensions: patchDims } = WorldEnv.current
 
@@ -27,7 +27,8 @@ enum ChunksGenSide {
 }
 
 export type ChunksProcessingParams = {
-  skipChunksEncoding?: boolean
+  noDataEncoding?: boolean
+  skipEntities?: boolean
   genSide?: ChunksGenSide
 }
 
@@ -47,9 +48,10 @@ export const upperChunksProcessingParams: ChunksProcessingParams = {
  * - underground chunks always have higher priority than surface chunks because
  * near chunks needs to be displayed before far chunks and underground chunks are closer to player
  */
-export class ChunkSet extends ProcessingTask {
+export class ChunksProcessor extends ProcessingTask {
   // static history: Record<PatchKey, number> = {}
   patchKey: PatchKey
+  chunksIndex: ChunkIndex<ChunkContainer> = {}
 
   constructor(patchKey: PatchKey) {
     super()
@@ -99,45 +101,51 @@ export class ChunkSet extends ProcessingTask {
   // }
 
   override reconcile(stubs: ChunkStub[]) {
-    // ChunkSet.history[this.patchKey] = ChunkSet.history[this.patchKey] || 0
-    // ChunkSet.history[this.patchKey]++
+    // ChunksProcessor.history[this.patchKey] = ChunksProcessor.history[this.patchKey] || 0
+    // ChunksProcessor.history[this.patchKey]++
     const chunks = stubs.map(stub => ChunkContainer.fromStub(stub))
     return chunks
   }
 
   override async process(processingParams: ChunksProcessingParams) {
     this.processingState = ProcessingState.Pending
-    const { skipChunksEncoding, genSide } = processingParams
+    this.processingParams = processingParams
+    const { noDataEncoding, genSide } = processingParams
     const lowerGen = genSide === undefined || genSide === ChunksGenSide.Lower
     const upperGen = genSide === undefined || genSide === ChunksGenSide.Upper
     const lowerChunks = lowerGen
-      ? await this.lowerChunksGen(skipChunksEncoding)
+      ? await this.lowerChunksGen(noDataEncoding)
       : []
-    const upperChunks = upperGen ? await this.upperChunksGen() : []
+    const upperChunks = upperGen ? await this.upperChunksGen(noDataEncoding) : []
     this.processingState = ProcessingState.Done
-    return [...lowerChunks, ...upperChunks]
+
+    const chunks = [...lowerChunks, ...upperChunks]
+    return chunks
   }
 
   /**
    * Chunks above ground surface including overground items & empty chunks
    */
-  async upperChunksGen() {
-    const itemsLayer = new ItemsChunkLayer(this.patchKey)
-    await itemsLayer.process()
-    const itemsMergedChunk = itemsLayer.mergeIndividualChunks()
+  async upperChunksGen(noDataEncoding = false) {
+    const { skipEntities } = this.processingParams as ChunksProcessingParams
+
     const groundLayer = new GroundPatch(this.patchKey)
     groundLayer.bake()
     const patchId = groundLayer.patchId as PatchId
     const upperChunks: ChunkContainer[] = []
     // compute chunk id range
-    const yMin = Math.min(
-      itemsMergedChunk.bounds.min.y,
-      groundLayer.valueRange.min,
-    )
-    const yMax = Math.max(
-      itemsMergedChunk.bounds.max.y,
-      groundLayer.valueRange.max,
-    )
+    let yMin = groundLayer.valueRange.min
+    let yMax = groundLayer.valueRange.max
+
+    let mergedItemsChunk
+    if (!skipEntities) {
+      const itemsLayer = new ItemsBaker(this.patchKey)
+      mergedItemsChunk = await itemsLayer.mergeIndividualChunks()
+      // adjust chunks range accordingly
+      yMin = Math.min(mergedItemsChunk.bounds.min.y, yMin)
+      yMax = Math.max(mergedItemsChunk.bounds.max.y, yMax)
+    }
+
     const surfaceIds = {
       yMinId: Math.floor(yMin / patchDims.y),
       yMaxId: Math.floor(yMax / patchDims.y),
@@ -149,10 +157,11 @@ export class ChunkSet extends ProcessingTask {
       const chunkKey = serializeChunkId(chunkId)
       const worldChunk = new ChunkContainer(chunkKey, 1)
       // copy items layer first to prevent overriding ground
-      ChunkContainer.copySourceToTarget(itemsMergedChunk, worldChunk)
+      mergedItemsChunk && ChunkContainer.copySourceToTarget(mergedItemsChunk, worldChunk)
       if (worldChunk.bounds.min.y < groundLayer.valueRange.max) {
         // bake ground and undeground separately
-        const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
+        const customEncoder = noDataEncoding ? defaultDataEncoder : undefined
+        const groundSurfaceChunk = new GroundChunk(chunkKey, 1, customEncoder)
         const cavesMask = new CavesMask(chunkKey, 1)
         cavesMask.bake()
         await groundSurfaceChunk.bake(groundLayer, cavesMask)
@@ -160,19 +169,14 @@ export class ChunkSet extends ProcessingTask {
         ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
       }
       upperChunks.push(worldChunk)
-      // remaining chunks
+    }
 
-      // console.log(
-      //   `processed surface chunks: ${this.printChunkset(groundSurfaceChunks)}`,
-      // )
-      // empty chunks start 1 chunk above ground surface
-      for (let y = surfaceIds.yMaxId + 1; y <= chunksRange.topId; y++) {
-        const chunkId = asVect3(this.patchId, y)
-        const chunkKey = serializeChunkId(chunkId)
-        const emptyChunk = new EmptyChunk(chunkKey)
-        upperChunks.push(emptyChunk)
-      }
-      // console.log(`processed empty chunks: ${this.printChunkset(emptyChunks)}`)
+    // remaining chunks: empty chunks start 1 chunk above ground surface
+    for (let y = surfaceIds.yMaxId + 1; y <= chunksRange.topId; y++) {
+      const chunkId = asVect3(this.patchId, y)
+      const chunkKey = serializeChunkId(chunkId)
+      const emptyChunk = new EmptyChunk(chunkKey)
+      upperChunks.push(emptyChunk)
     }
     return upperChunks
   }
@@ -180,7 +184,7 @@ export class ChunkSet extends ProcessingTask {
   /**
    * Chunks below ground surface
    */
-  async lowerChunksGen(skipEncoding = false) {
+  async lowerChunksGen(noDataEncoding = false) {
     // find upper chunkId
     const groundLayer = new GroundPatch(this.patchKey)
     groundLayer.bake()
@@ -193,7 +197,7 @@ export class ChunkSet extends ProcessingTask {
       const chunkId = asVect3(this.patchId, yId)
       const chunkKey = serializeChunkId(chunkId)
       const currentChunk = new ChunkContainer(chunkKey, 1)
-      const customEncoder = skipEncoding ? defaultDataEncoder : undefined
+      const customEncoder = noDataEncoding ? defaultDataEncoder : undefined
       const groundSurfaceChunk = new GroundChunk(chunkKey, 1, customEncoder)
       const cavesMask = new CavesMask(chunkKey, 1)
       cavesMask.bake()
@@ -209,6 +213,10 @@ export class ChunkSet extends ProcessingTask {
     return lowerChunks
   }
 
+  // individualChunkGen(chunkKey: ChunkKey){
+
+  // }
+
   /**
    * Sequential chunk gen
    */
@@ -220,4 +228,4 @@ export class ChunkSet extends ProcessingTask {
   // }
 }
 
-ProcessingTask.registeredObjects[ChunkSet.name] = ChunkSet
+ProcessingTask.registeredObjects[ChunksProcessor.name] = ChunksProcessor

@@ -7,7 +7,7 @@ export { BatchProcess } from './processing/BatchProcessing'
 export { BlocksProcessing, BlocksProcessingMode } from './processing/BlocksProcessing'
 export { BoardContainer, BlockCategory } from './processing/BoardProcessing'
 export {
-  ChunksBatch,
+  ViewChunksBatch,
   LowerChunksBatch,
   UpperChunksBatch,
 } from './processing/ChunksBatch'
@@ -15,7 +15,7 @@ export {
   PseudoDistributionMap,
   DistributionProfile,
 } from './processing/RandomDistributionMap'
-export { ChunkSet } from './processing/ChunksProcessing'
+export { ChunksProcessor } from './processing/ChunksProcessing'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'

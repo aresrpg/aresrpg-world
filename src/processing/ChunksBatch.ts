@@ -1,18 +1,17 @@
 import { Box2, Vector2 } from 'three'
 
-import { WorldEnv } from '../config/WorldEnv'
-import { getPatchId, serializePatchId } from '../utils/convert'
+import { serializePatchId } from '../utils/convert'
 import { PatchKey } from '../utils/types'
 
 import { BatchProcess } from './BatchProcessing'
 import {
-  ChunkSet,
+  ChunksProcessor,
   lowerChunksProcessingParams,
   upperChunksProcessingParams,
 } from './ChunksProcessing'
 import { ProcessingState } from './TaskProcessing'
 
-const { patchDimensions } = WorldEnv.current
+// const { patchSize, patchDimensions } = WorldEnv.current
 
 // type PipelineStage<T> = {
 //     in: T[],
@@ -30,20 +29,12 @@ const { patchDimensions } = WorldEnv.current
  * then when within near dist moves to caves queue
  * when processed is done, moves into done queue
  */
-export class ChunksBatch extends BatchProcess<ChunkSet> {
-  viewPos = new Vector2(NaN, NaN)
-  viewDist = 0
+export class ViewChunksBatch extends BatchProcess<ChunksProcessor> {
+  viewCenter = new Vector2(NaN, NaN)
+  viewRange = 0
 
   constructor(onTaskCompleted?: any) {
     super([], onTaskCompleted)
-  }
-
-  get viewRange() {
-    return getPatchId(new Vector2(this.viewDist), patchDimensions).x
-  }
-
-  get viewPosId() {
-    return getPatchId(this.viewPos, patchDimensions)
   }
 
   get queuePatchIndex() {
@@ -53,10 +44,10 @@ export class ChunksBatch extends BatchProcess<ChunkSet> {
     return patchIndex
   }
 
-  get patchViewRange() {
-    const { viewPosId } = this
-    const bmin = viewPosId.clone().subScalar(this.viewRange)
-    const bmax = viewPosId.clone().addScalar(this.viewRange)
+  get viewPatchRange() {
+    const { viewCenter, viewRange } = this
+    const bmin = viewCenter.clone().subScalar(viewRange)
+    const bmax = viewCenter.clone().addScalar(viewRange)
     const patchViewRange = new Box2(bmin, bmax)
     return patchViewRange
   }
@@ -68,7 +59,7 @@ export class ChunksBatch extends BatchProcess<ChunkSet> {
   genViewPatchIndex() {
     const patchIndex: Record<PatchKey, boolean> = {}
     // const patchIds = []
-    const { min, max } = this.patchViewRange
+    const { min, max } = this.viewPatchRange
     for (let { y } = min; y <= max.y; y++) {
       for (let { x } = min; x <= max.x; x++) {
         const patchId = new Vector2(x, y)
@@ -81,26 +72,24 @@ export class ChunksBatch extends BatchProcess<ChunkSet> {
   }
 
   reorderProcessingQueue() {
-    const { viewPosId } = this
+    const { viewCenter } = this
     this.processingQueue.sort(
-      (e1, e2) => e1.distanceTo(viewPosId) - e2.distanceTo(viewPosId),
+      (e1, e2) => e1.distanceTo(viewCenter) - e2.distanceTo(viewCenter),
     )
   }
 
-  isSyncNeeded(viewPos: Vector2, viewDist: number) {
-    const viewPosId = getPatchId(viewPos, patchDimensions)
-    return (
-      this.viewPosId.distanceTo(viewPosId) > 0 || this.viewDist !== viewDist
-    )
+  viewChanged(viewCenter: Vector2, viewRange: number) {
+    const viewChanged = this.viewCenter.distanceTo(viewCenter) > 0 || this.viewRange !== viewRange
+    return viewChanged
   }
 
   /**
-   * called each time view pos or view dist change to regen chunks index
+   * called each time view center or range change to regen chunks index
    */
-  async syncView(viewPos: Vector2, viewDist: number) {
-    if (this.isSyncNeeded(viewPos, viewDist)) {
-      this.viewPos = viewPos
-      this.viewDist = viewDist
+  async syncView(viewCenter: Vector2, viewRange: number) {
+    if (this.viewChanged(viewCenter, viewRange)) {
+      this.viewCenter = viewCenter
+      this.viewRange = viewRange
       // regen patch index from current view
       const viewPatchIndex = this.genViewPatchIndex()
       // purge queues from out of range elements
@@ -112,7 +101,7 @@ export class ChunksBatch extends BatchProcess<ChunkSet> {
       // insert elements never processed before
       Object.keys(viewPatchIndex)
         .filter(patchKey => !queuePatchIndex[patchKey])
-        .map(patchKey => new ChunkSet(patchKey))
+        .map(patchKey => new ChunksProcessor(patchKey))
         .forEach(chunkset => this.processingQueue.push(chunkset))
       // reorder processing queue
       this.reorderProcessingQueue()
@@ -168,7 +157,7 @@ export class ChunksBatch extends BatchProcess<ChunkSet> {
 /**
  * Will process lower chunks only within near dist
  */
-export class LowerChunksBatch extends ChunksBatch {
+export class LowerChunksBatch extends ViewChunksBatch {
   override async processNextTask(onTaskCompleted: any, onBatchTerminated: any) {
     const { nextTask } = this
     if (nextTask) {
@@ -193,7 +182,7 @@ export class LowerChunksBatch extends ChunksBatch {
 /**
  * Will process upper chunks at far dist
  */
-export class UpperChunksBatch extends ChunksBatch {
+export class UpperChunksBatch extends ViewChunksBatch {
   override async processNextTask(onTaskCompleted: any, onBatchTerminated: any) {
     const { nextTask } = this
     if (nextTask) {

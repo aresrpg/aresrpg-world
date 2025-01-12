@@ -75,10 +75,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-        parseVect3Stub(stub) ||
-        parseBox2Stub(stub) ||
-        parseVect2Stub(stub) ||
-        stub
+    parseVect3Stub(stub) ||
+    parseBox2Stub(stub) ||
+    parseVect2Stub(stub) ||
+    stub
     : stub
 }
 
@@ -115,6 +115,16 @@ const asPatchBounds = (patchKey: string, patchDims: Vector2) => {
     bbox.max = patchCoords.clone().addScalar(1).multiply(patchDims)
   }
   return bbox
+}
+
+const getScalarId = (scalarValue: number, size: number) => {
+  const scalarId = Math.floor(scalarValue / size)
+  return scalarId
+}
+
+const getUpperScalarId = (scalarValue: number, size: number) => {
+  const scalarId = Math.ceil(scalarValue / size)
+  return scalarId
 }
 
 const getPatchId = (position: Vector2, patchSize: Vector2) => {
@@ -191,6 +201,8 @@ export {
   asBox2,
   asBox3,
   parsePatchKey,
+  getScalarId,
+  getUpperScalarId,
   getPatchId,
   patchUpperId,
   serializePatchId,

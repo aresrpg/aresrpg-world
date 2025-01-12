@@ -1,11 +1,11 @@
 import { Box2, Vector2 } from 'three'
 
-import { WorldEnv, WorldUtils, Biome, ProcessingTask, DensityVolume, ChunkContainer, BlockType } from '../index'
-import { serializePatchId, getPatchId, asVect3, asVect2 } from '../utils/convert'
+import { WorldEnv, Biome, ProcessingTask, ChunkContainer } from '../index'
+import { serializePatchId, getPatchId, asVect3, asVect2, parseThreeStub } from '../utils/convert'
 import { PatchKey, GroundBlock, Block, BlockData } from '../utils/types'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch'
-import { ItemsChunkLayer } from './ItemsProcessing'
+import { ItemsBaker } from './ItemsProcessing'
 
 export type BlocksBatchArgs = {
   posBatch: Vector2[]
@@ -89,11 +89,12 @@ export class BlocksProcessing extends ProcessingTask {
         const batchOutput = await Promise.all(this.input.map(pos => this.queryPeakBlock(pos)))
         return batchOutput
       }
-      case BlocksProcessingMode.Floor: {
-        const batchOutput = this.input.map(pos => this.queryNearestGroundFloor(pos))
-        return batchOutput
-      }
+      // case BlocksProcessingMode.Floor: {
+      //   const batchOutput = this.input.map(pos => this.queryNearestGroundFloor(pos))
+      //   return batchOutput
+      // }
     }
+    return [] as Block<BlockData>[]
   }
 
   queryGroundBlock(pos: Vector2) {
@@ -125,9 +126,8 @@ export class BlocksProcessing extends ProcessingTask {
     block.pos.y = block.data.level
     const queriedLoc = new Box2().setFromPoints([asVect2(block.pos)])
     queriedLoc.max.addScalar(1)
-    const itemsProcessor = new ItemsChunkLayer(queriedLoc)
-    itemsProcessor.retrieveOvergroundItems()
-    const bufferData = await itemsProcessor.queryIndividualPos(block.pos)
+    const itemsProcessor = new ItemsBaker(queriedLoc, block.pos)
+    const bufferData = await itemsProcessor.mergeItemsAtPos(block.pos)
     const lastIndex = bufferData.findLastIndex(elt => elt)
     const lastBlockType = lastIndex >= 0 && bufferData[lastIndex]
     const blockType = lastBlockType ? ChunkContainer.dataDecoder(lastBlockType) : block.data.type
@@ -170,31 +170,33 @@ export class BlocksProcessing extends ProcessingTask {
     // - if requested pos is below ground surface: look down or up for closest empty block
     // stop iterating in up direction if reaching ground surface with schematic block
     // offset from requested pos
-    const y = 0
-    const groundLevel = 0
-    let offset = 0
-    let done = false
-    while (!done) {
-      // look above
-      if (y + offset < groundLevel) {
-        // if found return offset
-      }
-      // look below
-      if (y - offset > 0) {
-        // if found return - offset
-        block.pos.y = y
-        const isEmptyBlock = DensityVolume.instance.getBlockDensity(
-          block.pos,
-          groundLevel + 20,
-        )
-      }
-      offset++
-    }
+
+
+    // const y = 0
+    // const groundLevel = 0
+    // let offset = 0
+    // let done = false
+    // while (!done) {
+    //   // look above
+    //   if (y + offset < groundLevel) {
+    //     // if found return offset
+    //   }
+    //   // look below
+    //   if (y - offset > 0) {
+    //     // if found return - offset
+    //     block.pos.y = y
+    //     const isEmptyBlock = DensityVolume.instance.getBlockDensity(
+    //       block.pos,
+    //       groundLevel + 20,
+    //     )
+    //   }
+    //   offset++
+    // }
   }
 
   override reconcile(stubs: GroundBlock[]) {
     return stubs.map(blockStub => {
-      blockStub.pos = WorldUtils.convert.parseThreeStub(blockStub.pos)
+      blockStub.pos = parseThreeStub(blockStub.pos)
       // return WorldUtils.convert.parseThreeStub(pos)
       return blockStub
     }) as GroundBlock[]

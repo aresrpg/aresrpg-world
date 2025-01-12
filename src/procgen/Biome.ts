@@ -10,9 +10,12 @@ import {
   LandscapeFields,
   LandscapesConf,
 } from '../utils/types'
-import { WorldEnv, WorldUtils } from '../index'
+import { WorldEnv } from '../index'
 
 import { ProcLayer } from './ProcLayer'
+import { clamp, roundToDec } from '../utils/math'
+import { findMatchingRange, MappingRangeSorter, typesNumbering } from '../utils/misc'
+import { asVect3 } from '../utils/convert'
 
 // reserved native block types
 export enum BlockType {
@@ -86,7 +89,7 @@ export const BiomeNumericType: Record<BiomeType, number> = {
   [BiomeType.Grassland]: 0,
 }
 
-WorldUtils.misc.typesNumbering(BiomeNumericType)
+typesNumbering(BiomeNumericType)
 
 export const ReverseBiomeNumericType: Record<number, BiomeType> = {}
 Object.keys(BiomeNumericType).forEach(
@@ -270,7 +273,7 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-        (biomeContribs[k as BiomeType] = WorldUtils.math.roundToDec(
+        (biomeContribs[k as BiomeType] = roundToDec(
           biomeContribs[k as BiomeType],
           2,
         )),
@@ -293,7 +296,7 @@ export class Biome {
       const configItems = Object.values(biomeConf) as LandscapeFields[]
       const mappingRanges = LinkedList.fromArrayAfterSorting(
         configItems,
-        WorldUtils.misc.MappingRangeSorter,
+        MappingRangeSorter,
       )
       this.mappings[biomeType as BiomeType] = mappingRanges
       // index configs
@@ -313,7 +316,7 @@ export class Biome {
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)
     const posRandomizerVal = this.posRandomizer.eval(
-      WorldUtils.convert.asVect3(mapCoords),
+      asVect3(mapCoords),
     )
     // add some height variations to break painting monotony
     const { amplitude }: any = landscapeConf.data
@@ -357,9 +360,9 @@ export class Biome {
   ) => {
     const { seaLevel } = WorldEnv.current.biomes
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
-    rawVal = WorldUtils.math.clamp(rawVal, 0, 1)
+    rawVal = clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]
-    const confId = WorldUtils.misc.findMatchingRange(
+    const confId = findMatchingRange(
       rawVal as number,
       firstItem,
     )
@@ -387,7 +390,7 @@ export class Biome {
 
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
     const firstItem = this.mappings[biomeType]
-    const confId = WorldUtils.misc.findMatchingRange(
+    const confId = findMatchingRange(
       rawVal as number,
       firstItem,
     )

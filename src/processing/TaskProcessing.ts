@@ -1,6 +1,7 @@
 import workerpool from 'workerpool'
 
-import { WorldEnv, WorldUtils } from '../index'
+import { WorldEnv } from '../index'
+import { parseThreeStub } from '../utils/convert'
 
 const toStubs = (res: any) =>
   res instanceof Array ? res.map(item => item.toStub?.() || item) : res.toStub?.() || res
@@ -8,8 +9,8 @@ const toStubs = (res: any) =>
 const parseArgs = (...rawArgs: any) => {
   const args = rawArgs.map((rawArg: any) => {
     const arg = rawArg instanceof Array
-      ? rawArg.map(item => WorldUtils.convert.parseThreeStub(item))
-      : WorldUtils.convert.parseThreeStub(rawArg)
+      ? rawArg.map(item => parseThreeStub(item))
+      : parseThreeStub(rawArg)
     return arg
   })
   return args
@@ -34,9 +35,10 @@ type ProcessingTasksIndex = Record<string, new (...args: any) => ProcessingTask>
  */
 export class ProcessingTask {
   static registeredObjects: ProcessingTasksIndex = {}
-
   static workerPool: any
   processingState: ProcessingState = ProcessingState.Waiting
+  processingParams: any = {}
+  result: any
   // pendingTask: any
 
   // static instances: ProcessingTask[] = []
@@ -105,7 +107,7 @@ export class ProcessingTask {
    * @param processingUnit
    */
   async delegate(
-    processingParams = {},
+    processingParams = this.processingParams,
     processingUnit = ProcessingTask.workerPool,
   ) {
     if (this.processingState === ProcessingState.Done) return undefined
@@ -123,6 +125,7 @@ export class ProcessingTask {
         })
       const stubs = await pendingTask
       const output = stubs ? this.reconcile(stubs) : null
+      this.result = output
       this.processingState =
         this.processingState === ProcessingState.Pending
           ? ProcessingState.Done
