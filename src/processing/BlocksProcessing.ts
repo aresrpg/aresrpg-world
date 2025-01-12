@@ -1,7 +1,13 @@
 import { Box2, Vector2 } from 'three'
 
 import { WorldEnv, Biome, ProcessingTask, ChunkContainer } from '../index'
-import { serializePatchId, getPatchId, asVect3, asVect2, parseThreeStub } from '../utils/convert'
+import {
+  serializePatchId,
+  getPatchId,
+  asVect3,
+  asVect2,
+  parseThreeStub,
+} from '../utils/convert'
 import { PatchKey, GroundBlock, Block, BlockData } from '../utils/types'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch'
@@ -14,9 +20,9 @@ export type BlocksBatchArgs = {
 export enum BlocksProcessingMode {
   Ground,
   Peak,
-  Floor,  // returns floor if requested block is empty in down direction, otherwise look for closest floor in up direction
+  Floor, // returns floor if requested block is empty in down direction, otherwise look for closest floor in up direction
   Ceiling,
-  Nearest  // nearest ground, floor or ceiling
+  Nearest, // nearest ground, floor or ceiling
 }
 
 export type BlocksProcessingParams = {
@@ -24,7 +30,7 @@ export type BlocksProcessingParams = {
 }
 
 const defaultProcessingParams: BlocksProcessingParams = {
-  mode: BlocksProcessingMode.Ground
+  mode: BlocksProcessingMode.Ground,
 }
 
 /**
@@ -75,7 +81,7 @@ export class BlocksProcessing extends ProcessingTask {
     switch (mode) {
       case BlocksProcessingMode.Ground: {
         const batchOutput = this.input.map(pos => {
-          // const blockData = 
+          // const blockData =
           // const block: Block<BlockData> = {
           //   pos: asVect3(pos),
           //   data: blockData,
@@ -86,7 +92,9 @@ export class BlocksProcessing extends ProcessingTask {
         return batchOutput
       }
       case BlocksProcessingMode.Peak: {
-        const batchOutput = await Promise.all(this.input.map(pos => this.queryPeakBlock(pos)))
+        const batchOutput = await Promise.all(
+          this.input.map(pos => this.queryPeakBlock(pos)),
+        )
         return batchOutput
       }
       // case BlocksProcessingMode.Floor: {
@@ -108,7 +116,6 @@ export class BlocksProcessing extends ProcessingTask {
     const { biome, landscapeIndex, level } = groundData as GroundBlockData
     const landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
     const groundConf = landscapeConf.data
-    groundConf.flora
     const blockData: BlockData = {
       level,
       type: groundConf.type,
@@ -127,10 +134,12 @@ export class BlocksProcessing extends ProcessingTask {
     const queriedLoc = new Box2().setFromPoints([asVect2(block.pos)])
     queriedLoc.max.addScalar(1)
     const itemsProcessor = new ItemsBaker(queriedLoc, block.pos)
-    const bufferData = await itemsProcessor.mergeItemsAtPos(block.pos)
+    const bufferData = await itemsProcessor.queryIsolatedPoint()
     const lastIndex = bufferData.findLastIndex(elt => elt)
     const lastBlockType = lastIndex >= 0 && bufferData[lastIndex]
-    const blockType = lastBlockType ? ChunkContainer.dataDecoder(lastBlockType) : block.data.type
+    const blockType = lastBlockType
+      ? ChunkContainer.dataDecoder(lastBlockType)
+      : block.data.type
     block.data.level += lastIndex
     block.data.type = blockType
     return block
@@ -146,7 +155,6 @@ export class BlocksProcessing extends ProcessingTask {
     //     blockData.level += lastBlockIndex
     //     blockData.type = blocksBuffer[lastBlockIndex] as BlockType
     //   }
-
 
     // override with last block if specified
     // if (params.includeEntitiesBlocks) {
@@ -170,8 +178,6 @@ export class BlocksProcessing extends ProcessingTask {
     // - if requested pos is below ground surface: look down or up for closest empty block
     // stop iterating in up direction if reaching ground surface with schematic block
     // offset from requested pos
-
-
     // const y = 0
     // const groundLevel = 0
     // let offset = 0

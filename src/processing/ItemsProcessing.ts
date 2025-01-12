@@ -9,11 +9,7 @@ import {
   PseudoDistributionMap,
 } from '../index'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
-import {
-  asPatchBounds,
-  asVect2,
-  asVect3,
-} from '../utils/convert'
+import { asPatchBounds, asVect2, asVect3 } from '../utils/convert'
 import { PatchKey } from '../utils/types'
 import { WorldEnv } from '../config/WorldEnv'
 import { ItemsInventory, ItemType, SpawnedItems } from '../factory/ItemsFactory'
@@ -49,7 +45,7 @@ const getPatchBounds = (boundsOrPatchKey: Box2 | PatchKey) => {
   return patchBounds
 }
 
-// takes 
+// takes
 const adjustHeight = async (itemChunk: ChunkContainer) => {
   const chunkBottomBlocks: Vector2[] = []
   // iter slice blocks
@@ -59,9 +55,7 @@ const adjustHeight = async (itemChunk: ChunkContainer) => {
   // compute blocks batch to find lowest element
   const blocksBatch = new BlocksProcessing(chunkBottomBlocks)
   const batchRes = await blocksBatch.process()
-  const [lowestBlock] = batchRes.sort(
-    (b1, b2) => b1.data.level - b2.data.level,
-  )
+  const [lowestBlock] = batchRes.sort((b1, b2) => b1.data.level - b2.data.level)
   const lowestHeight = lowestBlock?.data.level || 0
   const heightOffset = itemChunk.bounds.min.y - lowestHeight
   // adjust chunk elevation according to lowest element
@@ -119,9 +113,7 @@ export const bakeIndividualChunks = async (spawnedItems: SpawnedItems) => {
   const individualChunks = []
   let ymin = NaN
   let ymax = NaN // compute y range
-  for await (const [itemType, spawnPlaces] of Object.entries(
-    spawnedItems,
-  )) {
+  for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
     for await (const spawnOrigin of spawnPlaces) {
       const itemChunk = await ItemsInventory.getInstancedChunk(
         itemType,
@@ -163,19 +155,23 @@ export const mergeIndividualChunks = (individualChunks: ChunkContainer[]) => {
 }
 
 /**
-   * needs: spawned items + requested pos (externally provided)
-   * provides: items blocks at requested pos
-   * 
-   * note: several spawned overlapping objects may be found at queried position
-   */
-export const queryIndividualPos = async (spawnedItems: SpawnedItems, requestedPos: Vector3) => {
+ * needs: spawned items + requested pos (externally provided)
+ * provides: items blocks at requested pos
+ *
+ * note: several spawned overlapping objects may be found at queried position
+ */
+export const queryIndividualPos = async (
+  spawnedItems: SpawnedItems,
+  requestedPos: Vector3,
+) => {
   const mergeBuffer: number[] = []
-  for await (const [itemType, spawnPlaces] of Object.entries(
-    spawnedItems,
-  )) {
+  for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
     for await (const spawnOrigin of spawnPlaces) {
       const templateChunk = await ItemsInventory.getTemplateChunk(itemType)
-      const shallowInstance = await ItemsInventory.getInstancedChunk(itemType, spawnOrigin, true, true)
+      const shallowInstance = await ItemsInventory.getInstancedChunk(
+        itemType,
+        spawnOrigin,
+      )
 
       if (templateChunk && shallowInstance) {
         const localPos = shallowInstance.toLocalPos(requestedPos)
@@ -185,7 +181,7 @@ export const queryIndividualPos = async (spawnedItems: SpawnedItems, requestedPo
         const targetOffset = -Math.min(yOffset, 0)
         sliceSectorData.slice(sourceOffset).forEach((val, i) => {
           const index = i + targetOffset
-          while (mergeBuffer.length <= index) mergeBuffer.push(0);
+          while (mergeBuffer.length <= index) mergeBuffer.push(0)
           mergeBuffer[i + targetOffset] = val
         })
         // const sliceSectors = templateChunk.iterChunkSlice(location)
@@ -210,20 +206,24 @@ export enum ItemsProcessingRecipes {
   SpawnedItems = 'SpawnedItems',
   IndividualChunks = 'IndividualChunks',
   MergeIndividualChunks = 'MergeIndividualChunks',
-  IsolatedPointQuery = 'IsolatedPointQuery'
+  IsolatedPointQuery = 'IsolatedPointQuery',
 }
 
-
-const bakeRecipe = async (recipe: ItemsProcessingRecipes, boundsOrPatchKey: Box2 | PatchKey, requestedPos?: Vector3) => {
+const bakeRecipe = async (
+  recipe: ItemsProcessingRecipes,
+  boundsOrPatchKey: Box2 | PatchKey,
+  requestedPos?: Vector3,
+) => {
   const patchBounds = getPatchBounds(boundsOrPatchKey)
   const spawnedItems = retrieveOvergroundItems(patchBounds)
   if (recipe === ItemsProcessingRecipes.SpawnedItems) {
     return spawnedItems
-  }
-  else if (recipe === ItemsProcessingRecipes.IsolatedPointQuery && requestedPos) {
+  } else if (
+    recipe === ItemsProcessingRecipes.IsolatedPointQuery &&
+    requestedPos
+  ) {
     return await queryIndividualPos(spawnedItems, requestedPos)
-  }
-  else {
+  } else {
     const individualChunks = await bakeIndividualChunks(spawnedItems)
     if (recipe === ItemsProcessingRecipes.IndividualChunks) {
       return individualChunks
@@ -243,14 +243,15 @@ const defaultProcessingParams: ItemsProcessingParams = {
 }
 
 const noParser = (stubs: any) => stubs
-const chunkStubParser = (chunkStub: ChunkStub) => new ChunkContainer().fromStub(chunkStub)
+const chunkStubParser = (chunkStub: ChunkStub) =>
+  new ChunkContainer().fromStub(chunkStub)
 const chunkStubsParser = (stubs: ChunkStub[]) => stubs.map(chunkStubParser)
 
 const stubsParsers: Record<ItemsProcessingRecipes, (stubs: any) => any> = {
   [ItemsProcessingRecipes.SpawnedItems]: noParser,
   [ItemsProcessingRecipes.IndividualChunks]: chunkStubsParser,
   [ItemsProcessingRecipes.MergeIndividualChunks]: chunkStubParser,
-  [ItemsProcessingRecipes.IsolatedPointQuery]: noParser
+  [ItemsProcessingRecipes.IsolatedPointQuery]: noParser,
 }
 
 /**
@@ -314,30 +315,40 @@ export class ItemsBaker extends ProcessingTask {
   override async process(processingParams = defaultProcessingParams) {
     const { recipe } = processingParams
     const [input] = this.mandatoryInputs
-    return bakeRecipe(recipe, input,)
+    return bakeRecipe(recipe, input)
   }
 
   async bakeIndividualChunks() {
     const [mandatory] = this.mandatoryInputs
-    return await bakeRecipe(ItemsProcessingRecipes.IndividualChunks, mandatory) as ChunkContainer[]
+    return (await bakeRecipe(
+      ItemsProcessingRecipes.IndividualChunks,
+      mandatory,
+    )) as ChunkContainer[]
   }
 
   async mergeIndividualChunks() {
     const [mandatory] = this.mandatoryInputs
-    return await bakeRecipe(ItemsProcessingRecipes.MergeIndividualChunks, mandatory) as ChunkContainer
+    return (await bakeRecipe(
+      ItemsProcessingRecipes.MergeIndividualChunks,
+      mandatory,
+    )) as ChunkContainer
   }
 
-  async mergeItemsAtPos(requestedPos: Vector3) {
+  async queryIsolatedPoint() {
     const [mandatory] = this.mandatoryInputs
     const [optional] = this.optionalInputs
-    return await bakeRecipe(ItemsProcessingRecipes.IsolatedPointQuery, mandatory, optional) as number[]
+    return (await bakeRecipe(
+      ItemsProcessingRecipes.IsolatedPointQuery,
+      mandatory,
+      optional,
+    )) as number[]
   }
 
-  toStub() {
-    const { spawnedItems } = this
-    // return { spawnedItems, individualChunks }
-    return { spawnedItems }
-  }
+  // toStub() {
+  //   const { spawnedItems } = this
+  //   // return { spawnedItems, individualChunks }
+  //   return { spawnedItems }
+  // }
 
   // get patchBounds() {
   //   return asBox2(this.bounds)
@@ -350,7 +361,6 @@ export class ItemsBaker extends ProcessingTask {
   //   }
   //   return spawnedLocs
   // }
-
 }
 
 ProcessingTask.registeredObjects[ItemsBaker.name] = ItemsBaker

@@ -138,6 +138,9 @@ export type PatchId = Vector2
 export type ChunkKey = string
 export type ChunkId = Vector3
 
+export type PatchIndex<T> = Record<PatchKey, T>
+export type ChunkIndex<T> = Record<ChunkKey, T>
+
 // export enum TerrainType {
 //   SEA,
 //   BEACH,

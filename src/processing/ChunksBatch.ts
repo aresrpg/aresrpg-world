@@ -33,8 +33,8 @@ export class ViewChunksBatch extends BatchProcess<ChunksProcessor> {
   viewCenter = new Vector2(NaN, NaN)
   viewRange = 0
 
-  constructor(onTaskCompleted?: any) {
-    super([], onTaskCompleted)
+  constructor() {
+    super([])
   }
 
   get queuePatchIndex() {
@@ -79,7 +79,8 @@ export class ViewChunksBatch extends BatchProcess<ChunksProcessor> {
   }
 
   viewChanged(viewCenter: Vector2, viewRange: number) {
-    const viewChanged = this.viewCenter.distanceTo(viewCenter) > 0 || this.viewRange !== viewRange
+    const viewChanged =
+      this.viewCenter.distanceTo(viewCenter) > 0 || this.viewRange !== viewRange
     return viewChanged
   }
 

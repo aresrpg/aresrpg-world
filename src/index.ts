@@ -4,7 +4,10 @@ export { BlockMode } from './utils/types'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing'
 export { BatchProcess } from './processing/BatchProcessing'
-export { BlocksProcessing, BlocksProcessingMode } from './processing/BlocksProcessing'
+export {
+  BlocksProcessing,
+  BlocksProcessingMode,
+} from './processing/BlocksProcessing'
 export { BoardContainer, BlockCategory } from './processing/BoardProcessing'
 export {
   ViewChunksBatch,

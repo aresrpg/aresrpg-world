@@ -81,8 +81,7 @@ export class WorldEnv {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) =>
       blockType || BlockType.NONE,
-    dataDecoder: (rawData: number) =>
-      rawData || BlockType.NONE
+    dataDecoder: (rawData: number) => rawData || BlockType.NONE,
   }
 
   schematics: {
@@ -90,16 +89,16 @@ export class WorldEnv {
     localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>
     filesIndex: Record<ItemType, string>
   } = {
-      globalBlocksMapping: {},
-      localBlocksMapping: {},
-      filesIndex: {},
-    }
+    globalBlocksMapping: {},
+    localBlocksMapping: {},
+    filesIndex: {},
+  }
 
   proceduralItems: {
     configs: Record<ItemType, ProcItemConf>
   } = {
-      configs: {},
-    }
+    configs: {},
+  }
 
   workerPool = {
     count: 4,
@@ -116,9 +115,9 @@ export class WorldEnv {
     rawConf: BiomesRawConf
     seaLevel: number
   } = {
-      rawConf: {} as any,
-      seaLevel: 0,
-    }
+    rawConf: {} as any,
+    seaLevel: 0,
+  }
 
   get seaLevel() {
     return this.biomes.seaLevel

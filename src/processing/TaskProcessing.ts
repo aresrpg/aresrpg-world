@@ -4,13 +4,16 @@ import { WorldEnv } from '../index'
 import { parseThreeStub } from '../utils/convert'
 
 const toStubs = (res: any) =>
-  res instanceof Array ? res.map(item => item.toStub?.() || item) : res.toStub?.() || res
+  res instanceof Array
+    ? res.map(item => item.toStub?.() || item)
+    : res.toStub?.() || res
 
 const parseArgs = (...rawArgs: any) => {
   const args = rawArgs.map((rawArg: any) => {
-    const arg = rawArg instanceof Array
-      ? rawArg.map(item => parseThreeStub(item))
-      : parseThreeStub(rawArg)
+    const arg =
+      rawArg instanceof Array
+        ? rawArg.map(item => parseThreeStub(item))
+        : parseThreeStub(rawArg)
     return arg
   })
   return args

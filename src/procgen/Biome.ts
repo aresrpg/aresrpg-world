@@ -11,11 +11,15 @@ import {
   LandscapesConf,
 } from '../utils/types'
 import { WorldEnv } from '../index'
+import { clamp, roundToDec } from '../utils/math'
+import {
+  findMatchingRange,
+  MappingRangeSorter,
+  typesNumbering,
+} from '../utils/misc'
+import { asVect3 } from '../utils/convert'
 
 import { ProcLayer } from './ProcLayer'
-import { clamp, roundToDec } from '../utils/math'
-import { findMatchingRange, MappingRangeSorter, typesNumbering } from '../utils/misc'
-import { asVect3 } from '../utils/convert'
 
 // reserved native block types
 export enum BlockType {
@@ -315,9 +319,7 @@ export class Biome {
   ) => {
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)
-    const posRandomizerVal = this.posRandomizer.eval(
-      asVect3(mapCoords),
-    )
+    const posRandomizerVal = this.posRandomizer.eval(asVect3(mapCoords))
     // add some height variations to break painting monotony
     const { amplitude }: any = landscapeConf.data
     const bounds = {
@@ -362,10 +364,7 @@ export class Biome {
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]
-    const confId = findMatchingRange(
-      rawVal as number,
-      firstItem,
-    )
+    const confId = findMatchingRange(rawVal as number, firstItem)
     const current = firstItem.nth(confId)
     const upper = current?.next || current
     const min = new Vector2(current.data.x, current.data.y)
@@ -390,10 +389,7 @@ export class Biome {
 
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
     const firstItem = this.mappings[biomeType]
-    const confId = findMatchingRange(
-      rawVal as number,
-      firstItem,
-    )
+    const confId = findMatchingRange(rawVal as number, firstItem)
     let currentItem = firstItem.nth(confId)
     while (!currentItem?.data.type && currentItem?.prev) {
       currentItem = currentItem.prev

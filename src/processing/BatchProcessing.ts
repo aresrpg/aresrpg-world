@@ -55,7 +55,11 @@ export class BatchProcess<T extends ProcessingTask> {
   }
 
   // once batch in the queue will be automatically processed by workers
-  enqueue(onTaskCompleted?: any, onBatchCompleted?: any, onBatchSuspended?: any) {
+  enqueue(
+    onTaskCompleted?: any,
+    onBatchCompleted?: any,
+    onBatchSuspended?: any,
+  ) {
     this.onTaskCompleted = onTaskCompleted || this.onTaskCompleted
     this.onBatchCompleted = onBatchCompleted || this.onBatchCompleted
     this.onBatchSuspended = onBatchSuspended || this.onBatchSuspended
@@ -89,7 +93,9 @@ export class BatchProcess<T extends ProcessingTask> {
   }
 
   get finishedTask() {
-    return this.processingQueue.filter(task => task.processingState === ProcessingState.Done)
+    return this.processingQueue.filter(
+      task => task.processingState === ProcessingState.Done,
+    )
   }
 
   async start(onTaskCompleted = this.onTaskCompleted) {
@@ -133,13 +139,13 @@ export class BatchProcess<T extends ProcessingTask> {
     if (nextTask) {
       const pendingTask = nextTask.delegate()
       // const taskRes = await pendingTask
-      pendingTask.then(taskRes => {
+      pendingTask.then(() => {
         this.processed++
         // this.printLog(`processed: ${this.processed}, left: ${this.leftTasks.length}`)
         onTaskCompleted(nextTask)
         if (this.isTerminated) {
           this.status === ProcessingState.Suspended
-            ? this.onBatchSuspended?.() 
+            ? this.onBatchSuspended?.()
             : onBatchTerminated()
         } else if (this.status === ProcessingState.Pending)
           this.processNextTask(onTaskCompleted, onBatchTerminated)
@@ -157,17 +163,19 @@ export class BatchProcess<T extends ProcessingTask> {
   }
 
   onBatchCompleted() {
-    this.printLog(`${this.processed} tasks processed in ${this.elapsedTime} ms `)
+    this.printLog(
+      `${this.processed} tasks processed in ${this.elapsedTime} ms `,
+    )
     BatchProcess.processNextBatch()
   }
 
   onBatchSuspended(val?: any) {
     let log = `was suspended after ${this.processed} tasks processed in ${this.elapsedTime}ms`
-    log += this.leftTasks.length > 0 ?
-      `, ${this.leftTasks.length} tasks left in the queue`
-      : ``
+    log +=
+      this.leftTasks.length > 0
+        ? `, ${this.leftTasks.length} tasks left in the queue`
+        : ``
     this.printLog(log)
     return val
   }
-
 }

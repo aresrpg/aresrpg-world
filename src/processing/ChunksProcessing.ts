@@ -7,7 +7,7 @@ import {
   serializeChunkId,
   asPatchBounds,
 } from '../utils/convert'
-import { ChunkIndex, ChunkKey, PatchId, PatchKey } from '../utils/types'
+import { ChunkIndex, PatchId, PatchKey } from '../utils/types'
 import {
   ChunkContainer,
   ChunkStub,
@@ -116,7 +116,9 @@ export class ChunksProcessor extends ProcessingTask {
     const lowerChunks = lowerGen
       ? await this.lowerChunksGen(noDataEncoding)
       : []
-    const upperChunks = upperGen ? await this.upperChunksGen(noDataEncoding) : []
+    const upperChunks = upperGen
+      ? await this.upperChunksGen(noDataEncoding)
+      : []
     this.processingState = ProcessingState.Done
 
     const chunks = [...lowerChunks, ...upperChunks]
@@ -157,7 +159,8 @@ export class ChunksProcessor extends ProcessingTask {
       const chunkKey = serializeChunkId(chunkId)
       const worldChunk = new ChunkContainer(chunkKey, 1)
       // copy items layer first to prevent overriding ground
-      mergedItemsChunk && ChunkContainer.copySourceToTarget(mergedItemsChunk, worldChunk)
+      mergedItemsChunk &&
+        ChunkContainer.copySourceToTarget(mergedItemsChunk, worldChunk)
       if (worldChunk.bounds.min.y < groundLayer.valueRange.max) {
         // bake ground and undeground separately
         const customEncoder = noDataEncoding ? defaultDataEncoder : undefined
@@ -188,9 +191,7 @@ export class ChunksProcessor extends ProcessingTask {
     // find upper chunkId
     const groundLayer = new GroundPatch(this.patchKey)
     groundLayer.bake()
-    const upperId = Math.floor(
-      groundLayer.valueRange.min / patchDims.y,
-    ) - 1
+    const upperId = Math.floor(groundLayer.valueRange.min / patchDims.y) - 1
     const lowerChunks = []
     // then iter until bottom is reached
     for (let yId = upperId; yId >= chunksRange.bottomId; yId--) {
