@@ -6,7 +6,8 @@ export { ProcessingTask } from './processing/TaskProcessing'
 export { BatchProcess } from './processing/BatchProcessing'
 export {
   BlocksProcessing,
-  BlocksProcessingMode,
+  BlocksProcessingRecipe,
+  BlockProcessor,
 } from './processing/BlocksProcessing'
 export { BoardProcessor, BlockCategory } from './processing/BoardProcessing'
 export {

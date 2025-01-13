@@ -305,7 +305,7 @@ export class BoardProcessor {
     this.localCache.build()
     // this.center = boardCenter
     console.log(
-      `instantiate board at ${serializePatchId(this.centerPatchId)} (radius: ${boardRadius}, thickness: ${boardThickness})`,
+      `create board at ${serializePatchId(this.centerPatchId)} (radius: ${boardRadius}, thickness: ${boardThickness})`,
     )
   }
 
