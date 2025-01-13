@@ -279,20 +279,22 @@ export class BlockProcessor {
   }
 
   bakeRecipe = async (recipe: BlocksProcessingRecipe) => {
+    let result
     if (recipe === BlocksProcessingRecipe.Ground) {
-      return this.getGroundBlock()
-    } else if (recipe === BlocksProcessingRecipe.Overground) {
-      return await this.getOvergroundBlocks()
-    } else if (recipe === BlocksProcessingRecipe.Underground) {
-      return this.getUndergroundBlocks()
+      result = this.getGroundBlock()
     } else if (recipe === BlocksProcessingRecipe.Peak) {
-      return this.getPeakBlock()
+      result = await this.getPeakBlock()
     } else if (recipe === BlocksProcessingRecipe.Floor) {
-      return this.getFloorBlock()
+      result = this.getFloorBlock()
     } else if (recipe === BlocksProcessingRecipe.Ceiling) {
-      return this.getCeilingBlock()
+      result = this.getCeilingBlock()
     }
-    return {}
+    // else if (recipe === BlocksProcessingRecipe.Overground) {
+    //   result = await this.getOvergroundBlocks()
+    // } else if (recipe === BlocksProcessingRecipe.Underground) {
+    //   result = this.getUndergroundBlocks()
+    // }
+    return result
   }
 }
 
@@ -334,7 +336,7 @@ export class BlocksProcessing extends ProcessingTask {
       const groundPatch = this.getGroundPatch(pos)
       const blockProcessor = new BlockProcessor(pos, groundPatch)
       const block = await blockProcessor.bakeRecipe(recipe)
-      return block
+      return block as Block<BlockData>
     })
     const batchOutput = await Promise.all(pendingBlocks)
     return batchOutput
