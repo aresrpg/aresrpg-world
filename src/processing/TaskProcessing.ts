@@ -42,6 +42,10 @@ export class ProcessingTask {
   processingState: ProcessingState = ProcessingState.Waiting
   processingParams: any = {}
   result: any
+  deferredPromise
+  resolveDeferredPromise: any
+  scheduled = false
+
   // pendingTask: any
 
   // static instances: ProcessingTask[] = []
@@ -97,12 +101,26 @@ export class ProcessingTask {
     }
   }
 
+  constructor() {
+    const deferredPromise = new Promise(resolve => {
+      this.resolveDeferredPromise = resolve
+    })
+    this.deferredPromise = deferredPromise
+  }
+
   get awaitingProcessing() {
     return (
       this.processingState !== ProcessingState.Done &&
       this.processingState !== ProcessingState.Pending
     )
   }
+
+  // getDeferredPromise = () => {
+  //   this.deferredPromise = this.deferredPromise || new Promise(resolve => {
+  //     this.resolveDeferredPromise = resolve
+  //   })
+  //   return this.deferredPromise
+  // }
 
   /**
    * pass object's creation parameters to worker for replication
@@ -127,15 +145,32 @@ export class ProcessingTask {
           // throw e
         })
       const stubs = await pendingTask
-      const output = stubs ? this.reconcile(stubs) : null
-      this.result = output
+      const taskRes = stubs ? this.reconcile(stubs) : null
+      this.result = taskRes
       this.processingState =
         this.processingState === ProcessingState.Pending
           ? ProcessingState.Done
           : this.processingState
       // this.pendingTask = null
-      return output // this.reconcile(stubs)
+      this.onTaskProcessed(taskRes)
+      this.resolveDeferredPromise(taskRes)
+      return taskRes // this.reconcile(stubs)
     }
+  }
+
+  deferProcessing(delay = 0, onDeferredStart?: any) {
+    if (!this.scheduled) {
+      this.scheduled = true
+      // promise that will resolve when task processing begin
+      return new Promise(resolve => {
+        setTimeout(() => {
+          this.delegate()
+          onDeferredStart?.()
+          resolve(this)
+        }, delay)
+      })
+    }
+    return null
   }
 
   // cancelPendingTask() {
@@ -177,6 +212,10 @@ export class ProcessingTask {
    */
   process(processingParams: any): any {
     console.log(processingParams)
+  }
+
+  onTaskProcessed(taskRes: any) {
+
   }
 
   // toStub(): any {

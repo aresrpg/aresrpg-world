@@ -1,4 +1,4 @@
-import { Box2, Vector2 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 
 import {
   WorldEnv,
@@ -47,20 +47,21 @@ export type BuildCache = {}
  * requires: ground patch
  * provides: ground block
  */
-const bakeGroundBlock = (pos: Vector2, groundPatch: GroundPatch) => {
-  const groundData = groundPatch?.computeGroundBlock(asVect3(pos))
+const bakeGroundBlock = (pos: Vector3, groundPatch: GroundPatch) => {
+  const groundData = groundPatch?.computeGroundBlock(pos)
   // return groundData
   // }).filter(val => val) as GroundBlockData[]
   // const batchOutput = groundBlocksData.map(groundData => {
-  const { biome, landscapeIndex, level } = groundData as GroundBlockData
-  const landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
+  const { biome, landIndex, level } = groundData as GroundBlockData
+  const landscapeConf = Biome.instance.mappings[biome].nth(landIndex)
   const groundConf = landscapeConf.data
   const blockData: BlockData = {
     level,
     type: groundConf.type,
   }
+  pos.y = level
   const block: Block<BlockData> = {
-    pos: asVect3(pos, blockData.level),
+    pos,
     data: blockData,
   }
   return block
@@ -151,7 +152,7 @@ const bakePeakBlock = (
 // offset from requested pos
 const bakeFloorBlock = (
   groundBlock: Block<BlockData>,
-  requestedBlockLevel: number,
+  initialBlockLevel: number,
 ) => {
   const groundLevel = groundBlock.pos.y
   const groundPos = asVect2(groundBlock.pos)
@@ -161,9 +162,9 @@ const bakeFloorBlock = (
       asVect3(groundPos, level),
       groundLevel + 20,
     )
-  let currentLevel = requestedBlockLevel
+  let currentLevel = initialBlockLevel
   // above ground level
-  if (requestedBlockLevel > groundLevel) {
+  if (currentLevel > groundLevel) {
     currentLevel = groundLevel
   }
   // below ground level
@@ -217,8 +218,8 @@ type BuildArtefacts = {
   undergroundBlocks?: number[]
 }
 
-const getPatchKey = (requestedPos: Vector2) => {
-  const patchId = getPatchId(requestedPos, WorldEnv.current.patchDimensions)
+const getPatchKey = (inputPos: Vector2) => {
+  const patchId = getPatchId(inputPos, WorldEnv.current.patchDimensions)
   const patchKey = serializePatchId(patchId)
   return patchKey
 }
@@ -230,12 +231,13 @@ const getGroundPatch = (patchKey: PatchKey) => {
 }
 
 export class BlockProcessor {
-  requestedPos: Vector2
+  requestedPos: Vector3
   buildStack: BuildArtefacts
 
-  constructor(requestedPos: Vector2, groundPatch?: GroundPatch) {
+  constructor(requestedPos: Vector3, groundPatch?: GroundPatch) {
     this.requestedPos = requestedPos
-    groundPatch = groundPatch || getGroundPatch(getPatchKey(requestedPos))
+    const patchKey = getPatchKey(asVect2(requestedPos))
+    groundPatch = groundPatch || getGroundPatch(patchKey)
     this.buildStack = { groundPatch }
   }
 
@@ -268,7 +270,8 @@ export class BlockProcessor {
 
   getFloorBlock() {
     const groundBlock = this.getGroundBlock()
-    const floorBlock = bakeFloorBlock(groundBlock, groundBlock.data.level + 1)
+    const initialBlockLevel = this.requestedPos.y // groundBlock.data.level + 1
+    const floorBlock = bakeFloorBlock(groundBlock, initialBlockLevel)
     return floorBlock
   }
 
@@ -304,9 +307,9 @@ export class BlockProcessor {
 export class BlocksProcessing extends ProcessingTask {
   buildCache: Record<PatchKey, GroundPatch> = {}
   blocks: any[] = []
-  input: Vector2[] = []
+  input: Vector3[] = []
   output: any[] = []
-  constructor(posBatch: Vector2[]) {
+  constructor(posBatch: Vector3[]) {
     super()
     this.input = posBatch
   }
