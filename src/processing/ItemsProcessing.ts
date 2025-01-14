@@ -1,4 +1,4 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { Box2, Box3, Vector3 } from 'three'
 
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
 import {
@@ -47,10 +47,10 @@ const getPatchBounds = (boundsOrPatchKey: Box2 | PatchKey) => {
 
 // takes
 const adjustHeight = async (itemChunk: ChunkContainer) => {
-  const chunkBottomBlocks: Vector2[] = []
+  const chunkBottomBlocks: Vector3[] = []
   // iter slice blocks
   for (const heightBuff of itemChunk.iterChunkSlice()) {
-    if (heightBuff.data[0]) chunkBottomBlocks.push(heightBuff.pos)
+    if (heightBuff.data[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
   }
   // compute blocks batch to find lowest element
   const blocksBatch = new BlocksProcessing(chunkBottomBlocks)
@@ -71,28 +71,23 @@ export const retrieveOvergroundItems = (patchBounds: Box2) => {
   const groundPatch = new GroundPatch(patchBounds)
   groundPatch.preprocess()
 
+  // take approximative item dimension until item type is known
   const spawnedItems: Record<ItemType, Vector3[]> = {}
   const spawnPlaces = defaultSpawnMap.querySpawnLocations(
     patchBounds,
     asVect2(defaultItemDims),
   )
   for (const pos of spawnPlaces) {
-    const { level, biome, landscapeIndex } = groundPatch.computeGroundBlock(
+    // console.log(pos)
+    const { level, biome, landId } = groundPatch.computeGroundBlock(
       asVect3(pos),
     )
-    const weightedTypes =
-      Biome.instance.mappings[biome]?.nth(landscapeIndex)?.data?.flora
-    if (weightedTypes) {
-      const spawnableTypes: ItemType[] = []
-      Object.entries(weightedTypes).forEach(([itemType, typeWeight]) => {
-        while (typeWeight > 0) {
-          spawnableTypes.push(itemType)
-          typeWeight--
-        }
-      })
+    const { floraItems } =
+      Biome.instance.getBiomeLandConf(biome, landId as string) || {}
+    if (floraItems && floraItems?.length > 0) {
       const itemType = defaultSpawnMap.getSpawnedItem(
         pos,
-        spawnableTypes,
+        floraItems,
       ) as ItemType
       if (itemType) {
         spawnedItems[itemType] = spawnedItems[itemType] || []

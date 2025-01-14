@@ -2,7 +2,7 @@ import { Box2, Vector2, Vector3 } from 'three'
 
 import {
   GroundBlock,
-  LandscapesConf,
+  BiomeLands,
   PatchBlock,
   PatchBoundId,
   PatchKey,
@@ -31,7 +31,8 @@ export type GroundBlockData = {
   // rawVal: number,
   level: number
   biome: BiomeType
-  landscapeIndex: number
+  landIndex: number
+  landId?: string
   flags: number
 }
 
@@ -44,7 +45,7 @@ export type GroundPatchStub = PatchStub & {
 const BitAllocation = {
   level: 9, // level values ranging from 0 to 512
   biome: 4, // 16 biomes
-  landscapeIndex: 5, // 32 landscapes per biome
+  landIndex: 5, // 32 landscapes per biome
   flags: 3, // 8 additional flags
 }
 
@@ -93,30 +94,28 @@ export class GroundPatch
   decodeBlockData(rawData: number) {
     const shift = BitAllocation
     const level =
-      (rawData >> (shift.biome + shift.landscapeIndex + shift.flags)) &
+      (rawData >> (shift.biome + shift.landIndex + shift.flags)) &
       ((1 << shift.level) - 1)
     const biomeNum =
-      (rawData >> (shift.landscapeIndex + shift.flags)) &
-      ((1 << shift.biome) - 1)
+      (rawData >> (shift.landIndex + shift.flags)) & ((1 << shift.biome) - 1)
     const biome = ReverseBiomeNumericType[biomeNum] || BiomeType.Temperate
-    const landscapeIndex =
-      (rawData >> shift.flags) & ((1 << shift.landscapeIndex) - 1)
+    const landIndex = (rawData >> shift.flags) & ((1 << shift.landIndex) - 1)
     const flags = rawData & ((1 << shift.flags) - 1)
     const blockData: GroundBlockData = {
       level,
       biome,
-      landscapeIndex,
+      landIndex,
       flags,
     }
     return blockData
   }
 
   encodeBlockData(groundData: GroundBlockData): number {
-    const { level, biome, landscapeIndex, flags } = groundData
+    const { level, biome, landIndex, flags } = groundData
     const shift = BitAllocation
     let blockRawVal = level
     blockRawVal = (blockRawVal << shift.biome) | BiomeNumericType[biome]
-    blockRawVal = (blockRawVal << shift.landscapeIndex) | landscapeIndex
+    blockRawVal = (blockRawVal << shift.landIndex) | landIndex
     blockRawVal = (blockRawVal << shift.flags) | (flags || BlockMode.REGULAR)
     return blockRawVal
   }
@@ -277,7 +276,7 @@ export class GroundPatch
     const nominalConf = Biome.instance.getBiomeConf(
       rawVal,
       biomeType,
-    ) as LandscapesConf
+    ) as BiomeLands
     // const confIndex = Biome.instance.getConfIndex(currLevelConf.key)
     // const confData = Biome.instance.indexedConf.get(confIndex)
     const level = Heightmap.instance.getGroundLevel(
@@ -320,7 +319,8 @@ export class GroundPatch
     const groundBlockData: GroundBlockData = {
       level,
       biome: biomeType,
-      landscapeIndex: usedConf.index,
+      landIndex: usedConf.index,
+      landId: usedConf.data.key,
       flags,
     }
     return groundBlockData

@@ -152,7 +152,7 @@ export class ProcessingTask {
           ? ProcessingState.Done
           : this.processingState
       // this.pendingTask = null
-      this.onTaskProcessed(taskRes)
+      // this.onTaskProcessed(taskRes)
       this.resolveDeferredPromise(taskRes)
       return taskRes // this.reconcile(stubs)
     }
@@ -214,9 +214,9 @@ export class ProcessingTask {
     console.log(processingParams)
   }
 
-  onTaskProcessed(taskRes: any) {
+  // onTaskProcessed(taskRes: any) {
 
-  }
+  // }
 
   // toStub(): any {
   //   const { stubs } = this

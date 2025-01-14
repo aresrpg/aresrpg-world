@@ -32,19 +32,19 @@ export class GroundChunk extends ChunkContainer {
     const undegroundDepth = 4
     const bedrock = this.dataEncoder(BlockType.BEDROCK)
     const bedrockIce = this.dataEncoder(BlockType.ICE)
-    const { biome, landscapeIndex, flags } = block.data
+    const { biome, landIndex, flags } = block.data
     const blockLocalPos = block.localPos as Vector3
-    const landscapeConf = Biome.instance.mappings[biome].nth(landscapeIndex)
-    const groundConf = landscapeConf.data
+    const biomeLand = Biome.instance.mappings[biome].nth(landIndex)
+    const landConf = biomeLand.data
     const groundFlags = parseGroundFlags(flags)
     const blockType =
-      highlightPatchBorders(blockLocalPos, groundConf.type) || groundConf.type
+      highlightPatchBorders(blockLocalPos, landConf.type) || landConf.type
     const blockMode = groundFlags.boardMode
       ? BlockMode.CHECKERBOARD
       : BlockMode.REGULAR
     const groundSurface = this.dataEncoder(blockType, blockMode)
     const undergroundLayer = this.dataEncoder(
-      groundConf.subtype || BlockType.BEDROCK,
+      landConf.subtype || BlockType.BEDROCK,
     )
     // generate ground buffer
     const buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)

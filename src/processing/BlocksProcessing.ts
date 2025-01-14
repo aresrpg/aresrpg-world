@@ -336,7 +336,7 @@ export class BlocksProcessing extends ProcessingTask {
   override async process(processingParams = defaultProcessingParams) {
     const { recipe } = processingParams
     const pendingBlocks = this.input.map(async pos => {
-      const groundPatch = this.getGroundPatch(pos)
+      const groundPatch = this.getGroundPatch(asVect2(pos))
       const blockProcessor = new BlockProcessor(pos, groundPatch)
       const block = await blockProcessor.bakeRecipe(recipe)
       return block as Block<BlockData>

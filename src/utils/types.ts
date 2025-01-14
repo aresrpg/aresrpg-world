@@ -152,11 +152,11 @@ export type ChunkIndex<T> = Record<ChunkKey, T>
 //   MOUNTAINS_TOP,
 // }
 
-export type LandscapeId = string // landscape id assigned to noise level
-export type BiomeLandscapeKey = string // combination of biomeType and LandscapeId
+export type LandConfigId = string // landscape id assigned to noise level
+export type BiomeLandKey = string // combination of BiomeType and LandId
 
-export type LandscapeFields = {
-  key: BiomeLandscapeKey
+export type LandConfigFields = {
+  key: BiomeLandKey
   x: number // noise value
   y: number // height noise mapping
   type: BlockType // ground surface
@@ -168,7 +168,7 @@ export type LandscapeFields = {
 }
 
 // Biome landscapes mappings
-export type LandscapesRawConf = Record<LandscapeId, Partial<LandscapeFields>>
-export type BiomesRawConf = Record<BiomeType, LandscapesRawConf>
-export type LandscapesConf = LinkedList<LandscapeFields>
-export type BiomesConf = Record<BiomeType, LandscapesConf>
+export type BiomeLandsRawConf = Record<LandConfigId, Partial<LandConfigFields>>
+export type BiomesRawConf = Record<BiomeType, BiomeLandsRawConf>
+export type BiomeLands = LinkedList<LandConfigFields>
+export type BiomesConf = Record<BiomeType, BiomeLands>
