@@ -81,6 +81,7 @@ export class WorldEnv {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) =>
       blockType || BlockType.NONE,
+    dataDecoder: (rawData: number) => rawData || BlockType.NONE,
   }
 
   schematics: {

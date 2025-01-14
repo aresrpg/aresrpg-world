@@ -1,9 +1,9 @@
-import { LandscapeFields, LandscapesConf } from './types'
+import { BiomeLands, LandConfigFields } from './types'
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
 export const MappingRangeSorter = (
-  item1: LandscapeFields,
-  item2: LandscapeFields,
+  item1: LandConfigFields,
+  item2: LandConfigFields,
 ) => item1.x - item2.x
 
 /**
@@ -13,7 +13,7 @@ export const MappingRangeSorter = (
  */
 export const findMatchingRange = (
   inputVal: number,
-  noiseMappings: LandscapesConf,
+  noiseMappings: BiomeLands,
 ) => {
   let match = noiseMappings.first()
   let i = 1

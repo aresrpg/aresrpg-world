@@ -117,6 +117,16 @@ const asPatchBounds = (patchKey: string, patchDims: Vector2) => {
   return bbox
 }
 
+const getScalarId = (scalarValue: number, size: number) => {
+  const scalarId = Math.floor(scalarValue / size)
+  return scalarId
+}
+
+const getUpperScalarId = (scalarValue: number, size: number) => {
+  const scalarId = Math.ceil(scalarValue / size)
+  return scalarId
+}
+
 const getPatchId = (position: Vector2, patchSize: Vector2) => {
   const patchId = position.clone().divide(patchSize).floor()
   return patchId
@@ -191,6 +201,8 @@ export {
   asBox2,
   asBox3,
   parsePatchKey,
+  getScalarId,
+  getUpperScalarId,
   getPatchId,
   patchUpperId,
   serializePatchId,

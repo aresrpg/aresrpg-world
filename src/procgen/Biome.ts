@@ -4,13 +4,21 @@ import { smoothstep } from 'three/src/math/MathUtils'
 
 import { LinkedList } from '../datacontainers/LinkedList'
 import {
-  BiomeLandscapeKey,
+  BiomeLandKey,
   BiomesConf,
   BiomesRawConf,
-  LandscapeFields,
-  LandscapesConf,
+  LandConfigFields,
+  BiomeLands,
 } from '../utils/types'
-import { WorldEnv, WorldUtils } from '../index'
+import { WorldEnv } from '../index'
+import { clamp, roundToDec } from '../utils/math'
+import {
+  findMatchingRange,
+  MappingRangeSorter,
+  typesNumbering,
+} from '../utils/misc'
+import { asVect3 } from '../utils/convert'
+import { ItemType } from '../factory/ItemsFactory'
 
 import { ProcLayer } from './ProcLayer'
 
@@ -86,7 +94,7 @@ export const BiomeNumericType: Record<BiomeType, number> = {
   [BiomeType.Grassland]: 0,
 }
 
-WorldUtils.misc.typesNumbering(BiomeNumericType)
+typesNumbering(BiomeNumericType)
 
 export const ReverseBiomeNumericType: Record<number, BiomeType> = {}
 Object.keys(BiomeNumericType).forEach(
@@ -129,6 +137,29 @@ const BiomesMapping: Record<HeatLevel, Record<RainLevel, BiomeType>> = {
 }
 
 /**
+ * weightedFloraTypes: weighted item types which are supposed to spawn
+ * at given location
+ */
+const expandWeightedFloraTypes = (
+  weightedFloraTypes: Record<ItemType, number>,
+) => {
+  const floraTypes: ItemType[] = []
+  if (weightedFloraTypes) {
+    Object.entries(weightedFloraTypes).forEach(([itemType, typeWeight]) => {
+      while (typeWeight > 0) {
+        floraTypes.push(itemType)
+        typeWeight--
+      }
+    })
+  }
+  return floraTypes
+}
+
+type PreprocessedLandConf = {
+  floraItems: ItemType[]
+}
+
+/**
  * assign block types: water, sand, grass, mud, rock, snow, ..
  */
 export class Biome {
@@ -159,7 +190,7 @@ export class Biome {
     high: 0.7,
   }
 
-  indexedConf = new Map<BiomeLandscapeKey, LandscapesConf>()
+  preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()
 
   constructor() {
     this.heatmap = new ProcLayer('heatmap')
@@ -270,7 +301,7 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-        (biomeContribs[k as BiomeType] = WorldUtils.math.roundToDec(
+        (biomeContribs[k as BiomeType] = roundToDec(
           biomeContribs[k as BiomeType],
           2,
         )),
@@ -282,70 +313,80 @@ export class Biome {
     return biomeContribs
   }
 
-  parseBiomesConfig(biomesRawConf: BiomesRawConf) {
-    // Object.entries(biomeConfigs).forEach(([biomeType, biomeConf]) => {
-    // complete missing data
-    for (const [biomeType, biomeConf] of Object.entries(biomesRawConf)) {
-      // for (const [landId, landConf] of Object.entries(biomeConf)) {
-      //   landConf.key = biomeType + '_' + landId
-      // }
+  preprocessLandConfig(
+    biomeType: BiomeType,
+    biomeConfig: LinkedList<LandConfigFields>,
+  ) {
+    const configs = biomeConfig.first().forwardIter()
+    for (const conf of configs) {
+      const landConf = conf.data
+      const confKey = biomeType + '_' + landConf.key
+      // console.log(confKey)
+      const floraItems = landConf.flora
+        ? expandWeightedFloraTypes(landConf.flora)
+        : []
+      this.preprocessed.set(confKey, {
+        floraItems,
+      })
+      // this.indexedConf.set(conf.data.key, conf)
+    }
+  }
 
-      const configItems = Object.values(biomeConf) as LandscapeFields[]
+  parseBiomesConfig(biomesRawConf: BiomesRawConf) {
+    // complete missing data
+    for (const [biomeType, biomeLands] of Object.entries(biomesRawConf)) {
+      for (const [landId, landConf] of Object.entries(biomeLands)) {
+        landConf.key = landId
+      }
+      const configItems = Object.values(biomeLands) as LandConfigFields[]
       const mappingRanges = LinkedList.fromArrayAfterSorting(
         configItems,
-        WorldUtils.misc.MappingRangeSorter,
+        MappingRangeSorter,
       )
       this.mappings[biomeType as BiomeType] = mappingRanges
-      // index configs
-      // const confIter = mappingRanges.first().forwardIter()
-      // for (const conf of confIter) {
-      //   this.indexedConf.set(conf.data.key, conf)
-      // }
+      this.preprocessLandConfig(biomeType as BiomeType, mappingRanges)
     }
-    // })
   }
 
   landscapeTransition = (
     groundPos: Vector2,
     baseHeight: number,
-    landscapeConf: LandscapesConf,
+    biomeLands: BiomeLands,
   ) => {
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)
-    const posRandomizerVal = this.posRandomizer.eval(
-      WorldUtils.convert.asVect3(mapCoords),
-    )
+    const posRandomizerVal = this.posRandomizer.eval(asVect3(mapCoords))
     // add some height variations to break painting monotony
-    const { amplitude }: any = landscapeConf.data
+    const { amplitude }: any = biomeLands.data
     const bounds = {
-      lower: landscapeConf.data.x,
-      upper: landscapeConf.next?.data.x || 1,
+      lower: biomeLands.data.x,
+      upper: biomeLands.next?.data.x || 1,
     }
     let blockType
     // randomize on lower side
     if (
-      landscapeConf.prev &&
+      biomeLands.prev &&
       baseHeight - bounds.lower <= bounds.upper - baseHeight &&
       baseHeight - amplitude.low < bounds.lower
     ) {
       const heightVariation = posRandomizerVal * amplitude.low
       const varyingHeight = baseHeight - heightVariation
       blockType =
-        varyingHeight < landscapeConf.data.x
-          ? landscapeConf.prev?.data.type
-          : landscapeConf.data.type
+        varyingHeight < biomeLands.data.x
+          ? biomeLands.prev?.data.type
+          : biomeLands.data.type
     }
     // randomize on upper side
-    else if (landscapeConf.next && baseHeight + amplitude.high > bounds.upper) {
+    else if (biomeLands.next && baseHeight + amplitude.high > bounds.upper) {
       //   let heightVariation =
       //   Utils.clamp(this.paintingRandomness.eval(groundPos), 0.5, 1) * randomness.high
       // heightVariation = heightVariation > 0 ? (heightVariation - 0.5) * 2 : 0
       const heightVariation = posRandomizerVal * amplitude.high
       const varyingHeight = baseHeight + heightVariation
       blockType =
-        varyingHeight > landscapeConf.next.data.x
-          ? landscapeConf.next.data.type
-          : landscapeConf.data.type
+        varyingHeight > biomeLands.next.data.x
+          ? biomeLands.next.data.type
+          : biomeLands.data.type
     }
     return blockType
   }
@@ -357,12 +398,9 @@ export class Biome {
   ) => {
     const { seaLevel } = WorldEnv.current.biomes
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
-    rawVal = WorldUtils.math.clamp(rawVal, 0, 1)
+    rawVal = clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]
-    const confId = WorldUtils.misc.findMatchingRange(
-      rawVal as number,
-      firstItem,
-    )
+    const confId = findMatchingRange(rawVal as number, firstItem)
     const current = firstItem.nth(confId)
     const upper = current?.next || current
     const min = new Vector2(current.data.x, current.data.y)
@@ -385,12 +423,15 @@ export class Biome {
     return blockLevel
   }
 
+  getBiomeLandConf = (biomeType: BiomeType, landId: string) => {
+    const confKey = biomeType + '_' + landId
+    const biomeConf = this.preprocessed.get(confKey)
+    return biomeConf
+  }
+
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
     const firstItem = this.mappings[biomeType]
-    const confId = WorldUtils.misc.findMatchingRange(
-      rawVal as number,
-      firstItem,
-    )
+    const confId = findMatchingRange(rawVal as number, firstItem)
     let currentItem = firstItem.nth(confId)
     while (!currentItem?.data.type && currentItem?.prev) {
       currentItem = currentItem.prev

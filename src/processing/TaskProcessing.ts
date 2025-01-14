@@ -1,16 +1,21 @@
 import workerpool from 'workerpool'
 
-import { WorldEnv, WorldUtils } from '../index'
+import { WorldEnv } from '../index'
+import { parseThreeStub } from '../utils/convert'
 
 const toStubs = (res: any) =>
-  res instanceof Array ? res.map(item => item.toStub()) : res.toStub?.() || res
+  res instanceof Array
+    ? res.map(item => item.toStub?.() || item)
+    : res.toStub?.() || res
 
 const parseArgs = (...rawArgs: any) => {
-  // const args = rawArgs.map((arg: any) =>
-  const args =
-    rawArgs instanceof Array
-      ? rawArgs.map(arg => WorldUtils.convert.parseThreeStub(arg))
-      : WorldUtils.convert.parseThreeStub(rawArgs)
+  const args = rawArgs.map((rawArg: any) => {
+    const arg =
+      rawArg instanceof Array
+        ? rawArg.map(item => parseThreeStub(item))
+        : parseThreeStub(rawArg)
+    return arg
+  })
   return args
 }
 
@@ -33,9 +38,14 @@ type ProcessingTasksIndex = Record<string, new (...args: any) => ProcessingTask>
  */
 export class ProcessingTask {
   static registeredObjects: ProcessingTasksIndex = {}
-
   static workerPool: any
   processingState: ProcessingState = ProcessingState.Waiting
+  processingParams: any = {}
+  result: any
+  deferredPromise
+  resolveDeferredPromise: any
+  scheduled = false
+
   // pendingTask: any
 
   // static instances: ProcessingTask[] = []
@@ -91,6 +101,13 @@ export class ProcessingTask {
     }
   }
 
+  constructor() {
+    const deferredPromise = new Promise(resolve => {
+      this.resolveDeferredPromise = resolve
+    })
+    this.deferredPromise = deferredPromise
+  }
+
   get awaitingProcessing() {
     return (
       this.processingState !== ProcessingState.Done &&
@@ -98,13 +115,20 @@ export class ProcessingTask {
     )
   }
 
+  // getDeferredPromise = () => {
+  //   this.deferredPromise = this.deferredPromise || new Promise(resolve => {
+  //     this.resolveDeferredPromise = resolve
+  //   })
+  //   return this.deferredPromise
+  // }
+
   /**
    * pass object's creation parameters to worker for replication
    * @param processingParams
    * @param processingUnit
    */
   async delegate(
-    processingParams = {},
+    processingParams = this.processingParams,
     processingUnit = ProcessingTask.workerPool,
   ) {
     if (this.processingState === ProcessingState.Done) return undefined
@@ -121,14 +145,32 @@ export class ProcessingTask {
           // throw e
         })
       const stubs = await pendingTask
-      const output = stubs ? this.reconcile(stubs) : null
+      const taskRes = stubs ? this.reconcile(stubs) : null
+      this.result = taskRes
       this.processingState =
         this.processingState === ProcessingState.Pending
           ? ProcessingState.Done
           : this.processingState
       // this.pendingTask = null
-      return output // this.reconcile(stubs)
+      // this.onTaskProcessed(taskRes)
+      this.resolveDeferredPromise(taskRes)
+      return taskRes // this.reconcile(stubs)
     }
+  }
+
+  deferProcessing(delay = 0, onDeferredStart?: any) {
+    if (!this.scheduled) {
+      this.scheduled = true
+      // promise that will resolve when task processing begin
+      return new Promise(resolve => {
+        setTimeout(() => {
+          this.delegate()
+          onDeferredStart?.()
+          resolve(this)
+        }, delay)
+      })
+    }
+    return null
   }
 
   // cancelPendingTask() {
@@ -171,6 +213,10 @@ export class ProcessingTask {
   process(processingParams: any): any {
     console.log(processingParams)
   }
+
+  // onTaskProcessed(taskRes: any) {
+
+  // }
 
   // toStub(): any {
   //   const { stubs } = this

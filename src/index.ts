@@ -4,10 +4,14 @@ export { BlockMode } from './utils/types'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing'
 export { BatchProcess } from './processing/BatchProcessing'
-export { BlocksBatch } from './processing/BlocksBatch'
-export { BoardContainer, BlockCategory } from './processing/BoardProcessing'
 export {
-  ChunksBatch,
+  BlocksProcessing,
+  BlocksProcessingRecipe,
+  BlockProcessor,
+} from './processing/BlocksProcessing'
+export { BoardProcessor, BlockCategory } from './processing/BoardProcessing'
+export {
+  ViewChunksBatch,
   LowerChunksBatch,
   UpperChunksBatch,
 } from './processing/ChunksBatch'
@@ -15,13 +19,13 @@ export {
   PseudoDistributionMap,
   DistributionProfile,
 } from './processing/RandomDistributionMap'
-export { ChunkSet } from './processing/ChunksProcessing'
+export { ChunksProcessor } from './processing/ChunksProcessing'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'
 export { DensityVolume } from './procgen/DensityVolume'
 // Data structures
-export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
+// export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
 export { ChunkContainer } from './datacontainers/ChunkContainer'
 // Factory
 export { ItemsInventory } from './factory/ItemsFactory'
