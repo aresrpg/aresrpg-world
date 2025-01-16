@@ -1,13 +1,13 @@
-// import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index'
-import { WorldEnv } from '../../../index'
+// import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index.js'
+import { WorldEnv } from '../../../index.js'
 
-import { BIOMES_LANDSCAPES_CONFIG } from './biome_landscapes'
-import { PROC_ITEMS_CONFIG } from './procedural_items'
+import { BIOMES_LANDSCAPES_CONFIG } from './biome_landscapes.js'
+import { PROC_ITEMS_CONFIG } from './procedural_items.js'
 import {
   BLOCKS_COLOR_MAPPING,
   // ExtBlock,
   SCHEMATICS_BLOCKS_MAPPING,
-} from './blocks_mappings'
+} from './blocks_mappings.js'
 
 /**
  * @param worldEnv provide it to setup worker's own env or it will default to main thread env
