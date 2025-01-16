@@ -2,8 +2,9 @@
   "name": "@aresrpg/aresrpg-world",
   "version": "1.7.3",
   "description": "Procedural voxel terrain generation for AresRPG",
+  "type": "module",
   "source": "src/index.ts",
-  "main": "dist/index.mjs",
+  "main": "dist/index.js",
   "types": "dist/types.d.ts",
   "scripts": {
     "watch": "tsc --watch",
