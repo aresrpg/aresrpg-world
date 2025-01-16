@@ -11,19 +11,19 @@ import {
   getUpperScalarId,
   parsePatchKey,
   serializePatchId,
-} from '../utils/convert'
-import { WorldEnv, ChunkContainer, BlockType, WorkerPool } from '../index'
-import { ProcLayer } from '../procgen/ProcLayer'
-import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/types'
+} from '../utils/convert.js'
+import { WorldEnv, ChunkContainer, BlockType, WorkerPool } from '../index.js'
+import { ProcLayer } from '../procgen/ProcLayer.js'
+import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/types.js'
 import {
   DataContainer,
   PatchBase,
   PatchElement,
-} from '../datacontainers/PatchBase'
-import { copySourceToTargetPatch } from '../utils/data'
+} from '../datacontainers/PatchBase.js'
+import { copySourceToTargetPatch } from '../utils/data.js'
 
-import { ChunksProcessing } from './ChunksProcessing'
-import { ItemsProcessing } from './ItemsProcessing'
+import { ChunksProcessing } from './ChunksProcessing.js'
+import { ItemsProcessing } from './ItemsProcessing.js'
 
 export enum BlockCategory {
   EMPTY = 0,
