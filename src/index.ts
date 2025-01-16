@@ -1,5 +1,6 @@
 // Utils
-export * as WorldUtils from './utils/index'
+// export * as WorldUtils from './utils/index'
+export { getPatchId, asVect2, asVect3 } from './utils/convert' 
 export { BlockMode } from './utils/types'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing'
@@ -20,6 +21,7 @@ export {
   DistributionProfile,
 } from './processing/RandomDistributionMap'
 export { ChunksProcessor } from './processing/ChunksProcessing'
+export { ProcessingState } from './processing/TaskProcessing'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'
@@ -40,4 +42,5 @@ export {
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
 // Config
 export { WorldEnv } from './config/WorldEnv'
-export * as WorldDevSetup from './config/demo-samples/configs/world_dev_setup'
+// export * as WorldDevSetup from './config/demo-samples/configs/world_dev_setup'
+export { EnvOverride, BlocksColorOverride } from './config/demo-samples/configs/world_dev_setup'

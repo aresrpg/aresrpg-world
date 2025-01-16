@@ -136,5 +136,5 @@ export const vectRoundToDec = (input: Vector2 | Vector3, n_pow: number) => {
 }
 
 // Clamp number between two values:
-export const clamp = (num: number, min: number, max: number) =>
-  Math.min(Math.max(num, min), max)
+export const clamp = (val: number, min: number, max: number) =>
+  Math.min(Math.max(val, min), max)

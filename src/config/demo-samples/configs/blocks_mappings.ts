@@ -1,4 +1,5 @@
-import { BlockType, WorldUtils } from '../../../index'
+import { BlockType } from '../../../index'
+import { typesNumbering } from '../../../utils/misc'
 
 /**
  * Extending world reserved blocks
@@ -17,7 +18,7 @@ export const ExtBlock = {
 }
 
 // assing an enum id to each additional type
-WorldUtils.misc.typesNumbering(ExtBlock, BlockType.LAST_PLACEHOLDER)
+typesNumbering(ExtBlock, BlockType.LAST_PLACEHOLDER)
 
 /**
  * Blocks color mapping

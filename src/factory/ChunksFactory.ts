@@ -1,4 +1,5 @@
-import { MathUtils, Vector3 } from 'three'
+// import { MathUtils, Vector3 } from 'three'
+import { Vector3 } from 'three'
 
 import { WorldEnv } from '../config/WorldEnv'
 import { asVect2, serializePatchId, asBox2 } from '../utils/convert'
@@ -10,6 +11,7 @@ import {
 } from '../datacontainers/ChunkContainer'
 import { BlockType, Biome, BiomeType, DensityVolume } from '../index'
 import { GroundPatch, parseGroundFlags } from '../processing/GroundPatch'
+import { clamp } from '../utils/math'
 
 export class EmptyChunk extends ChunkContainer {
   constructor(chunkKey: ChunkKey) {
@@ -47,7 +49,7 @@ export class GroundChunk extends ChunkContainer {
       landConf.subtype || BlockType.BEDROCK,
     )
     // generate ground buffer
-    const buffSize = MathUtils.clamp(block.data.level - ymin, 0, ymax - ymin)
+    const buffSize = clamp(block.data.level - ymin, 0, ymax - ymin)
     if (buffSize > 0) {
       const groundBuffer = new Uint16Array(block.data.level - ymin)
       // fill with bedrock first
