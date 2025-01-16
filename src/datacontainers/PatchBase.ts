@@ -1,13 +1,13 @@
 import { Vector2, Box2, Vector3 } from 'three'
 
-import { PatchKey } from '../utils/types'
+import { PatchKey } from '../utils/types.js'
 import {
   parsePatchKey,
   asPatchBounds,
   asVect2,
   parseThreeStub,
-} from '../utils/convert'
-import { WorldEnv } from '../index'
+} from '../utils/convert.js'
+import { WorldEnv } from '../index.js'
 
 // export class PatchChunkCommon<T> {
 

@@ -1,13 +1,13 @@
 import { Vector2, Vector3 } from 'three'
 
-import { ItemType } from '../factory/ItemsFactory'
-import { BlockType } from '../procgen/Biome'
-import { ProcItemConf } from '../tools/ProceduralGenerators'
-import { SchematicsBlocksMapping } from '../tools/SchematicLoader'
-import { BiomesRawConf, BlockMode } from '../utils/types'
+import { ItemType } from '../factory/ItemsFactory.js'
+import { BlockType } from '../procgen/Biome.js'
+import { ProcItemConf } from '../tools/ProceduralGenerators.js'
+import { SchematicsBlocksMapping } from '../tools/SchematicLoader.js'
+import { BiomesRawConf, BlockMode } from '../utils/types.js'
 
-// import { NoiseSamplerParams } from '../procgen/NoiseSampler'
-// import { ProcLayerParams } from '../procgen/ProcLayer'
+// import { NoiseSamplerParams } from '../procgen/NoiseSampler.js'
+// import { ProcLayerParams } from '../procgen/ProcLayer.js'
 
 export class WorldEnv {
   // eslint-disable-next-line no-use-before-define
