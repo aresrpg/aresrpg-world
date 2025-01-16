@@ -1,23 +1,23 @@
 import { Vector2 } from 'three'
 
-import { WorldEnv } from '../config/WorldEnv'
+import { WorldEnv } from '../config/WorldEnv.js'
 import {
   parsePatchKey,
   asVect3,
   serializeChunkId,
   asPatchBounds,
-} from '../utils/convert'
-import { ChunkIndex, PatchId, PatchKey } from '../utils/types'
+} from '../utils/convert.js'
+import { ChunkIndex, PatchId, PatchKey } from '../utils/types.js'
 import {
   ChunkContainer,
   ChunkStub,
   defaultDataEncoder,
-} from '../datacontainers/ChunkContainer'
-import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory'
+} from '../datacontainers/ChunkContainer.js'
+import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory.js'
 
-import { GroundPatch } from './GroundPatch'
-import { ProcessingState, ProcessingTask } from './TaskProcessing'
-import { ItemsBaker } from './ItemsProcessing'
+import { GroundPatch } from './GroundPatch.js'
+import { ProcessingState, ProcessingTask } from './TaskProcessing.js'
+import { ItemsBaker } from './ItemsProcessing.js'
 const chunksRange = WorldEnv.current.chunks.range
 const { patchDimensions: patchDims } = WorldEnv.current
 

@@ -1,15 +1,15 @@
 import { Box2, Vector2 } from 'three'
 
-import { serializePatchId } from '../utils/convert'
-import { PatchKey } from '../utils/types'
+import { serializePatchId } from '../utils/convert.js'
+import { PatchKey } from '../utils/types.js'
 
-import { BatchProcess } from './BatchProcessing'
+import { BatchProcess } from './BatchProcessing.js'
 import {
   ChunksProcessor,
   lowerChunksProcessingParams,
   upperChunksProcessingParams,
-} from './ChunksProcessing'
-import { ProcessingState } from './TaskProcessing'
+} from './ChunksProcessing.js'
+import { ProcessingState } from './TaskProcessing.js'
 
 // const { patchSize, patchDimensions } = WorldEnv.current
 
