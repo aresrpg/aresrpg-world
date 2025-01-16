@@ -1,6 +1,6 @@
 // Utils
 // export * as WorldUtils from './utils/index'
-export { getPatchId, asVect2, asVect3 } from './utils/convert' 
+export { getPatchId, asVect2, asVect3 } from './utils/convert'
 export { BlockMode } from './utils/types'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing'
@@ -43,4 +43,7 @@ export {
 // Config
 export { WorldEnv } from './config/WorldEnv'
 // export * as WorldDevSetup from './config/demo-samples/configs/world_dev_setup'
-export { EnvOverride, BlocksColorOverride } from './config/demo-samples/configs/world_dev_setup'
+export {
+  EnvOverride,
+  BlocksColorOverride,
+} from './config/demo-samples/configs/world_dev_setup'
