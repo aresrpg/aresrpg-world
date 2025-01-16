@@ -1,4 +1,5 @@
 import { Vector2, Vector3 } from 'three'
+
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 // import {  smoothstep as smoothStep } from 'three/src/math/MathUtils'
 import { LinkedList } from '../datacontainers/LinkedList'
@@ -10,7 +11,7 @@ import {
   BiomeLands,
 } from '../utils/types'
 import { WorldEnv } from '../index'
-import {clamp, roundToDec, smoothStep } from '../utils/math'
+import { clamp, roundToDec, smoothStep } from '../utils/math'
 import {
   findMatchingRange,
   MappingRangeSorter,
@@ -300,10 +301,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-      (biomeContribs[k as BiomeType] = roundToDec(
-        biomeContribs[k as BiomeType],
-        2,
-      )),
+        (biomeContribs[k as BiomeType] = roundToDec(
+          biomeContribs[k as BiomeType],
+          2,
+        )),
     )
 
     // biomeContribs[BiomeType.Arctic] = 1
