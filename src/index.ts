@@ -1,6 +1,6 @@
 // Config
-export { getWorldEnv } from './config/WorldEnv'
-export { getWorldDemoEnvSettings } from './config/demo/world_demo_setup'
+export { getWorldEnv } from './config/WorldEnv.js'
+export { getWorldDemoEnvSettings } from './config/demo/world_demo_setup.js'
 // Utils
 // export * as WorldUtils from './utils/index'
 export {
@@ -9,41 +9,41 @@ export {
   asVect3,
   parseChunkKey,
   parseThreeStub,
-} from './utils/patch_chunk'
-export { chunkStubFromCompressedBlob } from './utils/chunk_utils'
-export { BlockMode } from './utils/common_types'
+} from './utils/patch_chunk.js'
+export { chunkStubFromCompressedBlob } from './utils/chunk_utils.js'
+export { BlockMode } from './utils/common_types.js'
 // Processing
-export { ProcessingTask } from './processing/TaskProcessing'
+export { ProcessingTask } from './processing/TaskProcessing.js'
 export {
   BlocksProcessing,
   BlocksProcessingRecipe,
-} from './processing/BlocksProcessing'
-export { BoardProvider, BlockCategory } from './processing/BoardProvider'
+} from './processing/BlocksProcessing.js'
+export { BoardProvider, BlockCategory } from './processing/BoardProvider.js'
 // export { ChunksScheduler } from './processing/ChunksScheduling'
-export { ChunksPolling } from './processing/ChunksPolling'
+export { ChunksPolling } from './processing/ChunksPolling.js'
 export {
   PseudoDistributionMap,
   DistributionProfile,
-} from './processing/RandomDistributionMap'
-export { ProcessingState } from './processing/TaskProcessing'
-export { WorkerPool } from './processing/WorkerPool'
+} from './processing/RandomDistributionMap.js'
+export { ProcessingState } from './processing/TaskProcessing.js'
+export { WorkerPool } from './processing/WorkerPool.js'
 // Procgen
-export { Biome, BiomeType, BlockType } from './procgen/Biome'
-export { Heightmap } from './procgen/Heightmap'
-export { DensityVolume } from './procgen/DensityVolume'
+export { Biome, BiomeType, BlockType } from './procgen/Biome.js'
+export { Heightmap } from './procgen/Heightmap.js'
+export { DensityVolume } from './procgen/DensityVolume.js'
 // Data structures
 // export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
-export { ChunkContainer } from './datacontainers/ChunkContainer'
+export { ChunkContainer } from './datacontainers/ChunkContainer.js'
 // Factory
-export { ItemsInventory } from './factory/ItemsFactory'
-export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory'
+export { ItemsInventory } from './factory/ItemsFactory.js'
+export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory.js'
 // Tools
-export { SchematicLoader } from './tools/SchematicLoader'
+export { SchematicLoader } from './tools/SchematicLoader.js'
 export {
   ProceduralItemGenerator,
   ProcItemType,
   ProcItemCategory,
-} from './tools/ProceduralGenerators'
+} from './tools/ProceduralGenerators.js'
 // Services
-export { chunksWsClient } from './remote-services/chunks_over_ws_client'
+export { chunksWsClient } from './remote-services/chunks_over_ws_client.js'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'

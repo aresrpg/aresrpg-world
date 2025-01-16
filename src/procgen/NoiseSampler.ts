@@ -2,8 +2,8 @@ import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import alea from 'alea'
 import { Vector2, Vector3 } from 'three'
 
-import { clamp } from '../utils/math_utils'
-import { worldEnv } from '../config/WorldEnv'
+import { clamp } from '../utils/math_utils.js'
+import { worldEnv } from '../config/WorldEnv.js'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
