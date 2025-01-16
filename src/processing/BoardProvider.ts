@@ -11,20 +11,20 @@ import {
   getUpperScalarId,
   parsePatchKey,
   serializePatchId,
-} from '../utils/patch_chunk'
-import { ChunkContainer, BlockType, WorkerPool } from '../index'
-import { ChunkId, PatchId, PatchKey } from '../utils/common_types'
+} from '../utils/patch_chunk.js'
+import { ChunkContainer, BlockType, WorkerPool } from '../index.js'
+import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
 import {
   DataContainer,
   PatchBase,
   PatchElement,
-} from '../datacontainers/PatchBase'
-import { copySourceToTargetPatch } from '../utils/data_operations'
-import { ChunkStub } from '../datacontainers/ChunkContainer'
-import { worldEnv } from '../config/WorldEnv'
+} from '../datacontainers/PatchBase.js'
+import { copySourceToTargetPatch } from '../utils/data_operations.js'
+import { ChunkStub } from '../datacontainers/ChunkContainer.js'
+import { worldEnv } from '../config/WorldEnv.js'
 
-import { ChunksProcessing } from './ChunksProcessing'
-import { ItemsProcessing } from './ItemsProcessing'
+import { ChunksProcessing } from './ChunksProcessing.js'
+import { ItemsProcessing } from './ItemsProcessing.js'
 
 export enum BlockCategory {
   EMPTY = 0,

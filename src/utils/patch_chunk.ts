@@ -1,6 +1,6 @@
 import { Box2, Box3, Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 
-import { ChunkKey, PatchId, PatchKey } from './common_types'
+import { ChunkKey, PatchId, PatchKey } from './common_types.js'
 
 const asVect2 = (v3: Vector3) => {
   return new Vector2(v3.x, v3.z)

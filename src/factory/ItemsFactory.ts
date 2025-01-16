@@ -1,10 +1,10 @@
 import { Box3, Vector3 } from 'three'
 
-import { worldEnv } from '../config/WorldEnv'
-import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
-import { SchematicLoader } from '../tools/SchematicLoader'
-import { ItemType } from '../utils/common_types'
+import { worldEnv } from '../config/WorldEnv.js'
+import { ChunkContainer } from '../datacontainers/ChunkContainer.js'
+import { ProceduralItemGenerator } from '../tools/ProceduralGenerators.js'
+import { SchematicLoader } from '../tools/SchematicLoader.js'
+import { ItemType } from '../utils/common_types.js'
 // import { asVect2 } from '../utils/patch_chunk'
 
 /**

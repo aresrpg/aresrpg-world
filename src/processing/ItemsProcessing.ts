@@ -1,6 +1,6 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
 
-import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
+import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import {
   Biome,
   BlocksProcessing,
@@ -8,25 +8,25 @@ import {
   DistributionProfile,
   ProcessingTask,
   PseudoDistributionMap,
-} from '../index'
-import { DistributionParams } from '../procgen/BlueNoisePattern'
-import { asPatchBounds, asVect2, asVect3 } from '../utils/patch_chunk'
+} from '../index.js'
+import { DistributionParams } from '../procgen/BlueNoisePattern.js'
+import { asPatchBounds, asVect2, asVect3 } from '../utils/patch_chunk.js'
 import {
   ItemType,
   PatchKey,
   SpawnedItems,
   VoidItemType,
-} from '../utils/common_types'
-import { ItemsInventory } from '../factory/ItemsFactory'
-import { worldEnv } from '../config/WorldEnv'
+} from '../utils/common_types.js'
+import { ItemsInventory } from '../factory/ItemsFactory.js'
+import { worldEnv } from '../config/WorldEnv.js'
 
-import { GroundPatch } from './GroundPatch'
-import { DistributionProfiles } from './RandomDistributionMap'
+import { GroundPatch } from './GroundPatch.js'
+import { DistributionProfiles } from './RandomDistributionMap.js'
 import {
   GenericTask,
   ProcessingTaskHandler,
   ProcessingTaskStub,
-} from './TaskProcessing'
+} from './TaskProcessing.js'
 
 /**
  * Calling side
