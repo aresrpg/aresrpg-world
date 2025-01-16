@@ -1,26 +1,25 @@
 import { Vector2, Vector3 } from 'three'
-// import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
-import { smoothstep } from 'three/src/math/MathUtils'
+import { smoothstep } from 'three/src/math/MathUtils.js'
 
-import { LinkedList } from '../datacontainers/LinkedList'
+import { LinkedList } from '../datacontainers/LinkedList.js'
 import {
   BiomeLandKey,
   BiomesConf,
   BiomesRawConf,
   LandConfigFields,
   BiomeLands,
-} from '../utils/types'
-import { WorldEnv } from '../index'
-import { clamp, roundToDec } from '../utils/math'
+} from '../utils/types.js'
+import { WorldEnv } from '../index.js'
+import { clamp, roundToDec } from '../utils/math.js'
 import {
   findMatchingRange,
   MappingRangeSorter,
   typesNumbering,
-} from '../utils/misc'
-import { asVect3 } from '../utils/convert'
-import { ItemType } from '../factory/ItemsFactory'
+} from '../utils/misc.js'
+import { asVect3 } from '../utils/convert.js'
+import { ItemType } from '../factory/ItemsFactory.js'
 
-import { ProcLayer } from './ProcLayer'
+import { ProcLayer } from './ProcLayer.js'
 
 // reserved native block types
 export enum BlockType {

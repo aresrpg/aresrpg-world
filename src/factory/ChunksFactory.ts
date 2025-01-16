@@ -1,15 +1,15 @@
 import { MathUtils, Vector3 } from 'three'
 
-import { WorldEnv } from '../config/WorldEnv'
-import { asVect2, serializePatchId, asBox2 } from '../utils/convert'
-import { BlockMode, ChunkKey, PatchBlock } from '../utils/types'
+import { WorldEnv } from '../config/WorldEnv.js'
+import { asVect2, serializePatchId, asBox2 } from '../utils/convert.js'
+import { BlockMode, ChunkKey, PatchBlock } from '../utils/types.js'
 import {
   ChunkBuffer,
   ChunkContainer,
   ChunkMask,
-} from '../datacontainers/ChunkContainer'
-import { BlockType, Biome, BiomeType, DensityVolume } from '../index'
-import { GroundPatch, parseGroundFlags } from '../processing/GroundPatch'
+} from '../datacontainers/ChunkContainer.js'
+import { BlockType, Biome, BiomeType, DensityVolume } from '../index.js'
+import { GroundPatch, parseGroundFlags } from '../processing/GroundPatch.js'
 
 export class EmptyChunk extends ChunkContainer {
   constructor(chunkKey: ChunkKey) {

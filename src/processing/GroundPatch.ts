@@ -6,9 +6,9 @@ import {
   PatchBlock,
   PatchBoundId,
   PatchKey,
-} from '../utils/types'
-import { asVect3, asVect2 } from '../utils/convert'
-import { BlockMode, Heightmap, WorldEnv } from '../index'
+} from '../utils/types.js'
+import { asVect3, asVect2 } from '../utils/convert.js'
+import { BlockMode, Heightmap, WorldEnv } from '../index.js'
 import {
   Biome,
   BiomeInfluence,
@@ -16,14 +16,14 @@ import {
   BiomeType,
   BlockType,
   ReverseBiomeNumericType,
-} from '../procgen/Biome'
+} from '../procgen/Biome.js'
 import {
   PatchBase,
   PatchDataContainer,
   PatchStub,
-} from '../datacontainers/PatchBase'
-import { getPatchBoundingPoints } from '../utils/spatial'
-import { bilinearInterpolation } from '../utils/math'
+} from '../datacontainers/PatchBase.js'
+import { getPatchBoundingPoints } from '../utils/spatial.js'
+import { bilinearInterpolation } from '../utils/math.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 

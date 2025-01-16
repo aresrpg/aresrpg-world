@@ -1,7 +1,7 @@
 import workerpool from 'workerpool'
 
-import { WorldEnv } from '../index'
-import { parseThreeStub } from '../utils/convert'
+import { WorldEnv } from '../index.js'
+import { parseThreeStub } from '../utils/convert.js'
 
 const toStubs = (res: any) =>
   res instanceof Array
