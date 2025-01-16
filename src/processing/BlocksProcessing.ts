@@ -6,18 +6,18 @@ import {
   ProcessingTask,
   ChunkContainer,
   DensityVolume,
-} from '../index'
+} from '../index.js'
 import {
   serializePatchId,
   getPatchId,
   asVect3,
   asVect2,
   parseThreeStub,
-} from '../utils/convert'
-import { PatchKey, GroundBlock, Block, BlockData } from '../utils/types'
+} from '../utils/convert.js'
+import { PatchKey, GroundBlock, Block, BlockData } from '../utils/types.js'
 
-import { GroundBlockData, GroundPatch } from './GroundPatch'
-import { ItemsBaker } from './ItemsProcessing'
+import { GroundBlockData, GroundPatch } from './GroundPatch.js'
+import { ItemsBaker } from './ItemsProcessing.js'
 
 export type BlocksBatchArgs = {
   posBatch: Vector2[]
