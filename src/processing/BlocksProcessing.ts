@@ -6,24 +6,24 @@ import {
   ProcessingTask,
   DensityVolume,
   BlockType,
-} from '../index'
+} from '../index.js'
 import {
   serializePatchId,
   getPatchId,
   asVect3,
   asVect2,
   // parseThreeStub,
-} from '../utils/patch_chunk'
-import { PatchKey, Block, BlockData } from '../utils/common_types'
+} from '../utils/patch_chunk.js'
+import { PatchKey, Block, BlockData } from '../utils/common_types.js'
 
-import { GroundBlockData, GroundPatch } from './GroundPatch'
-import { ItemsProcessing } from './ItemsProcessing'
+import { GroundBlockData, GroundPatch } from './GroundPatch.js'
+import { ItemsProcessing } from './ItemsProcessing.js'
 import {
   parseTaskInputStubs,
   ProcessingContext,
   ProcessingTaskHandler,
   ProcessingTaskStub,
-} from './TaskProcessing'
+} from './TaskProcessing.js'
 
 /**
  * Calling side
