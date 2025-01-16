@@ -7,9 +7,9 @@ import {
   PatchBoundId,
   PatchKey,
   PatchId,
-} from '../utils/common_types'
-import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk'
-import { BlockMode, Heightmap } from '../index'
+} from '../utils/common_types.js'
+import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk.js'
+import { BlockMode, Heightmap } from '../index.js'
 import {
   Biome,
   BiomeInfluence,
@@ -17,18 +17,18 @@ import {
   BiomeType,
   BlockType,
   ReverseBiomeNumericType,
-} from '../procgen/Biome'
+} from '../procgen/Biome.js'
 import {
   PatchBase,
   PatchDataContainer,
   PatchStub,
-} from '../datacontainers/PatchBase'
+} from '../datacontainers/PatchBase.js'
 import {
   getPatchNeighbours,
   getPatchBoundingPoints,
-} from '../utils/spatial_utils'
-import { bilinearInterpolation } from '../utils/math_utils'
-import { copySourceToTargetPatch } from '../utils/data_operations'
+} from '../utils/spatial_utils.js'
+import { bilinearInterpolation } from '../utils/math_utils.js'
+import { copySourceToTargetPatch } from '../utils/data_operations.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 

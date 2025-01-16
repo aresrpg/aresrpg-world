@@ -1,6 +1,6 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
 
-import { PatchBoundId } from './common_types'
+import { PatchBoundId } from './common_types.js'
 
 /**
  * @param point input point inside bounding box

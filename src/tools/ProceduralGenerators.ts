@@ -1,8 +1,8 @@
 import { Vector3, Vector2, Box3 } from 'three'
 
-import { asVect2 } from '../utils/patch_chunk'
-import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { BlockType } from '../procgen/Biome'
+import { asVect2 } from '../utils/patch_chunk.js'
+import { ChunkContainer } from '../datacontainers/ChunkContainer.js'
+import { BlockType } from '../procgen/Biome.js'
 
 export enum ProcItemCategory {
   Tree,
