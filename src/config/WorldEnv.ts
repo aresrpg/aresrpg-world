@@ -1,11 +1,11 @@
 import { Vector2, Vector3 } from 'three'
 
-import { ItemType } from '../factory/ItemsFactory'
-import { DensityVolume, Heightmap } from '../index'
-import { Biome, BlockType } from '../procgen/Biome'
-import { ProcItemConf } from '../tools/ProceduralGenerators'
-import { SchematicsBlocksMapping } from '../tools/SchematicLoader'
-import { BiomesRawConf, BlockMode } from '../utils/common_types'
+import { ItemType } from '../factory/ItemsFactory.js'
+import { DensityVolume, Heightmap } from '../index.js'
+import { Biome, BlockType } from '../procgen/Biome.js'
+import { ProcItemConf } from '../tools/ProceduralGenerators.js'
+import { SchematicsBlocksMapping } from '../tools/SchematicLoader.js'
+import { BiomesRawConf, BlockMode } from '../utils/common_types.js'
 
 export type WorldIndividualSeeds = {
   heightmap?: string // 'heatmap',

@@ -27,8 +27,9 @@
     "useUnknownInCatchVariables": true,
 
     /* Modules */
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "typeRoots": ["src/@types", "./node_modules/@types"],
 
     /* Emit */
     "declaration": true,
@@ -46,5 +47,7 @@
 
     /* Language and Environment */
     "target": "ESNext"
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

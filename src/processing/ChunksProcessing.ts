@@ -1,21 +1,21 @@
-import { WorldEnv } from '../config/WorldEnv'
-import { asVect3, serializeChunkId } from '../utils/patch_chunk'
-import { PatchId, PatchKey } from '../utils/common_types'
+import { WorldEnv } from '../config/WorldEnv.js'
+import { asVect3, serializeChunkId } from '../utils/patch_chunk.js'
+import { PatchId, PatchKey } from '../utils/common_types.js'
 import {
   ChunkContainer,
   ChunkStub,
   defaultDataEncoder,
-} from '../datacontainers/ChunkContainer'
-import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory'
+} from '../datacontainers/ChunkContainer.js'
+import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory.js'
 
-import { GroundPatch } from './GroundPatch'
+import { GroundPatch } from './GroundPatch.js'
 import {
   GenericTask,
   ProcessingTask,
   ProcessingTaskHandler,
   ProcessingTaskStub,
-} from './TaskProcessing'
-import { ItemsProcessing } from './ItemsProcessing'
+} from './TaskProcessing.js'
+import { ItemsProcessing } from './ItemsProcessing.js'
 
 /**
  * Calling side
