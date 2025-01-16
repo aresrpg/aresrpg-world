@@ -1,49 +1,49 @@
 // Utils
 // export * as WorldUtils from './utils/index'
-export { getPatchId, asVect2, asVect3 } from './utils/convert'
-export { BlockMode } from './utils/types'
+export { getPatchId, asVect2, asVect3 } from './utils/convert.js'
+export { BlockMode } from './utils/types.js'
 // Processing
-export { ProcessingTask } from './processing/TaskProcessing'
-export { BatchProcess } from './processing/BatchProcessing'
+export { ProcessingTask } from './processing/TaskProcessing.js'
+export { BatchProcess } from './processing/BatchProcessing.js'
 export {
   BlocksProcessing,
   BlocksProcessingRecipe,
   BlockProcessor,
-} from './processing/BlocksProcessing'
-export { BoardProcessor, BlockCategory } from './processing/BoardProcessing'
+} from './processing/BlocksProcessing.js'
+export { BoardProcessor, BlockCategory } from './processing/BoardProcessing.js'
 export {
   ViewChunksBatch,
   LowerChunksBatch,
   UpperChunksBatch,
-} from './processing/ChunksBatch'
+} from './processing/ChunksBatch.js'
 export {
   PseudoDistributionMap,
   DistributionProfile,
-} from './processing/RandomDistributionMap'
-export { ChunksProcessor } from './processing/ChunksProcessing'
-export { ProcessingState } from './processing/TaskProcessing'
+} from './processing/RandomDistributionMap.js'
+export { ChunksProcessor } from './processing/ChunksProcessing.js'
+export { ProcessingState } from './processing/TaskProcessing.js'
 // Procgen
-export { Biome, BiomeType, BlockType } from './procgen/Biome'
-export { Heightmap } from './procgen/Heightmap'
-export { DensityVolume } from './procgen/DensityVolume'
+export { Biome, BiomeType, BlockType } from './procgen/Biome.js'
+export { Heightmap } from './procgen/Heightmap.js'
+export { DensityVolume } from './procgen/DensityVolume.js'
 // Data structures
 // export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
-export { ChunkContainer } from './datacontainers/ChunkContainer'
+export { ChunkContainer } from './datacontainers/ChunkContainer.js'
 // Factory
-export { ItemsInventory } from './factory/ItemsFactory'
-export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory'
+export { ItemsInventory } from './factory/ItemsFactory.js'
+export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory.js'
 // Tools
-export { SchematicLoader } from './tools/SchematicLoader'
+export { SchematicLoader } from './tools/SchematicLoader.js'
 export {
   ProceduralItemGenerator,
   ProcItemType,
   ProcItemCategory,
-} from './tools/ProceduralGenerators'
-// export * as ProceduralGenerators from './tools/ProceduralGenerators'
+} from './tools/ProceduralGenerators.js'
+// export * as ProceduralGenerators from './tools/ProceduralGenerators.js'
 // Config
-export { WorldEnv } from './config/WorldEnv'
+export { WorldEnv } from './config/WorldEnv.js'
 // export * as WorldDevSetup from './config/demo-samples/configs/world_dev_setup'
 export {
   EnvOverride,
   BlocksColorOverride,
-} from './config/demo-samples/configs/world_dev_setup'
+} from './config/demo-samples/configs/world_dev_setup.js'

@@ -1,8 +1,8 @@
 import { Vector3 } from 'three'
 
-import { ProcLayer } from './ProcLayer'
-import { Biome, BiomeInfluence } from './Biome'
-import { BlendMode, getCompositor } from './NoiseComposition'
+import { ProcLayer } from './ProcLayer.js'
+import { Biome, BiomeInfluence } from './Biome.js'
+import { BlendMode, getCompositor } from './NoiseComposition.js'
 
 const MODULATION_THRESHOLD = 0.318
 

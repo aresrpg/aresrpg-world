@@ -1,14 +1,14 @@
 import alea from 'alea'
 import { Box2, Vector2 } from 'three'
 
-import { ProcLayer } from '../procgen/ProcLayer'
+import { ProcLayer } from '../procgen/ProcLayer.js'
 import {
   BlueNoisePattern,
   DistributionParams,
-} from '../procgen/BlueNoisePattern'
-import { asVect3, getPatchIds } from '../utils/convert'
-import { WorldEnv } from '../config/WorldEnv'
-import { ItemType } from '../factory/ItemsFactory'
+} from '../procgen/BlueNoisePattern.js'
+import { asVect3, getPatchIds } from '../utils/convert.js'
+import { WorldEnv } from '../config/WorldEnv.js'
+import { ItemType } from '../factory/ItemsFactory.js'
 
 const distDefaults = {
   aleaSeed: 'treeMap',

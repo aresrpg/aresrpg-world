@@ -8,30 +8,30 @@ import {
   getPatchId,
   getUpperScalarId,
   serializePatchId,
-} from '../utils/convert'
+} from '../utils/convert.js'
 import {
   WorldEnv,
   ChunkContainer,
   BatchProcess,
   ChunksProcessor,
   BlockType,
-} from '../index'
-import { ProcLayer } from '../procgen/ProcLayer'
-import { BlockMode, ChunkId, PatchKey } from '../utils/types'
+} from '../index.js'
+import { ProcLayer } from '../procgen/ProcLayer.js'
+import { BlockMode, ChunkId, PatchKey } from '../utils/types.js'
 import {
   DataContainer,
   PatchBase,
   PatchElement,
-} from '../datacontainers/PatchBase'
-import { copySourceToTargetPatch } from '../utils/data'
+} from '../datacontainers/PatchBase.js'
+import { copySourceToTargetPatch } from '../utils/data.js'
 
 import {
   ItemsBaker,
   ItemsProcessingParams,
   ItemsProcessingRecipes,
-} from './ItemsProcessing'
-import { ProcessingTask } from './TaskProcessing'
-import { ChunksProcessingParams } from './ChunksProcessing'
+} from './ItemsProcessing.js'
+import { ProcessingTask } from './TaskProcessing.js'
+import { ChunksProcessingParams } from './ChunksProcessing.js'
 // import { UndegroundChunkset } from './ChunksProcessing'
 
 export enum BlockCategory {
