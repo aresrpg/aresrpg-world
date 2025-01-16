@@ -1,10 +1,10 @@
 import Pako from 'pako'
 import { Box3, Vector3 } from 'three'
 
-import { NBTReader } from '../third-party/nbt_custom'
-import { BlockType } from '../procgen/Biome'
-import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { WorldEnv } from '../config/WorldEnv'
+import { NBTReader } from '../third-party/nbt_custom.js'
+import { BlockType } from '../procgen/Biome.js'
+import { ChunkContainer } from '../datacontainers/ChunkContainer.js'
+import { WorldEnv } from '../config/WorldEnv.js'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
 

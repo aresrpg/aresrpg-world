@@ -4,7 +4,7 @@
 
 import { Box2, Vector2 } from 'three'
 
-import { PatchDataContainer } from '../datacontainers/PatchBase'
+import { PatchDataContainer } from '../datacontainers/PatchBase.js'
 
 // copy occurs only on the overlapping global pos region of both containers
 export const copySourceToTargetPatch = (

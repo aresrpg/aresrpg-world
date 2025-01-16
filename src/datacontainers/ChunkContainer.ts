@@ -1,6 +1,6 @@
 import { Vector2, Box3, Vector3 } from 'three'
 
-import { BlockMode, ChunkId, ChunkKey } from '../utils/types'
+import { BlockMode, ChunkId, ChunkKey } from '../utils/types.js'
 import {
   asVect3,
   asChunkBounds,
@@ -8,9 +8,9 @@ import {
   serializeChunkId,
   parseThreeStub,
   asVect2,
-} from '../utils/convert'
-import { WorldEnv } from '../config/WorldEnv'
-import { BlockType } from '../index'
+} from '../utils/convert.js'
+import { WorldEnv } from '../config/WorldEnv.js'
+import { BlockType } from '../index.js'
 
 enum ChunkAxisOrder {
   ZXY,
