@@ -1,4 +1,4 @@
-import { ProcessingState, ProcessingTask } from './TaskProcessing'
+import { ProcessingState, ProcessingTask } from './TaskProcessing.js'
 
 export class BatchProcess<T extends ProcessingTask> {
   // eslint-disable-next-line no-use-before-define

@@ -1,6 +1,10 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { PatchBoundingPoints, SurfaceNeighbour, VolumeNeighbour } from './types'
+import {
+  PatchBoundingPoints,
+  SurfaceNeighbour,
+  VolumeNeighbour,
+} from './types.js'
 
 /**
  * Orthogonal or direct 2D neighbours e.g.
