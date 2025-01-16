@@ -2,10 +2,14 @@
   "name": "@aresrpg/aresrpg-world",
   "version": "1.7.3",
   "description": "Procedural voxel terrain generation for AresRPG",
-  "main": "dist/index.js",
+  "source": "src/index.ts",
+  "main": "dist/index.mjs",
+  "types": "dist/types.d.ts",
   "scripts": {
     "watch": "tsc --watch",
     "build": "tsc",
+    "bundle": "parcel build",
+    "clean": "rm -rf .parcel-cache && rm -rf dist/",
     "lint": "eslint . --ext .ts && prettier . --check && npm run typecheck",
     "typecheck": "tsc --build",
     "format": "prettier . --write && eslint . --fix --ext .ts",
@@ -44,6 +48,7 @@
     "eslint-plugin-import": "2.31.0",
     "husky": "^4.3.8",
     "lint-staged": "15.2.11",
+    "parcel": "^2.13.3",
     "prettier": "3.4.2",
     "typescript": "^5.7.2"
   },

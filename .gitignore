@@ -5,4 +5,5 @@ dist/
 .discarded
 *.schem
 *.layer
-.todo.md
+.local
+.parcel-cache
