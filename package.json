@@ -7,8 +7,7 @@
   "types": "dist/types.d.ts",
   "scripts": {
     "watch": "tsc --watch",
-    "build": "tsc",
-    "bundle": "parcel build",
+    "build": "parcel build",
     "clean": "rm -rf .parcel-cache && rm -rf dist/",
     "lint": "eslint . --ext .ts && prettier . --check && npm run typecheck",
     "typecheck": "tsc --build",
@@ -37,6 +36,7 @@
   "devDependencies": {
     "@parcel/packager-ts": "^2.13.3",
     "@parcel/transformer-typescript-types": "^2.13.3",
+    "@types/node": "^22.10.7",
     "@types/poisson-disk-sampling": "^2.2.4",
     "@types/three": "^0.171.0",
     "@types/workerpool": "^6.4.7",
