@@ -7,8 +7,7 @@
   "main": "dist/index.js",
   "scripts": {
     "watch": "tsc --watch",
-    "build": "parcel build",
-    "clean": "rm -rf .parcel-cache && rm -rf dist/",
+    "build": "tsc",
     "lint": "eslint . --ext .ts && prettier . --check && npm run typecheck",
     "typecheck": "tsc --build",
     "format": "prettier . --write && eslint . --fix --ext .ts",
@@ -46,7 +45,6 @@
     "eslint-plugin-import": "2.31.0",
     "husky": "^4.3.8",
     "lint-staged": "15.4.1",
-    "parcel": "^2.13.3",
     "prettier": "3.4.2",
     "typescript": "^5.7.3"
   },
