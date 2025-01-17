@@ -25,7 +25,6 @@
     /* Modules */
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "typeRoots": ["src/@types", "./node_modules/@types"],
 
     /* Emit */
     "declaration": true,
