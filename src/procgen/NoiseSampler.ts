@@ -123,10 +123,10 @@ export class NoiseSampler {
     this.onChange('seed')
   }
 
-  onChange(originator: any) {
-    console.debug(`[Sampler:onChange] from ${originator}`)
+  onChange(_originator: any) {
+    // console.debug(`[Sampler:onChange] from ${_originator}`)
     this.init()
-    // this.parent?.onChange(`Sampler:${originator}`)
+    // this.parent?.onChange(`Sampler:${_originator}`)
   }
 
   eval(x: number, y: number, z?: number, t?: number): number {
