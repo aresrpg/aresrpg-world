@@ -123,6 +123,7 @@ export class NoiseSampler {
     this.onChange('seed')
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onChange(_originator: any) {
     // console.debug(`[Sampler:onChange] from ${_originator}`)
     this.init()
