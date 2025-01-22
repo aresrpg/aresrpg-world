@@ -1,27 +1,35 @@
-import { Box2, Vector2, Vector3 } from 'three'
+import { Vector2, Vector3 } from 'three'
 
 import {
   WorldEnv,
   Biome,
   ProcessingTask,
-  ChunkContainer,
   DensityVolume,
+  BlockType,
 } from '../index'
 import {
   serializePatchId,
   getPatchId,
   asVect3,
   asVect2,
-  parseThreeStub,
+  // parseThreeStub,
 } from '../utils/convert'
-import { PatchKey, GroundBlock, Block, BlockData } from '../utils/types'
+import { PatchKey, Block, BlockData } from '../utils/types'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch'
-import { ItemsBaker } from './ItemsProcessing'
+import { ItemsProcessing } from './ItemsProcessing'
+import {
+  parseTaskInputStubs,
+  ProcessingContext,
+  ProcessingTaskHandler,
+  ProcessingTaskStub,
+} from './TaskProcessing'
 
-export type BlocksBatchArgs = {
-  posBatch: Vector2[]
-}
+/**
+ * Calling side
+ */
+
+const blocksProcessingHandlerName = `BlocksProcessing`
 
 export enum BlocksProcessingRecipe {
   Ground,
@@ -33,15 +41,143 @@ export enum BlocksProcessingRecipe {
   Nearest, // nearest ground, floor or ceiling
 }
 
+export type BlocksProcessingInput = Vector3[]
+export type BlocksProcessingOutput = Block<BlockData>[]
 export type BlocksProcessingParams = {
   recipe: BlocksProcessingRecipe
 }
 
-const defaultProcessingParams: BlocksProcessingParams = {
-  recipe: BlocksProcessingRecipe.Ground,
+// const postProcessTaskResults = (rawOutputData: BlocksProcessingOutput) => {
+//   return rawOutputData.map(blockStub => {
+//     blockStub.pos = parseThreeStub(blockStub.pos)
+//     // return WorldUtils.convert.parseThreeStub(pos)
+//     return blockStub
+//   }) //as GroundBlock[]
+// }
+
+// constructor
+const BlocksProcessingTaskConstructor = ProcessingTask<
+  BlocksProcessingInput,
+  BlocksProcessingParams,
+  BlocksProcessingOutput
+>
+
+const getBlocksProcessingTask =
+  (recipe: BlocksProcessingRecipe) => (input: Vector3[]) => {
+    const task = new BlocksProcessingTaskConstructor()
+    task.handlerId = blocksProcessingHandlerName
+    task.processingInput = input
+    task.processingParams = { recipe }
+    return task
+  }
+
+export const BlocksProcessing = {
+  getGroundPositions: getBlocksProcessingTask(BlocksProcessingRecipe.Ground),
+  getPeakPositions: getBlocksProcessingTask(BlocksProcessingRecipe.Peak),
+  getFloorPositions: getBlocksProcessingTask(BlocksProcessingRecipe.Floor),
+  getCeilingPositions: getBlocksProcessingTask(BlocksProcessingRecipe.Ceiling),
 }
 
-export type BuildCache = {}
+/**
+ * Handling side
+ */
+
+type BlocksProcessingTask = ProcessingTask<
+  BlocksProcessingInput,
+  BlocksProcessingParams,
+  BlocksProcessingOutput
+>
+type BlocksProcessingTaskStub = ProcessingTaskStub<
+  BlocksProcessingInput,
+  BlocksProcessingParams
+>
+type BlocksProcessingTaskHandler = ProcessingTaskHandler<
+  BlocksProcessingInput,
+  BlocksProcessingParams,
+  any
+>
+
+const getPatchKey = (inputPos: Vector2) => {
+  const patchId = getPatchId(inputPos, WorldEnv.current.patchDimensions)
+  const patchKey = serializePatchId(patchId)
+  return patchKey
+}
+
+const createGroundPatch = (patchKey: PatchKey) => {
+  const groundLayer = new GroundPatch(patchKey)
+  groundLayer.preprocess()
+  return groundLayer
+}
+
+// const floorPositionsHandler = (input: Vector3[]) => {
+
+// }
+
+// const BlocksProcessingTaskHandlers = {
+//   floorPositionsHandler
+// }
+
+export const blocksProcessingHandler: BlocksProcessingTaskHandler = async (
+  taskStub: BlocksProcessingTask | BlocksProcessingTaskStub,
+  processingContext = ProcessingContext.None,
+) => {
+  const { processingInput, processingParams } = taskStub
+  const { recipe } = processingParams
+  const buildCache: Record<PatchKey, GroundPatch> = {}
+
+  const isAsync = recipe === BlocksProcessingRecipe.Peak
+
+  const getGroundPatch = (requestedPos: Vector2) => {
+    const patchKey = getPatchKey(requestedPos)
+    // look for existing patch in current cache
+    const groundPatch = buildCache[patchKey]
+    // if not existing build and insert in cache
+    return groundPatch || createGroundPatch(patchKey)
+  }
+
+  // const getBuildDeps = (recipe: BlocksProcessingRecipe) => {
+  // }
+
+  const bakeBlock = (blockPos: Vector3, recipe: BlocksProcessingRecipe) => {
+    const groundPatch = getGroundPatch(asVect2(blockPos))
+    const groundBlock = bakeGroundBlock(blockPos, groundPatch)
+    if (recipe === BlocksProcessingRecipe.Ground) return groundBlock
+    else if (recipe === BlocksProcessingRecipe.Peak) {
+      // build deps
+      const peakBlock = bakePeakBlock(groundBlock)
+      return peakBlock
+    } else if (recipe === BlocksProcessingRecipe.Floor) {
+      const initialBlockLevel = Math.round(groundBlock.pos.y / 2) // blockPos.y // groundBlock.data.level + 1
+      const floorBlock = bakeFloorBlock(groundBlock, initialBlockLevel)
+      return floorBlock
+    } else if (recipe === BlocksProcessingRecipe.Ceiling) {
+      const ceilingBlock = bakeCeilingBlock(
+        groundBlock,
+        groundBlock.data.level + 1,
+      )
+      return ceilingBlock
+    }
+    // return block as Block<BlockData>
+  }
+
+  const parsedInput =
+    processingContext === ProcessingContext.Worker
+      ? (parseTaskInputStubs(...processingInput) as BlocksProcessingInput)
+      : processingInput
+  const blocksProcessing = parsedInput.map(requestedPos =>
+    bakeBlock(requestedPos, recipe),
+  )
+  return (await isAsync) ? Promise.all(blocksProcessing) : blocksProcessing
+}
+
+// const res = await BlocksProcessing.getFloorPositions([]).delegate()
+
+ProcessingTask.taskHandlers[blocksProcessingHandlerName] =
+  blocksProcessingHandler
+
+/**
+ * Processing
+ */
 
 /**
  * requires: ground patch
@@ -59,7 +195,6 @@ const bakeGroundBlock = (pos: Vector3, groundPatch: GroundPatch) => {
     level,
     type: groundConf.type,
   }
-  pos.y = level
   const block: Block<BlockData> = {
     pos,
     data: blockData,
@@ -68,74 +203,18 @@ const bakeGroundBlock = (pos: Vector3, groundPatch: GroundPatch) => {
 }
 
 /**
- * needs: ground block
- * provides: all block above ground surface
- * @param pos
- */
-const bakeOvergroundBlocks = async (groundBlock: Block<BlockData>) => {
-  const queriedLoc = new Box2().setFromPoints([asVect2(groundBlock.pos)])
-  queriedLoc.max.addScalar(1)
-  const itemsProcessor = new ItemsBaker(queriedLoc, groundBlock.pos)
-  const overgroundBlocks = await itemsProcessor.queryIsolatedPoint()
-  return overgroundBlocks
-}
-
-/**
- * all blocks below ground surface
- */
-const bakeUndergroundBlocks = (groundBlock: Block<BlockData>) => {
-  const groundLevel = groundBlock.pos.y
-  const groundPos = asVect2(groundBlock.pos)
-  const undergroundBlocks: number[] = []
-  for (let y = 0; y < groundLevel; y++) {
-    const isEmptyBlock = DensityVolume.instance.getBlockDensity(
-      asVect3(groundPos, y),
-      groundLevel + 20,
-    )
-    undergroundBlocks.push(isEmptyBlock ? 0 : 1)
-  }
-  return undergroundBlocks
-}
-
-/**
- * needs: overground blocks
  * provides: highest overground block
  * usage: LOD
  */
-const bakePeakBlock = (
-  groundBlock: Block<BlockData>,
-  overgroundBlocks: number[],
-) => {
-  const lastIndex = overgroundBlocks.findLastIndex(elt => elt)
-  const lastBlockType = lastIndex >= 0 && overgroundBlocks[lastIndex]
-  const blockType = lastBlockType
-    ? ChunkContainer.dataDecoder(lastBlockType)
-    : groundBlock.data.type
-  groundBlock.data.level += lastIndex
-  groundBlock.data.type = blockType
+const bakePeakBlock = async (groundBlock: Block<BlockData>) => {
+  const peakBlock = await ItemsProcessing.pointPeakBlock(
+    asVect2(groundBlock.pos),
+  ).process()
+  if (peakBlock.type !== BlockType.NONE) {
+    groundBlock.data.level = peakBlock.level
+    groundBlock.data.type = peakBlock.type
+  }
   return groundBlock
-  // const blockPos = asVect3(pos)
-  // const blockData = computeGroundBlock(blockPos)
-  // const { spawnableItems } = blockData
-
-  // false && includeEntitiesBlocks && spawnableItems.forEach(itemType => {
-  //   // several (overlapping) objects may be found at queried position
-  //   const [spawnedEntity] = ItemsInventory.querySpawnedEntities(itemType, queriedLoc)
-  //   const lastBlockIndex = blocksBuffer?.findLastIndex(elt => elt)
-  //   if (blocksBuffer && lastBlockIndex && lastBlockIndex >= 0) {
-  //     blockData.level += lastBlockIndex
-  //     blockData.type = blocksBuffer[lastBlockIndex] as BlockType
-  //   }
-
-  // override with last block if specified
-  // if (params.includeEntitiesBlocks) {
-  //     const lastBlockData = await queryLastBlockData(blockPos)
-  //     block.data =
-  //         lastBlockData.level > 0 && lastBlockData.type
-  //             ? lastBlockData
-  //             : (block.data as any)
-  // }
-  // return block //blockData?.level || 0//getHeight()
 }
 
 /**
@@ -177,26 +256,6 @@ const bakeFloorBlock = (
   // groundBlock.pos.y = currentLevel
   groundBlock.data.level = currentLevel
   return groundBlock
-  // const y = 0
-  // const groundLevel = 0
-  // let offset = 0
-  // let done = false
-  // while (!done) {
-  //   // look above
-  //   if (y + offset < groundLevel) {
-  //     // if found return offset
-  //   }
-  //   // look below
-  //   if (y - offset > 0) {
-  //     // if found return - offset
-  //     block.pos.y = y
-  //     const isEmptyBlock = DensityVolume.instance.getBlockDensity(
-  //       block.pos,
-  //       groundLevel + 20,
-  //     )
-  //   }
-  //   offset++
-  // }
 }
 
 /**
@@ -211,151 +270,10 @@ const bakeCeilingBlock = (
   console.log(requestedBlockLevel)
 }
 
-type BuildArtefacts = {
-  groundPatch: GroundPatch
-  groundBlock?: Block<BlockData>
-  overgroundBlocks?: number[]
-  undergroundBlocks?: number[]
-}
-
-const getPatchKey = (inputPos: Vector2) => {
-  const patchId = getPatchId(inputPos, WorldEnv.current.patchDimensions)
-  const patchKey = serializePatchId(patchId)
-  return patchKey
-}
-
-const getGroundPatch = (patchKey: PatchKey) => {
-  const groundLayer = new GroundPatch(patchKey)
-  groundLayer.preprocess()
-  return groundLayer
-}
-
-export class BlockProcessor {
-  requestedPos: Vector3
-  buildStack: BuildArtefacts
-
-  constructor(requestedPos: Vector3, groundPatch?: GroundPatch) {
-    this.requestedPos = requestedPos
-    const patchKey = getPatchKey(asVect2(requestedPos))
-    groundPatch = groundPatch || getGroundPatch(patchKey)
-    this.buildStack = { groundPatch }
-  }
-
-  getGroundBlock() {
-    const { requestedPos } = this
-    const { groundBlock, groundPatch } = this.buildStack
-    return groundBlock || bakeGroundBlock(requestedPos, groundPatch)
-  }
-
-  async getOvergroundBlocks() {
-    return (
-      this.buildStack.overgroundBlocks ||
-      (await bakeOvergroundBlocks(this.getGroundBlock()))
-    )
-  }
-
-  getUndergroundBlocks() {
-    return (
-      this.buildStack.undergroundBlocks ||
-      bakeUndergroundBlocks(this.getGroundBlock())
-    )
-  }
-
-  async getPeakBlock() {
-    // build requirements
-    const overgroundBlocks = await this.getOvergroundBlocks()
-    const peakBlock = bakePeakBlock(this.getGroundBlock(), overgroundBlocks)
-    return peakBlock
-  }
-
-  getFloorBlock() {
-    const groundBlock = this.getGroundBlock()
-    const initialBlockLevel = this.requestedPos.y // groundBlock.data.level + 1
-    const floorBlock = bakeFloorBlock(groundBlock, initialBlockLevel)
-    return floorBlock
-  }
-
-  getCeilingBlock() {
-    const groundBlock = this.getGroundBlock()
-    const floorBlock = bakeCeilingBlock(groundBlock, groundBlock.data.level + 1)
-    return floorBlock
-  }
-
-  bakeRecipe = async (recipe: BlocksProcessingRecipe) => {
-    let result
-    if (recipe === BlocksProcessingRecipe.Ground) {
-      result = this.getGroundBlock()
-    } else if (recipe === BlocksProcessingRecipe.Peak) {
-      result = await this.getPeakBlock()
-    } else if (recipe === BlocksProcessingRecipe.Floor) {
-      result = this.getFloorBlock()
-    } else if (recipe === BlocksProcessingRecipe.Ceiling) {
-      result = this.getCeilingBlock()
-    }
-    // else if (recipe === BlocksProcessingRecipe.Overground) {
-    //   result = await this.getOvergroundBlocks()
-    // } else if (recipe === BlocksProcessingRecipe.Underground) {
-    //   result = this.getUndergroundBlocks()
-    // }
-    return result
-  }
-}
-
-/**
- * Surface blocks
- */
-export class BlocksProcessing extends ProcessingTask {
-  buildCache: Record<PatchKey, GroundPatch> = {}
-  blocks: any[] = []
-  input: Vector3[] = []
-  output: any[] = []
-  constructor(posBatch: Vector3[]) {
-    super()
-    this.input = posBatch
-  }
-
-  override get inputs() {
-    return [this.input]
-  }
-
-  /**
-   * requires:
-   * - requestedPos
-   * - cache
-   * provides:
-   * - ground patch
-   */
-  getGroundPatch(requestedPos: Vector2) {
-    const patchKey = getPatchKey(requestedPos)
-    // look for existing patch in current cache
-    const groundPatch = this.buildCache[patchKey]
-    // if not existing build and insert in cache
-    return groundPatch || getGroundPatch(patchKey)
-  }
-
-  override async process(processingParams = defaultProcessingParams) {
-    const { recipe } = processingParams
-    const pendingBlocks = this.input.map(async pos => {
-      const groundPatch = this.getGroundPatch(asVect2(pos))
-      const blockProcessor = new BlockProcessor(pos, groundPatch)
-      const block = await blockProcessor.bakeRecipe(recipe)
-      return block as Block<BlockData>
-    })
-    const batchOutput = await Promise.all(pendingBlocks)
-    return batchOutput
-  }
-
-  override reconcile(stubs: GroundBlock[]) {
-    return stubs.map(blockStub => {
-      blockStub.pos = parseThreeStub(blockStub.pos)
-      // return WorldUtils.convert.parseThreeStub(pos)
-      return blockStub
-    }) as GroundBlock[]
-  }
-
-  toStub() {
-    return this.output
-  }
-}
-
-ProcessingTask.registeredObjects[BlocksProcessing.name] = BlocksProcessing
+// or build artefacts
+// type BuildData = {
+//   groundPatch: GroundPatch
+//   groundBlock?: Block<BlockData>
+//   overgroundBlocks?: number[]
+//   undergroundBlocks?: number[]
+// }

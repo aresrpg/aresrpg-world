@@ -22,6 +22,7 @@ export type ChunkStub = {
   bounds: Box3
   rawData: Uint16Array
   margin?: number
+  isEmpty?: boolean
 }
 
 export type ChunkBuffer = {
@@ -382,8 +383,9 @@ export class ChunkContainer {
   }
 
   toStub() {
+    const isEmpty = this.isEmpty()
     const { chunkKey, bounds, rawData, margin } = this
-    const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin }
+    const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
     return chunkStub
   }
 
