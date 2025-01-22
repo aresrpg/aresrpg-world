@@ -1,14 +1,12 @@
-import workerpool from 'workerpool'
-
-import { WorldEnv } from '../index'
+import { WorkerPool } from '../index'
 import { parseThreeStub } from '../utils/convert'
 
-const toStubs = (res: any) =>
+export const toTaskOutputStubs = (res: any) =>
   res instanceof Array
     ? res.map(item => item.toStub?.() || item)
     : res.toStub?.() || res
 
-const parseArgs = (...rawArgs: any) => {
+export const parseTaskInputStubs = (...rawArgs: any) => {
   const args = rawArgs.map((rawArg: any) => {
     const arg =
       rawArg instanceof Array
@@ -20,92 +18,92 @@ const parseArgs = (...rawArgs: any) => {
 }
 
 export enum ProcessingState {
-  Pending = 'pending',
+  None = 'none',
+  Scheduled = 'scheduled',
   Waiting = 'waiting',
-  Postponed = 'postponed',
+  Pending = 'pending',
+  // Postponed = 'postponed',
   Suspended = 'suspended',
+  Canceled = 'canceled',
   Done = 'done',
 }
 
 // eslint-disable-next-line no-use-before-define
-type ProcessingTasksIndex = Record<string, new (...args: any) => ProcessingTask>
+type ProcessingTaskHandlerId = string
+export enum ProcessingContext {
+  None,
+  Worker,
+}
+export type TaskId = string | number
+export type ProcessingTaskStub<ProcessingInput, ProcessingParams> = {
+  taskId: TaskId
+  processingInput: ProcessingInput
+  processingParams: ProcessingParams
+  handlerId: ProcessingTaskHandlerId
+}
+export type ProcessingTaskHandler<
+  ProcessingInput,
+  ProcessingParams,
+  ProcessingOutput,
+> = (
+  taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
+  context?: ProcessingContext,
+) => Promise<ProcessingOutput>
+type ProcessingTasksHandlers = Record<
+  ProcessingTaskHandlerId,
+  ProcessingTaskHandler<any, any, any>
+>
 
 /**
- * Any object extending this class will support
- * - delegation to perform object's processing in worker
- * - replication to replicate original object inside worker
- * - reconcilitation to merge data back from worker into original object
+ * Tasks can be processed locally on main thread, worker thread
+ * or even remotely on server
  */
-export class ProcessingTask {
-  static registeredObjects: ProcessingTasksIndex = {}
-  static workerPool: any
+export class ProcessingTask<
+  ProcessingInput,
+  ProcessingParams,
+  ProcessingOutput,
+> {
+  static taskHandlers: ProcessingTasksHandlers = {}
+  static globalTasksCount = 0
+  processingInput: ProcessingInput = [] as ProcessingInput
+  processingParams: ProcessingParams = {} as ProcessingParams
+  handlerId: ProcessingTaskHandlerId = ''
   processingState: ProcessingState = ProcessingState.Waiting
-  processingParams: any = {}
-  result: any
-  deferredPromise
-  resolveDeferredPromise: any
+  taskId: TaskId
+  order = 0
+  promise!: Promise<ProcessingOutput>
+  resolve: any
+  // result: any
+  // deferredPromise
+  // resolveDeferredPromise: any
   scheduled = false
 
-  // pendingTask: any
-
-  // static instances: ProcessingTask[] = []
-
-  // constructor(){
-  //   ProcessingTask.instances.push(this)
-  // }
-
-  static initWorkerPool(
-    workerUrl?: string,
-    workerCount?: number,
-    workerType?: any,
+  static async handleTask(
+    taskStub: ProcessingTaskStub<any, any>,
+    context?: ProcessingContext,
   ) {
-    const { url, count, type } = WorldEnv.current.workerPool
-    workerUrl = workerUrl || url
-    if (workerUrl && workerUrl.length > 0) {
-      workerCount = workerCount || count
-      workerType = workerType || type
-      // eslint-disable-next-line no-undef
-      const workerOpts: WorkerOptions = {}
-      if (workerType) {
-        // By default, Vite uses a module worker in dev mode, which can cause your application to fail.
-        // Therefore, we need to use a module worker in dev mode and a classic worker in prod mode.
-        workerOpts.type = workerType
-      }
-      this.workerPool = workerpool.pool(workerUrl, {
-        maxWorkers: workerCount,
-        workerOpts,
-      })
-    }
-  }
-
-  /**
-   * replicate original object in worker to process it
-   * @param objectType
-   * @param callArgs
-   * @param processingParams
-   * @returns
-   */
-  static async replicate(...input: any) {
-    const [targetObjName, targetRawArgs, processingParams] = input
-    const targetArgs = parseArgs(...targetRawArgs)
-    const TargetObj = ProcessingTask.registeredObjects[targetObjName]
-    if (TargetObj) {
-      const targetObj = new TargetObj(...targetArgs)
-      const res = await targetObj.process(processingParams)
-      const stubs = toStubs(res)
-      return stubs // targetObj.toStub()
+    // const [delegatedTask, processingArgs, processingParams] = taskStub
+    const { handlerId } = taskStub
+    // const args = parseArgs(...processingArgs)
+    const taskHandler = ProcessingTask.taskHandlers[handlerId]
+    if (taskHandler) {
+      // const task = new Task(...args)
+      const taskRes = await taskHandler(taskStub, context)
+      // const res = await task.preProcess(processingArgs, processingParams)
+      // const stubs = toStubs(res)
+      return taskRes // targetObj.toStub()
     } else {
-      console.warn(
-        `cannot replicate unregistered object ${targetObjName}, should be registered first`,
-      )
+      console.warn(`no task handler found for ${handlerId}`)
     }
   }
 
-  constructor() {
-    const deferredPromise = new Promise(resolve => {
-      this.resolveDeferredPromise = resolve
-    })
-    this.deferredPromise = deferredPromise
+  constructor(taskId?: TaskId) {
+    ProcessingTask.globalTasksCount++
+    this.taskId = taskId || ProcessingTask.globalTasksCount
+    // const deferredPromise = new Promise(resolve => {
+    //   this.resolveDeferredPromise = resolve
+    // })
+    // this.deferredPromise = deferredPromise
   }
 
   get awaitingProcessing() {
@@ -123,105 +121,146 @@ export class ProcessingTask {
   // }
 
   /**
-   * pass object's creation parameters to worker for replication
+   * run task on current thread
+   */
+  process() {
+    return ProcessingTask.handleTask(this)
+  }
+
+  /**
+   * run task on worker
+   * pass inputs and parameters to worker
    * @param processingParams
    * @param processingUnit
    */
-  async delegate(
-    processingParams = this.processingParams,
-    processingUnit = ProcessingTask.workerPool,
-  ) {
-    if (this.processingState === ProcessingState.Done) return undefined
-    else {
-      const targetObj = this.constructor.name
-      const targetArgs = this.inputs
-      this.processingState = ProcessingState.Pending
-      const pendingTask = processingUnit
-        .exec('replicate', [targetObj, targetArgs, processingParams])
-        .catch((e: any) => {
-          console.log(e)
-          this.processingState = ProcessingState.Postponed
+  async delegate(processingUnit = WorkerPool.default) {
+    if (!this.promise)
+      // if (this.processingState !== ProcessingState.Done) {
+      // this.processingState = ProcessingState.Pending
+      // const taskStub = this.toStub()
+      this.promise = new Promise<ProcessingOutput>(
+        resolve => (this.resolve = resolve),
+      )
+    processingUnit.enqueueTasks(this)
+    //   .exec('delegateTask', transferredData)
+    //   .catch((e: any) => {
+    //     console.log(e)
+    //     this.processingState = ProcessingState.Postponed
 
-          // throw e
-        })
-      const stubs = await pendingTask
-      const taskRes = stubs ? this.reconcile(stubs) : null
-      this.result = taskRes
-      this.processingState =
-        this.processingState === ProcessingState.Pending
-          ? ProcessingState.Done
-          : this.processingState
-      // this.pendingTask = null
-      // this.onTaskProcessed(taskRes)
-      this.resolveDeferredPromise(taskRes)
-      return taskRes // this.reconcile(stubs)
-    }
+    //     // throw e
+    //   })
+    const taskOutput = await this.promise
+    this.processingState =
+      this.processingState === ProcessingState.Pending
+        ? ProcessingState.Done
+        : this.processingState
+    const taskData: ProcessingOutput = this.postProcess(taskOutput)
+    this.onTaskCompleted(taskData)
+    // this.resolveDeferredPromise(taskData)
+    // this.pendingTask = null
+    // this.onTaskProcessed(taskRes)
+    // const taskRes = stubs ? this.reconcile(stubs) : null
+    // this.result = taskRes
+    // return taskRes // this.reconcile(stubs)
+    return taskData
+    // }
   }
 
-  deferProcessing(delay = 0, onDeferredStart?: any) {
-    if (!this.scheduled) {
-      this.scheduled = true
-      // promise that will resolve when task processing begin
-      return new Promise(resolve => {
-        setTimeout(() => {
-          this.delegate()
-          onDeferredStart?.()
-          resolve(this)
-        }, delay)
-      })
+  /**
+   * defer task processing
+   * @param delay
+   * @param onDeferredStart
+   * @returns
+   */
+  defer(delay = 0) {
+    if (this.processingState === ProcessingState.None) {
+      this.processingState = ProcessingState.Scheduled
+      setTimeout(this.delegate, delay)
     }
     return null
   }
 
-  // cancelPendingTask() {
-  //   if (!this.pendingTask) {
-  //     console.warn(`no pending task running`)
-  //     return false
-  //   } else {
-  //     this.pendingTask?.cancel()
-  //     this.pendingTask = null
-  //     return true
-  //   }
-  // }
-
   /**
-   * reconcile data coming from worker into original object
+   * run task remotely on server
    */
-  reconcile(stubs: any) {
-    return stubs
+  request() {}
+
+  cancel() {
+    // this will instruct worker pool to reject task
+    this.processingState = ProcessingState.Canceled
+  }
+
+  suspend() {
+    // this will instruct worker pool to postpone task processing
+    this.processingState = ProcessingState.Suspended
+  }
+
+  isActive() {
+    return this.processingState === ProcessingState.Waiting
+  }
+
+  isInactive() {
+    return (
+      this.processingState === ProcessingState.Canceled ||
+      this.processingState === ProcessingState.Suspended ||
+      this.processingState === ProcessingState.Done
+    )
   }
 
   /**
-   * parameters used for object's creation required for object's replication
+   * will be called on receiver side before processing
+   * to parse input data
    */
-  get inputs() {
-    return [] as any[]
-  }
-
-  /**
-   * transferrable data after object was processed inside worker
-   */
-  // get stubs() {
+  // preProcess(processingArgs: any, processingParams: any) {
 
   // }
 
   /**
-   * This will be called :
-   * - either from main thread
-   * - or worker if processing was delegated and after original object's replication
+   * will be called on sender side after processing
+   * to parse output data
    */
-  process(processingParams: any): any {
-    console.log(processingParams)
+  postProcess(rawOutputData: any): any {
+    return rawOutputData
   }
 
-  // onTaskProcessed(taskRes: any) {
+  onRejected = () => {
+    console.log(`skipped task processing`)
+  }
 
-  // }
+  onStarted = () => {}
 
-  // toStub(): any {
-  //   const { stubs } = this
-  //   stubs instanceof Array
-  //     ? stubs.map(item => item.toStub())
-  //     : outputs.toStub?.() || outputs
-  // }
+  onDone = () => {}
+
+  /**
+   * additional callback where post process actions can be performed
+   * upon task data reception
+   * @param rawData
+   * @returns
+   */
+  onTaskCompleted(taskOutput: ProcessingOutput) {
+    // console.log(taskOutput)
+    return taskOutput
+  }
+
+  toStub() {
+    const { processingInput, processingParams, handlerId, taskId } = this
+    const processingTaskStub: ProcessingTaskStub<
+      ProcessingInput,
+      ProcessingParams
+    > = {
+      processingInput,
+      processingParams,
+      handlerId,
+      taskId,
+    }
+    return processingTaskStub
+  }
 }
+
+export type GenericTask = ProcessingTask<any, any, any>
+
+// export class ProcessingTaskHandler {
+//   handleTask(task: ProcessingTask<any, any, any>) {
+
+//   }
+// }

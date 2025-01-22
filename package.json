@@ -27,8 +27,7 @@
     "@types/pako": "^2.0.3",
     "alea": "^1.0.1",
     "poisson-disk-sampling": "^2.3.1",
-    "simplex-noise": "^4.0.3",
-    "workerpool": "^9.2.0"
+    "simplex-noise": "^4.0.3"
   },
   "peerDependencies": {
     "three": ">=0.163.0",
@@ -40,7 +39,6 @@
     "@types/node": "^22.10.7",
     "@types/poisson-disk-sampling": "^2.2.4",
     "@types/three": "^0.172.0",
-    "@types/workerpool": "^6.4.7",
     "@typescript-eslint/eslint-plugin": "^8.20.0",
     "@typescript-eslint/parser": "^8.20.0",
     "eslint": "^8.57.1",

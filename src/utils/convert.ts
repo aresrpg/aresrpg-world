@@ -132,16 +132,38 @@ const getPatchId = (position: Vector2, patchSize: Vector2) => {
   return patchId
 }
 
-const getPatchRange = (bounds: Box2, patchDims: Vector2) => {
+const getBoundsPatchRange = (bounds: Box2, patchDims: Vector2) => {
   const rangeMin = getPatchId(bounds.min, patchDims)
   const rangeMax = patchUpperId(bounds.max, patchDims) // .addScalar(1)
   const patchRange = new Box2(rangeMin, rangeMax)
   return patchRange
 }
 
+const getPatchMapRange = (patchMapCenter: Vector2, patchMapRadius: number) => {
+  const bmin = patchMapCenter.clone().subScalar(patchMapRadius)
+  const bmax = patchMapCenter.clone().addScalar(patchMapRadius)
+  const patchMapRange = new Box2(bmin, bmax)
+  return patchMapRange
+}
+
+const genPatchMapIndex = (patchMapCenter: Vector2, patchMapRadius: number) => {
+  const patchIndex: Record<PatchKey, boolean> = {}
+  // const patchIds = []
+  const { min, max } = getPatchMapRange(patchMapCenter, patchMapRadius)
+  for (let { y } = min; y <= max.y; y++) {
+    for (let { x } = min; x <= max.x; x++) {
+      const patchId = new Vector2(x, y)
+      const patchKey = serializePatchId(patchId)
+      patchIndex[patchKey] = true
+      // patchIds.push(new Vector2(x, y))
+    }
+  }
+  return patchIndex
+}
+
 const getPatchIds = (bounds: Box2, patchDims: Vector2) => {
   const patchIds = []
-  const patchRange = getPatchRange(bounds, patchDims)
+  const patchRange = getBoundsPatchRange(bounds, patchDims)
   // iter elements on computed range
   const { min, max } = patchRange
   for (let { y } = min; y <= max.y; y++) {
@@ -153,7 +175,7 @@ const getPatchIds = (bounds: Box2, patchDims: Vector2) => {
 }
 
 const getRoundedBox = (bounds: Box2, patchDims: Vector2) => {
-  const { min, max } = getPatchRange(bounds, patchDims)
+  const { min, max } = getBoundsPatchRange(bounds, patchDims)
   min.multiply(patchDims)
   max.multiply(patchDims)
   const extBbox = new Box2(min, max)
@@ -206,7 +228,9 @@ export {
   getPatchId,
   patchUpperId,
   serializePatchId,
-  getPatchRange,
+  // getBoundsPatchRange,
+  getPatchMapRange,
+  genPatchMapIndex,
   getPatchIds,
   getRoundedBox,
   asPatchBounds,

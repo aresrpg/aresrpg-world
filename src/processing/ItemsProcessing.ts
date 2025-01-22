@@ -1,9 +1,9 @@
-import { Box2, Box3, Vector3 } from 'three'
+import { Box2, Box3, Vector2, Vector3 } from 'three'
 
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
 import {
   Biome,
-  BlocksProcessing,
+  BlockType,
   DistributionProfile,
   ProcessingTask,
   PseudoDistributionMap,
@@ -16,6 +16,149 @@ import { ItemsInventory, ItemType, SpawnedItems } from '../factory/ItemsFactory'
 
 import { GroundPatch } from './GroundPatch'
 import { DistributionProfiles } from './RandomDistributionMap'
+import {
+  GenericTask,
+  ProcessingTaskHandler,
+  ProcessingTaskStub,
+} from './TaskProcessing'
+
+/**
+ * Calling side
+ */
+
+export const itemsProcessingHandlerName = `ItemsProcessing`
+
+export enum ItemsProcessingRecipe {
+  SpawnedItems = 'SpawnedItems',
+  IndividualChunks = 'IndividualChunks',
+  MergeIndividualChunks = 'MergeIndividualChunks',
+  IsolatedPointBlocks = 'IsolatedPointBlocks',
+  PointPeakBlock = 'PointPeakBlock',
+}
+
+type ItemsProcessingInput = Vector2 | Box2 | PatchKey
+type ItemsProcessingParams = {
+  recipe: ItemsProcessingRecipe
+}
+type ItemsProcessingOutput = ChunkContainer | ChunkContainer[]
+
+const noParser = (stubs: any) => stubs
+const chunkStubParser = (chunkStub: ChunkStub) =>
+  new ChunkContainer().fromStub(chunkStub)
+const chunkStubsParser = (stubs: ChunkStub[]) => stubs.map(chunkStubParser)
+
+const stubsParsers: Partial<
+  Record<ItemsProcessingRecipe, (stubs: any) => any>
+> = {
+  [ItemsProcessingRecipe.IndividualChunks]: chunkStubsParser,
+  [ItemsProcessingRecipe.MergeIndividualChunks]: chunkStubParser,
+}
+
+// constructor
+const ItemsProcessingTaskConstructor = ProcessingTask<
+  ItemsProcessingInput,
+  ItemsProcessingParams,
+  ItemsProcessingOutput
+>
+
+const createItemsProcessingTask =
+  (recipe: ItemsProcessingRecipe) => (input: ItemsProcessingInput) => {
+    const task = new ItemsProcessingTaskConstructor()
+    task.handlerId = itemsProcessingHandlerName
+    task.processingInput = input
+    task.processingParams = { recipe }
+    task.postProcess = stubsParsers[recipe] || noParser
+    return task
+  }
+
+// Exposed API
+
+export const ItemsProcessing = {
+  bakeIndividualChunks: createItemsProcessingTask(
+    ItemsProcessingRecipe.IndividualChunks,
+  ),
+  mergeIndividualChunks: createItemsProcessingTask(
+    ItemsProcessingRecipe.MergeIndividualChunks,
+  ),
+  isolatedPointBlocks: createItemsProcessingTask(
+    ItemsProcessingRecipe.IsolatedPointBlocks,
+  ),
+  pointPeakBlock: createItemsProcessingTask(
+    ItemsProcessingRecipe.PointPeakBlock,
+  ),
+}
+
+/**
+ * Handling side
+ */
+
+// {
+//   spawnedItems: SpawnedItems
+//   individualChunks?: ChunkContainer[]
+//   mergedChunk?: ChunkContainer
+//   isolatedPointBlocks?: number[]
+// }
+// const defaultProcessingParams: ItemsProcessingParams = {
+//   recipe: ItemsProcessingRecipe.IndividualChunks,
+// }
+
+// type ItemsProcessingTask = ProcessingTask<ItemsProcessingInput, ItemsProcessingParams, ItemsProcessingOutput>
+type ItemsProcessingTaskStub = ProcessingTaskStub<
+  ItemsProcessingInput,
+  ItemsProcessingParams
+>
+type ItemsProcessingTaskHandler = ProcessingTaskHandler<
+  ItemsProcessingInput,
+  ItemsProcessingParams,
+  any
+>
+
+export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
+  taskStub: ItemsProcessingTaskStub,
+) => {
+  const { processingInput, processingParams } = taskStub
+  const { recipe } = processingParams
+  const patchBounds = parseInput(processingInput)
+  const spawnedItems = retrieveOvergroundItems(patchBounds)
+
+  if (recipe === ItemsProcessingRecipe.SpawnedItems) {
+    return spawnedItems
+  } else if (recipe === ItemsProcessingRecipe.IsolatedPointBlocks) {
+    if (processingInput instanceof Vector3) {
+      return await queryPointBlocks(spawnedItems, processingInput)
+    } else {
+      console.warn(`invalid input provided for point query`)
+      const emptyOutput: number[] = []
+      return emptyOutput
+    }
+  } else if (recipe === ItemsProcessingRecipe.PointPeakBlock) {
+    if (processingInput instanceof Vector2) {
+      return await queryPointPeakBlock(spawnedItems, processingInput)
+    } else {
+      console.warn(`invalid input provided for point query`)
+      const emptyOutput = { level: 0, type: BlockType.NONE }
+      return emptyOutput
+    }
+  } else {
+    const individualChunks = await bakeIndividualChunks(spawnedItems)
+    if (recipe === ItemsProcessingRecipe.IndividualChunks) {
+      return individualChunks.map(chunk => chunk.toStub())
+    } else {
+      const mergedItems = await mergeIndividualChunks(individualChunks)
+      return mergedItems
+    }
+  }
+}
+
+// Registration
+ProcessingTask.taskHandlers[itemsProcessingHandlerName] =
+  itemsProcessingTaskHandler
+
+/**
+ * Processing
+ */
+
+// Defaults
 
 const defaultDistribution: DistributionParams = {
   ...DistributionProfiles[DistributionProfile.MEDIUM],
@@ -27,40 +170,41 @@ const defaultSpawnMap = new PseudoDistributionMap(
 )
 const defaultItemDims = new Vector3(10, 13, 10)
 
-type ItemsLayerStub = {
-  spawnedItems: SpawnedItems
-  individualChunks: ChunkContainer[]
-}
+// Misc utils
 
-const getPatchBounds = (boundsOrPatchKey: Box2 | PatchKey) => {
-  const patchBounds =
-    boundsOrPatchKey instanceof Box2
-      ? boundsOrPatchKey.clone()
-      : asPatchBounds(boundsOrPatchKey, WorldEnv.current.patchDimensions)
-  // this.bounds = asBox3(patchBounds)
-  // this.patch.bounds = patchBounds
-  // if (typeof boundsOrPatchKey === 'string') {
-  //   this.patchKey = boundsOrPatchKey
-  // }
-  return patchBounds
-}
-
-// takes
-const adjustHeight = async (itemChunk: ChunkContainer) => {
-  const chunkBottomBlocks: Vector3[] = []
-  // iter slice blocks
-  for (const heightBuff of itemChunk.iterChunkSlice()) {
-    if (heightBuff.data[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
+const getPatchBounds = (input: Vector2 | PatchKey) => {
+  const asPointBounds = (point: Vector2) => {
+    const pointBounds = new Box2(point.clone(), point.clone())
+    pointBounds.expandByScalar(1)
+    return pointBounds
   }
-  // compute blocks batch to find lowest element
-  const blocksBatch = new BlocksProcessing(chunkBottomBlocks)
-  const batchRes = await blocksBatch.process()
-  const [lowestBlock] = batchRes.sort((b1, b2) => b1.data.level - b2.data.level)
-  const lowestHeight = lowestBlock?.data.level || 0
-  const heightOffset = itemChunk.bounds.min.y - lowestHeight
-  // adjust chunk elevation according to lowest element
-  itemChunk.bounds.translate(new Vector3(0, -heightOffset, 0))
+  return input instanceof Vector2
+    ? asPointBounds(input)
+    : asPatchBounds(input, WorldEnv.current.patchDimensions)
 }
+
+const parseInput = (input: ItemsProcessingInput) => {
+  return input instanceof Box2 ? input.clone() : getPatchBounds(input)
+}
+
+export const isChunksProcessingTask = (task: GenericTask) =>
+  task.handlerId === itemsProcessingHandlerName
+
+// // takes
+// const adjustItemHeight = async (itemChunk: ChunkContainer) => {
+//   const chunkBottomBlocks: Vector3[] = []
+//   // iter slice blocks
+//   for (const heightBuff of itemChunk.iterChunkSlice()) {
+//     if (heightBuff.data[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
+//   }
+//   // compute blocks batch to find lowest element
+//   const blocksBatch = await BlocksProcessing.getFloorPositions(chunkBottomBlocks).process()
+//   const [lowestBlock] = blocksBatch.sort((b1, b2) => b1.data.level - b2.data.level)
+//   const lowestHeight = lowestBlock?.data.level || 0
+//   const heightOffset = itemChunk.bounds.min.y - lowestHeight
+//   // adjust chunk elevation according to lowest element
+//   itemChunk.bounds.translate(new Vector3(0, -heightOffset, 0))
+// }
 
 /**
  * retrieveOvergroundItems
@@ -82,6 +226,8 @@ export const retrieveOvergroundItems = (patchBounds: Box2) => {
     const { level, biome, landId } = groundPatch.computeGroundBlock(
       asVect3(pos),
     )
+    // const blockProcessor = new BlockProcessor(asVect3(pos), groundPatch)
+    // const floorBlock = blockProcessor.getFloorBlock()
     const { floraItems } =
       Biome.instance.getBiomeLandConf(biome, landId as string) || {}
     if (floraItems && floraItems?.length > 0) {
@@ -98,6 +244,8 @@ export const retrieveOvergroundItems = (patchBounds: Box2) => {
   return spawnedItems
 }
 
+// Task input processors
+
 /**
  * BakeIndividualChunks
  * needs: spawned items
@@ -105,7 +253,7 @@ export const retrieveOvergroundItems = (patchBounds: Box2) => {
  */
 export const bakeIndividualChunks = async (spawnedItems: SpawnedItems) => {
   // request all items belonging to this patch
-  const individualChunks = []
+  const individualChunks: ChunkContainer[] = []
   let ymin = NaN
   let ymax = NaN // compute y range
   for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
@@ -119,7 +267,7 @@ export const bakeIndividualChunks = async (spawnedItems: SpawnedItems) => {
         const { min, max } = itemChunk.bounds
         ymin = isNaN(ymin) ? min.y : Math.min(ymin, min.y)
         ymax = isNaN(ymax) ? max.y : Math.max(ymax, max.y)
-        await adjustHeight(itemChunk)
+        // await adjustHeight(itemChunk)
         individualChunks.push(itemChunk)
       }
     }
@@ -149,13 +297,50 @@ export const mergeIndividualChunks = (individualChunks: ChunkContainer[]) => {
   return mergeChunk
 }
 
+export const queryPointPeakBlock = async (
+  spawnedItems: SpawnedItems,
+  requestedPos: Vector2,
+) => {
+  const peakBlock = {
+    level: 0,
+    type: BlockType.NONE,
+  }
+  for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
+    for await (const spawnOrigin of spawnPlaces) {
+      const templateChunk = await ItemsInventory.getTemplateChunk(itemType)
+      const shallowInstance = await ItemsInventory.getInstancedChunk(
+        itemType,
+        spawnOrigin,
+      )
+
+      if (templateChunk && shallowInstance) {
+        const localPos = shallowInstance.toLocalPos(asVect3(requestedPos))
+        const dataArray = templateChunk.readBuffer(asVect2(localPos))
+        dataArray.reverse()
+        const index = dataArray.findIndex(val => !!val)
+
+        if (index !== -1) {
+          const peakBlockLevel = shallowInstance.bounds.max.y - index
+          const preEncodedData = dataArray[index]
+          if (preEncodedData && peakBlockLevel > peakBlock.level) {
+            peakBlock.level = peakBlockLevel
+            peakBlock.type =
+              ChunkContainer.dataDecoder(preEncodedData) || BlockType.NONE
+          }
+        }
+      }
+    }
+  }
+  return peakBlock
+}
+
 /**
  * needs: spawned items + requested pos (externally provided)
  * provides: items blocks at requested pos
  *
  * note: several spawned overlapping objects may be found at queried position
  */
-export const queryIndividualPos = async (
+export const queryPointBlocks = async (
   spawnedItems: SpawnedItems,
   requestedPos: Vector3,
 ) => {
@@ -188,174 +373,3 @@ export const queryIndividualPos = async (
   }
   return mergeBuffer
 }
-
-/**
- * Recipes
- * - spawnedItems
- * - individualChunks
- * - mergedItemsChunk
- * - pointQuery
- */
-
-export enum ItemsProcessingRecipes {
-  SpawnedItems = 'SpawnedItems',
-  IndividualChunks = 'IndividualChunks',
-  MergeIndividualChunks = 'MergeIndividualChunks',
-  IsolatedPointQuery = 'IsolatedPointQuery',
-}
-
-const bakeRecipe = async (
-  recipe: ItemsProcessingRecipes,
-  boundsOrPatchKey: Box2 | PatchKey,
-  requestedPos?: Vector3,
-) => {
-  const patchBounds = getPatchBounds(boundsOrPatchKey)
-  const spawnedItems = retrieveOvergroundItems(patchBounds)
-  if (recipe === ItemsProcessingRecipes.SpawnedItems) {
-    return spawnedItems
-  } else if (
-    recipe === ItemsProcessingRecipes.IsolatedPointQuery &&
-    requestedPos
-  ) {
-    return await queryIndividualPos(spawnedItems, requestedPos)
-  } else {
-    const individualChunks = await bakeIndividualChunks(spawnedItems)
-    if (recipe === ItemsProcessingRecipes.IndividualChunks) {
-      return individualChunks
-    } else {
-      const mergedItems = await mergeIndividualChunks(individualChunks)
-      return mergedItems
-    }
-  }
-}
-
-export type ItemsProcessingParams = {
-  recipe: ItemsProcessingRecipes
-}
-
-const defaultProcessingParams: ItemsProcessingParams = {
-  recipe: ItemsProcessingRecipes.IndividualChunks,
-}
-
-const noParser = (stubs: any) => stubs
-const chunkStubParser = (chunkStub: ChunkStub) =>
-  new ChunkContainer().fromStub(chunkStub)
-const chunkStubsParser = (stubs: ChunkStub[]) => stubs.map(chunkStubParser)
-
-const stubsParsers: Record<ItemsProcessingRecipes, (stubs: any) => any> = {
-  [ItemsProcessingRecipes.SpawnedItems]: noParser,
-  [ItemsProcessingRecipes.IndividualChunks]: chunkStubsParser,
-  [ItemsProcessingRecipes.MergeIndividualChunks]: chunkStubParser,
-  [ItemsProcessingRecipes.IsolatedPointQuery]: noParser,
-}
-
-/**
- * Process all items found in given patch
- * rename as ItemsProcessing?
- */
-export class ItemsBaker extends ProcessingTask {
-  // bounds: Box3
-  // patch: PatchStub = {
-  //   bounds: new Box2(),
-  // }
-  mandatoryInputs: any[]
-  optionalInputs: any[]
-  // spawnedItems: SpawnedItems = {}
-  // individualChunks: ChunkContainer[] = []
-
-  constructor(boundsOrPatchKey: Box2 | PatchKey, requestedPos?: Vector3) {
-    super()
-    this.mandatoryInputs = [boundsOrPatchKey]
-    this.optionalInputs = requestedPos ? [requestedPos] : []
-    // const patchBounds =
-    //   boundsOrPatchKey instanceof Box2
-    //     ? boundsOrPatchKey.clone()
-    //     : asPatchBounds(boundsOrPatchKey, WorldEnv.current.patchDimensions)
-    // this.bounds = asBox3(patchBounds)
-    // this.patch.bounds = patchBounds
-    // if (typeof boundsOrPatchKey === 'string') {
-    //   this.patchKey = boundsOrPatchKey
-    // }
-  }
-
-  // get patchKey() {
-  //   return this.patch.key || ''
-  // }
-
-  // set patchKey(patchKey: string) {
-  //   this.patch.key = patchKey
-  //   this.patch.id = parsePatchKey(patchKey) as Vector2
-  // }
-
-  // get patchId() {
-  //   return this.patch.id
-  // }
-
-  override get inputs() {
-    return [...this.mandatoryInputs, ...this.optionalInputs]
-  }
-
-  override reconcile(stubs: ItemsLayerStub) {
-    // const { spawnedItems, individualChunks } = stubs
-    // // fill object from worker's data
-    // this.spawnedItems = spawnedItems
-    // this.individualChunks = individualChunks || this.individualChunks
-
-    // parse stubs
-    const { recipe } = this.processingParams as ItemsProcessingParams
-    const stubsParser = stubsParsers[recipe]
-    return stubsParser(stubs)
-  }
-
-  override async process(processingParams = defaultProcessingParams) {
-    const { recipe } = processingParams
-    const [input] = this.mandatoryInputs
-    return bakeRecipe(recipe, input)
-  }
-
-  async bakeIndividualChunks() {
-    const [mandatory] = this.mandatoryInputs
-    return (await bakeRecipe(
-      ItemsProcessingRecipes.IndividualChunks,
-      mandatory,
-    )) as ChunkContainer[]
-  }
-
-  async mergeIndividualChunks() {
-    const [mandatory] = this.mandatoryInputs
-    return (await bakeRecipe(
-      ItemsProcessingRecipes.MergeIndividualChunks,
-      mandatory,
-    )) as ChunkContainer
-  }
-
-  async queryIsolatedPoint() {
-    const [mandatory] = this.mandatoryInputs
-    const [optional] = this.optionalInputs
-    return (await bakeRecipe(
-      ItemsProcessingRecipes.IsolatedPointQuery,
-      mandatory,
-      optional,
-    )) as number[]
-  }
-
-  // toStub() {
-  //   const { spawnedItems } = this
-  //   // return { spawnedItems, individualChunks }
-  //   return { spawnedItems }
-  // }
-
-  // get patchBounds() {
-  //   return asBox2(this.bounds)
-  // }
-
-  // get spawnedLocs() {
-  //   const spawnedLocs = []
-  //   for (const [, spawnPlaces] of Object.entries(this.spawnedItems)) {
-  //     spawnedLocs.push(...spawnPlaces)
-  //   }
-  //   return spawnedLocs
-  // }
-}
-
-ProcessingTask.registeredObjects[ItemsBaker.name] = ItemsBaker

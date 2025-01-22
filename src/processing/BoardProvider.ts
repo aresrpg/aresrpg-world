@@ -5,19 +5,16 @@ import {
   asBox3,
   asVect2,
   asVect3,
+  genChunkIds,
+  genPatchMapIndex,
   getPatchId,
   getUpperScalarId,
+  parsePatchKey,
   serializePatchId,
 } from '../utils/convert'
-import {
-  WorldEnv,
-  ChunkContainer,
-  BatchProcess,
-  ChunksProcessor,
-  BlockType,
-} from '../index'
+import { WorldEnv, ChunkContainer, BlockType, WorkerPool } from '../index'
 import { ProcLayer } from '../procgen/ProcLayer'
-import { BlockMode, ChunkId, PatchKey } from '../utils/types'
+import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/types'
 import {
   DataContainer,
   PatchBase,
@@ -25,14 +22,8 @@ import {
 } from '../datacontainers/PatchBase'
 import { copySourceToTargetPatch } from '../utils/data'
 
-import {
-  ItemsBaker,
-  ItemsProcessingParams,
-  ItemsProcessingRecipes,
-} from './ItemsProcessing'
-import { ProcessingTask } from './TaskProcessing'
-import { ChunksProcessingParams } from './ChunksProcessing'
-// import { UndegroundChunkset } from './ChunksProcessing'
+import { ChunksProcessing } from './ChunksProcessing'
+import { ItemsProcessing } from './ItemsProcessing'
 
 export enum BlockCategory {
   EMPTY = 0,
@@ -104,138 +95,121 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
   }
 }
 
-/**
- * Will handle chunks processing and storing used to build board
- */
-export class BoardCache extends BatchProcess<ProcessingTask> {
-  centerPatchId = new Vector2(NaN, NaN)
-  patchRange = 0
+const chunksRange = WorldEnv.current.chunks.range
 
-  constructor(centerPatchId: Vector2, patchRange: number) {
-    super([])
-    this.centerPatchId = centerPatchId
-    this.patchRange = patchRange
+/**
+ * Handle chunks and items tasks and provide data required to build board content:
+ */
+export class BoardCacheProvider {
+  workerPool: WorkerPool
+  localCache: {
+    chunks: ChunkContainer[]
+    items: ChunkContainer[]
+  } = {
+    chunks: [],
+    items: [],
   }
 
-  // override onTaskCompleted(task: ProcessingTask) {
-  //   console.log(task)
+  // taskIndex: Record<TaskId, GenericTask> = {}
+  centerPatch = new Vector2(NaN, NaN)
+  patchRange = 0
+  patchIndex: Record<PatchKey, any> = {}
+  pendingBoardGen = false
+
+  constructor(workerPool: WorkerPool) {
+    this.workerPool = workerPool
+  }
+
+  boardChanged = (centerPatch: Vector2, patchRange: number) =>
+    this.centerPatch.distanceTo(centerPatch) > 0 ||
+    this.patchRange !== patchRange
+
+  // constructor(centerPatchId: Vector2, patchRange: number) {
+  //   this.centerPatchId = centerPatchId
+  //   this.patchRange = patchRange
   // }
 
-  override onBatchCompleted(): void {
-    console.log(`BoardCache: ready!`)
+  get patchKeys() {
+    return Object.keys(this.patchIndex)
   }
 
-  get itemsProcessors() {
-    return this.finishedTask.filter(
-      task => task instanceof ItemsBaker,
-    ) as ItemsBaker[]
+  get chunkIds() {
+    const { bottomId, topId } = chunksRange
+    const chunkIds: ChunkId[] = []
+    this.patchKeys.forEach(patchKey => {
+      const patchId = parsePatchKey(patchKey) as PatchId
+      chunkIds.push(...genChunkIds(patchId, bottomId, topId))
+    })
+    return chunkIds
   }
 
-  get chunksProcessors() {
-    return this.finishedTask.filter(
-      task => task instanceof ChunksProcessor,
-    ) as ChunksProcessor[]
+  get chunks() {
+    return this.localCache.chunks
   }
 
-  get processedChunks() {
-    const allProcessedChunks = []
-    // iter board indexed chunks
-    for (const chunkProcessor of this.chunksProcessors) {
-      const processedChunks = chunkProcessor.result as ChunkContainer[]
-      allProcessedChunks.push(...processedChunks)
-    }
-    return allProcessedChunks
-  }
-
-  get processedItemsChunks() {
-    const processedItemsChunks = []
-    // iter board indexed chunks
-    for (const itemProcessor of this.itemsProcessors) {
-      const itemsChunks = itemProcessor.result as ChunkContainer[]
-      processedItemsChunks.push(...itemsChunks)
-    }
-    return processedItemsChunks
-  }
-
-  get boundingPatchIds() {
-    const { centerPatchId, patchRange } = this
-    const bmin = centerPatchId.clone().subScalar(patchRange)
-    const bmax = centerPatchId.clone().addScalar(patchRange)
-    const mapRange = new Box2(bmin, bmax)
-    return mapRange
-  }
-
-  buildPatchIndex() {
-    const patchIndex: Record<PatchKey, boolean> = {}
-    // const patchIds = []
-    const { min, max } = this.boundingPatchIds
-    for (let { y } = min; y <= max.y; y++) {
-      for (let { x } = min; x <= max.x; x++) {
-        const patchId = new Vector2(x, y)
-        const patchKey = serializePatchId(patchId)
-        patchIndex[patchKey] = true
-        // patchIds.push(new Vector2(x, y))
-      }
-    }
-    return patchIndex
+  get items() {
+    return this.localCache.items
   }
 
   /**
-   * call each time view settings changes to regen batch
+   * called each time cache needs to be rebuilt
    */
-  build() {
-    // regen patch index from current view settings
-    const patchIndex = this.buildPatchIndex()
-    const chunksProcessingParams: ChunksProcessingParams = {
-      skipEntities: true,
-      noDataEncoding: true,
+  loadData = async (centerPatch: Vector2, patchRange: number) => {
+    if (this.boardChanged(centerPatch, patchRange)) {
+      this.pendingBoardGen = true
+      this.centerPatch = centerPatch
+      this.patchRange = patchRange
+      // regen patch index from current board position
+      const patchIndex = genPatchMapIndex(this.centerPatch, this.patchRange)
+      // enqueue chunks processing tasks
+      const chunksPendingTasks = Object.keys(patchIndex)
+        .filter(patchKey => !this.patchIndex[patchKey])
+        .map(patchKey => ChunksProcessing.allChunks(patchKey))
+        .map(chunkTask => {
+          chunkTask.processingParams.noDataEncoding = true
+          chunkTask.processingParams.skipEntities = true
+          const pendingChunkTask = chunkTask.delegate(this.workerPool)
+          // once done put result in cache
+          pendingChunkTask.then(taskRes =>
+            this.localCache.chunks.push(...taskRes),
+          )
+          return pendingChunkTask
+        })
+      // enqueue items processing tasks
+      const itemsPendingTasks = Object.keys(patchIndex)
+        .filter(patchKey => !this.patchIndex[patchKey])
+        .map(patchKey => ItemsProcessing.bakeIndividualChunks(patchKey))
+        .map(itemTask => {
+          const pendingItemTask = itemTask.delegate(this.workerPool)
+          // once done put result in cache
+          pendingItemTask.then(taskRes => {
+            this.localCache.items.push(...(taskRes as ChunkContainer[]))
+          })
+          return pendingItemTask
+        })
+      // update index
+      this.patchIndex = patchIndex
+      await Promise.all([...chunksPendingTasks, ...itemsPendingTasks])
+      console.log(`BoardCache: ready!`)
     }
-    // insert chunks gen tasks in processing queue
-    Object.keys(patchIndex)
-      .map(patchKey => new ChunksProcessor(patchKey))
-      .forEach(task => {
-        task.processingParams = chunksProcessingParams
-        this.processingQueue.push(task)
-      })
-
-    const itemsProcessingParams: ItemsProcessingParams = {
-      recipe: ItemsProcessingRecipes.IndividualChunks,
-    }
-
-    // insert items gen tasks in processing queue
-    Object.keys(patchIndex)
-      .map(patchKey => new ItemsBaker(patchKey))
-      .forEach(task => {
-        task.processingParams = itemsProcessingParams
-        this.processingQueue.push(task)
-      })
   }
 
   /**
    * fills target chunk from cache
    */
-  fillTargetChunk(boardTarget: ChunkContainer) {
-    this.processedChunks.forEach(chunk => {
-      ChunkContainer.copySourceToTarget(chunk, boardTarget)
-      // itemsChunks.forEach(itemSource =>
-      //   ChunkContainer.copySourceToTarget(itemSource, boardTarget),
-      // )
+  fillTargetChunk(targetChunk: ChunkContainer) {
+    this.localCache.chunks.forEach(sourceChunk => {
+      ChunkContainer.copySourceToTarget(sourceChunk, targetChunk)
     })
+    // itemsChunks.forEach(itemSource =>
+    //   ChunkContainer.copySourceToTarget(itemSource, boardTarget),
+    // )
   }
 
-  querySpawnedItems(bounds: Box3) {
-    const { itemsProcessors } = this
-    const spawnedItems: ChunkContainer[] = []
-    itemsProcessors.forEach(itemProcessor => {
-      const itemsChunks = itemProcessor.result as ChunkContainer[]
-      itemsChunks
-        .filter(itemChunk => {
-          // const spawnLoc = asVect2(itemChunk.bounds.getCenter(new Vector3()))
-          // return patchBounds.containsPoint(spawnLoc)
-          return itemChunk.bounds.intersectsBox(bounds)
-        })
-        .forEach(itemChunk => spawnedItems.push(itemChunk))
-    })
+  getSpawnedItems(bounds: Box3) {
+    const spawnedItems = this.localCache.items.filter(chunk =>
+      chunk.bounds.intersectsBox(bounds),
+    )
     return spawnedItems
   }
 }
@@ -250,10 +224,10 @@ type BoardContent = {
  * - `start` to create unique board instance at specific location
  * - `terminate` to remove board instance
  */
-export class BoardProcessor {
+export class BoardProvider {
   // eslint-disable-next-line no-use-before-define
-  static singleton: BoardProcessor | null
-  localCache: BoardCache
+  static singleton: BoardProvider | null
+  cacheProvider: BoardCacheProvider
   // dedicatedWorker:
   // board input
   boardParams: BoardParams = {
@@ -278,7 +252,7 @@ export class BoardProcessor {
    * create board instance running in background
    */
   static createInstance(boardPosition: Vector3) {
-    this.singleton = this.singleton || new BoardProcessor(boardPosition)
+    this.singleton = this.singleton || new BoardProvider(boardPosition)
     return this.singleton
   }
 
@@ -291,6 +265,7 @@ export class BoardProcessor {
 
   constructor(
     boardCenter: Vector3,
+    dedicatedWorkerPool = WorkerPool.default,
     boardRadius?: number,
     boardThickness?: number,
   ) {
@@ -300,9 +275,8 @@ export class BoardProcessor {
     this.boardParams.center = boardCenter.clone().floor()
     this.boardParams.radius = boardRadius
     this.boardParams.thickness = boardThickness
-    BoardProcessor.boardHolesLayer.sampling.periodicity = 0.25
-    this.localCache = new BoardCache(this.centerPatchId, this.patchRange)
-    this.localCache.build()
+    BoardProvider.boardHolesLayer.sampling.periodicity = 0.25
+    this.cacheProvider = new BoardCacheProvider(dedicatedWorkerPool)
     // this.center = boardCenter
     console.log(
       `create board at ${serializePatchId(this.centerPatchId)} (radius: ${boardRadius}, thickness: ${boardThickness})`,
@@ -365,18 +339,15 @@ export class BoardProcessor {
   }
 
   get nonOverlappingItemsChunks() {
-    const matching = this.localCache.processedItemsChunks.filter(
+    const matching = this.cacheProvider.items.filter(
       itemChunk => !this.overlapsBoard(asBox2(itemChunk.bounds)),
     )
     return matching
   }
 
   async genBoardContent() {
-    const onCacheReady = new Promise(resolve => {
-      this.localCache.enqueue(undefined, resolve)
-    }).then(() => console.log(`Board cache is ready!`))
-    await onCacheReady
-    console.log(`gen board content`)
+    // wait for cache to be filled
+    await this.cacheProvider.loadData(this.centerPatchId, this.patchRange)
     // this.boardParams.center = center
     this.finalBounds.setFromPoints([this.boardCenter])
     const emptyBlock = ChunkContainer.dataEncoder(BlockType.NONE)
@@ -384,7 +355,7 @@ export class BoardProcessor {
     const boardPatch = new BoardPatch(initialPatchBounds)
     const boardChunk = new ChunkContainer(this.initialBounds, 1)
     // fill chunk from cache
-    this.localCache.fillTargetChunk(boardChunk)
+    this.cacheProvider.fillTargetChunk(boardChunk)
     // const chunkHeightBuffers = boardChunk.iterChunkBuffers()
     // for (const heightBuff of chunkHeightBuffers) {
     for (const patchIter of boardPatch.iterDataQuery(undefined, false, false)) {
@@ -441,7 +412,7 @@ export class BoardProcessor {
 
   // trim items spawning inside board
   addTrimmedItems(boardPatch: BoardPatch, boardChunk: ChunkContainer) {
-    const boardSpawnedItems = this.localCache.querySpawnedItems(
+    const boardSpawnedItems = this.cacheProvider.getSpawnedItems(
       boardChunk.bounds,
     )
     for (const itemChunk of boardSpawnedItems) {
@@ -491,7 +462,7 @@ export class BoardProcessor {
       // TODO
     }
     // iter processed original chunks
-    for (const originalChunk of this.localCache.processedChunks) {
+    for (const originalChunk of this.cacheProvider.chunks) {
       // board_chunk.rawData.fill(113)
       const targetChunk = new ChunkContainer(
         originalChunk.chunkKey,
@@ -511,9 +482,8 @@ export class BoardProcessor {
   }
 
   *restoreOriginalChunksContent() {
-    const { processedItemsChunks } = this.localCache
     // iter processed original chunks
-    for (const originalChunk of this.localCache.processedChunks) {
+    for (const originalChunk of this.cacheProvider.chunks) {
       // board_chunk.rawData.fill(113)
       const targetChunk = new ChunkContainer(
         originalChunk.chunkKey,
@@ -523,7 +493,7 @@ export class BoardProcessor {
         (val, i) => (targetChunk.rawData[i] = ChunkContainer.dataEncoder(val)),
       )
       // copy items individually
-      processedItemsChunks.forEach(itemChunk =>
+      this.cacheProvider.items.forEach(itemChunk =>
         ChunkContainer.copySourceToTarget(itemChunk, targetChunk),
       )
       yield targetChunk

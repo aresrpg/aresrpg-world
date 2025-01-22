@@ -1,27 +1,22 @@
 // Utils
+
 // export * as WorldUtils from './utils/index'
 export { getPatchId, asVect2, asVect3 } from './utils/convert'
 export { BlockMode } from './utils/types'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing'
-export { BatchProcess } from './processing/BatchProcessing'
 export {
   BlocksProcessing,
   BlocksProcessingRecipe,
-  BlockProcessor,
 } from './processing/BlocksProcessing'
-export { BoardProcessor, BlockCategory } from './processing/BoardProcessing'
-export {
-  ViewChunksBatch,
-  LowerChunksBatch,
-  UpperChunksBatch,
-} from './processing/ChunksBatch'
+export { BoardProvider, BlockCategory } from './processing/BoardProvider'
+export { ChunksProvider } from './processing/ChunksProvider'
 export {
   PseudoDistributionMap,
   DistributionProfile,
 } from './processing/RandomDistributionMap'
-export { ChunksProcessor } from './processing/ChunksProcessing'
 export { ProcessingState } from './processing/TaskProcessing'
+export { WorkerSideInit, WorkerPool } from './processing/WorkerProxy'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'
