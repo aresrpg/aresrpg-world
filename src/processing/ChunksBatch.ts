@@ -88,17 +88,16 @@ export class ViewChunksBatch extends BatchProcess<ChunksProcessor> {
     const bmin = viewCenter.clone().subScalar(viewRange)
     const bmax = viewCenter.clone().addScalar(viewRange)
     const patchViewRange = new Box2(bmin, bmax)
-    const patchIndex: Record<PatchKey, boolean> = {}
-    // const patchIds = []
+    const chunksKeys = []
     const { min, max } = patchViewRange
     for (let { y } = min; y <= max.y; y++) {
       for (let { x } = min; x <= max.x; x++) {
-        const patchId = new Vector2(x, y)
-        const patchKey = serializePatchId(patchId)
-        patchIndex[patchKey] = true
+        // @ts-expect-error
+        const patchKey = serializePatchId({ x, y })
+        chunksKeys.push(patchKey)
       }
     }
-    return patchIndex
+    return chunksKeys
   }
 
   /**
