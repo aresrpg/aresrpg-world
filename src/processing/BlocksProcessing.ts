@@ -117,7 +117,7 @@ const createGroundPatch = (patchKey: PatchKey) => {
 //   floorPositionsHandler
 // }
 
-export const blocksProcessingHandler: BlocksProcessingTaskHandler = async (
+export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
   taskStub: BlocksProcessingTask | BlocksProcessingTaskStub,
   processingContext = ProcessingContext.None,
 ) => {
@@ -167,7 +167,7 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = async (
   const blocksProcessing = parsedInput.map(requestedPos =>
     bakeBlock(requestedPos, recipe),
   )
-  return (await isAsync) ? Promise.all(blocksProcessing) : blocksProcessing
+  return isAsync ? Promise.all(blocksProcessing) : blocksProcessing
 }
 
 // const res = await BlocksProcessing.getFloorPositions([]).delegate()

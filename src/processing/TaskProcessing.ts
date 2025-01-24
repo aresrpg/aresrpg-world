@@ -20,9 +20,10 @@ export const parseTaskInputStubs = (...rawArgs: any) => {
 export enum ProcessingState {
   None = 'none',
   Scheduled = 'scheduled',
+  // from here is in processing queue
   Waiting = 'waiting',
   Pending = 'pending',
-  // Postponed = 'postponed',
+  // from here is inactive
   Suspended = 'suspended',
   Canceled = 'canceled',
   Done = 'done',
@@ -41,6 +42,8 @@ export type ProcessingTaskStub<ProcessingInput, ProcessingParams> = {
   processingParams: ProcessingParams
   handlerId: ProcessingTaskHandlerId
 }
+
+// 
 export type ProcessingTaskHandler<
   ProcessingInput,
   ProcessingParams,
@@ -48,11 +51,12 @@ export type ProcessingTaskHandler<
 > = (
   taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
   context?: ProcessingContext,
-) => Promise<ProcessingOutput>
+) => Promise<ProcessingOutput> | ProcessingOutput
 type ProcessingTasksHandlers = Record<
   ProcessingTaskHandlerId,
   ProcessingTaskHandler<any, any, any>
 >
+
 
 /**
  * Tasks can be processed locally on main thread, worker thread
@@ -68,7 +72,7 @@ export class ProcessingTask<
   processingInput: ProcessingInput = [] as ProcessingInput
   processingParams: ProcessingParams = {} as ProcessingParams
   handlerId: ProcessingTaskHandlerId = ''
-  processingState: ProcessingState = ProcessingState.Waiting
+  processingState: ProcessingState = ProcessingState.None
   taskId: TaskId
   order = 0
   promise!: Promise<ProcessingOutput>
@@ -78,7 +82,7 @@ export class ProcessingTask<
   // resolveDeferredPromise: any
   scheduled = false
 
-  static async handleTask(
+  static handleTask(
     taskStub: ProcessingTaskStub<any, any>,
     context?: ProcessingContext,
   ) {
@@ -88,7 +92,7 @@ export class ProcessingTask<
     const taskHandler = ProcessingTask.taskHandlers[handlerId]
     if (taskHandler) {
       // const task = new Task(...args)
-      const taskRes = await taskHandler(taskStub, context)
+      const taskRes = taskHandler(taskStub, context)
       // const res = await task.preProcess(processingArgs, processingParams)
       // const stubs = toStubs(res)
       return taskRes // targetObj.toStub()
@@ -113,6 +117,13 @@ export class ProcessingTask<
     )
   }
 
+  getPromise() {
+    this.promise = this.promise || new Promise<ProcessingOutput>(
+      resolve => (this.resolve = resolve),
+    )
+    return this.promise
+  }
+
   // getDeferredPromise = () => {
   //   this.deferredPromise = this.deferredPromise || new Promise(resolve => {
   //     this.resolveDeferredPromise = resolve
@@ -133,36 +144,36 @@ export class ProcessingTask<
    * @param processingParams
    * @param processingUnit
    */
-  async delegate(processingUnit = WorkerPool.default) {
-    if (!this.promise)
+  delegate = async (processingUnit = WorkerPool.default) => {
+    // prevents task from being enqueued several times
+    // if (this.isNotEnqueued()) {
       // if (this.processingState !== ProcessingState.Done) {
       // this.processingState = ProcessingState.Pending
       // const taskStub = this.toStub()
-      this.promise = new Promise<ProcessingOutput>(
-        resolve => (this.resolve = resolve),
-      )
-    processingUnit.enqueueTasks(this)
-    //   .exec('delegateTask', transferredData)
-    //   .catch((e: any) => {
-    //     console.log(e)
-    //     this.processingState = ProcessingState.Postponed
+      const pendingPromise = this.getPromise()
+      processingUnit.enqueueTasks(this)
+      //   .exec('delegateTask', transferredData)
+      //   .catch((e: any) => {
+      //     console.log(e)
+      //     this.processingState = ProcessingState.Postponed
 
-    //     // throw e
-    //   })
-    const taskOutput = await this.promise
-    this.processingState =
-      this.processingState === ProcessingState.Pending
-        ? ProcessingState.Done
-        : this.processingState
-    const taskData: ProcessingOutput = this.postProcess(taskOutput)
-    this.onTaskCompleted(taskData)
-    // this.resolveDeferredPromise(taskData)
-    // this.pendingTask = null
-    // this.onTaskProcessed(taskRes)
-    // const taskRes = stubs ? this.reconcile(stubs) : null
-    // this.result = taskRes
-    // return taskRes // this.reconcile(stubs)
-    return taskData
+      //     // throw e
+      //   })
+      const taskOutput = await pendingPromise
+      this.processingState =
+        this.processingState === ProcessingState.Pending
+          ? ProcessingState.Done
+          : this.processingState
+      const taskData: ProcessingOutput = this.postProcess(taskOutput)
+      this.onTaskCompleted(taskData)
+      // this.resolveDeferredPromise(taskData)
+      // this.pendingTask = null
+      // this.onTaskProcessed(taskRes)
+      // const taskRes = stubs ? this.reconcile(stubs) : null
+      // this.result = taskRes
+      // return taskRes // this.reconcile(stubs)
+      return taskData
+      // }
     // }
   }
 
@@ -176,6 +187,7 @@ export class ProcessingTask<
     if (this.processingState === ProcessingState.None) {
       this.processingState = ProcessingState.Scheduled
       setTimeout(this.delegate, delay)
+      return this.getPromise()
     }
     return null
   }
@@ -183,7 +195,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() {}
+  request() { }
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -195,10 +207,9 @@ export class ProcessingTask<
     this.processingState = ProcessingState.Suspended
   }
 
-  isActive() {
-    return this.processingState === ProcessingState.Waiting
-  }
-
+  isNotEnqueued = () => this.processingState === ProcessingState.None || this.processingState === ProcessingState.Scheduled
+  isWaiting = () => this.processingState === ProcessingState.Waiting
+  isPending = () => this.processingState === ProcessingState.Pending
   isInactive() {
     return (
       this.processingState === ProcessingState.Canceled ||
@@ -227,9 +238,9 @@ export class ProcessingTask<
     console.log(`skipped task processing`)
   }
 
-  onStarted = () => {}
+  onStarted = () => { }
 
-  onDone = () => {}
+  onDone = () => { }
 
   /**
    * additional callback where post process actions can be performed
