@@ -43,7 +43,7 @@ export type ProcessingTaskStub<ProcessingInput, ProcessingParams> = {
   handlerId: ProcessingTaskHandlerId
 }
 
-// 
+//
 export type ProcessingTaskHandler<
   ProcessingInput,
   ProcessingParams,
@@ -56,7 +56,6 @@ type ProcessingTasksHandlers = Record<
   ProcessingTaskHandlerId,
   ProcessingTaskHandler<any, any, any>
 >
-
 
 /**
  * Tasks can be processed locally on main thread, worker thread
@@ -118,9 +117,9 @@ export class ProcessingTask<
   }
 
   getPromise() {
-    this.promise = this.promise || new Promise<ProcessingOutput>(
-      resolve => (this.resolve = resolve),
-    )
+    this.promise =
+      this.promise ||
+      new Promise<ProcessingOutput>(resolve => (this.resolve = resolve))
     return this.promise
   }
 
@@ -147,33 +146,33 @@ export class ProcessingTask<
   delegate = async (processingUnit = WorkerPool.default) => {
     // prevents task from being enqueued several times
     // if (this.isNotEnqueued()) {
-      // if (this.processingState !== ProcessingState.Done) {
-      // this.processingState = ProcessingState.Pending
-      // const taskStub = this.toStub()
-      const pendingPromise = this.getPromise()
-      processingUnit.enqueueTasks(this)
-      //   .exec('delegateTask', transferredData)
-      //   .catch((e: any) => {
-      //     console.log(e)
-      //     this.processingState = ProcessingState.Postponed
+    // if (this.processingState !== ProcessingState.Done) {
+    // this.processingState = ProcessingState.Pending
+    // const taskStub = this.toStub()
+    const pendingPromise = this.getPromise()
+    processingUnit.enqueueTasks(this)
+    //   .exec('delegateTask', transferredData)
+    //   .catch((e: any) => {
+    //     console.log(e)
+    //     this.processingState = ProcessingState.Postponed
 
-      //     // throw e
-      //   })
-      const taskOutput = await pendingPromise
-      this.processingState =
-        this.processingState === ProcessingState.Pending
-          ? ProcessingState.Done
-          : this.processingState
-      const taskData: ProcessingOutput = this.postProcess(taskOutput)
-      this.onTaskCompleted(taskData)
-      // this.resolveDeferredPromise(taskData)
-      // this.pendingTask = null
-      // this.onTaskProcessed(taskRes)
-      // const taskRes = stubs ? this.reconcile(stubs) : null
-      // this.result = taskRes
-      // return taskRes // this.reconcile(stubs)
-      return taskData
-      // }
+    //     // throw e
+    //   })
+    const taskOutput = await pendingPromise
+    this.processingState =
+      this.processingState === ProcessingState.Pending
+        ? ProcessingState.Done
+        : this.processingState
+    const taskData: ProcessingOutput = this.postProcess(taskOutput)
+    this.onTaskCompleted(taskData)
+    // this.resolveDeferredPromise(taskData)
+    // this.pendingTask = null
+    // this.onTaskProcessed(taskRes)
+    // const taskRes = stubs ? this.reconcile(stubs) : null
+    // this.result = taskRes
+    // return taskRes // this.reconcile(stubs)
+    return taskData
+    // }
     // }
   }
 
@@ -195,7 +194,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() { }
+  request() {}
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -207,7 +206,10 @@ export class ProcessingTask<
     this.processingState = ProcessingState.Suspended
   }
 
-  isNotEnqueued = () => this.processingState === ProcessingState.None || this.processingState === ProcessingState.Scheduled
+  isNotEnqueued = () =>
+    this.processingState === ProcessingState.None ||
+    this.processingState === ProcessingState.Scheduled
+
   isWaiting = () => this.processingState === ProcessingState.Waiting
   isPending = () => this.processingState === ProcessingState.Pending
   isInactive() {
@@ -238,9 +240,9 @@ export class ProcessingTask<
     console.log(`skipped task processing`)
   }
 
-  onStarted = () => { }
+  onStarted = () => {}
 
-  onDone = () => { }
+  onDone = () => {}
 
   /**
    * additional callback where post process actions can be performed
