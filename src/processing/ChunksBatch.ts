@@ -84,6 +84,23 @@ export class ViewChunksBatch extends BatchProcess<ChunksProcessor> {
     return viewChanged
   }
 
+  computeView(viewCenter: Vector2, viewRange: number) {
+    const bmin = viewCenter.clone().subScalar(viewRange)
+    const bmax = viewCenter.clone().addScalar(viewRange)
+    const patchViewRange = new Box2(bmin, bmax)
+    const patchIndex: Record<PatchKey, boolean> = {}
+    // const patchIds = []
+    const { min, max } = patchViewRange
+    for (let { y } = min; y <= max.y; y++) {
+      for (let { x } = min; x <= max.x; x++) {
+        const patchId = new Vector2(x, y)
+        const patchKey = serializePatchId(patchId)
+        patchIndex[patchKey] = true
+      }
+    }
+    return patchIndex
+  }
+
   /**
    * called each time view center or range change to regen chunks index
    */
