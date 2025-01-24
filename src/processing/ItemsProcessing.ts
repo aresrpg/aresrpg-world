@@ -3,6 +3,7 @@ import { Box2, Box3, Vector2, Vector3 } from 'three'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
 import {
   Biome,
+  BlocksProcessing,
   BlockType,
   DistributionProfile,
   ProcessingTask,
@@ -191,20 +192,20 @@ export const isChunksProcessingTask = (task: GenericTask) =>
   task.handlerId === itemsProcessingHandlerName
 
 // // takes
-// const adjustItemHeight = async (itemChunk: ChunkContainer) => {
-//   const chunkBottomBlocks: Vector3[] = []
-//   // iter slice blocks
-//   for (const heightBuff of itemChunk.iterChunkSlice()) {
-//     if (heightBuff.data[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
-//   }
-//   // compute blocks batch to find lowest element
-//   const blocksBatch = await BlocksProcessing.getFloorPositions(chunkBottomBlocks).process()
-//   const [lowestBlock] = blocksBatch.sort((b1, b2) => b1.data.level - b2.data.level)
-//   const lowestHeight = lowestBlock?.data.level || 0
-//   const heightOffset = itemChunk.bounds.min.y - lowestHeight
-//   // adjust chunk elevation according to lowest element
-//   itemChunk.bounds.translate(new Vector3(0, -heightOffset, 0))
-// }
+const adjustItemHeight = async (itemChunk: ChunkContainer) => {
+  const chunkBottomBlocks: Vector3[] = []
+  // iter slice blocks
+  for (const heightBuff of itemChunk.iterChunkSlice()) {
+    if (heightBuff.data[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
+  }
+  // compute blocks batch to find lowest element
+  const blocksBatch = await BlocksProcessing.getGroundPositions(chunkBottomBlocks).process()
+  const [lowestBlock] = blocksBatch.sort((b1, b2) => b1.data.level - b2.data.level)
+  const lowestHeight = lowestBlock?.data.level || 0
+  const heightOffset = itemChunk.bounds.min.y - lowestHeight
+  // adjust chunk elevation according to lowest element
+  itemChunk.bounds.translate(new Vector3(0, -heightOffset, 0))
+}
 
 /**
  * retrieveOvergroundItems
@@ -267,7 +268,7 @@ export const bakeIndividualChunks = async (spawnedItems: SpawnedItems) => {
         const { min, max } = itemChunk.bounds
         ymin = isNaN(ymin) ? min.y : Math.min(ymin, min.y)
         ymax = isNaN(ymax) ? max.y : Math.max(ymax, max.y)
-        // await adjustHeight(itemChunk)
+        await adjustItemHeight(itemChunk)
         individualChunks.push(itemChunk)
       }
     }
