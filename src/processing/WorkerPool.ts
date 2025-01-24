@@ -103,7 +103,7 @@ export class WorkerProxy {
 const createDefaultWorkerPool = () => {
   const { url, count } = WorldEnv.current.workerPool
   console.log(`create default workerpool`)
-  return new WorkerPool(url, count)
+  return url.length > 0 ? new WorkerPool(url, count) : null
 }
 
 /**
@@ -178,21 +178,21 @@ export class WorkerPool {
     while (this.availableUnit && this.processingQueue.length > 0) {
       const nextTask = this.processingQueue.shift()
       if (nextTask) {
-        if (nextTask.isActive()) {
+        if (nextTask.isWaiting()) {
           const pending = this.availableUnit?.proxyRequest(nextTask)
           if (!pending) {
             // this should not happen
             console.warn(
-              `unexpected: worker no longer available, reenqeue task`,
+              `unexpected: worker no longer available, reschedule task`,
             )
             this.processingQueue.push(nextTask)
           } else {
             nextTask.processingState = ProcessingState.Pending
-            // after task has finished
-            nextTask.promise.then(() => {
+            nextTask.onStarted()
+            nextTask.getPromise().then(() => {
+              // once finished check for remaining tasks in queue
               this.processQueue()
             })
-            // once finished check for remaining tasks in queue
           }
         } else {
           // canceled task, move on to next one

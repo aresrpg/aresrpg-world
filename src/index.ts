@@ -16,7 +16,7 @@ export {
   DistributionProfile,
 } from './processing/RandomDistributionMap'
 export { ProcessingState } from './processing/TaskProcessing'
-export { WorkerSideInit, WorkerPool } from './processing/WorkerProxy'
+export { WorkerSideInit, WorkerPool } from './processing/WorkerPool'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'

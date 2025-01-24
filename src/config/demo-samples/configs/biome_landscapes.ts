@@ -88,7 +88,7 @@ const temperate = {
 /**
  * Arctic landscapes
  */
-const artic = {
+const arctic = {
   SEA: {
     id: 0,
     x: 0,
@@ -208,12 +208,12 @@ const desert = {
 
 export const BIOMES_LANDSCAPES_CONFIG: Record<BiomeType, any> = {
   [BiomeType.Temperate]: temperate,
-  [BiomeType.Arctic]: artic,
+  [BiomeType.Arctic]: arctic,
   [BiomeType.Desert]: desert,
   [BiomeType.Tropical]: temperate,
   [BiomeType.Scorched]: temperate,
   [BiomeType.Swamp]: temperate,
-  [BiomeType.Glacier]: temperate,
+  [BiomeType.Glacier]: arctic,
   [BiomeType.Taiga]: temperate,
   [BiomeType.Grassland]: temperate,
 }
