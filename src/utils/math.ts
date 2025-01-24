@@ -92,9 +92,11 @@ export const bilinearInterpolation = (
   return res
 }
 
-export const smoothStep = (edge0: number, edge1: number, x: number) => {
-  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)))
-  return t * t * (3 - 2 * t)
+export function smoothStep(x: number, min: number, max: number) {
+  if (x <= min) return 0
+  if (x >= max) return 1
+  x = (x - min) / (max - min)
+  return x * x * (3 - 2 * x)
 }
 
 /**
