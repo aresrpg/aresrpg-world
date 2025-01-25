@@ -1,7 +1,7 @@
-import { WorldEnv } from '../index'
+import { WorldEnv } from '../index.js'
 
-import { WorkerProxy } from './WorkerProxy'
-import { GenericTask, ProcessingState } from './TaskProcessing'
+import { WorkerProxy } from './WorkerProxy.js'
+import { GenericTask, ProcessingState } from './TaskProcessing.js'
 
 const createDefaultWorkerPool = () => {
   const { url, count } = WorldEnv.current.workerPool
