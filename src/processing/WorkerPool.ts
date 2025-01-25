@@ -1,4 +1,4 @@
-import { WorldEnv } from '../index'
+import { WorldEnv } from '../index.js'
 
 import {
   GenericTask,
@@ -6,7 +6,7 @@ import {
   ProcessingState,
   ProcessingTask,
   TaskId,
-} from './TaskProcessing'
+} from './TaskProcessing.js'
 
 /**
  * Handling request on worker side
