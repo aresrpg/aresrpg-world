@@ -42,3 +42,4 @@ export {
   EnvOverride,
   BlocksColorOverride,
 } from './config/demo-samples/configs/world_dev_setup.js'
+export { ChunksProcessing } from './processing/ChunksProcessing.js'
