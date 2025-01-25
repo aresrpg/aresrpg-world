@@ -8,8 +8,18 @@ import { WorldEnv } from '../config/WorldEnv'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
 
+function isBrowser() {
+  return typeof window !== 'undefined' && typeof window.fetch !== 'undefined'
+}
+
 export class SchematicLoader {
-  static async load(path: string) {
+  static async loadNode(path: string) {
+    const { readFile } = await import('fs/promises')
+    const buffer = await readFile(path)
+    return Pako.inflate(buffer)
+  }
+
+  static async loadBrowser(path: string) {
     // const schem = await Schematic.read(Buffer.from(schemData), '1.16.4')
     const res = await fetch(path)
     const blob = await res.blob()
@@ -23,6 +33,11 @@ export class SchematicLoader {
       reader.readAsArrayBuffer(blob)
     })
     return rawData
+  }
+
+  static async load(path: string) {
+    if (isBrowser()) return this.loadBrowser(path)
+    else return this.loadNode(path)
   }
 
   static async parse(rawData: any) {
