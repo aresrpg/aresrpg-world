@@ -1,19 +1,19 @@
 import { Vector2 } from 'three'
 
-import { WorkerPool, WorldEnv } from '../index'
+import { WorkerPool, WorldEnv } from '../index.js'
 import {
   asVect3,
   genPatchMapIndex,
   getPatchMapRange,
   parsePatchKey,
-} from '../utils/convert'
-import { ChunkId, PatchId, PatchKey } from '../utils/types'
+} from '../utils/convert.js'
+import { ChunkId, PatchId, PatchKey } from '../utils/types.js'
 
 import {
   ChunksProcessing,
   ChunksProcessingTask,
   isChunksProcessingTask,
-} from './ChunksProcessing'
+} from './ChunksProcessing.js'
 
 const chunksRange = WorldEnv.current.chunks.range
 const getTaskPatchId = (task: ChunksProcessingTask) =>
