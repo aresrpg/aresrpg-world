@@ -5,16 +5,16 @@ import {
   genPatchMapIndex,
   getPatchMapRange,
   parsePatchKey,
-} from '../utils/patch_chunk'
-import { ChunkId, PatchId, PatchKey } from '../utils/common_types'
-import { worldEnv } from '../config/WorldEnv'
+} from '../utils/patch_chunk.js'
+import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
+import { worldEnv } from '../config/WorldEnv.js'
 
 import {
   ChunksProcessing,
   ChunksProcessingTask,
   isChunksProcessingTask,
-} from './ChunksProcessing'
-import { WorkerPool } from './WorkerPool'
+} from './ChunksProcessing.js'
+import { WorkerPool } from './WorkerPool.js'
 
 const chunksRange = worldEnv.rawSettings.chunks.range
 const { patchViewRanges } = worldEnv.rawSettings
