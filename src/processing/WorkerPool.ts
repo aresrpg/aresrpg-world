@@ -1,7 +1,7 @@
-import { WorldEnvSettings } from '../config/WorldEnv'
+import { WorldEnvSettings } from '../config/WorldEnv.js'
 
-import { WorkerProxy } from './WorkerProxy'
-import { GenericTask, ProcessingState } from './TaskProcessing'
+import { WorkerProxy } from './WorkerProxy.js'
+import { GenericTask, ProcessingState } from './TaskProcessing.js'
 
 // const createDefaultWorkerPool = () => {
 //   // const { count } = worldEnv.rawSettings.workerPool
