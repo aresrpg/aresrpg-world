@@ -81,14 +81,14 @@ export class ProcessingTask<
   // resolveDeferredPromise: any
   scheduled = false
 
-  static handleTask(
-    taskStub: ProcessingTaskStub<any, any>,
+  static handleTask<T, U>(
+    taskStub: ProcessingTaskStub<T, U> | ProcessingTask<T, any, U>,
     context?: ProcessingContext,
   ) {
     // const [delegatedTask, processingArgs, processingParams] = taskStub
     const { handlerId } = taskStub
     // const args = parseArgs(...processingArgs)
-    const taskHandler = ProcessingTask.taskHandlers[handlerId]
+    const taskHandler = ProcessingTask.taskHandlers[handlerId] as ProcessingTaskHandler<T, any, U>
     if (taskHandler) {
       // const task = new Task(...args)
       const taskRes = taskHandler(taskStub, context)
@@ -134,7 +134,8 @@ export class ProcessingTask<
    * run task on current thread
    */
   process() {
-    return ProcessingTask.handleTask(this)
+    const res = ProcessingTask.handleTask<ProcessingInput, ProcessingOutput>(this) as ProcessingOutput
+    return res
   }
 
   /**
@@ -194,7 +195,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() {}
+  request() { }
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -240,9 +241,9 @@ export class ProcessingTask<
     console.log(`skipped task processing`)
   }
 
-  onStarted = () => {}
+  onStarted = () => { }
 
-  onDone = () => {}
+  onDone = () => { }
 
   /**
    * additional callback where post process actions can be performed

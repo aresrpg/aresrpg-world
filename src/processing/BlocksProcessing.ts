@@ -44,7 +44,8 @@ export enum BlocksProcessingRecipe {
 export type BlocksProcessingInput = Vector3[]
 export type BlocksProcessingOutput = Block<BlockData>[]
 export type BlocksProcessingParams = {
-  recipe: BlocksProcessingRecipe
+  recipe: BlocksProcessingRecipe,
+  densityEval?: boolean
 }
 
 // const postProcessTaskResults = (rawOutputData: BlocksProcessingOutput) => {
@@ -122,7 +123,7 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
   processingContext = ProcessingContext.None,
 ) => {
   const { processingInput, processingParams } = taskStub
-  const { recipe } = processingParams
+  const { recipe, densityEval } = processingParams
   const buildCache: Record<PatchKey, GroundPatch> = {}
 
   const isAsync = recipe === BlocksProcessingRecipe.Peak
@@ -138,9 +139,9 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
   // const getBuildDeps = (recipe: BlocksProcessingRecipe) => {
   // }
 
-  const bakeBlock = (blockPos: Vector3, recipe: BlocksProcessingRecipe) => {
+  const bakeBlock = (blockPos: Vector3) => {
     const groundPatch = getGroundPatch(asVect2(blockPos))
-    const groundBlock = bakeGroundBlock(blockPos, groundPatch)
+    const groundBlock = bakeGroundBlock(blockPos, groundPatch, densityEval)
     if (recipe === BlocksProcessingRecipe.Ground) return groundBlock
     else if (recipe === BlocksProcessingRecipe.Peak) {
       // build deps
@@ -165,7 +166,7 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
       ? (parseTaskInputStubs(...processingInput) as BlocksProcessingInput)
       : processingInput
   const blocksProcessing = parsedInput.map(requestedPos =>
-    bakeBlock(requestedPos, recipe),
+    bakeBlock(requestedPos),
   )
   return isAsync ? Promise.all(blocksProcessing) : blocksProcessing
 }
@@ -183,7 +184,7 @@ ProcessingTask.taskHandlers[blocksProcessingHandlerName] =
  * requires: ground patch
  * provides: ground block
  */
-const bakeGroundBlock = (pos: Vector3, groundPatch: GroundPatch) => {
+const bakeGroundBlock = (pos: Vector3, groundPatch: GroundPatch, densityEval = false) => {
   const groundData = groundPatch?.computeGroundBlock(pos)
   // return groundData
   // }).filter(val => val) as GroundBlockData[]
@@ -191,9 +192,11 @@ const bakeGroundBlock = (pos: Vector3, groundPatch: GroundPatch) => {
   const { biome, landIndex, level } = groundData as GroundBlockData
   const landscapeConf = Biome.instance.mappings[biome].nth(landIndex)
   const groundConf = landscapeConf.data
+  // check for block emptyness if specified
+  const isEmptyBlock = () => DensityVolume.instance.getBlockDensity(pos, level + 20)
   const blockData: BlockData = {
     level,
-    type: groundConf.type,
+    type: densityEval && isEmptyBlock() ? BlockType.HOLE : groundConf.type,
   }
   const block: Block<BlockData> = {
     pos,

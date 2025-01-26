@@ -13,7 +13,7 @@ import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { asPatchBounds, asVect2, asVect3 } from '../utils/convert'
 import { PatchKey } from '../utils/types'
 import { WorldEnv } from '../config/WorldEnv'
-import { ItemsInventory, ItemType, SpawnedItems } from '../factory/ItemsFactory'
+import { ItemsInventory, ItemType, SpawnedItems, VoidItemType } from '../factory/ItemsFactory'
 
 import { GroundPatch } from './GroundPatch'
 import { DistributionProfiles } from './RandomDistributionMap'
@@ -191,21 +191,42 @@ const parseInput = (input: ItemsProcessingInput) => {
 export const isChunksProcessingTask = (task: GenericTask) =>
   task.handlerId === itemsProcessingHandlerName
 
-// // takes
-const adjustItemHeight = async (itemChunk: ChunkContainer) => {
+
+const retrieveItemBottomBlocks = async (itemChunk: ChunkContainer) => {
   const chunkBottomBlocks: Vector3[] = []
   // iter slice blocks
   for (const heightBuff of itemChunk.iterChunkSlice()) {
     if (heightBuff.data[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
   }
-  // compute blocks batch to find lowest element
-  const blocksBatch = await BlocksProcessing.getGroundPositions(chunkBottomBlocks).process()
-  const [lowestBlock] = blocksBatch.sort((b1, b2) => b1.data.level - b2.data.level)
-  const lowestHeight = lowestBlock?.data.level || 0
-  const heightOffset = itemChunk.bounds.min.y - lowestHeight
-  // adjust chunk elevation according to lowest element
-  itemChunk.bounds.translate(new Vector3(0, -heightOffset, 0))
+  const blocksTask = BlocksProcessing.getGroundPositions(chunkBottomBlocks)
+  blocksTask.processingParams.densityEval = true
+  const blocksBatch = await blocksTask.process()
+  // console.log(testBlock)
+  return blocksBatch
 }
+
+/**
+ * discard schematics above terrain holes + adjust chunk elevation on ground
+ * @param itemChunk 
+ * @returns 
+ */
+const postprocessItemChunk = async (itemChunk: ChunkContainer) => {
+  let isItemDiscarded = true
+  const itemBottomBlocks = await retrieveItemBottomBlocks(itemChunk)
+  const hasHoleBlock = itemBottomBlocks.find(block => block.data.type === BlockType.HOLE)
+  // any schematics having at least one hole block below is considered discarded
+  if (!hasHoleBlock) {
+    // adjust item's final height
+    const [lowestBlock] = itemBottomBlocks.sort((b1, b2) => b1.data.level - b2.data.level)
+    const lowestHeight = lowestBlock?.data.level || 0
+    const heightOffset = itemChunk.bounds.min.y - lowestHeight
+    // adjust chunk elevation according to lowest block
+    itemChunk.bounds.translate(new Vector3(0, -heightOffset, 0))
+    isItemDiscarded = false
+  }
+  return isItemDiscarded
+}
+
 
 /**
  * retrieveOvergroundItems
@@ -236,7 +257,7 @@ export const retrieveOvergroundItems = (patchBounds: Box2) => {
         pos,
         floraItems,
       ) as ItemType
-      if (itemType) {
+      if (itemType && itemType !== VoidItemType) {
         spawnedItems[itemType] = spawnedItems[itemType] || []
         spawnedItems[itemType]?.push(asVect3(pos, level))
       }
@@ -268,8 +289,8 @@ export const bakeIndividualChunks = async (spawnedItems: SpawnedItems) => {
         const { min, max } = itemChunk.bounds
         ymin = isNaN(ymin) ? min.y : Math.min(ymin, min.y)
         ymax = isNaN(ymax) ? max.y : Math.max(ymax, max.y)
-        await adjustItemHeight(itemChunk)
-        individualChunks.push(itemChunk)
+        const isDiscarded = await postprocessItemChunk(itemChunk)
+        !isDiscarded && individualChunks.push(itemChunk)
       }
     }
   }
