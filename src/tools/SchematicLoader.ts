@@ -9,7 +9,7 @@ import { WorldEnv } from '../config/WorldEnv'
 export type SchematicsBlocksMapping = Record<string, BlockType>
 
 function isBrowser() {
-  return typeof window !== 'undefined' && typeof window.fetch !== 'undefined'
+  return typeof FileReader !== 'undefined' && typeof fetch !== 'undefined'
 }
 
 export class SchematicLoader {
