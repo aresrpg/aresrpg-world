@@ -2,8 +2,8 @@
 import { Vector3 } from 'three'
 
 import { WorldEnv } from '../config/WorldEnv'
-import { asVect2, serializePatchId, asBox2 } from '../utils/convert'
-import { BlockMode, ChunkKey, PatchBlock } from '../utils/types'
+import { asVect2, serializePatchId, asBox2 } from '../utils/patch_chunk'
+import { BlockMode, ChunkKey, PatchBlock } from '../utils/common_types'
 import {
   ChunkBuffer,
   ChunkContainer,
@@ -11,7 +11,7 @@ import {
 } from '../datacontainers/ChunkContainer'
 import { BlockType, Biome, BiomeType, DensityVolume } from '../index'
 import { GroundPatch, parseGroundFlags } from '../processing/GroundPatch'
-import { clamp } from '../utils/math'
+import { clamp } from '../utils/math_utils'
 
 export class EmptyChunk extends ChunkContainer {
   constructor(chunkKey: ChunkKey) {
@@ -19,13 +19,14 @@ export class EmptyChunk extends ChunkContainer {
     this.rawData = new Uint16Array()
   }
 
-  async bake() {}
+  async bake() { }
 }
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
-  return WorldEnv.current.debug.patch.borderHighlightColor &&
+  const { borderHighlightColor } = WorldEnv.current.debug.patch
+  return borderHighlightColor &&
     (localPos.x === 1 || localPos.z === 1)
-    ? WorldEnv.current.debug.patch.borderHighlightColor
+    ? borderHighlightColor
     : blockType
 }
 

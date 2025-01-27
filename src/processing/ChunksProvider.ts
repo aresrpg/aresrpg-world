@@ -6,8 +6,8 @@ import {
   genPatchMapIndex,
   getPatchMapRange,
   parsePatchKey,
-} from '../utils/convert'
-import { ChunkId, PatchId, PatchKey } from '../utils/types'
+} from '../utils/patch_chunk'
+import { ChunkId, PatchId, PatchKey } from '../utils/common_types'
 
 import {
   ChunksProcessing,

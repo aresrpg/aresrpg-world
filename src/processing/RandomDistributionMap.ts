@@ -6,7 +6,7 @@ import {
   BlueNoisePattern,
   DistributionParams,
 } from '../procgen/BlueNoisePattern'
-import { asVect3, getPatchIds } from '../utils/convert'
+import { asVect3, getPatchIds } from '../utils/patch_chunk'
 import { WorldEnv } from '../config/WorldEnv'
 import { ItemType } from '../factory/ItemsFactory'
 

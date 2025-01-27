@@ -6,8 +6,8 @@ import {
   PatchBlock,
   PatchBoundId,
   PatchKey,
-} from '../utils/types'
-import { asVect3, asVect2 } from '../utils/convert'
+} from '../utils/common_types'
+import { asVect3, asVect2 } from '../utils/patch_chunk'
 import { BlockMode, Heightmap, WorldEnv } from '../index'
 import {
   Biome,
@@ -22,8 +22,8 @@ import {
   PatchDataContainer,
   PatchStub,
 } from '../datacontainers/PatchBase'
-import { getPatchBoundingPoints } from '../utils/spatial'
-import { bilinearInterpolation } from '../utils/math'
+import { getPatchBoundingPoints } from '../utils/spatial_utils'
+import { bilinearInterpolation } from '../utils/math_utils'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
@@ -68,8 +68,7 @@ export const parseGroundFlags = (rawFlags: number) => {
  */
 export class GroundPatch
   extends PatchBase<number>
-  implements PatchDataContainer
-{
+  implements PatchDataContainer {
   biomeInfluence: BiomeInfluence | PatchBoundingBiomes | undefined
   rawData: Uint32Array
   valueRange = { min: 512, max: 0 } // here elevation
@@ -240,13 +239,13 @@ export class GroundPatch
     }
     const boundsPoints = getPatchBoundingPoints(this.bounds)
     const boundsInfluences = {} as PatchBoundingBiomes
-    ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-      const boundPos = boundsPoints[key] as Vector2
-      const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
-      boundsInfluences[key] = biomeInfluence
-      // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-      return biomeInfluence
-    })
+      ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+        const boundPos = boundsPoints[key] as Vector2
+        const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
+        boundsInfluences[key] = biomeInfluence
+        // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+        return biomeInfluence
+      })
     const allEquals =
       equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
       equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&

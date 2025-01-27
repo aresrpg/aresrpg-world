@@ -1,6 +1,6 @@
 import { WorldEnv } from '../config/WorldEnv'
-import { asVect3, serializeChunkId } from '../utils/convert'
-import { PatchId, PatchKey } from '../utils/types'
+import { asVect3, serializeChunkId } from '../utils/patch_chunk'
+import { PatchId, PatchKey } from '../utils/common_types'
 import {
   ChunkContainer,
   ChunkStub,

@@ -11,16 +11,16 @@ import {
   getUpperScalarId,
   parsePatchKey,
   serializePatchId,
-} from '../utils/convert'
+} from '../utils/patch_chunk'
 import { WorldEnv, ChunkContainer, BlockType, WorkerPool } from '../index'
 import { ProcLayer } from '../procgen/ProcLayer'
-import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/types'
+import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/common_types'
 import {
   DataContainer,
   PatchBase,
   PatchElement,
 } from '../datacontainers/PatchBase'
-import { copySourceToTargetPatch } from '../utils/data'
+import { copySourceToTargetPatch } from '../utils/data_operations'
 
 import { ChunksProcessing } from './ChunksProcessing'
 import { ItemsProcessing } from './ItemsProcessing'

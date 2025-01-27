@@ -1,5 +1,5 @@
 import { BlockType } from '../../../index'
-import { typesNumbering } from '../../../utils/misc'
+import { typesNumbering } from '../../../utils/misc_utils'
 
 /**
  * Extending world reserved blocks

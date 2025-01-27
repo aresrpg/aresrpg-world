@@ -4,7 +4,7 @@ import { ItemType } from '../factory/ItemsFactory'
 import { BlockType } from '../procgen/Biome'
 import { ProcItemConf } from '../tools/ProceduralGenerators'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader'
-import { BiomesRawConf, BlockMode } from '../utils/types'
+import { BiomesRawConf, BlockMode } from '../utils/common_types'
 
 // import { NoiseSamplerParams } from '../procgen/NoiseSampler'
 // import { ProcLayerParams } from '../procgen/ProcLayer'

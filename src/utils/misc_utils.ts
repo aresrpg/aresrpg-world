@@ -1,4 +1,4 @@
-import { BiomeLands, LandConfigFields } from './types'
+import { BiomeLands, LandConfigFields } from './common_types'
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
 export const MappingRangeSorter = (
@@ -26,3 +26,10 @@ export const findMatchingRange = (
 
 export const typesNumbering = (types: Record<string, number>, offset = 0) =>
   Object.keys(types).forEach((key, i) => (types[key] = offset + i))
+
+export function reverseMapping<U extends string | number, T extends string | number>(mapping: Record<U, T>) {
+  const reversedMapping = {} as Record<T, U>
+  Object.entries(mapping)
+    .forEach((cubeOffset, cubeSide) => reversedMapping[cubeSide] = cubeOffset)
+  return reversedMapping
+}

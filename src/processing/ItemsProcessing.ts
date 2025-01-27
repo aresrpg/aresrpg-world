@@ -10,8 +10,8 @@ import {
   PseudoDistributionMap,
 } from '../index'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
-import { asPatchBounds, asVect2, asVect3 } from '../utils/convert'
-import { PatchKey } from '../utils/types'
+import { asPatchBounds, asVect2, asVect3 } from '../utils/patch_chunk'
+import { PatchKey } from '../utils/common_types'
 import { WorldEnv } from '../config/WorldEnv'
 import { ItemsInventory, ItemType, SpawnedItems, VoidItemType } from '../factory/ItemsFactory'
 

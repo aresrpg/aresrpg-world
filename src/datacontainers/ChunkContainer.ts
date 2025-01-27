@@ -1,6 +1,6 @@
 import { Vector2, Box3, Vector3 } from 'three'
 
-import { BlockMode, ChunkId, ChunkKey } from '../utils/types'
+import { BlockMode, ChunkId, ChunkKey } from '../utils/common_types'
 import {
   asVect3,
   asChunkBounds,
@@ -8,7 +8,7 @@ import {
   serializeChunkId,
   parseThreeStub,
   asVect2,
-} from '../utils/convert'
+} from '../utils/patch_chunk'
 import { WorldEnv } from '../config/WorldEnv'
 import { BlockType } from '../index'
 

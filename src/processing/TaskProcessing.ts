@@ -1,5 +1,5 @@
 import { WorkerPool } from '../index'
-import { parseThreeStub } from '../utils/convert'
+import { parseThreeStub } from '../utils/patch_chunk'
 
 export const toTaskOutputStubs = (res: any) =>
   res instanceof Array

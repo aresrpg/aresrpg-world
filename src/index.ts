@@ -1,8 +1,8 @@
 // Utils
 
 // export * as WorldUtils from './utils/index'
-export { getPatchId, asVect2, asVect3 } from './utils/convert'
-export { BlockMode } from './utils/types'
+export { getPatchId, asVect2, asVect3 } from './utils/patch_chunk'
+export { BlockMode } from './utils/common_types'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing'
 export {

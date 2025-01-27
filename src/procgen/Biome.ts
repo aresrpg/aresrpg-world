@@ -9,15 +9,15 @@ import {
   BiomesRawConf,
   LandConfigFields,
   BiomeLands,
-} from '../utils/types'
+} from '../utils/common_types'
 import { WorldEnv } from '../index'
-import { clamp, roundToDec, smoothStep } from '../utils/math'
+import { clamp, roundToDec, smoothStep } from '../utils/math_utils'
 import {
   findMatchingRange,
   MappingRangeSorter,
   typesNumbering,
-} from '../utils/misc'
-import { asVect3 } from '../utils/convert'
+} from '../utils/misc_utils'
+import { asVect3 } from '../utils/patch_chunk'
 import { ItemType } from '../factory/ItemsFactory'
 
 import { ProcLayer } from './ProcLayer'

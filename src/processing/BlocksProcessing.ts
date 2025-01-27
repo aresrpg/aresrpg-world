@@ -13,8 +13,8 @@ import {
   asVect3,
   asVect2,
   // parseThreeStub,
-} from '../utils/convert'
-import { PatchKey, Block, BlockData } from '../utils/types'
+} from '../utils/patch_chunk'
+import { PatchKey, Block, BlockData } from '../utils/common_types'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch'
 import { ItemsProcessing } from './ItemsProcessing'
