@@ -125,7 +125,6 @@ export class WorkerPool {
   processedCount = 0
 
   constructor(workerUrl: string, workerCount: number) {
-    console.log(`create workerpool with count ${workerCount}`)
     for (let workerId = 0; workerId < workerCount; workerId++) {
       const worker = new WorkerProxy(workerUrl, workerId)
       this.workerPool.push(worker)
