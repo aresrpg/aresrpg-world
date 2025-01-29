@@ -159,6 +159,9 @@ type PreprocessedLandConf = {
   floraItems: ItemType[]
 }
 
+const transitionGap = 0.08 // min:0 (no transition) max:0.1
+const transitionOffset = (0.1 - transitionGap) / 2
+
 /**
  * assign block types: water, sand, grass, mud, rock, snow, ..
  */
@@ -184,10 +187,10 @@ export class Biome {
    * val > hight => HIGH = 1
    */
   steps = {
-    lowToMid: 0.32,
-    mid: 0.38,
-    midToHigh: 0.62,
-    high: 0.68,
+    lowToMid: 0.3 + transitionOffset,
+    mid: 0.4 - transitionOffset,
+    midToHigh: 0.6 + transitionOffset,
+    high: 0.7 - transitionOffset,
   }
 
   preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()

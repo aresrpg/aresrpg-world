@@ -106,7 +106,7 @@ const getPatchKey = (inputPos: Vector2) => {
 
 const createGroundPatch = (patchKey: PatchKey) => {
   const groundLayer = new GroundPatch(patchKey)
-  groundLayer.preprocess()
+  groundLayer.prepare()
   return groundLayer
 }
 

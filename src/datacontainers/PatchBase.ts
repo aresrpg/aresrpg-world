@@ -162,57 +162,39 @@ export class PatchBase<T> {
     )
   }
 
-  adjustInputBounds(input: Box2 | Vector2, local = false) {
-    const rangeBox = input instanceof Box2 ? input : new Box2(input, input)
-    const { min, max } = local ? this.localBox : this.bounds
-    const rangeMin = new Vector2(
-      Math.max(Math.floor(rangeBox.min.x), min.x),
-      Math.max(Math.floor(rangeBox.min.y), min.y),
-    )
-    const rangeMax = new Vector2(
-      Math.min(Math.floor(rangeBox.max.x), max.x),
-      Math.min(Math.floor(rangeBox.max.y), max.y),
-    )
-    return local
-      ? new Box2(rangeMin, rangeMax)
-      : new Box2(this.toLocalPos(rangeMin), this.toLocalPos(rangeMax))
-  }
-
   /**
-   *
-   * @param rangeBox iteration range as global coords
-   * @param skipMargin
+   * by default will iterrate whole patch excluding margins
+   * @param globalBounds 
+   * @param includeMargins 
    */
-  *iterDataQuery(iterBounds?: Box2 | Vector2, skipMargin = true) {
-    // convert to local coords to speed up iteration
-    const localBounds = iterBounds
-      ? this.adjustInputBounds(iterBounds)
-      : this.localExtendedBox
+  *iterDataQuery(globalBounds?: Box2, includeMargins = false) {
+    const wholeBounds = includeMargins ? this.extendedBounds : this.bounds
 
-    const isMarginBlock = ({ x, y }: { x: number; y: number }) =>
-      !iterBounds &&
-      this.margin > 0 &&
-      (x === localBounds.min.x ||
-        x === localBounds.max.x - 1 ||
-        y === localBounds.min.y ||
-        y === localBounds.max.y - 1)
+    const getOverlapBounds = (inputBounds: Box2) => {
+      const { min, max } = inputBounds
+      const overlapBounds = new Box2(min.clone().floor(), max.clone().floor())
+      return overlapBounds.intersect(wholeBounds)
+    }
 
-    let index = 0
-    for (let { y } = localBounds.min; y < localBounds.max.y; y++) {
-      for (let { x } = localBounds.min; x < localBounds.max.x; x++) {
-        const localPos = new Vector2(x, y)
-        if (!skipMargin || !isMarginBlock(localPos)) {
-          index = iterBounds ? this.getIndex(localPos) : index
-          // const data = this.readData(index) || BlockType.NONE
-          const patchElem: PatchElement<T | undefined> = {
-            index,
-            pos: this.toWorldPos(localPos),
-            localPos,
-            data: undefined,
-          }
-          yield patchElem
+    const overlapBounds = globalBounds ? getOverlapBounds(globalBounds) : wholeBounds
+
+    const globalMin = overlapBounds.min
+    const globalMax = overlapBounds.max
+    const localMin = this.toLocalPos(globalMin)
+    // const localMax = this.toLocalPos(globalMax)
+
+    for (let yGlobal = globalMin.y, yLocal = localMin.y; yGlobal < globalMax.y; yGlobal++, yLocal++) {
+      for (let xGlobal = globalMin.x, xLocal = localMin.x; xGlobal < globalMax.x; xGlobal++, xLocal++) {
+        const localPos = new Vector2(xLocal, yLocal)
+        const globalPos = new Vector2(xGlobal, yGlobal)
+        const index = this.getIndex(localPos)
+        const patchElem: PatchElement<T | undefined> = {
+          index,
+          pos: globalPos,
+          localPos,
+          data: undefined,
         }
-        index++
+        yield patchElem
       }
     }
   }

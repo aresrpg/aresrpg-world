@@ -80,7 +80,7 @@ export class GroundChunk extends ChunkContainer {
     const ymin = this.extendedBounds.min.y
     const ymax = this.extendedBounds.max.y
 
-    const blocks = groundLayer.iterBlocksQuery(undefined, false)
+    const blocks = groundLayer.iterBlocksQuery(undefined, true)
     for (const block of blocks) {
       const groundBuff = this.generateGroundBuffer(block, ymin, ymax)
       if (groundBuff) {
@@ -106,7 +106,7 @@ export class CavesMask extends ChunkMask {
     // bounds.max.y = groundLayer.valueRange.max
     // const chunkContainer = new ChunkContainer(bounds, 1)
     // chunkContainer.rawData.fill(0)
-    const patchIter = groundLayer.iterBlocksQuery(undefined, false)
+    const patchIter = groundLayer.iterBlocksQuery(undefined, true)
     for (const block of patchIter) {
       // const buffPos = asVect2(block.localPos)
       // const chunkBuff = chunkContainer.readBuffer(buffPos)

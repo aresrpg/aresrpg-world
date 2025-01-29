@@ -45,12 +45,12 @@ const getPatchSides = (patchSides = PatchSides.ALL) => {
 const getPatchSidesOffsetIds = (patchSides = PatchSides.ALL) => getPatchSides(patchSides).map(patchSideId => patchSidesMapping[patchSideId])
 
 export const getPatchNeighbours = (
-  pos: Vector2,
+  patchId: Vector2,
   patchSides = PatchSides.ALL,
 ): Vector2[] => {
   const offsetIds = getPatchSidesOffsetIds(patchSides)
   const neighboursOffsets = offsetIds.map(offsetId => patchOffsetsMapping[offsetId])
-  return neighboursOffsets.map(offset => pos.clone().add(offset))
+  return neighboursOffsets.map(offset => patchId.clone().add(offset))
 }
 
 // rename as getPatchCorners?

@@ -6,8 +6,9 @@ import {
   PatchBlock,
   PatchBoundId,
   PatchKey,
+  PatchId,
 } from '../utils/common_types'
-import { asVect3, asVect2 } from '../utils/patch_chunk'
+import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk'
 import { BlockMode, Heightmap, WorldEnv } from '../index'
 import {
   Biome,
@@ -22,8 +23,9 @@ import {
   PatchDataContainer,
   PatchStub,
 } from '../datacontainers/PatchBase'
-import { getPatchBoundingPoints } from '../utils/spatial_utils'
+import { getPatchNeighbours, getPatchBoundingPoints } from '../utils/spatial_utils'
 import { bilinearInterpolation } from '../utils/math_utils'
+import { copySourceToTargetPatch } from '../utils/data_operations'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
@@ -84,10 +86,18 @@ export class GroundPatch
     this.rawData = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
   }
 
-  duplicate() {
-    const copy = new GroundPatch(this.key || this.bounds, this.margin)
-    copy.rawData.set(this.rawData)
-    return copy
+  prepare() {
+    this.biomeInfluence = this.getBiomeInfluence()
+
+    //   const stub: GroundPatchStub =
+    //   await WorldComputeProxy.current.bakeGroundPatch(this.key || this.bounds)
+    // this.valueRange = stub.valueRange || this.valueRange
+    // this.rawData.set(stub.rawData)
+    // this.isEmpty = false
+  }
+
+  isTransitionPatch() {
+    return !!(this.biomeInfluence as PatchBoundingBiomes)[PatchBoundId.xMyM]
   }
 
   decodeBlockData(rawData: number) {
@@ -180,12 +190,12 @@ export class GroundPatch
   // }
 
   /**
-   *
-   * @param rangeBox iteration range as global coords
-   * @param skipMargin
+   * iteration range as global coords
+   * @param iterBounds 
+   * @param includeMargins 
    */
-  *iterBlocksQuery(iterBounds?: Box2 | Vector2, skipMargin = true) {
-    const patchSectors = super.iterDataQuery(iterBounds, skipMargin)
+  *iterBlocksQuery(iterBounds?: Box2, includeMargins = true) {
+    const patchSectors = super.iterDataQuery(iterBounds, includeMargins)
     for (const sector of patchSectors) {
       const { index, localPos } = sector
       const blockData = this.readBlockData(index) || BlockType.NONE
@@ -197,35 +207,6 @@ export class GroundPatch
       }
       yield block
     }
-  }
-
-  override toStub() {
-    const patchStub = super.toStub()
-    const { rawData, valueRange } = this
-    const groundPatchStub: GroundPatchStub = {
-      ...patchStub,
-      rawData,
-      valueRange,
-    }
-    return groundPatchStub
-  }
-
-  override fromStub(patchStub: GroundPatchStub) {
-    super.fromStub(patchStub)
-    this.rawData.set(patchStub.rawData)
-    this.valueRange.min = patchStub.valueRange?.min || this.valueRange.min
-    this.valueRange.max = patchStub.valueRange?.max || this.valueRange.max
-    return this
-  }
-
-  preprocess() {
-    this.biomeInfluence = this.getBiomeInfluence()
-
-    //   const stub: GroundPatchStub =
-    //   await WorldComputeProxy.current.bakeGroundPatch(this.key || this.bounds)
-    // this.valueRange = stub.valueRange || this.valueRange
-    // this.rawData.set(stub.rawData)
-    // this.isEmpty = false
   }
 
   getBiomeInfluence() {
@@ -255,8 +236,8 @@ export class GroundPatch
 
   getBlockBiome(blockPos: Vector2) {
     if (
-      (this.biomeInfluence as PatchBoundingBiomes)[PatchBoundId.xMyM] &&
-      WorldEnv.current.settings.useBiomeBilinearInterpolation
+      this.isTransitionPatch() &&
+      WorldEnv.current.misc.useBiomeBilinearInterpolation
     ) {
       return bilinearInterpolation(
         blockPos,
@@ -324,24 +305,74 @@ export class GroundPatch
     }
     return groundBlockData
   }
-
-  bake() {
-    this.preprocess()
+  /**
+   * required for transition patches to insure interpolated patch corners
+   * used to compute blocks are the same as near patch
+   */
+  fillMarginsFromNearPatches() {
+    // copy four edges margins
+    const sidePatches = getPatchNeighbours(this.patchId as PatchId)
+      .map(patchId => new GroundPatch(serializePatchId(patchId), 0))
+    sidePatches.forEach(sidePatch => {
+      const marginOverlap = this.extendedBounds.intersect(sidePatch.bounds)
+      // for each side patches only gen overlapping margins with current patch 
+      sidePatch.bake(marginOverlap)
+      // copy side patch to current patch on overlapping margin zone
+      // const count = this.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
+      // const count2 = sidePatch.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
+      // console.log(`rawData count:  source ${count2} target ${count}`)
+      copySourceToTargetPatch(sidePatch, this, false)
+    })
+  }
+  /**
+   * whole patch by default
+   * if genBounds specified, only sub rows/cols will be generated
+   */
+  bake(regionBounds?: Box2) {
+    this.prepare()
     const { valueRange } = this
-    const blocks = this.iterBlocksQuery(undefined, false)
-    let blockIndex = 0
+    // omit margin blocks to bake them separately
+    const doMarginsApart = !regionBounds && this.margin > 0 && this.patchKey.length > 0
+    const blocks = this.iterBlocksQuery(regionBounds, !doMarginsApart)
     for (const block of blocks) {
       // EXPERIMENTAL: is it faster to perform bilinear interpolation rather
       // than sampling biome for each block?
       // if biome is the same at each patch corners, no need to interpolate
       const blockData = this.computeGroundBlock(block.pos)
+      // blockData.landIndex = this.isTransitionPatch() ? 0 : blockData.landIndex
       valueRange.min = Math.min(valueRange.min, blockData.level)
       valueRange.max = Math.max(valueRange.max, blockData.level)
-      this.writeBlockData(blockIndex, blockData)
-      blockIndex++
+      this.writeBlockData(block.index, blockData)
     }
     this.isEmpty = false
+    // for whole patch with margins only
+    doMarginsApart && this.fillMarginsFromNearPatches()
     // return groundPatch
+  }
+
+  duplicate() {
+    const copy = new GroundPatch(this.key || this.bounds, this.margin)
+    copy.rawData.set(this.rawData)
+    return copy
+  }
+
+  override toStub() {
+    const patchStub = super.toStub()
+    const { rawData, valueRange } = this
+    const groundPatchStub: GroundPatchStub = {
+      ...patchStub,
+      rawData,
+      valueRange,
+    }
+    return groundPatchStub
+  }
+
+  override fromStub(patchStub: GroundPatchStub) {
+    super.fromStub(patchStub)
+    this.rawData.set(patchStub.rawData)
+    this.valueRange.min = patchStub.valueRange?.min || this.valueRange.min
+    this.valueRange.max = patchStub.valueRange?.max || this.valueRange.max
+    return this
   }
 
   // getBlocksRow(zRowIndex: number) {

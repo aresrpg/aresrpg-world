@@ -235,7 +235,7 @@ const postprocessItemChunk = async (itemChunk: ChunkContainer) => {
  */
 export const retrieveOvergroundItems = (patchBounds: Box2) => {
   const groundPatch = new GroundPatch(patchBounds)
-  groundPatch.preprocess()
+  groundPatch.prepare()
 
   // take approximative item dimension until item type is known
   const spawnedItems: Record<ItemType, Vector3[]> = {}
