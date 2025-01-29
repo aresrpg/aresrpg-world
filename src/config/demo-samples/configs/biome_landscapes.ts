@@ -207,13 +207,16 @@ const desert = {
 }
 
 export const BIOMES_LANDSCAPES_CONFIG: Record<BiomeType, any> = {
+  // TEMPERATE
   [BiomeType.Temperate]: temperate,
-  [BiomeType.Arctic]: arctic,
-  [BiomeType.Desert]: desert,
-  [BiomeType.Tropical]: temperate,
-  [BiomeType.Scorched]: temperate,
-  [BiomeType.Swamp]: temperate,
-  [BiomeType.Glacier]: arctic,
-  [BiomeType.Taiga]: temperate,
   [BiomeType.Grassland]: temperate,
+  [BiomeType.Swamp]: temperate,
+  // COLD
+  [BiomeType.Arctic]: arctic,
+  [BiomeType.Glacier]: arctic,
+  [BiomeType.Taiga]: arctic,
+  // HOT
+  [BiomeType.Desert]: desert,
+  [BiomeType.Tropical]: desert,
+  [BiomeType.Scorched]: desert,
 }

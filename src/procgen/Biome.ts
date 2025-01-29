@@ -184,10 +184,10 @@ export class Biome {
    * val > hight => HIGH = 1
    */
   steps = {
-    lowToMid: 0.3,
-    mid: 0.4,
-    midToHigh: 0.6,
-    high: 0.7,
+    lowToMid: 0.32,
+    mid: 0.38,
+    midToHigh: 0.62,
+    high: 0.68,
   }
 
   preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()
@@ -195,10 +195,10 @@ export class Biome {
   constructor() {
     this.heatmap = new ProcLayer('heatmap')
     this.heatmap.sampling.harmonicsCount = 6
-    this.heatmap.sampling.periodicity = 8
+    this.heatmap.sampling.periodicity = WorldEnv.current.biomes.periodicity
     this.rainmap = new ProcLayer('rainmap')
     this.rainmap.sampling.harmonicsCount = 6
-    this.rainmap.sampling.periodicity = 8
+    this.rainmap.sampling.periodicity = WorldEnv.current.biomes.periodicity
     // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
     // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
     // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
@@ -301,10 +301,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-        (biomeContribs[k as BiomeType] = roundToDec(
-          biomeContribs[k as BiomeType],
-          2,
-        )),
+      (biomeContribs[k as BiomeType] = roundToDec(
+        biomeContribs[k as BiomeType],
+        2,
+      )),
     )
 
     // biomeContribs[BiomeType.Arctic] = 1
