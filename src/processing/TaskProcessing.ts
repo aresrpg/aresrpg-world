@@ -88,7 +88,9 @@ export class ProcessingTask<
     // const [delegatedTask, processingArgs, processingParams] = taskStub
     const { handlerId } = taskStub
     // const args = parseArgs(...processingArgs)
-    const taskHandler = ProcessingTask.taskHandlers[handlerId] as ProcessingTaskHandler<T, any, U>
+    const taskHandler = ProcessingTask.taskHandlers[
+      handlerId
+    ] as ProcessingTaskHandler<T, any, U>
     if (taskHandler) {
       // const task = new Task(...args)
       const taskRes = taskHandler(taskStub, context)
@@ -98,6 +100,7 @@ export class ProcessingTask<
     } else {
       console.warn(`no task handler found for ${handlerId}`)
     }
+    return null
   }
 
   constructor(taskId?: TaskId) {
@@ -134,7 +137,9 @@ export class ProcessingTask<
    * run task on current thread
    */
   process() {
-    const res = ProcessingTask.handleTask<ProcessingInput, ProcessingOutput>(this) as ProcessingOutput
+    const res = ProcessingTask.handleTask<ProcessingInput, ProcessingOutput>(
+      this,
+    ) as ProcessingOutput
     return res
   }
 
@@ -195,7 +200,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() { }
+  request() {}
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -241,9 +246,9 @@ export class ProcessingTask<
     console.log(`skipped task processing`)
   }
 
-  onStarted = () => { }
+  onStarted = () => {}
 
-  onDone = () => { }
+  onDone = () => {}
 
   /**
    * additional callback where post process actions can be performed

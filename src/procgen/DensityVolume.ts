@@ -11,11 +11,10 @@ export class DensityVolume {
     scaling: 0.1,
   }
 
-  // maps (externally provided)
-  densityNoise!: NoiseSampler
+  densityNoise: NoiseSampler
 
   constructor() {
-    this.densityNoise = new NoiseSampler('Caverns', NoiseDimension.Three)
+    this.densityNoise = new NoiseSampler('densityVolume', NoiseDimension.Three)
     this.densityNoise.periodicity = 7
     this.densityNoise.harmonicsCount = 4
   }

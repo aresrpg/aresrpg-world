@@ -1,13 +1,21 @@
 import { Vector2, Vector3 } from 'three'
 
 import { ItemType } from '../factory/ItemsFactory'
-import { BlockType } from '../procgen/Biome'
+import { DensityVolume, Heightmap } from '../index'
+import { Biome, BlockType } from '../procgen/Biome'
 import { ProcItemConf } from '../tools/ProceduralGenerators'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader'
 import { BiomesRawConf, BlockMode } from '../utils/common_types'
 
-// import { NoiseSamplerParams } from '../procgen/NoiseSampler'
-// import { ProcLayerParams } from '../procgen/ProcLayer'
+export type WorldIndividualSeeds = {
+  heightmap?: string // 'heatmap',
+  amplitude?: string // 'amplitude_mod',
+  heatmap?: string // 'heatmap',
+  rainmap?: string // 'rainmap',
+  randompos?: string // 'pos_random',
+  entityspawn?: string // 'treemap',
+  density?: string // 'Caverns'
+}
 
 export class WorldEnv {
   // eslint-disable-next-line no-use-before-define
@@ -21,43 +29,37 @@ export class WorldEnv {
     this.currentConf = externalConf
   }
 
-  patchPowSize = 6 // as a power of two
-  get patchSize() {
-    return Math.pow(2, this.patchPowSize)
+  apply() {
+    this.overrideSeeds()
   }
 
+  overrideSeeds() {
+    const customSeeds = this.seeds.overrides
+    Heightmap.instance.heightmap.sampling.seed = customSeeds.heightmap
+    Heightmap.instance.amplitude.sampling.seed = customSeeds.amplitude
+    Biome.instance.heatmap.sampling.seed = customSeeds.heatmap
+    Biome.instance.rainmap.sampling.seed = customSeeds.rainmap
+    Biome.instance.posRandomizer.sampling.seed = customSeeds.randompos
+    DensityVolume.instance.densityNoise.seed = customSeeds.density
+  }
+
+  seeds: {
+    main: string
+    overrides: WorldIndividualSeeds
+  } = {
+    main: 'world',
+    overrides: {},
+  }
+
+  patchPowSize = 6 // as a power of two
   // max cache radius as a power of two
   cachePowLimit = 2 // 4 => 16 patches radius
-  get cacheLimit() {
-    return Math.pow(2, this.cachePowLimit)
-  }
-
-  get patchDimensions() {
-    return new Vector2(this.patchSize, this.patchSize)
-  }
-
-  get chunkDimensions() {
-    return new Vector3(this.patchSize, this.patchSize, this.patchSize)
-  }
-
   defaultDistMapPeriod = 4 * this.patchSize
-
-  get nearViewDist() {
-    return this.patchViewCount.near * this.patchSize
-  }
-
-  get farViewDist() {
-    return this.patchViewCount.far * this.patchSize
-  }
 
   // in patch unit
   patchViewCount = {
     near: 4, // undeground view dist
     far: 8, // ground surface view dist
-  }
-
-  settings = {
-    useBiomeBilinearInterpolation: true,
   }
 
   debug = {
@@ -89,16 +91,16 @@ export class WorldEnv {
     localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>
     filesIndex: Record<ItemType, string>
   } = {
-      globalBlocksMapping: {},
-      localBlocksMapping: {},
-      filesIndex: {},
-    }
+    globalBlocksMapping: {},
+    localBlocksMapping: {},
+    filesIndex: {},
+  }
 
   proceduralItems: {
     configs: Record<ItemType, ProcItemConf>
   } = {
-      configs: {},
-    }
+    configs: {},
+  }
 
   workerPool = {
     count: 4,
@@ -114,15 +116,37 @@ export class WorldEnv {
   heightmap = {
     spreading: 0.42,
     harmonics: 6,
-    amplitude: {
-      seed: ''
-    }
   }
 
   biomes = {
     rawConf: {} as BiomesRawConf,
     seaLevel: 0,
-    periodicity: 8
+    periodicity: 8,
+    bilinearInterpolationRange: 0.1, // from 0 to 0.1
+  }
+
+  get patchSize() {
+    return Math.pow(2, this.patchPowSize)
+  }
+
+  get cacheLimit() {
+    return Math.pow(2, this.cachePowLimit)
+  }
+
+  get patchDimensions() {
+    return new Vector2(this.patchSize, this.patchSize)
+  }
+
+  get chunkDimensions() {
+    return new Vector3(this.patchSize, this.patchSize, this.patchSize)
+  }
+
+  get nearViewDist() {
+    return this.patchViewCount.near * this.patchSize
+  }
+
+  get farViewDist() {
+    return this.patchViewCount.far * this.patchSize
   }
 
   get seaLevel() {
@@ -132,18 +156,4 @@ export class WorldEnv {
   set seaLevel(seaLevel: number) {
     this.biomes.seaLevel = seaLevel
   }
-
-  // heightmap: {
-  //   proclayer: Partial<ProcLayerParams>,
-  //   sampling: Partial<NoiseSamplerParams>,
-  //   amplitude: {
-  //     sampling: Partial<NoiseSamplerParams>
-  //   }
-  // } = {
-  //     proclayer: {},
-  //     sampling: {},
-  //     amplitude: {
-  //       sampling: {}
-  //     }
-  //   }
 }

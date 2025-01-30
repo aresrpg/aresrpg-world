@@ -13,7 +13,12 @@ import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { asPatchBounds, asVect2, asVect3 } from '../utils/patch_chunk'
 import { PatchKey } from '../utils/common_types'
 import { WorldEnv } from '../config/WorldEnv'
-import { ItemsInventory, ItemType, SpawnedItems, VoidItemType } from '../factory/ItemsFactory'
+import {
+  ItemsInventory,
+  ItemType,
+  SpawnedItems,
+  VoidItemType,
+} from '../factory/ItemsFactory'
 
 import { GroundPatch } from './GroundPatch'
 import { DistributionProfiles } from './RandomDistributionMap'
@@ -161,15 +166,31 @@ ProcessingTask.taskHandlers[itemsProcessingHandlerName] =
 
 // Defaults
 
-const defaultDistribution: DistributionParams = {
-  ...DistributionProfiles[DistributionProfile.MEDIUM],
-  minDistance: 10,
+type ItemsProcessingDefaults = {
+  spawnMap: PseudoDistributionMap
+  itemDims: Vector3
 }
-const defaultSpawnMap = new PseudoDistributionMap(
-  undefined,
-  defaultDistribution,
-)
-const defaultItemDims = new Vector3(10, 13, 10)
+
+let defaults: ItemsProcessingDefaults
+
+const initDefaults = () => {
+  const defaultDistribution: DistributionParams = {
+    ...DistributionProfiles[DistributionProfile.MEDIUM],
+    minDistance: 10,
+  }
+
+  const defaults: ItemsProcessingDefaults = {
+    spawnMap: new PseudoDistributionMap(undefined, defaultDistribution),
+    itemDims: new Vector3(10, 13, 10),
+  }
+  return defaults
+}
+
+// wrapper to insure one time init
+const getDefaults = () => {
+  defaults = defaults || initDefaults()
+  return defaults
+}
 
 // Misc utils
 
@@ -191,7 +212,6 @@ const parseInput = (input: ItemsProcessingInput) => {
 export const isChunksProcessingTask = (task: GenericTask) =>
   task.handlerId === itemsProcessingHandlerName
 
-
 const retrieveItemBottomBlocks = async (itemChunk: ChunkContainer) => {
   const chunkBottomBlocks: Vector3[] = []
   // iter slice blocks
@@ -207,17 +227,21 @@ const retrieveItemBottomBlocks = async (itemChunk: ChunkContainer) => {
 
 /**
  * discard schematics above terrain holes + adjust chunk elevation on ground
- * @param itemChunk 
- * @returns 
+ * @param itemChunk
+ * @returns
  */
 const postprocessItemChunk = async (itemChunk: ChunkContainer) => {
   let isItemDiscarded = true
   const itemBottomBlocks = await retrieveItemBottomBlocks(itemChunk)
-  const hasHoleBlock = itemBottomBlocks.find(block => block.data.type === BlockType.HOLE)
+  const hasHoleBlock = itemBottomBlocks.find(
+    block => block.data.type === BlockType.HOLE,
+  )
   // any schematics having at least one hole block below is considered discarded
   if (!hasHoleBlock) {
     // adjust item's final height
-    const [lowestBlock] = itemBottomBlocks.sort((b1, b2) => b1.data.level - b2.data.level)
+    const [lowestBlock] = itemBottomBlocks.sort(
+      (b1, b2) => b1.data.level - b2.data.level,
+    )
     const lowestHeight = lowestBlock?.data.level || 0
     const heightOffset = itemChunk.bounds.min.y - lowestHeight
     // adjust chunk elevation according to lowest block
@@ -226,7 +250,6 @@ const postprocessItemChunk = async (itemChunk: ChunkContainer) => {
   }
   return isItemDiscarded
 }
-
 
 /**
  * retrieveOvergroundItems
@@ -239,9 +262,9 @@ export const retrieveOvergroundItems = (patchBounds: Box2) => {
 
   // take approximative item dimension until item type is known
   const spawnedItems: Record<ItemType, Vector3[]> = {}
-  const spawnPlaces = defaultSpawnMap.querySpawnLocations(
+  const spawnPlaces = getDefaults().spawnMap.querySpawnLocations(
     patchBounds,
-    asVect2(defaultItemDims),
+    asVect2(getDefaults().itemDims),
   )
   for (const pos of spawnPlaces) {
     // console.log(pos)
@@ -253,7 +276,7 @@ export const retrieveOvergroundItems = (patchBounds: Box2) => {
     const { floraItems } =
       Biome.instance.getBiomeLandConf(biome, landId as string) || {}
     if (floraItems && floraItems?.length > 0) {
-      const itemType = defaultSpawnMap.getSpawnedItem(
+      const itemType = getDefaults().spawnMap.getSpawnedItem(
         pos,
         floraItems,
       ) as ItemType

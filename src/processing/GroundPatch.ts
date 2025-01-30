@@ -9,7 +9,7 @@ import {
   PatchId,
 } from '../utils/common_types'
 import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk'
-import { BlockMode, Heightmap, WorldEnv } from '../index'
+import { BlockMode, Heightmap } from '../index'
 import {
   Biome,
   BiomeInfluence,
@@ -23,7 +23,10 @@ import {
   PatchDataContainer,
   PatchStub,
 } from '../datacontainers/PatchBase'
-import { getPatchNeighbours, getPatchBoundingPoints } from '../utils/spatial_utils'
+import {
+  getPatchNeighbours,
+  getPatchBoundingPoints,
+} from '../utils/spatial_utils'
 import { bilinearInterpolation } from '../utils/math_utils'
 import { copySourceToTargetPatch } from '../utils/data_operations'
 
@@ -70,7 +73,8 @@ export const parseGroundFlags = (rawFlags: number) => {
  */
 export class GroundPatch
   extends PatchBase<number>
-  implements PatchDataContainer {
+  implements PatchDataContainer
+{
   biomeInfluence: BiomeInfluence | PatchBoundingBiomes | undefined
   rawData: Uint32Array
   valueRange = { min: 512, max: 0 } // here elevation
@@ -191,8 +195,8 @@ export class GroundPatch
 
   /**
    * iteration range as global coords
-   * @param iterBounds 
-   * @param includeMargins 
+   * @param iterBounds
+   * @param includeMargins
    */
   *iterBlocksQuery(iterBounds?: Box2, includeMargins = true) {
     const patchSectors = super.iterDataQuery(iterBounds, includeMargins)
@@ -220,13 +224,13 @@ export class GroundPatch
     }
     const boundsPoints = getPatchBoundingPoints(this.bounds)
     const boundsInfluences = {} as PatchBoundingBiomes
-      ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-        const boundPos = boundsPoints[key] as Vector2
-        const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
-        boundsInfluences[key] = biomeInfluence
-        // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-        return biomeInfluence
-      })
+    ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+      const boundPos = boundsPoints[key] as Vector2
+      const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
+      boundsInfluences[key] = biomeInfluence
+      // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+      return biomeInfluence
+    })
     const allEquals =
       equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
       equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
@@ -235,10 +239,7 @@ export class GroundPatch
   }
 
   getBlockBiome(blockPos: Vector2) {
-    if (
-      this.isTransitionPatch() &&
-      WorldEnv.current.misc.useBiomeBilinearInterpolation
-    ) {
+    if (this.isTransitionPatch()) {
       return bilinearInterpolation(
         blockPos,
         this.bounds,
@@ -305,17 +306,19 @@ export class GroundPatch
     }
     return groundBlockData
   }
+
   /**
    * required for transition patches to insure interpolated patch corners
    * used to compute blocks are the same as near patch
    */
   fillMarginsFromNearPatches() {
     // copy four edges margins
-    const sidePatches = getPatchNeighbours(this.patchId as PatchId)
-      .map(patchId => new GroundPatch(serializePatchId(patchId), 0))
+    const sidePatches = getPatchNeighbours(this.patchId as PatchId).map(
+      patchId => new GroundPatch(serializePatchId(patchId), 0),
+    )
     sidePatches.forEach(sidePatch => {
       const marginOverlap = this.extendedBounds.intersect(sidePatch.bounds)
-      // for each side patches only gen overlapping margins with current patch 
+      // for each side patches only gen overlapping margins with current patch
       sidePatch.bake(marginOverlap)
       // copy side patch to current patch on overlapping margin zone
       // const count = this.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
@@ -324,6 +327,7 @@ export class GroundPatch
       copySourceToTargetPatch(sidePatch, this, false)
     })
   }
+
   /**
    * whole patch by default
    * if genBounds specified, only sub rows/cols will be generated
@@ -332,7 +336,8 @@ export class GroundPatch
     this.prepare()
     const { valueRange } = this
     // omit margin blocks to bake them separately
-    const doMarginsApart = !regionBounds && this.margin > 0 && this.patchKey.length > 0
+    const doMarginsApart =
+      !regionBounds && this.margin > 0 && this.patchKey.length > 0
     const blocks = this.iterBlocksQuery(regionBounds, !doMarginsApart)
     for (const block of blocks) {
       // EXPERIMENTAL: is it faster to perform bilinear interpolation rather

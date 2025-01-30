@@ -30,23 +30,23 @@ export type PatchBlock = GroundBlock & {
 
 /**
  * CHUNK volume
- * 
+ *
  *     y
- *     |   
+ *     |
  *     |
  *     |_ _ _ x
  *    /
  *   /
  *  z
- * 
+ *
  * PATCH surface
- * 
+ *
  *     _ _ _ x (cols)
  *    |
  *    |
  *    |
  *    z (as y) rows
- * 
+ *
  */
 
 /**
@@ -56,7 +56,7 @@ export type PatchBlock = GroundBlock & {
 export enum PatchSides {
   EDGES = 'edge',
   CORNERS = 'corner',
-  ALL = "all"
+  ALL = 'all',
 }
 
 export enum PatchSideId {
@@ -72,7 +72,7 @@ export enum PatchSideId {
 
 // export type PatchSide = PatchEdge & PatchCorner
 
-// or SurfaceNeighbour 
+// or SurfaceNeighbour
 export enum PatchOffsetId {
   XmY0, // left
   XpY0, // right
@@ -100,19 +100,18 @@ export enum PatchBoundId {
 
 export type PatchBoundingPoints = Record<PatchBoundId, Vector2>
 
-
 /**
  * Chunk volumes
  */
 
 export enum CubeSide {
   // 6 faces
-  FACE_LEFT,    //xM
-  FACE_RIGHT,   //xP
-  FACE_DOWN,    //yM
-  FACE_UP,      //yP
-  FACE_BACK,    //zM
-  FACE_FRONT,   //zP
+  FACE_LEFT, // xM
+  FACE_RIGHT, // xP
+  FACE_DOWN, // yM
+  FACE_UP, // yP
+  FACE_BACK, // zM
+  FACE_FRONT, // zP
   // 12 edges
   EDGE_LEFT_DOWN,
   EDGE_LEFT_UP,
@@ -141,7 +140,7 @@ export enum CubeSides {
   FACES = 'faces',
   EDGES = 'edges',
   CORNERS = 'corners',
-  ALL = "all"
+  ALL = 'all',
 }
 
 /**
@@ -208,7 +207,8 @@ export enum IntercardinalDirections {
   SW,
 }
 
-export type CardinalExtendedDirections = CardinalDirections & IntercardinalDirections
+export type CardinalExtendedDirections = CardinalDirections &
+  IntercardinalDirections
 
 type Point = {
   x: number

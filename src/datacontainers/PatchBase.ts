@@ -164,8 +164,8 @@ export class PatchBase<T> {
 
   /**
    * by default will iterrate whole patch excluding margins
-   * @param globalBounds 
-   * @param includeMargins 
+   * @param globalBounds
+   * @param includeMargins
    */
   *iterDataQuery(globalBounds?: Box2, includeMargins = false) {
     const wholeBounds = includeMargins ? this.extendedBounds : this.bounds
@@ -176,15 +176,25 @@ export class PatchBase<T> {
       return overlapBounds.intersect(wholeBounds)
     }
 
-    const overlapBounds = globalBounds ? getOverlapBounds(globalBounds) : wholeBounds
+    const overlapBounds = globalBounds
+      ? getOverlapBounds(globalBounds)
+      : wholeBounds
 
     const globalMin = overlapBounds.min
     const globalMax = overlapBounds.max
     const localMin = this.toLocalPos(globalMin)
     // const localMax = this.toLocalPos(globalMax)
 
-    for (let yGlobal = globalMin.y, yLocal = localMin.y; yGlobal < globalMax.y; yGlobal++, yLocal++) {
-      for (let xGlobal = globalMin.x, xLocal = localMin.x; xGlobal < globalMax.x; xGlobal++, xLocal++) {
+    for (
+      let yGlobal = globalMin.y, yLocal = localMin.y;
+      yGlobal < globalMax.y;
+      yGlobal++, yLocal++
+    ) {
+      for (
+        let xGlobal = globalMin.x, xLocal = localMin.x;
+        xGlobal < globalMax.x;
+        xGlobal++, xLocal++
+      ) {
         const localPos = new Vector2(xLocal, yLocal)
         const globalPos = new Vector2(xGlobal, yGlobal)
         const index = this.getIndex(localPos)

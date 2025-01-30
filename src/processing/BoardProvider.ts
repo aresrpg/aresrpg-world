@@ -13,7 +13,6 @@ import {
   serializePatchId,
 } from '../utils/patch_chunk'
 import { WorldEnv, ChunkContainer, BlockType, WorkerPool } from '../index'
-import { ProcLayer } from '../procgen/ProcLayer'
 import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/common_types'
 import {
   DataContainer,
@@ -69,11 +68,11 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
   }
 
   override *iterDataQuery(
-    iterBounds?: Box2 | Vector2 | undefined,
-    skipMargin?: boolean,
+    globalBounds?: Box2 | undefined,
+    includeMargins?: boolean,
     skipEmpty = true,
   ) {
-    const elements = super.iterDataQuery(iterBounds, skipMargin)
+    const elements = super.iterDataQuery(globalBounds, includeMargins)
     for (const element of elements) {
       const { index } = element
       const data = this.rawData[index] || BlockCategory.EMPTY
@@ -106,9 +105,9 @@ export class BoardCacheProvider {
     chunks: ChunkContainer[]
     items: ChunkContainer[]
   } = {
-      chunks: [],
-      items: [],
-    }
+    chunks: [],
+    items: [],
+  }
 
   // taskIndex: Record<TaskId, GenericTask> = {}
   centerPatch = new Vector2(NaN, NaN)
@@ -348,7 +347,10 @@ export class BoardProvider {
   overrideHeightBuffer = (heightBuff: Uint16Array, isHoleBlock: boolean) => {
     const { thickness: boardThickness } = this.boardParams
     // const marginBlockType = isHoleBlock ? BlockType.HOLE : heightBuff[0]
-    const surfaceType = heightBuff.slice(1, boardThickness + 1).reverse().find(val => val)
+    const surfaceType = heightBuff
+      .slice(1, boardThickness + 1)
+      .reverse()
+      .find(val => !!val)
     const boardHeightBuffer = heightBuff.map((val, i) => {
       // return i <= boardThickness ? val : BlockType.NONE
       if (i > boardThickness) {
@@ -358,9 +360,10 @@ export class BoardProvider {
         if (isHoleBlock) {
           blockType = i < boardThickness ? BlockType.HOLE : blockType
         } else {
-          blockType = !val ? (surfaceType || BlockType.NONE) : blockType
+          blockType = !val ? surfaceType || BlockType.NONE : blockType
         }
-        const blockMode = i === boardThickness ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
+        const blockMode =
+          i === boardThickness ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
         return ChunkContainer.dataEncoder(blockType, blockMode)
       }
     })
@@ -381,22 +384,28 @@ export class BoardProvider {
     this.cacheProvider.fillTargetChunk(boardChunk)
     // const chunkHeightBuffers = boardChunk.iterChunkBuffers()
     // for (const heightBuff of chunkHeightBuffers) {
-    for (const patchIter of boardPatch.iterDataQuery(undefined, false, false)) {
+    for (const patchIter of boardPatch.iterDataQuery(undefined, true, false)) {
       const heightBuff = boardChunk.readBuffer(patchIter.localPos)
       const isWithinBoard = this.isWithinBoard(patchIter.pos, heightBuff)
-      const isHoleBlock = isWithinBoard && heightBuff.slice(1, boardThickness + 1)
-        .reduce((sum, val) => sum + val, 0) === 0
+      const isHoleBlock =
+        isWithinBoard &&
+        heightBuff
+          .slice(1, boardThickness + 1)
+          .reduce((sum, val) => sum + val, 0) === 0
       // const empty = chunkBuff.data.reduce((sum, val) => sum + val, 0) === 0
       // const full = chunkBuff.data.find(val => val === 0) === undefined
       isWithinBoard && this.finalBounds.expandByPoint(patchIter.pos)
       // update board patch bounds and data
-      boardPatch.rawData[patchIter.index] = isWithinBoard ?
-        (isHoleBlock ? BlockCategory.HOLE : BlockCategory.FLAT) :
-        BlockCategory.EMPTY
-      // override height buffer with board version if within board 
+      boardPatch.rawData[patchIter.index] = isWithinBoard
+        ? isHoleBlock
+          ? BlockCategory.HOLE
+          : BlockCategory.FLAT
+        : BlockCategory.EMPTY
+      // override height buffer with board version if within board
       // and encode before writing back to chunk
-      const encodedBuffer = isWithinBoard ? this.overrideHeightBuffer(heightBuff, isHoleBlock) :
-        heightBuff.map((val, i) => ChunkContainer.dataEncoder(val))
+      const encodedBuffer = isWithinBoard
+        ? this.overrideHeightBuffer(heightBuff, isHoleBlock)
+        : heightBuff.map(val => ChunkContainer.dataEncoder(val))
       boardChunk.writeBuffer(patchIter.localPos, encodedBuffer)
       // boardPatch.
     }
@@ -414,13 +423,21 @@ export class BoardProvider {
     const boardSpawnedItems = this.cacheProvider.getSpawnedItems(
       boardChunk.bounds,
     )
-    this.addTrimmedItems(boardContent.patch, boardContent.chunk, boardSpawnedItems)
+    this.addTrimmedItems(
+      boardContent.patch,
+      boardContent.chunk,
+      boardSpawnedItems,
+    )
     this.boardData = boardContent.patch
     return boardContent
   }
 
   // trim items spawning inside board
-  addTrimmedItems(boardPatch: BoardPatch, boardChunk: ChunkContainer, boardSpawnedItems: ChunkContainer[]) {
+  addTrimmedItems(
+    boardPatch: BoardPatch,
+    boardChunk: ChunkContainer,
+    boardSpawnedItems: ChunkContainer[],
+  ) {
     for (const itemChunk of boardSpawnedItems) {
       const itemOffset = this.boardElevation - itemChunk.bounds.min.y
       // iter slice from item which is at same level as the board

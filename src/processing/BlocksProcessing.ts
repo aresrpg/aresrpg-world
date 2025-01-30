@@ -44,7 +44,7 @@ export enum BlocksProcessingRecipe {
 export type BlocksProcessingInput = Vector3[]
 export type BlocksProcessingOutput = Block<BlockData>[]
 export type BlocksProcessingParams = {
-  recipe: BlocksProcessingRecipe,
+  recipe: BlocksProcessingRecipe
   densityEval?: boolean
 }
 
@@ -184,7 +184,11 @@ ProcessingTask.taskHandlers[blocksProcessingHandlerName] =
  * requires: ground patch
  * provides: ground block
  */
-const bakeGroundBlock = (pos: Vector3, groundPatch: GroundPatch, densityEval = false) => {
+const bakeGroundBlock = (
+  pos: Vector3,
+  groundPatch: GroundPatch,
+  densityEval = false,
+) => {
   const groundData = groundPatch?.computeGroundBlock(pos)
   // return groundData
   // }).filter(val => val) as GroundBlockData[]
@@ -193,7 +197,8 @@ const bakeGroundBlock = (pos: Vector3, groundPatch: GroundPatch, densityEval = f
   const landscapeConf = Biome.instance.mappings[biome].nth(landIndex)
   const groundConf = landscapeConf.data
   // check for block emptyness if specified
-  const isEmptyBlock = () => DensityVolume.instance.getBlockDensity(pos, level + 20)
+  const isEmptyBlock = () =>
+    DensityVolume.instance.getBlockDensity(pos, level + 20)
   const blockData: BlockData = {
     level,
     type: densityEval && isEmptyBlock() ? BlockType.HOLE : groundConf.type,
@@ -210,9 +215,9 @@ const bakeGroundBlock = (pos: Vector3, groundPatch: GroundPatch, densityEval = f
  * usage: LOD
  */
 const bakePeakBlock = async (groundBlock: Block<BlockData>) => {
-  const peakBlock = await ItemsProcessing.pointPeakBlock(
+  const peakBlock = (await ItemsProcessing.pointPeakBlock(
     asVect2(groundBlock.pos),
-  ).process()
+  ).process()) as any
   if (peakBlock.type !== BlockType.NONE) {
     groundBlock.data.level = peakBlock.level
     groundBlock.data.type = peakBlock.type

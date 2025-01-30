@@ -142,7 +142,7 @@ const upperChunksGen = async (
   if (!skipEntities) {
     const itemsMerging =
       await ItemsProcessing.mergeIndividualChunks(patchKey).process()
-    mergedItemsChunk = itemsMerging // .mergedChunk
+    mergedItemsChunk = itemsMerging as ChunkContainer // .mergedChunk
     if (mergedItemsChunk) {
       // adjust chunks range accordingly
       yMin = Math.min(mergedItemsChunk.bounds.min.y, yMin)

@@ -2,7 +2,7 @@
  * Low level data operations over data containers
  */
 
-import { Box2, Vector2 } from 'three'
+import { Vector2 } from 'three'
 
 import { PatchDataContainer } from '../datacontainers/PatchBase'
 import { BlockType } from '../procgen/Biome'
@@ -11,7 +11,7 @@ import { BlockType } from '../procgen/Biome'
 export const copySourceToTargetPatch = (
   source: PatchDataContainer,
   target: PatchDataContainer,
-  skipEmpty = true
+  skipEmpty = true,
 ) => {
   // const adjustOverlapMargins = (overlap: Box2) => {
   //   const margin = Math.min(target.margin, source.margin) || 0
@@ -22,7 +22,9 @@ export const copySourceToTargetPatch = (
   // }
 
   if (source.bounds.intersectsBox(target.bounds)) {
-    const overlap = target.extendedBounds.clone().intersect(source.extendedBounds)
+    const overlap = target.extendedBounds
+      .clone()
+      .intersect(source.extendedBounds)
     // adjustOverlapMargins(overlap)
     for (let { y } = overlap.min; y < overlap.max.y; y++) {
       // const globalStartPos = new Vector3(x, 0, overlap.min.y)

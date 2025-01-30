@@ -159,8 +159,17 @@ type PreprocessedLandConf = {
   floraItems: ItemType[]
 }
 
-const transitionGap = 0.08 // min:0 (no transition) max:0.1
-const transitionOffset = (0.1 - transitionGap) / 2
+const getTransitionSteps = () => {
+  const { bilinearInterpolationRange } = WorldEnv.current.biomes
+  const transitionOffset = (0.1 - bilinearInterpolationRange) / 2
+  const transitionSteps = {
+    lowToMid: 0.3 + transitionOffset,
+    mid: 0.4 - transitionOffset,
+    midToHigh: 0.6 + transitionOffset,
+    high: 0.7 - transitionOffset,
+  }
+  return transitionSteps
+}
 
 /**
  * assign block types: water, sand, grass, mud, rock, snow, ..
@@ -186,12 +195,7 @@ export class Biome {
    * midToHigh < val < high => MID decrease, HIGH increase
    * val > hight => HIGH = 1
    */
-  steps = {
-    lowToMid: 0.3 + transitionOffset,
-    mid: 0.4 - transitionOffset,
-    midToHigh: 0.6 + transitionOffset,
-    high: 0.7 - transitionOffset,
-  }
+  steps = getTransitionSteps()
 
   preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()
 
@@ -304,10 +308,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-      (biomeContribs[k as BiomeType] = roundToDec(
-        biomeContribs[k as BiomeType],
-        2,
-      )),
+        (biomeContribs[k as BiomeType] = roundToDec(
+          biomeContribs[k as BiomeType],
+          2,
+        )),
     )
 
     // biomeContribs[BiomeType.Arctic] = 1

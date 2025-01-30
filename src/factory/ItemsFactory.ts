@@ -7,7 +7,7 @@ import { WorldEnv } from '../config/WorldEnv'
 
 export type ItemType = string
 export type SpawnedItems = Record<ItemType, Vector3[]>
-export const VoidItemType = "void"
+export const VoidItemType = 'void'
 
 /**
  * Referencing all items either procedurally generated or coming from schematic definitions
@@ -89,8 +89,8 @@ export class ItemsInventory {
       entityBounds.min.floor()
       entityBounds.max.floor()
       itemChunk = new ChunkContainer(entityBounds, 0)
-        itemChunk.rawData.set(templateChunk.rawData)
-      }
+      itemChunk.rawData.set(templateChunk.rawData)
+    }
     return itemChunk
   }
 }

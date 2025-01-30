@@ -27,9 +27,13 @@ export const findMatchingRange = (
 export const typesNumbering = (types: Record<string, number>, offset = 0) =>
   Object.keys(types).forEach((key, i) => (types[key] = offset + i))
 
-export function reverseMapping<U extends string | number, T extends string | number>(mapping: Record<U, T>) {
-  const reversedMapping = {} as Record<T, U>
-  Object.entries(mapping)
-    .forEach((cubeOffset, cubeSide) => reversedMapping[cubeSide] = cubeOffset)
+export function reverseMapping<
+  U extends string | number,
+  T extends string | number,
+>(mapping: Record<U, T>) {
+  const reversedMapping = {} as any // as Record<T, U>
+  Object.entries(mapping).forEach(
+    (cubeOffset, cubeSide) => (reversedMapping[cubeSide] = cubeOffset),
+  )
   return reversedMapping
 }

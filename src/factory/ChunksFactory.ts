@@ -19,19 +19,19 @@ export class EmptyChunk extends ChunkContainer {
     this.rawData = new Uint16Array()
   }
 
-  async bake() { }
+  async bake() {}
 }
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
   const { borderHighlightColor } = WorldEnv.current.debug.patch
-  return borderHighlightColor &&
-    (localPos.x === 1 || localPos.z === 1)
+  return borderHighlightColor && (localPos.x === 1 || localPos.z === 1)
     ? borderHighlightColor
     : blockType
 }
 
 export class GroundChunk extends ChunkContainer {
   generateGroundBuffer(block: PatchBlock, ymin: number, ymax: number) {
+    //, isTransition = false) {
     const undegroundDepth = 4
     const bedrock = this.dataEncoder(BlockType.BEDROCK)
     const bedrockIce = this.dataEncoder(BlockType.ICE)
@@ -40,7 +40,7 @@ export class GroundChunk extends ChunkContainer {
     const biomeLand = Biome.instance.mappings[biome].nth(landIndex)
     const landConf = biomeLand.data
     const groundFlags = parseGroundFlags(flags)
-    const blockType =
+    const blockType = // isTransition ? BlockType.SAND :
       highlightPatchBorders(blockLocalPos, landConf.type) || landConf.type
     const blockMode = groundFlags.boardMode
       ? BlockMode.CHECKERBOARD
@@ -80,7 +80,9 @@ export class GroundChunk extends ChunkContainer {
     const ymin = this.extendedBounds.min.y
     const ymax = this.extendedBounds.max.y
 
-    const blocks = groundLayer.iterBlocksQuery(undefined, true)
+    // const isBiomeTransition = groundLayer.isTransitionPatch()
+
+    const blocks = groundLayer.iterBlocksQuery()
     for (const block of blocks) {
       const groundBuff = this.generateGroundBuffer(block, ymin, ymax)
       if (groundBuff) {
@@ -106,7 +108,7 @@ export class CavesMask extends ChunkMask {
     // bounds.max.y = groundLayer.valueRange.max
     // const chunkContainer = new ChunkContainer(bounds, 1)
     // chunkContainer.rawData.fill(0)
-    const patchIter = groundLayer.iterBlocksQuery(undefined, true)
+    const patchIter = groundLayer.iterBlocksQuery()
     for (const block of patchIter) {
       // const buffPos = asVect2(block.localPos)
       // const chunkBuff = chunkContainer.readBuffer(buffPos)

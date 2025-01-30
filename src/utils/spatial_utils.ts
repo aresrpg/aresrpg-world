@@ -1,7 +1,11 @@
 import { Box2, Vector2, Vector3 } from 'three'
+
 import {
-  PatchSides, PatchSideId, PatchOffsetId,
-  CubeSide, CubeOffsetId,
+  PatchSides,
+  PatchSideId,
+  PatchOffsetId,
+  CubeSide,
+  CubeOffsetId,
   PatchBoundingPoints,
   CubeSides,
 } from './common_types'
@@ -25,11 +29,21 @@ const patchOffsetsMapping: Record<PatchOffsetId, Vector2> = {
   [PatchOffsetId.XmYm]: new Vector2(-1, -1),
   [PatchOffsetId.XpYm]: new Vector2(1, -1),
   [PatchOffsetId.XmYp]: new Vector2(-1, 1),
-  [PatchOffsetId.XpYp]: new Vector2(1, 1)
+  [PatchOffsetId.XpYp]: new Vector2(1, 1),
 }
 
-const patchEdges = () => [PatchSideId.LEFT_EDGE, PatchSideId.RIGHT_EDGE, PatchSideId.BOTTOM_EDGE, PatchSideId.TOP_EDGE]
-const patchCorners = () => [PatchSideId.BOTTOM_LEFT_CORNER, PatchSideId.BOTTOM_RIGHT_CORNER, PatchSideId.TOP_LEFT_CORNER, PatchSideId.TOP_RIGHT_CORNER]
+const patchEdges = () => [
+  PatchSideId.LEFT_EDGE,
+  PatchSideId.RIGHT_EDGE,
+  PatchSideId.BOTTOM_EDGE,
+  PatchSideId.TOP_EDGE,
+]
+const patchCorners = () => [
+  PatchSideId.BOTTOM_LEFT_CORNER,
+  PatchSideId.BOTTOM_RIGHT_CORNER,
+  PatchSideId.TOP_LEFT_CORNER,
+  PatchSideId.TOP_RIGHT_CORNER,
+]
 
 const getPatchSides = (patchSides = PatchSides.ALL) => {
   switch (patchSides) {
@@ -42,14 +56,17 @@ const getPatchSides = (patchSides = PatchSides.ALL) => {
   }
 }
 
-const getPatchSidesOffsetIds = (patchSides = PatchSides.ALL) => getPatchSides(patchSides).map(patchSideId => patchSidesMapping[patchSideId])
+const getPatchSidesOffsetIds = (patchSides = PatchSides.ALL) =>
+  getPatchSides(patchSides).map(patchSideId => patchSidesMapping[patchSideId])
 
 export const getPatchNeighbours = (
   patchId: Vector2,
   patchSides = PatchSides.ALL,
 ): Vector2[] => {
   const offsetIds = getPatchSidesOffsetIds(patchSides)
-  const neighboursOffsets = offsetIds.map(offsetId => patchOffsetsMapping[offsetId])
+  const neighboursOffsets = offsetIds.map(
+    offsetId => patchOffsetsMapping[offsetId],
+  )
   return neighboursOffsets.map(offset => patchId.clone().add(offset))
 }
 
@@ -65,9 +82,12 @@ export const getPatchBoundingPoints = (bounds: Box2) => {
 }
 
 const CubeFaces = [
-  CubeSide.FACE_LEFT, CubeSide.FACE_RIGHT,
-  CubeSide.FACE_BACK, CubeSide.FACE_FRONT,
-  CubeSide.FACE_DOWN, CubeSide.FACE_UP
+  CubeSide.FACE_LEFT,
+  CubeSide.FACE_RIGHT,
+  CubeSide.FACE_BACK,
+  CubeSide.FACE_FRONT,
+  CubeSide.FACE_DOWN,
+  CubeSide.FACE_UP,
 ]
 
 const CubeEdges = [
@@ -124,7 +144,7 @@ const cubeSidesMapping: Record<CubeSide, CubeOffsetId> = {
   [CubeSide.CORNER_RIGHT_DOWN_BACK]: CubeOffsetId.xPyMzM,
   [CubeSide.CORNER_RIGHT_DOWN_FRONT]: CubeOffsetId.xPyMzP,
   [CubeSide.CORNER_RIGHT_UP_BACK]: CubeOffsetId.xPyPzM,
-  [CubeSide.CORNER_RIGHT_UP_FRONT]: CubeOffsetId.xPyPzP
+  [CubeSide.CORNER_RIGHT_UP_FRONT]: CubeOffsetId.xPyPzP,
 }
 
 const CubeOffsetsMapping: Record<CubeOffsetId, Vector3> = {
@@ -153,7 +173,7 @@ const CubeOffsetsMapping: Record<CubeOffsetId, Vector3> = {
   [CubeOffsetId.xPy0zP]: new Vector3(1, 0, 1),
   [CubeOffsetId.xPyPzM]: new Vector3(1, 1, -1),
   [CubeOffsetId.xPyPz0]: new Vector3(1, 1, 0),
-  [CubeOffsetId.xPyPzP]: new Vector3(1, 1, 1)
+  [CubeOffsetId.xPyPzP]: new Vector3(1, 1, 1),
 }
 
 const getCubeSides = (cubeSides = CubeSides.ALL) => {
@@ -169,15 +189,13 @@ const getCubeSides = (cubeSides = CubeSides.ALL) => {
   }
 }
 
-const getCubeOffsetIds = (cubeSides = CubeSides.ALL) => getCubeSides(cubeSides).map(cubeSideId => cubeSidesMapping[cubeSideId])
+const getCubeOffsetIds = (cubeSides = CubeSides.ALL) =>
+  getCubeSides(cubeSides).map(cubeSideId => cubeSidesMapping[cubeSideId])
 
-
-export const getCubeNeighbours = (
-  pos: Vector3,
-  cubeSides = CubeSides.ALL
-) => {
+export const getCubeNeighbours = (pos: Vector3, cubeSides = CubeSides.ALL) => {
   const cubeOffsetIds = getCubeOffsetIds(cubeSides)
-  const neighboursOffsets = cubeOffsetIds.map(offsetId => CubeOffsetsMapping[offsetId])
+  const neighboursOffsets = cubeOffsetIds.map(
+    offsetId => CubeOffsetsMapping[offsetId],
+  )
   return neighboursOffsets.map(offset => pos.clone().add(offset))
 }
-

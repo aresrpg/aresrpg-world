@@ -1,9 +1,10 @@
 import { Vector3 } from 'three'
 
+import { WorldEnv } from '../index'
+
 import { ProcLayer } from './ProcLayer'
 import { Biome, BiomeInfluence } from './Biome'
 import { BlendMode, getCompositor } from './NoiseComposition'
-import { WorldEnv } from '../index'
 
 const MODULATION_THRESHOLD = 0.318
 
@@ -29,9 +30,9 @@ export class Heightmap {
   constructor() {
     this.heightmap = new ProcLayer('heightmap')
     this.heightmap.params.spreading = WorldEnv.current.heightmap.spreading
-    this.heightmap.sampling.harmonicsCount = WorldEnv.current.heightmap.harmonics
+    this.heightmap.sampling.harmonicsCount =
+      WorldEnv.current.heightmap.harmonics
     this.amplitude = new ProcLayer('amplitude')
-    this.amplitude.sampling.seed = WorldEnv.current.heightmap.amplitude.seed
   }
 
   static get instance() {

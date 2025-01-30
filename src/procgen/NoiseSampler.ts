@@ -3,6 +3,7 @@ import alea from 'alea'
 import { Vector2, Vector3 } from 'three'
 
 import { clamp } from '../utils/math_utils'
+import { WorldEnv } from '../index'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
@@ -36,6 +37,8 @@ export type NoiseSamplerParams = {
 }
 
 export class NoiseSampler {
+  // eslint-disable-next-line no-use-before-define
+  static instances: NoiseSampler[] = []
   harmonics: Harmonic[] = []
   harmonicsAmplitudeSum: number = 0
   noiseSource: any
@@ -54,10 +57,11 @@ export class NoiseSampler {
   stats = {}
   parent: any
 
-  constructor(seed = '', dimensions = NoiseDimension.Two) {
-    this.params.seed = seed
-    this.params.dimensions = dimensions
+  constructor(name = '', noiseDimension = NoiseDimension.Two) {
+    this.params.seed = WorldEnv.current.seeds.main || name
+    this.params.dimensions = noiseDimension
     this.init()
+    NoiseSampler.instances.push(this)
   }
 
   init() {
@@ -118,9 +122,11 @@ export class NoiseSampler {
     return this.params.seed
   }
 
-  set seed(seed) {
-    this.params.seed = seed
-    this.onChange('seed')
+  set seed(seed: string | null | undefined) {
+    if (seed) {
+      this.params.seed = seed
+      this.onChange('seed')
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
