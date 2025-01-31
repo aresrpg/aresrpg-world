@@ -371,7 +371,7 @@ export class BoardProvider {
     return boardHeightBuffer
   }
 
-  async genBoardContent() {
+  async genBoardContent(skipHoleBlocks = true) {
     const { thickness: boardThickness } = this.boardParams
     // wait for cache to be filled
     await this.cacheProvider.loadData(this.centerPatchId, this.patchRange)
@@ -396,16 +396,18 @@ export class BoardProvider {
       // const full = chunkBuff.data.find(val => val === 0) === undefined
       isWithinBoard && this.finalBounds.expandByPoint(patchIter.pos)
       // update board patch bounds and data
-      boardPatch.rawData[patchIter.index] = isWithinBoard
-        ? isHoleBlock
-          ? BlockCategory.HOLE
-          : BlockCategory.FLAT
-        : BlockCategory.EMPTY
+      boardPatch.rawData[patchIter.index] =
+        isWithinBoard && (!isHoleBlock || !skipHoleBlocks)
+          ? isHoleBlock
+            ? BlockCategory.HOLE
+            : BlockCategory.FLAT
+          : BlockCategory.EMPTY
       // override height buffer with board version if within board
       // and encode before writing back to chunk
-      const encodedBuffer = isWithinBoard
-        ? this.overrideHeightBuffer(heightBuff, isHoleBlock)
-        : heightBuff.map(val => ChunkContainer.dataEncoder(val))
+      const encodedBuffer =
+        isWithinBoard && (!isHoleBlock || !skipHoleBlocks)
+          ? this.overrideHeightBuffer(heightBuff, isHoleBlock)
+          : heightBuff.map(val => ChunkContainer.dataEncoder(val))
       boardChunk.writeBuffer(patchIter.localPos, encodedBuffer)
       // boardPatch.
     }
