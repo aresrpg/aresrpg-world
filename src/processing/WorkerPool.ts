@@ -1,5 +1,4 @@
 import { WorldEnv } from '../index'
-
 import {
   GenericTask,
   ProcessingContext,
@@ -51,7 +50,7 @@ export class WorkerProxy {
   worker
   resolvers: Record<TaskId, any> = {}
 
-  constructor(workerUrl: string, workerId = 0) {
+  constructor(workerUrl: string | URL, workerId = 0) {
     // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module' })
     worker.onmessage = ({ data }) => {
@@ -124,7 +123,7 @@ export class WorkerPool {
   // pendingRequests = []
   processedCount = 0
 
-  constructor(workerUrl: string, workerCount: number) {
+  constructor(workerUrl: string | URL, workerCount: number) {
     console.log(`create workerpool with count ${workerCount}`)
     for (let workerId = 0; workerId < workerCount; workerId++) {
       const worker = new WorkerProxy(workerUrl, workerId)

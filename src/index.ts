@@ -41,4 +41,4 @@ export { WorldEnv } from './config/WorldEnv'
 export {
   EnvOverride,
   BlocksColorOverride,
-} from './config/demo-samples/configs/world_dev_setup'
+} from './config/demo-samples/world_dev_setup'
