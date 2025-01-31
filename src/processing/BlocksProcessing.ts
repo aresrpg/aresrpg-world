@@ -141,14 +141,18 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
 
   const bakeBlock = (blockPos: Vector3) => {
     const groundPatch = getGroundPatch(asVect2(blockPos))
-    const groundBlock = bakeGroundBlock(blockPos, groundPatch, densityEval)
+    const groundBlock = bakeGroundBlock(
+      blockPos.clone(),
+      groundPatch,
+      densityEval,
+    )
     if (recipe === BlocksProcessingRecipe.Ground) return groundBlock
     else if (recipe === BlocksProcessingRecipe.Peak) {
       // build deps
       const peakBlock = bakePeakBlock(groundBlock)
       return peakBlock
     } else if (recipe === BlocksProcessingRecipe.Floor) {
-      const initialBlockLevel = Math.round(groundBlock.pos.y / 2) // blockPos.y // groundBlock.data.level + 1
+      const initialBlockLevel = blockPos.y // Math.round(groundBlock.pos.y / 2)  // groundBlock.data.level + 1
       const floorBlock = bakeFloorBlock(groundBlock, initialBlockLevel)
       return floorBlock
     } else if (recipe === BlocksProcessingRecipe.Ceiling) {
@@ -249,19 +253,21 @@ const bakeFloorBlock = (
       asVect3(groundPos, level),
       groundLevel + 20,
     )
+
+  const isAboveSurface = initialBlockLevel > groundLevel
+
   let currentLevel = initialBlockLevel
-  // above ground level
-  if (currentLevel > groundLevel) {
+  if (isAboveSurface) {
+    // above ground level => start from ground level
     currentLevel = groundLevel
-  }
-  // below ground level
-  else {
-    // if current block not empty, find first empty below
+  } else {
+    // below ground level =>  find first empty block below
     while (!isEmptyBlock(currentLevel) && currentLevel-- >= 0);
-    // then look below for last empty block
-    while (isEmptyBlock(currentLevel) && currentLevel-- >= 0);
   }
-  // groundBlock.pos.y = currentLevel
+  // then look for last empty block below
+  while (isEmptyBlock(currentLevel) && currentLevel-- >= 0);
+  // currentLevel = 128
+  groundBlock.pos.y = currentLevel
   groundBlock.data.level = currentLevel
   return groundBlock
 }
