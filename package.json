@@ -24,14 +24,12 @@
   },
   "keywords": [],
   "dependencies": {
-    "@types/pako": "^2.0.3",
     "alea": "^1.0.1",
     "poisson-disk-sampling": "^2.3.1",
     "simplex-noise": "^4.0.3"
   },
   "peerDependencies": {
-    "three": ">=0.163.0",
-    "pako": "^2.1.0"
+    "three": ">=0.163.0"
   },
   "devDependencies": {
     "@parcel/packager-ts": "^2.13.3",

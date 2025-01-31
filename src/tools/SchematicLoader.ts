@@ -1,4 +1,3 @@
-import Pako from 'pako'
 import { Box3, Vector3 } from 'three'
 
 import { NBTReader } from '../third-party/nbt_custom'
@@ -10,6 +9,16 @@ export type SchematicsBlocksMapping = Record<string, BlockType>
 
 function isBrowser() {
   return typeof FileReader !== 'undefined' && typeof fetch !== 'undefined'
+}
+
+async function decompressData(data: ArrayBuffer) {
+  const decompressionStream = new DecompressionStream('gzip') // You can specify 'gzip', 'deflate', or 'brotli'
+  const responseStream = new Response(data)
+  const decompressedStream =
+    responseStream.body?.pipeThrough(decompressionStream)
+
+  const res = await new Response(decompressedStream).arrayBuffer()
+  return res
 }
 
 export class SchematicLoader {
@@ -26,9 +35,10 @@ export class SchematicLoader {
     const rawData = await new Promise(resolve => {
       // eslint-disable-next-line no-undef
       const reader = new FileReader()
-      reader.onload = function (event) {
+      reader.onload = async function (event) {
         const blobData = event?.target?.result as ArrayBuffer
-        blobData && resolve(Pako.inflate(blobData))
+        const res = blobData ? await decompressData(blobData) : null
+        resolve(res)
       }
       reader.readAsArrayBuffer(blob)
     })
