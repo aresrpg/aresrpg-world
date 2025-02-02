@@ -8,7 +8,7 @@ import {
   CubeOffsetId,
   PatchBoundingPoints,
   CubeSides,
-} from './common_types'
+} from './common_types.js'
 
 const patchSidesMapping: Record<PatchSideId, PatchOffsetId> = {
   [PatchSideId.LEFT_EDGE]: PatchOffsetId.XmY0,
