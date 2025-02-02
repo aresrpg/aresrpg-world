@@ -1,5 +1,0 @@
-export * as convert from './convert.js'
-export * as math from './math.js'
-export * as data from './data.js'
-export * as misc from './misc.js'
-export * as spatial from './spatial.js'
