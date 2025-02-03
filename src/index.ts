@@ -1,7 +1,6 @@
 // Utils
-
 // export * as WorldUtils from './utils/index'
-export { getPatchId, asVect2, asVect3 } from './utils/patch_chunk'
+export { getPatchId, asVect2, asVect3, parseChunkKey, parseThreeStub } from './utils/patch_chunk'
 export { BlockMode } from './utils/common_types'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing'
@@ -10,13 +9,16 @@ export {
   BlocksProcessingRecipe,
 } from './processing/BlocksProcessing'
 export { BoardProvider, BlockCategory } from './processing/BoardProvider'
-export { ChunksProvider } from './processing/ChunksProvider'
+export { ChunksScheduler } from './processing/ChunksScheduling'
 export {
   PseudoDistributionMap,
   DistributionProfile,
 } from './processing/RandomDistributionMap'
 export { ProcessingState } from './processing/TaskProcessing'
-export { WorkerSideInit, WorkerPool } from './processing/WorkerPool'
+export { WorkerPool } from './processing/WorkerPool'
+export { BrowserWorkerProxy } from './processing/WorkerProxy'
+export { taskWorkerSetup } from './processing/WorkersSetup'
+export { chunksStreamClientWorkerSetup } from './tools/ChunksStreamClientWorker'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'
@@ -34,6 +36,7 @@ export {
   ProcItemType,
   ProcItemCategory,
 } from './tools/ProceduralGenerators'
+export { ChunksStreamClientProxy } from './tools/ChunksStreamClientProxy'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
 // Config
 export { WorldEnv } from './config/WorldEnv'
@@ -41,4 +44,4 @@ export { WorldEnv } from './config/WorldEnv'
 export {
   EnvOverride,
   BlocksColorOverride,
-} from './config/demo-samples/world_dev_setup'
+} from './config/demo-samples/world_demo_setup'

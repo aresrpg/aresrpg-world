@@ -19,7 +19,7 @@ const chunksRange = WorldEnv.current.chunks.range
 const getTaskPatchId = (task: ChunksProcessingTask) =>
   parsePatchKey(task.processingInput.patchKey) as PatchId
 
-type PatchViewRange = {
+export type PatchViewRange = {
   near: number
   far: number
 }
@@ -36,7 +36,7 @@ type PatchViewRange = {
  *
  */
 
-export class ChunksProvider {
+export class ChunksScheduler {
   workerPool: WorkerPool
   // taskIndex: Record<TaskId, GenericTask> = {}
   centerPatch = new Vector2(NaN, NaN)
@@ -47,7 +47,7 @@ export class ChunksProvider {
 
   patchIndex: Record<PatchKey, any> = {}
   // processedChunksQueue = []
-  onChunkProcessed: any
+  onChunkAvailable: any
   postponedTasks: ChunksProcessingTask[] = []
 
   constructor(workerPool: WorkerPool) {
@@ -110,7 +110,7 @@ export class ChunksProvider {
   /**
    * called each time view center or range change to regen chunks index
    */
-  rescheduleTasks(centerPatch: Vector2, rangeNear: number, rangeFar: number) {
+  scheduleTasks(centerPatch: Vector2, rangeNear: number, rangeFar: number) {
     if (this.viewChanged(centerPatch, rangeNear, rangeFar)) {
       this.centerPatch = centerPatch
       this.patchViewRange.near = rangeNear
@@ -156,7 +156,8 @@ export class ChunksProvider {
       this.reorderTasks([...previousTasks, ...newTasks])
       // add new tasks to processing queue
       newTasks.map(task =>
-        task.delegate(this.workerPool).then(this.onChunkProcessed),
+        task.delegate(this.workerPool)
+          .then(chunks => chunks.forEach(chunk => this.onChunkAvailable(chunk))),
       )
       // update chunks index
       this.patchIndex = patchIndex

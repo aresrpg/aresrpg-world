@@ -1,116 +1,21 @@
 import { WorldEnv } from '../index'
 import {
   GenericTask,
-  ProcessingContext,
   ProcessingState,
-  ProcessingTask,
-  TaskId,
 } from './TaskProcessing'
-
-/**
- * Handling request on worker side
- */
-export const WorkerSideInit = () => {
-  // eslint-disable-next-line no-undef
-  addEventListener('error', e => {
-    console.error(e)
-    // eslint-disable-next-line no-undef
-    self.postMessage({ type: 'error', message: e.message })
-  })
-
-  // eslint-disable-next-line no-undef
-  addEventListener('unhandledrejection', e => {
-    console.error('Worker script unhandled rejection:', e)
-    // eslint-disable-next-line no-undef
-    self.postMessage({ type: 'error', message: e.reason })
-  })
-
-  // eslint-disable-next-line no-undef
-  addEventListener('message', async ({ data: request }) => {
-    // const { id, task } = data
-    const reply = {
-      id: request.taskId,
-      data: null,
-    }
-    const taskHandler = ProcessingTask.taskHandlers[request.handlerId]
-    if (taskHandler) {
-      const taskOutput = await taskHandler(request, ProcessingContext.Worker)
-      reply.data = taskOutput
-    }
-    // eslint-disable-next-line no-undef
-    postMessage(reply)
-  })
-}
-
-/**
- * Proxying request to worker
- */
-export class WorkerProxy {
-  id
-  worker
-  resolvers: Record<TaskId, any> = {}
-
-  constructor(workerUrl: string | URL, workerId = 0) {
-    // eslint-disable-next-line no-undef
-    const worker = new Worker(workerUrl, { type: 'module' })
-    worker.onmessage = ({ data }) => {
-      if (data.id !== undefined) {
-        const taskResolver = this.resolvers[data.id]
-        taskResolver(data.data)
-        delete this.resolvers[data.id]
-      }
-    }
-
-    worker.onerror = error => {
-      console.error('WorldComputeProxy worker error', error)
-    }
-
-    worker.onmessageerror = error => {
-      console.error('WorldComputeProxy worker messageerror', error)
-    }
-    this.worker = worker
-    this.id = workerId
-  }
-
-  get isBusy() {
-    return Object.keys(this.resolvers).length > 0
-  }
-
-  get pendingRequests() {
-    return Object.keys(this.resolvers)
-  }
-
-  async proxyRequest(task: GenericTask) {
-    if (!this.isBusy) {
-      const { taskId } = task
-      // const request = {
-      //     id: this.processedCount++,
-      //     task
-      // }
-      // task?.onProcessingStart()
-      this.worker.postMessage(task.toStub())
-      // const pendingReply = new Promise<any>(resolve => (this.resolvers[taskId] = resolve))
-      this.resolvers[taskId] = task.resolve
-      // const reply = await task.promise
-      // return reply.data
-      return true
-    }
-    return false
-  }
-}
 
 const createDefaultWorkerPool = () => {
   const { url, count } = WorldEnv.current.workerPool
-  console.log(`create default workerpool`)
+  console.log(`create default workerpool, pool size: ${count}`)
   return url.length > 0 ? new WorkerPool(url, count) : null
 }
 
 /**
  * This will handle tasks enqueueing, dispatching to multiple workers
  */
-export class WorkerPool {
+export class WorkerPool<Worker> {
   // eslint-disable-next-line no-use-before-define
-  static defaultWorkerPool: WorkerPool
+  static defaultWorkerPool: WorkerPool<any>
 
   static get default() {
     this.defaultWorkerPool = this.defaultWorkerPool || createDefaultWorkerPool()
@@ -119,14 +24,15 @@ export class WorkerPool {
 
   processingQueue: GenericTask[] = []
   suspended: GenericTask[] = []
-  workerPool: WorkerProxy[] = []
+  workerPool: WorkerProxy<Worker>[] = []
   // pendingRequests = []
   processedCount = 0
 
-  constructor(workerUrl: string | URL, workerCount: number) {
-    console.log(`create workerpool with count ${workerCount}`)
+  init(workerFactory: (workerId?: number) => WorkerProxy<Worker>, workerCount: number) {
+    console.log(`create workerpool of pool size: ${workerCount}`)
     for (let workerId = 0; workerId < workerCount; workerId++) {
-      const worker = new WorkerProxy(workerUrl, workerId)
+      // const worker = new WorkerProxy(workerUrl, workerId)
+      const worker = workerFactory(workerId)
       this.workerPool.push(worker)
     }
   }

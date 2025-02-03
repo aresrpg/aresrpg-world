@@ -17,12 +17,16 @@ enum ChunkAxisOrder {
   ZYX,
 }
 
-export type ChunkStub = {
+export type ChunkMetadata = {
   chunkKey?: string
   bounds: Box3
-  rawData: Uint16Array
   margin?: number
   isEmpty?: boolean
+}
+
+export type ChunkStub = {
+  metadata: ChunkMetadata
+  rawdata: Uint16Array
 }
 
 export type ChunkBuffer = {
@@ -51,6 +55,7 @@ export class ChunkContainer {
   // local data encoder (defaulting to global)
   dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) => number
   dataDecoder: (rawVal: number) => number
+  isEmpty?: boolean
 
   // global version
   static get dataEncoder() {
@@ -229,7 +234,9 @@ export class ChunkContainer {
     return !nonOverlapping
   }
 
-  isEmpty() {
+  isEmptySafe() {
+    if(this.isEmpty !== undefined) return this.isEmpty
+    console.warn(`caution: isEmpty flag unset, fallback to compute intensive chunk emptyness check`)
     return this.rawData.reduce((sum, val) => sum + val, 0) === 0
   }
 
@@ -371,28 +378,45 @@ export class ChunkContainer {
   }
 
   fromStub(chunkStub: ChunkStub) {
-    const { chunkKey } = chunkStub
-    const bounds = parseThreeStub(chunkStub.bounds) as Box3
+    const { chunkKey } = chunkStub.metadata
+    const bounds = parseThreeStub(chunkStub.metadata.bounds) as Box3
     this.adjustChunkBounds(bounds)
     this.chunkId =
       chunkKey?.length && chunkKey?.length > 0
         ? parseChunkKey(chunkKey)
         : this.chunkId
-    this.rawData.set(chunkStub.rawData)
+    this.rawData.set(chunkStub.rawdata)
     return this
   }
 
+  async toBlob() {
+    const chunkStub = this.toStub()
+    const { metadata, rawdata } = chunkStub
+    const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+    // Convert rawData to a byte array (Uint8Array)  since compression APIs expect this format
+    // const rawDataBytes = new Uint8Array(rawData.buffer);
+    const rawdataBlob = new Blob([rawdata.buffer], { type: 'application/octet-stream' });
+    const compressedReadableStream = rawdataBlob.stream().pipeThrough(new CompressionStream("gzip"))
+    const compressedBlob = await new Response(compressedReadableStream).blob();
+    const delimiterBlob = new Blob([new Uint8Array([0xFF, 0xFF, 0xFF])]);
+    const chunkBlob = new Blob([metadataBlob, delimiterBlob, compressedBlob]);
+    return chunkBlob
+  }
+
   toStub() {
-    const isEmpty = this.isEmpty()
-    const { chunkKey, bounds, rawData, margin } = this
-    const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
+    const isEmpty = this.isEmptySafe()
+    const { chunkKey, bounds, margin, rawData } = this
+    const metadata = { chunkKey, bounds, margin, isEmpty }
+    const chunkStub: ChunkStub = { metadata, rawdata: rawData }
+    // const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
     return chunkStub
   }
 
   static fromStub(chunkStub: ChunkStub) {
-    const { chunkKey, bounds, rawData, margin } = chunkStub
+    const { chunkKey, bounds, margin, isEmpty } = chunkStub.metadata
     const chunk = new ChunkContainer(chunkKey || parseThreeStub(bounds), margin)
-    chunk.rawData.set(rawData)
+    chunk.rawData.set(chunkStub.rawdata)
+    if (isEmpty !== undefined) chunk.isEmpty = isEmpty
     return chunk
   }
 

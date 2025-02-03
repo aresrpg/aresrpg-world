@@ -20,7 +20,7 @@ const restoreOriginalSeeds = (individualSeeds: WorldIndividualSeeds) => {
   individualSeeds.density = 'Caverns'
 }
 
-export const WorldSharedSetup = (world_env = WorldEnv.current) => {
+export const setupWorldDemo = (world_env = WorldEnv.current) => {
   world_env.seeds.main = 'test' // common seed use everywhere
   // world_env.seaLevel = SEA_LEVEL // TODO: remove hardcoded sea
   // world_env.chunks.dataEncoder = chunk_data_encoder
