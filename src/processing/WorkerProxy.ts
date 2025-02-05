@@ -1,15 +1,15 @@
-import { TaskId, GenericTask } from "./TaskProcessing"
+import { TaskId, GenericTask } from './TaskProcessing'
 
 /**
  * Interface to interact with worker
  * and proxying request to worker
  */
-export abstract class WorkerProxy<Worker> {
+export abstract class WorkerProxy<WorkerType> {
   id
-  worker: Worker
+  worker: WorkerType
   resolvers: Record<TaskId, any> = {}
 
-  abstract initWorker(workerUrl: string | URL): Worker
+  abstract initWorker(workerUrl: string | URL): WorkerType
 
   constructor(workerUrl: string | URL, workerId = 0) {
     // eslint-disable-next-line no-undef
@@ -47,7 +47,7 @@ export abstract class WorkerProxy<Worker> {
       // console.log(this.worker)
       const transferredData = task.toStub()
       // console.log(transferredData)
-      this.worker.postMessage(transferredData)
+      ;(this.worker as any).postMessage(transferredData)
       // const pendingReply = new Promise<any>(resolve => (this.resolvers[taskId] = resolve))
       this.resolvers[taskId] = task.resolve
       // const reply = await task.promise
@@ -60,9 +60,10 @@ export abstract class WorkerProxy<Worker> {
 /**
  * Default implementation running in browser env
  */
+// eslint-disable-next-line no-undef
 export class BrowserWorkerProxy extends WorkerProxy<Worker> {
+  // eslint-disable-next-line no-undef
   initWorker(workerUrl: string | URL): Worker {
-
     // const handleWorkerReply = (workerReply: any) => {
     //   const replyData = workerReply.data
     //   if (replyData.id !== undefined) {
@@ -72,6 +73,7 @@ export class BrowserWorkerProxy extends WorkerProxy<Worker> {
     //   }
     // }
 
+    // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module' })
     worker.onmessage = this.handleWorkerReply
     worker.onerror = error => {

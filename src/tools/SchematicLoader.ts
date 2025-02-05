@@ -25,7 +25,7 @@ export class SchematicLoader {
   static async loadNode(path: string) {
     const { readFile } = await import('fs/promises')
     const buffer = await readFile(path)
-    return Pako.inflate(buffer)
+    return await decompressData(buffer as any)
   }
 
   static async loadBrowser(path: string) {

@@ -32,7 +32,7 @@ export enum ChunksProcessingRange {
 export type ChunksProcessingInput = {
   patchKey: PatchKey
 }
-export type ChunksProcessingOutput = ChunkContainer[]
+export type ChunksProcessingOutput = ChunkStub[]
 export type ChunksProcessingParams = {
   noDataEncoding?: boolean
   skipEntities?: boolean
@@ -81,7 +81,7 @@ type ChunksProcessingTaskStub = ProcessingTaskStub<
 type ChunksProcessingTaskHandler = ProcessingTaskHandler<
   ChunksProcessingInput,
   ChunksProcessingParams,
-  ChunkStub[]
+  ChunkStub[] | Blob[]
 >
 
 export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
@@ -103,9 +103,9 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
     ? await upperChunksGen(patchKey, processingParams)
     : []
   const chunks = [...lowerChunks, ...upperChunks]
-  return skipBlobCompression ? chunks.map(chunk => chunk.toStub()) :
-    await Promise.all(chunks.map(chunk => chunk.toCompressedBlob()))
-
+  return skipBlobCompression
+    ? chunks.map(chunk => chunk.toStub())
+    : await Promise.all(chunks.map(chunk => chunk.toCompressedBlob()))
 }
 
 // Registration
@@ -228,7 +228,7 @@ const postProcess = (rawData: ChunkStub[]) => {
   // const chunks = rawData.map((chunkStub: ChunkStub) =>
   //   ChunkContainer.fromStub(chunkStub),
   // )
-  return rawData//chunks
+  return rawData // chunks
 }
 
 // const printChunkset = (chunkset: ChunkContainer[]) =>

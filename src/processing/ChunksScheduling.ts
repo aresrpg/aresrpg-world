@@ -37,7 +37,7 @@ export type PatchViewRange = {
  */
 
 export class ChunksScheduler {
-  workerPool: WorkerPool
+  workerPool: WorkerPool<any>
   // taskIndex: Record<TaskId, GenericTask> = {}
   centerPatch = new Vector2(NaN, NaN)
   patchViewRange: PatchViewRange = {
@@ -51,7 +51,7 @@ export class ChunksScheduler {
   postponedTasks: ChunksProcessingTask[] = []
   skipBlobCompression = false
 
-  constructor(workerPool: WorkerPool) {
+  constructor(workerPool: WorkerPool<any>) {
     this.workerPool = workerPool
   }
 
@@ -141,9 +141,11 @@ export class ChunksScheduler {
         .filter(patchKey => !this.patchIndex[patchKey])
         .forEach(patchKey => {
           const lowerChunksTask = ChunksProcessing.lowerChunks(patchKey)
-          lowerChunksTask.processingParams.skipBlobCompression = this.skipBlobCompression
+          lowerChunksTask.processingParams.skipBlobCompression =
+            this.skipBlobCompression
           const upperChunksTask = ChunksProcessing.upperChunks(patchKey)
-          upperChunksTask.processingParams.skipBlobCompression = this.skipBlobCompression
+          upperChunksTask.processingParams.skipBlobCompression =
+            this.skipBlobCompression
           newTasks.push(upperChunksTask)
           this.isBeyondNearDist(lowerChunksTask)
             ? postponedTasks.push(lowerChunksTask)
@@ -159,8 +161,11 @@ export class ChunksScheduler {
       this.reorderTasks([...previousTasks, ...newTasks])
       // add new tasks to processing queue
       newTasks.map(task =>
-        task.delegate(this.workerPool)
-          .then(chunks => chunks.forEach(chunk => this.onChunkAvailable(chunk))),
+        task
+          .delegate(this.workerPool)
+          .then(chunks =>
+            chunks.forEach(chunk => this.onChunkAvailable(chunk)),
+          ),
       )
       // update chunks index
       this.patchIndex = patchIndex

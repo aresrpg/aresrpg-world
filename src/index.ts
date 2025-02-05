@@ -1,6 +1,12 @@
 // Utils
 // export * as WorldUtils from './utils/index'
-export { getPatchId, asVect2, asVect3, parseChunkKey, parseThreeStub } from './utils/patch_chunk'
+export {
+  getPatchId,
+  asVect2,
+  asVect3,
+  parseChunkKey,
+  parseThreeStub,
+} from './utils/patch_chunk'
 export { BlockMode } from './utils/common_types'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing'
@@ -17,7 +23,7 @@ export {
 export { ProcessingState } from './processing/TaskProcessing'
 export { WorkerPool } from './processing/WorkerPool'
 export { BrowserWorkerProxy } from './processing/WorkerProxy'
-export { taskWorkerSetup } from './processing/WorkersSetup'
+export { taskWorkerSetup } from './processing/TaskWorker'
 export { chunksStreamClientWorkerSetup } from './remote-clients/ChunksStreamClientWorker'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'

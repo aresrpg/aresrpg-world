@@ -20,6 +20,7 @@ import {
   PatchElement,
 } from '../datacontainers/PatchBase'
 import { copySourceToTargetPatch } from '../utils/data_operations'
+import { ChunkStub } from '../datacontainers/ChunkContainer'
 
 import { ChunksProcessing } from './ChunksProcessing'
 import { ItemsProcessing } from './ItemsProcessing'
@@ -100,7 +101,8 @@ const chunksRange = WorldEnv.current.chunks.range
  * Handle chunks and items tasks and provide data required to build board content:
  */
 export class BoardCacheProvider {
-  workerPool: WorkerPool
+  // eslint-disable-next-line no-undef
+  workerPool: WorkerPool<Worker>
   localCache: {
     chunks: ChunkContainer[]
     items: ChunkContainer[]
@@ -115,7 +117,8 @@ export class BoardCacheProvider {
   patchIndex: Record<PatchKey, any> = {}
   pendingBoardGen = false
 
-  constructor(workerPool: WorkerPool) {
+  // eslint-disable-next-line no-undef
+  constructor(workerPool: WorkerPool<Worker>) {
     this.workerPool = workerPool
   }
 
@@ -167,11 +170,16 @@ export class BoardCacheProvider {
         .map(chunkTask => {
           chunkTask.processingParams.noDataEncoding = true
           chunkTask.processingParams.skipEntities = true
+          chunkTask.processingParams.skipBlobCompression = true
           const pendingChunkTask = chunkTask.delegate(this.workerPool)
           // once done put result in cache
-          pendingChunkTask.then(taskRes =>
-            this.localCache.chunks.push(...taskRes),
-          )
+          pendingChunkTask.then(taskRes => {
+            // reconstruct objects from stubs
+            const chunks = taskRes.map((chunkStub: ChunkStub) =>
+              ChunkContainer.fromStub(chunkStub),
+            )
+            this.localCache.chunks.push(...chunks)
+          })
           return pendingChunkTask
         })
       // enqueue items processing tasks

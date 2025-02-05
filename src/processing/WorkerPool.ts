@@ -1,16 +1,15 @@
-import { WorkerProxy } from './WorkerProxy'
 import { BrowserWorkerProxy, WorldEnv } from '../index'
+
+import { WorkerProxy } from './WorkerProxy'
 // import { NodeWorkerProxy } from './NodeWorkerProxy'
-import {
-  GenericTask,
-  ProcessingState,
-} from './TaskProcessing'
+import { GenericTask, ProcessingState } from './TaskProcessing'
 
 const createDefaultWorkerPool = () => {
   const { url, count } = WorldEnv.current.workerPool
   console.log(`create default workerpool, pool size: ${count}`)
   const defaultWorkerPool = new WorkerPool()
   defaultWorkerPool.init(url, count)
+  return defaultWorkerPool
 }
 
 // export interface WorkerPoolInterface {
@@ -24,7 +23,8 @@ const createDefaultWorkerPool = () => {
 /**
  * This will handle tasks enqueueing, dispatching to multiple workers
  */
-export class WorkerPool<Worker> {//implements WorkerPoolInterface {
+export class WorkerPool<Worker> {
+  // implements WorkerPoolInterface {
   // eslint-disable-next-line no-use-before-define
   static defaultWorkerPool: WorkerPool<any>
 
@@ -39,7 +39,12 @@ export class WorkerPool<Worker> {//implements WorkerPoolInterface {
   // pendingRequests = []
   processedCount = 0
 
-  init(workerUrl: string | URL, poolSize: number, workerProxyConstructor?: any) {// isNodeWorker = false) {
+  init(
+    workerUrl: string | URL,
+    poolSize: number,
+    workerProxyConstructor?: any,
+  ) {
+    // isNodeWorker = false) {
     if (workerUrl instanceof URL || workerUrl.length > 0) {
       console.log(`create workerpool, pool size: ${poolSize} `)
       for (let workerId = 0; workerId < poolSize; workerId++) {

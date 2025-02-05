@@ -46,11 +46,11 @@ export type GroundPatchStub = PatchStub & {
   rawData: Uint32Array
 }
 
-// bits allocated per data type, total 9+4+5+3 = 21 bits
+// bits allocated per data type, total 9+4+7+3 = 23 bits
 const BitAllocation = {
   level: 9, // level values ranging from 0 to 512
   biome: 4, // 16 biomes
-  landIndex: 5, // 32 landscapes per biome
+  landIndex: 7, // 128 landscapes per biome
   flags: 3, // 8 additional flags
 }
 

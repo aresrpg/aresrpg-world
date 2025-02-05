@@ -1,33 +1,35 @@
-import { Worker } from "worker_threads"
-import { WebSocketServer } from 'ws';
-import { parseThreeStub } from "../utils/patch_chunk";
-import { ChunksScheduler } from "../processing/ChunksScheduling";
-import { WorkerPool } from "../index";
+import { Worker } from 'worker_threads'
+
+import { WebSocketServer, WebSocket } from 'ws'
+
+import { parseThreeStub } from '../utils/patch_chunk'
+import { ChunksScheduler } from '../processing/ChunksScheduling'
+import { WorkerPool } from '../index'
 
 /**
  * Chunks streaming over websocket to remote client
  */
 export class ChunksStreamOverWS extends ChunksScheduler {
   clientsCount = 0
-  clients = {}
+  clients: Record<number, WebSocket> = {}
 
   constructor(nodeWorkerPool: WorkerPool<Worker>, port = 3000) {
-    super(nodeWorkerPool);
-    const wss = new WebSocketServer({ port: 3000 });
+    super(nodeWorkerPool)
+    const wss = new WebSocketServer({ port })
 
-    wss.on('connection', (ws) => {
+    wss.on('connection', ws => {
       const clientId = this.clientsCount++
-      console.log(`Client ${clientId} has connected.`);
+      console.log(`Client ${clientId} has connected.`)
       this.clients[clientId] = ws
-      ws.on('message', (msg) => this.handleClientRequest(msg, ws));
-    });
+      ws.on('message', msg => this.handleClientRequest(msg, ws))
+    })
 
-    console.log('WebSocket server started on ws://localhost:3000');
+    console.log('WebSocket server started on ws://localhost:3000')
   }
 
   handleClientRequest = (clientMsg: any, clientWs: any) => {
     const request = JSON.parse(clientMsg)
-    console.log('Received client request:', request);
+    console.log('Received client request:', request)
     const { near, far } = request
     const center = parseThreeStub(request.center)
     this.onChunkAvailable = async (chunkBlob: Blob) => {
@@ -36,7 +38,7 @@ export class ChunksStreamOverWS extends ChunksScheduler {
       // const { chunkKey } = chunk.
       // console.log(chunk)
       // const reply = JSON.stringify({ chunkKey })
-      clientWs.send(chunkBlob);
+      clientWs.send(chunkBlob)
     }
     this.requestChunks(center, near, far)
 
@@ -44,11 +46,5 @@ export class ChunksStreamOverWS extends ChunksScheduler {
     // this.enqueueTasks(clientTask)
   }
 }
-
-
-
-
-
-
 
 // export class WorkerPoolWsService extends WorkerPool<Worker> {
