@@ -37,3 +37,7 @@ export function reverseMapping<
   )
   return reversedMapping
 }
+
+export function isBrowserEnv() {
+  return typeof window !== 'undefined' && typeof window.document !== 'undefined'
+}

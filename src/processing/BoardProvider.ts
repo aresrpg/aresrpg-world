@@ -102,7 +102,7 @@ const chunksRange = WorldEnv.current.chunks.range
  */
 export class BoardCacheProvider {
   // eslint-disable-next-line no-undef
-  workerPool: WorkerPool<Worker>
+  workerPool: WorkerPool
   localCache: {
     chunks: ChunkContainer[]
     items: ChunkContainer[]
@@ -118,7 +118,7 @@ export class BoardCacheProvider {
   pendingBoardGen = false
 
   // eslint-disable-next-line no-undef
-  constructor(workerPool: WorkerPool<Worker>) {
+  constructor(workerPool: WorkerPool) {
     this.workerPool = workerPool
   }
 

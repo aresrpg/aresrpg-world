@@ -1,25 +1,52 @@
+import { isBrowserEnv } from '../utils/misc_utils'
+
 import { TaskId, GenericTask } from './TaskProcessing'
 
 /**
- * Interface to interact with worker
- * and proxying request to worker
+ * Interface to interact and proxy requests to worker
  */
-export abstract class WorkerProxy<WorkerType> {
+export class WorkerProxy {
   id
-  worker: WorkerType
+  worker: any
   resolvers: Record<TaskId, any> = {}
 
-  abstract initWorker(workerUrl: string | URL): WorkerType
+  // abstract initWorker(workerUrl: string | URL): WorkerType
 
   constructor(workerUrl: string | URL, workerId = 0) {
-    // eslint-disable-next-line no-undef
-    this.worker = this.initWorker(workerUrl)
+    if (isBrowserEnv()) {
+      this.worker = this.initWorker(workerUrl)
+    } else {
+      this.initNodeWorker(workerUrl).then(worker => {
+        console.log(`node worker is ready`)
+        this.worker = worker
+      })
+    }
     this.id = workerId
   }
 
-  handleWorkerReply = (workerReply: any) => {
-    // console.log(workerReply)
-    const reply = workerReply.data
+  // default implementation running in browser env
+  initWorker(workerUrl: string | URL) {
+    // eslint-disable-next-line no-undef
+    const worker = new Worker(workerUrl, { type: 'module' })
+    worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
+    worker.onerror = error => {
+      console.error('WorldComputeProxy worker error', error)
+    }
+    worker.onmessageerror = error => {
+      console.error('WorldComputeProxy worker messageerror', error)
+    }
+    return worker
+  }
+
+  // adaptation for node environment
+  async initNodeWorker(workerUrl: string | URL) {
+    const { Worker } = await import('worker_threads')
+    const nodeWorker = new Worker(workerUrl)
+    nodeWorker.on('message', this.handleWorkerReply)
+    return nodeWorker
+  }
+
+  handleWorkerReply = (reply: any) => {
     if (reply.id !== undefined) {
       const taskResolver = this.resolvers[reply.id]
       taskResolver(reply.data)
@@ -47,7 +74,7 @@ export abstract class WorkerProxy<WorkerType> {
       // console.log(this.worker)
       const transferredData = task.toStub()
       // console.log(transferredData)
-      ;(this.worker as any).postMessage(transferredData)
+      this.worker.postMessage(transferredData)
       // const pendingReply = new Promise<any>(resolve => (this.resolvers[taskId] = resolve))
       this.resolvers[taskId] = task.resolve
       // const reply = await task.promise
@@ -55,33 +82,5 @@ export abstract class WorkerProxy<WorkerType> {
       return true
     }
     return false
-  }
-}
-/**
- * Default implementation running in browser env
- */
-// eslint-disable-next-line no-undef
-export class BrowserWorkerProxy extends WorkerProxy<Worker> {
-  // eslint-disable-next-line no-undef
-  initWorker(workerUrl: string | URL): Worker {
-    // const handleWorkerReply = (workerReply: any) => {
-    //   const replyData = workerReply.data
-    //   if (replyData.id !== undefined) {
-    //     const taskResolver = this.resolvers[replyData.id]
-    //     taskResolver(replyData.data)
-    //     delete this.resolvers[replyData.id]
-    //   }
-    // }
-
-    // eslint-disable-next-line no-undef
-    const worker = new Worker(workerUrl, { type: 'module' })
-    worker.onmessage = this.handleWorkerReply
-    worker.onerror = error => {
-      console.error('WorldComputeProxy worker error', error)
-    }
-    worker.onmessageerror = error => {
-      console.error('WorldComputeProxy worker messageerror', error)
-    }
-    return worker
   }
 }

@@ -1,7 +1,6 @@
-import { BrowserWorkerProxy, WorldEnv } from '../index'
+import { WorldEnv } from '../index'
 
 import { WorkerProxy } from './WorkerProxy'
-// import { NodeWorkerProxy } from './NodeWorkerProxy'
 import { GenericTask, ProcessingState } from './TaskProcessing'
 
 const createDefaultWorkerPool = () => {
@@ -23,10 +22,10 @@ const createDefaultWorkerPool = () => {
 /**
  * This will handle tasks enqueueing, dispatching to multiple workers
  */
-export class WorkerPool<Worker> {
+export class WorkerPool {
   // implements WorkerPoolInterface {
   // eslint-disable-next-line no-use-before-define
-  static defaultWorkerPool: WorkerPool<any>
+  static defaultWorkerPool: WorkerPool
 
   static get default() {
     this.defaultWorkerPool = this.defaultWorkerPool || createDefaultWorkerPool()
@@ -35,25 +34,17 @@ export class WorkerPool<Worker> {
 
   processingQueue: GenericTask[] = []
   suspended: GenericTask[] = []
-  workerPool: WorkerProxy<Worker>[] = []
+  workerPool: WorkerProxy[] = []
   // pendingRequests = []
   processedCount = 0
 
-  init(
-    workerUrl: string | URL,
-    poolSize: number,
-    workerProxyConstructor?: any,
-  ) {
+  init(workerUrl: string | URL, poolSize: number) {
     // isNodeWorker = false) {
     if (workerUrl instanceof URL || workerUrl.length > 0) {
       console.log(`create workerpool, pool size: ${poolSize} `)
       for (let workerId = 0; workerId < poolSize; workerId++) {
-        // Can't use that due to Vite complaining about Node specific imports
-        // const worker = isNodeWorker ? new NodeWorkerProxy('', workerId) : new BrowserWorkerProxy('', workerId) //workerFactory(workerId)
-        // Workaround: use externally provided worker initializer for Node or default to Browser
-        const WorkerProxy = workerProxyConstructor || BrowserWorkerProxy
-        const worker = new WorkerProxy(workerUrl, workerId)
-        this.workerPool.push(worker)
+        const workerProxy = new WorkerProxy(workerUrl, workerId)
+        this.workerPool.push(workerProxy)
       }
     }
   }

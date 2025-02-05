@@ -37,7 +37,7 @@ export type PatchViewRange = {
  */
 
 export class ChunksScheduler {
-  workerPool: WorkerPool<any>
+  workerPool: WorkerPool
   // taskIndex: Record<TaskId, GenericTask> = {}
   centerPatch = new Vector2(NaN, NaN)
   patchViewRange: PatchViewRange = {
@@ -51,7 +51,7 @@ export class ChunksScheduler {
   postponedTasks: ChunksProcessingTask[] = []
   skipBlobCompression = false
 
-  constructor(workerPool: WorkerPool<any>) {
+  constructor(workerPool: WorkerPool) {
     this.workerPool = workerPool
   }
 

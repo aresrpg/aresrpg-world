@@ -1,5 +1,3 @@
-import { Worker } from 'worker_threads'
-
 import { WebSocketServer, WebSocket } from 'ws'
 
 import { parseThreeStub } from '../utils/patch_chunk'
@@ -13,7 +11,7 @@ export class ChunksStreamOverWS extends ChunksScheduler {
   clientsCount = 0
   clients: Record<number, WebSocket> = {}
 
-  constructor(nodeWorkerPool: WorkerPool<Worker>, port = 3000) {
+  constructor(nodeWorkerPool: WorkerPool, port = 3000) {
     super(nodeWorkerPool)
     const wss = new WebSocketServer({ port })
 

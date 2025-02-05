@@ -22,7 +22,6 @@ export {
 } from './processing/RandomDistributionMap'
 export { ProcessingState } from './processing/TaskProcessing'
 export { WorkerPool } from './processing/WorkerPool'
-export { BrowserWorkerProxy } from './processing/WorkerProxy'
 export { taskWorkerSetup } from './processing/TaskWorker'
 export { chunksStreamClientWorkerSetup } from './remote-clients/ChunksStreamClientWorker'
 // Procgen
