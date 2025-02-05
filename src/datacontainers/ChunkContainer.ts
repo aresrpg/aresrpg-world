@@ -11,6 +11,7 @@ import {
 } from '../utils/patch_chunk'
 import { WorldEnv } from '../config/WorldEnv'
 import { BlockType } from '../index'
+import { concatData, deconcatData } from '../utils/chunk_utils'
 
 enum ChunkAxisOrder {
   ZXY,
@@ -235,7 +236,7 @@ export class ChunkContainer {
   }
 
   isEmptySafe() {
-    if(this.isEmpty !== undefined) return this.isEmpty
+    if (this.isEmpty !== undefined) return this.isEmpty
     console.warn(`caution: isEmpty flag unset, fallback to compute intensive chunk emptyness check`)
     return this.rawData.reduce((sum, val) => sum + val, 0) === 0
   }
@@ -389,20 +390,6 @@ export class ChunkContainer {
     return this
   }
 
-  async toBlob() {
-    const chunkStub = this.toStub()
-    const { metadata, rawdata } = chunkStub
-    const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
-    // Convert rawData to a byte array (Uint8Array)  since compression APIs expect this format
-    // const rawDataBytes = new Uint8Array(rawData.buffer);
-    const rawdataBlob = new Blob([rawdata.buffer], { type: 'application/octet-stream' });
-    const compressedReadableStream = rawdataBlob.stream().pipeThrough(new CompressionStream("gzip"))
-    const compressedBlob = await new Response(compressedReadableStream).blob();
-    const delimiterBlob = new Blob([new Uint8Array([0xFF, 0xFF, 0xFF])]);
-    const chunkBlob = new Blob([metadataBlob, delimiterBlob, compressedBlob]);
-    return chunkBlob
-  }
-
   toStub() {
     const isEmpty = this.isEmptySafe()
     const { chunkKey, bounds, margin, rawData } = this
@@ -410,6 +397,51 @@ export class ChunkContainer {
     const chunkStub: ChunkStub = { metadata, rawdata: rawData }
     // const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
     return chunkStub
+  }
+
+  toStubConcat() {
+    const { metadata, rawdata } = this.toStub();
+    const metadataContent = new TextEncoder().encode(JSON.stringify(metadata));
+    const rawdataContent = new Uint8Array(rawdata.buffer);
+    const dataConcat = concatData([metadataContent, rawdataContent])
+    return dataConcat
+  }
+
+  fromStubConcat(concatData: Uint8Array) {
+    const [metadataContent, rawdataContent] = deconcatData(concatData)
+    const metadata = JSON.parse(new TextDecoder().decode(metadataContent))
+    const rawdata = new Uint16Array(rawdataContent?.buffer || [])
+    const stub: ChunkStub = { metadata, rawdata }
+    return this.fromStub(stub)
+  }
+
+  async toCompressedBlob() {
+    const stubConcat: Uint8Array = this.toStubConcat()
+    const stubConcatBlob = new Blob([stubConcat.buffer])
+    const compressionStream = stubConcatBlob.stream().pipeThrough(new CompressionStream("gzip"))
+    const compressedBlob = await new Response(compressionStream).blob();
+    return compressedBlob
+  }
+
+  async fromCompressedBlob(compressedBlob: Blob) {
+    try {
+      // decompress
+      const decompStream = compressedBlob.stream().pipeThrough(new DecompressionStream("gzip"));
+      const rawDecompressedData = await new Response(decompStream).arrayBuffer();
+      // deconcat
+      const [metadataContent, rawdataContent] = deconcatData(new Uint8Array(rawDecompressedData));
+      const metadata = JSON.parse(new TextDecoder().decode(metadataContent));
+      const rawdata = rawdataContent && rawdataContent.byteLength > 0
+        ? new Uint16Array(rawdataContent.buffer)
+        : new Uint16Array(0); // Ensure empty rawdata if not provided
+      // repopulate object
+      const stub: ChunkStub = { metadata, rawdata };
+      return this.fromStub(stub);
+
+    } catch (error) {
+      console.error('Error occured during blob decompression:', error);
+      throw new Error('Failed to process the compressed blob');
+    }
   }
 
   static fromStub(chunkStub: ChunkStub) {

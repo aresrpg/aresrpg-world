@@ -59,7 +59,7 @@ export class ChunksStreamClientProxy {
         return viewChanged
     }
 
-    requestChunksServer(centerPatch: Vector2, rangeNear: number, rangeFar: number) {
+    requestChunks(centerPatch: Vector2, rangeNear: number, rangeFar: number) {
         if (this.viewChanged(centerPatch, rangeNear, rangeFar)) {
             this.patchIndex = genPatchMapIndex(centerPatch, rangeFar)
             const viewState = {

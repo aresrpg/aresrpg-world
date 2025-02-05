@@ -1,14 +1,13 @@
 import { Worker } from "worker_threads"
 import { WebSocketServer } from 'ws';
-import { WorkerPool } from '..';
-import { ChunkContainer } from "../index";
 import { parseThreeStub } from "../utils/patch_chunk";
 import { ChunksScheduler } from "../processing/ChunksScheduling";
+import { WorkerPool } from "../index";
 
 /**
- * To be run server side to listen to ws requests from client
+ * Chunks streaming over websocket to remote client
  */
-export class ChunksWsService extends ChunksScheduler {
+export class ChunksStreamOverWS extends ChunksScheduler {
   clientsCount = 0
   clients = {}
 
@@ -31,15 +30,15 @@ export class ChunksWsService extends ChunksScheduler {
     console.log('Received client request:', request);
     const { near, far } = request
     const center = parseThreeStub(request.center)
-    this.onChunkAvailable = async (chunk: ChunkContainer) => {
-      const chunkBlob = await chunk.toBlob()
+    this.onChunkAvailable = async (chunkBlob: Blob) => {
+      // const chunkBlob = await chunk.toCompressedBlob()
       console.log(chunkBlob)
       // const { chunkKey } = chunk.
       // console.log(chunk)
       // const reply = JSON.stringify({ chunkKey })
       clientWs.send(chunkBlob);
     }
-    this.scheduleTasks(center, near, far)
+    this.requestChunks(center, near, far)
 
     // const clientTask = wsRequest.task
     // this.enqueueTasks(clientTask)

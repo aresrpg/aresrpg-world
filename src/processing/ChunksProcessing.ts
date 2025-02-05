@@ -37,6 +37,7 @@ export type ChunksProcessingParams = {
   noDataEncoding?: boolean
   skipEntities?: boolean
   chunksRange?: ChunksProcessingRange
+  skipBlobCompression?: boolean
 }
 
 // constructor
@@ -88,7 +89,7 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
 ) => {
   const { processingInput, processingParams } = taskStub
   const { patchKey } = processingInput
-  const { chunksRange } = processingParams
+  const { chunksRange, skipBlobCompression } = processingParams
   const doLower =
     chunksRange === ChunksProcessingRange.LowerRange ||
     chunksRange === ChunksProcessingRange.FullRange
@@ -102,7 +103,9 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
     ? await upperChunksGen(patchKey, processingParams)
     : []
   const chunks = [...lowerChunks, ...upperChunks]
-  return chunks.map(chunk => chunk.toStub())
+  return skipBlobCompression ? chunks.map(chunk => chunk.toStub()) :
+    await Promise.all(chunks.map(chunk => chunk.toCompressedBlob()))
+
 }
 
 // Registration
@@ -222,10 +225,10 @@ const lowerChunksGen = async (
 
 const postProcess = (rawData: ChunkStub[]) => {
   // postprocess raw data from task to recreate chunks
-  const chunks = rawData.map((chunkStub: ChunkStub) =>
-    ChunkContainer.fromStub(chunkStub),
-  )
-  return chunks
+  // const chunks = rawData.map((chunkStub: ChunkStub) =>
+  //   ChunkContainer.fromStub(chunkStub),
+  // )
+  return rawData//chunks
 }
 
 // const printChunkset = (chunkset: ChunkContainer[]) =>

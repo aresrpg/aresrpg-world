@@ -18,7 +18,7 @@ export { ProcessingState } from './processing/TaskProcessing'
 export { WorkerPool } from './processing/WorkerPool'
 export { BrowserWorkerProxy } from './processing/WorkerProxy'
 export { taskWorkerSetup } from './processing/WorkersSetup'
-export { chunksStreamClientWorkerSetup } from './tools/ChunksStreamClientWorker'
+export { chunksStreamClientWorkerSetup } from './remote-clients/ChunksStreamClientWorker'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'
@@ -36,7 +36,7 @@ export {
   ProcItemType,
   ProcItemCategory,
 } from './tools/ProceduralGenerators'
-export { ChunksStreamClientProxy } from './tools/ChunksStreamClientProxy'
+export { ChunksStreamClientProxy } from './remote-clients/ChunksStreamClientProxy'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
 // Config
 export { WorldEnv } from './config/WorldEnv'

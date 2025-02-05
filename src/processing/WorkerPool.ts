@@ -1,4 +1,6 @@
-import { WorldEnv } from '../index'
+import { WorkerProxy } from './WorkerProxy'
+import { BrowserWorkerProxy, WorldEnv } from '../index'
+// import { NodeWorkerProxy } from './NodeWorkerProxy'
 import {
   GenericTask,
   ProcessingState,
@@ -7,13 +9,22 @@ import {
 const createDefaultWorkerPool = () => {
   const { url, count } = WorldEnv.current.workerPool
   console.log(`create default workerpool, pool size: ${count}`)
-  return url.length > 0 ? new WorkerPool(url, count) : null
+  const defaultWorkerPool = new WorkerPool()
+  defaultWorkerPool.init(url, count)
 }
+
+// export interface WorkerPoolInterface {
+//   purgeQueue(whiteList: (task: GenericTask) => boolean,
+//     blackList: (task: GenericTask) => boolean): void
+
+//   sortQueue(taskSorter: any): void
+
+// }
 
 /**
  * This will handle tasks enqueueing, dispatching to multiple workers
  */
-export class WorkerPool<Worker> {
+export class WorkerPool<Worker> {//implements WorkerPoolInterface {
   // eslint-disable-next-line no-use-before-define
   static defaultWorkerPool: WorkerPool<any>
 
@@ -28,12 +39,17 @@ export class WorkerPool<Worker> {
   // pendingRequests = []
   processedCount = 0
 
-  init(workerFactory: (workerId?: number) => WorkerProxy<Worker>, workerCount: number) {
-    console.log(`create workerpool of pool size: ${workerCount}`)
-    for (let workerId = 0; workerId < workerCount; workerId++) {
-      // const worker = new WorkerProxy(workerUrl, workerId)
-      const worker = workerFactory(workerId)
-      this.workerPool.push(worker)
+  init(workerUrl: string | URL, poolSize: number, workerProxyConstructor?: any) {// isNodeWorker = false) {
+    if (workerUrl instanceof URL || workerUrl.length > 0) {
+      console.log(`create workerpool, pool size: ${poolSize} `)
+      for (let workerId = 0; workerId < poolSize; workerId++) {
+        // Can't use that due to Vite complaining about Node specific imports
+        // const worker = isNodeWorker ? new NodeWorkerProxy('', workerId) : new BrowserWorkerProxy('', workerId) //workerFactory(workerId)
+        // Workaround: use externally provided worker initializer for Node or default to Browser
+        const WorkerProxy = workerProxyConstructor || BrowserWorkerProxy
+        const worker = new WorkerProxy(workerUrl, workerId)
+        this.workerPool.push(worker)
+      }
     }
   }
 
@@ -72,7 +88,7 @@ export class WorkerPool<Worker> {
   }
 
   onRejectedTask = (task: GenericTask) => {
-    console.log(`rejected task with processing state: ${task.processingState}`)
+    console.log(`rejected task with processing state: ${task.processingState} `)
     task.onRejected()
   }
 
@@ -109,4 +125,8 @@ export class WorkerPool<Worker> {
       }
     }
   }
+
+  // purgeQueue(whiteList: (task: GenericTask) => boolean,
+  //   blackList: (task: GenericTask) => boolean) {
+  // }
 }

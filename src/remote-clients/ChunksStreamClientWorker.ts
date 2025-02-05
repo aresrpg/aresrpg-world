@@ -1,4 +1,4 @@
-import { chunkStubFromBlob } from "../utils/chunk_utils"
+import { chunkStubFromCompressedBlob } from "../utils/chunk_utils"
 
 /**
  * Chunks stream over web socket client worker 
@@ -8,9 +8,9 @@ export const chunksStreamClientWorkerSetup = (wsUrl: string, chunkDataAdapter?: 
 
     const wsClientSetup = (wsUrl: string) => {
 
-        const onChunkDataReceived = async (chunkBlob: Blob) => {
+        const onChunkDataReceived = async (chunkCompressedBlob: Blob) => {
             // process raw data blob received from server
-            const chunkStub = await chunkStubFromBlob(chunkBlob)
+            const chunkStub = await chunkStubFromCompressedBlob(chunkCompressedBlob)
             const chunkData = chunkDataAdapter?.(chunkStub) || chunkStub
             // and forward chunk data to client
             self.postMessage(chunkData)
@@ -28,13 +28,18 @@ export const chunksStreamClientWorkerSetup = (wsUrl: string, chunkDataAdapter?: 
         /**
          * forward chunks request to server through WS
          */
-        const chunksRequestForwarder = input => {
-            if (ws.readyState) {
-                ws.send(JSON.stringify(input))
-            } else {
-                console.log(`waiting for ws client to be ready`)
-            }
+        const chunksRequestForwarder = (input: any) => {
+            switch (ws.readyState) {
+                case 0:
+                    console.log(`waiting for ws client to be ready`)
+                    break;
+                case 1:
+                    ws.send(JSON.stringify(input))
+                    break;
+                default:
+                    console.log(`ws client can't be initialized`)
 
+            }
         }
 
         return { chunksRequestForwarder, wsInitState }

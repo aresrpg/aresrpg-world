@@ -49,6 +49,7 @@ export class ChunksScheduler {
   // processedChunksQueue = []
   onChunkAvailable: any
   postponedTasks: ChunksProcessingTask[] = []
+  skipBlobCompression = false
 
   constructor(workerPool: WorkerPool) {
     this.workerPool = workerPool
@@ -110,7 +111,7 @@ export class ChunksScheduler {
   /**
    * called each time view center or range change to regen chunks index
    */
-  scheduleTasks(centerPatch: Vector2, rangeNear: number, rangeFar: number) {
+  requestChunks(centerPatch: Vector2, rangeNear: number, rangeFar: number) {
     if (this.viewChanged(centerPatch, rangeNear, rangeFar)) {
       this.centerPatch = centerPatch
       this.patchViewRange.near = rangeNear
@@ -140,7 +141,9 @@ export class ChunksScheduler {
         .filter(patchKey => !this.patchIndex[patchKey])
         .forEach(patchKey => {
           const lowerChunksTask = ChunksProcessing.lowerChunks(patchKey)
+          lowerChunksTask.processingParams.skipBlobCompression = this.skipBlobCompression
           const upperChunksTask = ChunksProcessing.upperChunks(patchKey)
+          upperChunksTask.processingParams.skipBlobCompression = this.skipBlobCompression
           newTasks.push(upperChunksTask)
           this.isBeyondNearDist(lowerChunksTask)
             ? postponedTasks.push(lowerChunksTask)
