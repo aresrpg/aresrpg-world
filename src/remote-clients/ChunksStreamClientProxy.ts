@@ -1,10 +1,10 @@
 // import WebSocket from 'ws'; // Import the WebSocket module
 import { Vector2 } from 'three'
 
-import { PatchViewRange } from '../processing/ChunksScheduling'
-import { asVect3, WorldEnv } from '../index'
-import { ChunkId, PatchId, PatchKey } from '../utils/common_types'
-import { genPatchMapIndex, parsePatchKey } from '../utils/patch_chunk'
+import { PatchViewRange } from '../processing/ChunksScheduling.js'
+import { asVect3, WorldEnv } from '../index.js'
+import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
+import { genPatchMapIndex, parsePatchKey } from '../utils/patch_chunk.js'
 
 const chunksRange = WorldEnv.current.chunks.range
 

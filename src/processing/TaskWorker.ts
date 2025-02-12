@@ -2,7 +2,7 @@ import {
   ProcessingTaskStub,
   ProcessingTask,
   ProcessingContext,
-} from './TaskProcessing'
+} from './TaskProcessing.js'
 
 /**
  * Task processing worker

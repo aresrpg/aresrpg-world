@@ -1,6 +1,6 @@
-import { isBrowserEnv } from '../utils/misc_utils'
+import { isBrowserEnv } from '../utils/misc_utils.js'
 
-import { TaskId, GenericTask } from './TaskProcessing'
+import { TaskId, GenericTask } from './TaskProcessing.js'
 
 /**
  * Interface to interact and proxy requests to worker

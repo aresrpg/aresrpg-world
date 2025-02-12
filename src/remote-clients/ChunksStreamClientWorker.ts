@@ -1,4 +1,4 @@
-import { chunkStubFromCompressedBlob } from '../utils/chunk_utils'
+import { chunkStubFromCompressedBlob } from '../utils/chunk_utils.js'
 
 /**
  * Chunks stream over web socket client worker
