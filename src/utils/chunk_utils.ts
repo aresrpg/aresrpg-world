@@ -1,4 +1,4 @@
-import { parseThreeStub } from './patch_chunk'
+import { parseThreeStub } from './patch_chunk.js'
 
 export const concatData = (data: Uint8Array[]) => {
   // build headers
