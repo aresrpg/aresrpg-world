@@ -4,8 +4,8 @@
 
 import { Vector2 } from 'three'
 
-import { PatchDataContainer } from '../datacontainers/PatchBase'
-import { BlockType } from '../procgen/Biome'
+import { PatchDataContainer } from '../datacontainers/PatchBase.js'
+import { BlockType } from '../procgen/Biome.js'
 
 // copy occurs only on the overlapping global pos region of both containers
 export const copySourceToTargetPatch = (

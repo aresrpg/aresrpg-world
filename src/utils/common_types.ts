@@ -1,9 +1,9 @@
 import { Vector2, Vector3 } from 'three'
 
-import { GroundBlockData } from '../processing/GroundPatch'
-import { BiomeType, BlockType } from '../procgen/Biome'
-import { LinkedList } from '../datacontainers/LinkedList'
-import { ItemType } from '../factory/ItemsFactory'
+import { GroundBlockData } from '../processing/GroundPatch.js'
+import { BiomeType, BlockType } from '../procgen/Biome.js'
+import { LinkedList } from '../datacontainers/LinkedList.js'
+import { ItemType } from '../factory/ItemsFactory.js'
 
 export type Block<T> = {
   pos: Vector3

@@ -1,5 +1,0 @@
-export * as convert from './convert'
-export * as math from './math'
-export * as data from './data'
-export * as misc from './misc'
-export * as spatial from './spatial'

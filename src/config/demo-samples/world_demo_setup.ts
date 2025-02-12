@@ -1,14 +1,14 @@
 // import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index'
-import { WorldEnv } from '../../index'
+import { WorldEnv } from '../../index.js'
 // import { initWorldDevTools } from '../../tools/DevTools'
-import { WorldIndividualSeeds } from '../WorldEnv'
+import { WorldIndividualSeeds } from '../WorldEnv.js'
 
-import { BIOMES_LANDSCAPES_CONFIG } from './configs/biome_landscapes'
-import { PROC_ITEMS_CONFIG } from './configs/procedural_items'
+import { BIOMES_LANDSCAPES_CONFIG } from './configs/biome_landscapes.js'
+import { PROC_ITEMS_CONFIG } from './configs/procedural_items.js'
 import {
   BLOCKS_COLOR_MAPPING,
   SCHEMATICS_BLOCKS_MAPPING,
-} from './configs/blocks_mappings'
+} from './configs/blocks_mappings.js'
 
 const restoreOriginalSeeds = (individualSeeds: WorldIndividualSeeds) => {
   individualSeeds.heightmap = 'heightmap'

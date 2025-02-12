@@ -1,6 +1,6 @@
-import { BiomeType, BlockType } from '../../../index'
+import { BiomeType, BlockType } from '../../../index.js'
 
-import { SCHEMATICS_COLLECTIONS } from './schematics_collections'
+import { SCHEMATICS_COLLECTIONS } from './schematics_collections.js'
 
 const { alpine, temperate_forest, siberian } = SCHEMATICS_COLLECTIONS
 

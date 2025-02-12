@@ -1,6 +1,6 @@
 import { Vector3 } from 'three'
 
-import { NoiseDimension, NoiseSampler } from './NoiseSampler'
+import { NoiseDimension, NoiseSampler } from './NoiseSampler.js'
 
 export class DensityVolume {
   // eslint-disable-next-line no-use-before-define

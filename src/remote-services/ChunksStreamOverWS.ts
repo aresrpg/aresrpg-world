@@ -1,8 +1,8 @@
 import { WebSocketServer, WebSocket } from 'ws'
 
-import { parseThreeStub } from '../utils/patch_chunk'
-import { ChunksScheduler } from '../processing/ChunksScheduling'
-import { WorkerPool } from '../index'
+import { parseThreeStub } from '../utils/patch_chunk.js'
+import { ChunksScheduler } from '../processing/ChunksScheduling.js'
+import { WorkerPool } from '../index.js'
 
 /**
  * Chunks streaming over websocket to remote client

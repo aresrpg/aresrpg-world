@@ -1,4 +1,4 @@
-import { BiomeLands, LandConfigFields } from './common_types'
+import { BiomeLands, LandConfigFields } from './common_types.js'
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
 export const MappingRangeSorter = (

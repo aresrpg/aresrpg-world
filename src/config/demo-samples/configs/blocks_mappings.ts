@@ -1,5 +1,5 @@
-import { BlockType } from '../../../index'
-import { typesNumbering } from '../../../utils/misc_utils'
+import { BlockType } from '../../../index.js'
+import { typesNumbering } from '../../../utils/misc_utils.js'
 
 /**
  * Extending world reserved blocks
