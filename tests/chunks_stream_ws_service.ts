@@ -1,5 +1,5 @@
-import { ChunksStreamOverWS } from '../remote-services/ChunksStreamOverWS.js'
-import { WorkerPool } from '../processing/WorkerPool.js'
+import { WorkerPool } from '../src/index.js'
+import { ChunksStreamOverWS } from '../src/remote-services/ChunksStreamOverWS.js'
 
 const WORLD_WORKER_URL = './dist/tests/world_compute_node_worker'
 const DEFAULT_POOL_SIZE = 4

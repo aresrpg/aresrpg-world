@@ -1,11 +1,8 @@
 import { parentPort } from 'worker_threads'
 
-import { setupWorldDemo } from '../config/demo-samples/world_demo_setup.js'
-import { WorldEnv } from '../config/WorldEnv.js'
-import {
-  ProcessingContext,
-  ProcessingTask,
-} from '../processing/TaskProcessing.js'
+import { ProcessingTask, WorldEnv } from '../src/index.js'
+import { ProcessingContext } from '../src/processing/TaskProcessing.js'
+import { setupWorldDemo } from '../src/config/demo-samples/world_demo_setup.js'
 
 const initWorkerListeners = () => {
   // eslint-disable-next-line no-undef
