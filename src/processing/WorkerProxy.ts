@@ -1,4 +1,4 @@
-import { applyWorldEnv, WorldEnvSettings } from '../config/WorldEnv'
+import { applyWorldEnv, WorldEnvSettings } from '../config/WorldEnv.js'
 
 import {
   TaskId,
@@ -6,7 +6,7 @@ import {
   GenericTaskStub,
   ProcessingContext,
   ProcessingTask,
-} from './TaskProcessing'
+} from './TaskProcessing.js'
 
 export type MessageData<T> = {
   timestamp: number
