@@ -1,6 +1,6 @@
 import { Vector2, Box3, Vector3 } from 'three'
 
-import { BlockMode, ChunkId, ChunkKey } from '../utils/common_types'
+import { ChunkId, ChunkKey } from '../utils/common_types'
 import {
   asVect3,
   asChunkBounds,
@@ -9,9 +9,9 @@ import {
   parseThreeStub,
   asVect2,
 } from '../utils/patch_chunk'
-import { WorldEnv } from '../config/WorldEnv'
-import { BlockType } from '../index'
+import { worldEnv } from '../config/WorldEnv'
 import { concatData, deconcatData } from '../utils/chunk_utils'
+import { BlockType } from '../procgen/Biome'
 
 enum ChunkAxisOrder {
   ZXY,
@@ -53,32 +53,18 @@ export class ChunkContainer {
   chunkId: ChunkId | undefined
   rawData = new Uint16Array()
   axisOrder: ChunkAxisOrder
-  // local data encoder (defaulting to global)
-  dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) => number
-  dataDecoder: (rawVal: number) => number
   isEmpty?: boolean
-
-  // global version
-  static get dataEncoder() {
-    return WorldEnv.current.chunks.dataEncoder
-  }
-
-  static get dataDecoder() {
-    return WorldEnv.current.chunks.dataDecoder
-  }
 
   constructor(
     boundsOrChunkKey: Box3 | ChunkKey = new Box3(),
     margin = 0,
-    customDataEncoder = ChunkContainer.dataEncoder,
-    customDataDecoder = ChunkContainer.dataDecoder,
     axisOrder = ChunkAxisOrder.ZXY,
   ) {
     //, bitLength = BitLength.Uint16) {
     const bounds =
       boundsOrChunkKey instanceof Box3
         ? boundsOrChunkKey.clone()
-        : asChunkBounds(boundsOrChunkKey, WorldEnv.current.chunkDimensions)
+        : asChunkBounds(boundsOrChunkKey, worldEnv.getChunkDimensions())
     this.margin = margin
 
     this.axisOrder = axisOrder
@@ -89,8 +75,6 @@ export class ChunkContainer {
     if (chunkId) {
       this.id = chunkId
     }
-    this.dataEncoder = customDataEncoder
-    this.dataDecoder = customDataDecoder
     this.adjustChunkBounds(bounds)
     // this.rawData = getArrayConstructor(bitLength)
   }
@@ -360,10 +344,10 @@ export class ChunkContainer {
   writeBlockData(
     sectorIndex: number,
     blockType: BlockType,
-    blockMode = BlockMode.REGULAR,
+    // blockMode = BlockMode.REGULAR,
   ) {
     // const sectorIndex = this.getIndex(this.toLocalPos(pos))
-    this.rawData[sectorIndex] = this.dataEncoder(blockType, blockMode)
+    this.rawData[sectorIndex] = blockType
   }
 
   readBuffer(localPos: Vector2) {

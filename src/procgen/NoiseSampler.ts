@@ -3,7 +3,7 @@ import alea from 'alea'
 import { Vector2, Vector3 } from 'three'
 
 import { clamp } from '../utils/math_utils'
-import { WorldEnv } from '../index'
+import { worldEnv } from '../config/WorldEnv'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
@@ -58,7 +58,7 @@ export class NoiseSampler {
   parent: any
 
   constructor(name = '', noiseDimension = NoiseDimension.Two) {
-    this.params.seed = WorldEnv.current.seeds.main || name
+    this.params.seed = worldEnv.rawSettings.seeds.main || name
     this.params.dimensions = noiseDimension
     this.init()
     NoiseSampler.instances.push(this)

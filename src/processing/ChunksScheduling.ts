@@ -1,6 +1,4 @@
 import { Vector2 } from 'three'
-
-import { WorkerPool, WorldEnv } from '../index'
 import {
   asVect3,
   genPatchMapIndex,
@@ -14,14 +12,22 @@ import {
   ChunksProcessingTask,
   isChunksProcessingTask,
 } from './ChunksProcessing'
+import { worldEnv } from '../config/WorldEnv'
+import { WorkerPool } from './WorkerPool'
 
-const chunksRange = WorldEnv.current.chunks.range
+const chunksRange = worldEnv.rawSettings.chunks.range
+const { patchViewRanges } = worldEnv.rawSettings
 const getTaskPatchId = (task: ChunksProcessingTask) =>
   parsePatchKey(task.processingInput.patchKey) as PatchId
 
-export type PatchViewRange = {
+export type PatchViewRanges = {
   near: number
   far: number
+}
+
+export type ViewState = {
+  viewPos: Vector2
+  viewRanges: PatchViewRanges
 }
 
 /**
@@ -39,10 +45,17 @@ export type PatchViewRange = {
 export class ChunksScheduler {
   workerPool: WorkerPool
   // taskIndex: Record<TaskId, GenericTask> = {}
-  centerPatch = new Vector2(NaN, NaN)
-  patchViewRange: PatchViewRange = {
-    near: 0,
-    far: 0,
+  viewState: ViewState = {
+    viewPos: new Vector2(NaN, NaN),
+    viewRanges: {
+      near: 0,
+      far: 0
+    }
+  }
+  patchstate = {
+    postponed: [],
+    removed: [],
+    added: []
   }
 
   patchIndex: Record<PatchKey, any> = {}
@@ -61,14 +74,14 @@ export class ChunksScheduler {
     ) as ChunksProcessingTask[]
   }
 
-  get patchKeys() {
+  get visiblePatchKeys() {
     return Object.keys(this.patchIndex)
   }
 
-  get chunkIds() {
+  get visibleChunkIds() {
     const { bottomId, topId } = chunksRange
     const chunkIds: ChunkId[] = []
-    this.patchKeys.forEach(patchKey => {
+    this.visiblePatchKeys.forEach(patchKey => {
       const patchId = parsePatchKey(patchKey) as PatchId
       for (let y = topId; y >= bottomId; y--) {
         const chunkId = asVect3(patchId, y)
@@ -79,54 +92,51 @@ export class ChunksScheduler {
   }
 
   get nearBoundingRange() {
-    return getPatchMapRange(this.centerPatch, this.patchViewRange.near)
+    const { viewPos, viewRanges } = this.viewState
+    return getPatchMapRange(viewPos, viewRanges.near)
   }
 
   get farBoundingRange() {
-    return getPatchMapRange(this.centerPatch, this.patchViewRange.far)
+    const { viewPos, viewRanges } = this.viewState
+    return getPatchMapRange(viewPos, viewRanges.far)
   }
 
-  reorderTasks(tasks: ChunksProcessingTask[]) {
-    const { centerPatch } = this
-    tasks
-      .sort((task1, task2) => {
-        const dist1 = getTaskPatchId(task1).distanceTo(centerPatch)
-        const dist2 = getTaskPatchId(task2).distanceTo(centerPatch)
-        return dist1 - dist2
-      })
-      .forEach((task, index) => (task.order = index))
+  rankTasks(tasks: ChunksProcessingTask[]) {
+    const { viewPos } = this.viewState
+    tasks.forEach(task => (task.rank = getTaskPatchId(task).distanceTo(viewPos)))
   }
 
   isBeyondNearDist = (task: ChunksProcessingTask) =>
-    getTaskPatchId(task).distanceTo(this.centerPatch) > this.patchViewRange.near
+    getTaskPatchId(task).distanceTo(this.viewState.viewPos) > this.viewState.viewRanges.near
 
-  viewChanged(centerPatch: Vector2, rangeNear: number, rangeFar: number) {
+  viewStateChanged(viewPos: Vector2, viewRange: number) {
+    const { viewState } = this
     const viewChanged =
-      this.centerPatch.distanceTo(centerPatch) > 0 ||
-      this.patchViewRange.near !== rangeNear ||
-      this.patchViewRange.far !== rangeFar
+      viewState.viewPos.distanceTo(viewPos) > 0 ||
+      // viewRange.near !== viewState.viewRanges.near ||
+      viewState.viewRanges.far !== viewRange
     return viewChanged
   }
 
   /**
-   * called each time view center or range change to regen chunks index
+   * look for chunks required each time view state changes
+   * and schedule related tasks
    */
-  requestChunks(centerPatch: Vector2, rangeNear: number, rangeFar: number) {
-    if (this.viewChanged(centerPatch, rangeNear, rangeFar)) {
-      this.centerPatch = centerPatch
-      this.patchViewRange.near = rangeNear
-      this.patchViewRange.far = rangeFar
+  pollChunks(viewPos: Vector2, viewRange: number) {
+    if (this.viewStateChanged(viewPos, viewRange)) {
+      this.viewState.viewPos = viewPos
+      this.viewState.viewRanges.near = Math.min(viewRange, patchViewRanges.near)
+      this.viewState.viewRanges.far = viewRange
+
       // regen patch index from current view
-      const patchIndex = genPatchMapIndex(centerPatch, rangeFar)
-      // cancel out of range task in the queue
+      const patchIndex = genPatchMapIndex(viewPos, viewRange)
+      // cancel out of range tasks in the queue
       const removedTasks = this.chunksProcessingTasks.filter(
         task => !patchIndex[task.processingInput.patchKey],
       )
       removedTasks.forEach(task => task.cancel())
       removedTasks.length &&
-        console.log(
-          `canceled ${removedTasks.length} out-of-range items from queue`,
-        )
+        console.log(`canceled ${removedTasks.length} out-of-range items from queue`,)
       const previousTasks = this.chunksProcessingTasks.filter(
         task => patchIndex[task.processingInput.patchKey],
       )
@@ -157,8 +167,8 @@ export class ChunksScheduler {
 
       // update postponedTasks
       this.postponedTasks = postponedTasks
-      // reprioritize items
-      this.reorderTasks([...previousTasks, ...newTasks])
+      // rank task based on distance from center
+      this.rankTasks([...previousTasks, ...newTasks])
       // add new tasks to processing queue
       newTasks.map(task =>
         task

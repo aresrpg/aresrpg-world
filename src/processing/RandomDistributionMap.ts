@@ -7,8 +7,8 @@ import {
   DistributionParams,
 } from '../procgen/BlueNoisePattern'
 import { asVect3, getPatchIds } from '../utils/patch_chunk'
-import { WorldEnv } from '../config/WorldEnv'
-import { ItemType } from '../factory/ItemsFactory'
+import { worldEnv } from '../config/WorldEnv'
+import { ItemType } from '../utils/common_types'
 
 const distDefaults = {
   aleaSeed: 'treeMap',
@@ -42,10 +42,7 @@ export const DistributionProfiles: Record<
 
 const probabilityThreshold = Math.pow(2, 8)
 const bmin = new Vector2(0, 0)
-const bmax = new Vector2(
-  WorldEnv.current.defaultDistMapPeriod,
-  WorldEnv.current.defaultDistMapPeriod,
-)
+const bmax = new Vector2(worldEnv.getDistributionMapPeriod(), worldEnv.getDistributionMapPeriod())
 const distMapDefaultBox = new Box2(bmin, bmax)
 
 /**

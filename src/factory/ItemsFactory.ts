@@ -1,13 +1,11 @@
 import { Box3, Vector3 } from 'three'
+import { worldEnv } from '../config/WorldEnv'
 
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
-import { WorldEnv } from '../config/WorldEnv'
-
-export type ItemType = string
-export type SpawnedItems = Record<ItemType, Vector3[]>
-export const VoidItemType = 'void'
+import { ItemType } from '../utils/common_types'
+import { asVect2 } from '../utils/patch_chunk'
 
 /**
  * Referencing all items either procedurally generated or coming from schematic definitions
@@ -17,17 +15,17 @@ export class ItemsInventory {
   // TODO rename catalog as inventory
   static catalog: Record<ItemType, ChunkContainer> = {}
   static get externalSources() {
-    const schematicsFilesIndex = WorldEnv.current.schematics.filesIndex
-    const proceduralItemsConfigs = WorldEnv.current.proceduralItems.configs
+    const schematicsFilesIndex = worldEnv.rawSettings.schematics.filesIndex
+    const proceduralItemsConfigs = worldEnv.rawSettings.proceduralItems.configs
     return { schematicsFilesIndex, proceduralItemsConfigs }
   }
 
   static get schematicFilesIndex() {
-    return WorldEnv.current.schematics.filesIndex
+    return worldEnv.rawSettings.schematics.filesIndex
   }
 
   static get proceduralItemsConf() {
-    return WorldEnv.current.proceduralItems.configs
+    return worldEnv.rawSettings.proceduralItems.configs
   }
 
   // static spawners: Record<ItemType, PseudoDistributionMap> = {}
@@ -41,7 +39,7 @@ export class ItemsInventory {
     let chunk
     if (fileUrl) {
       const customBlocksMapping =
-        WorldEnv.current.schematics.localBlocksMapping[id]
+      worldEnv.rawSettings.schematics.localBlocksMapping[id]
       chunk = await SchematicLoader.createChunkContainer(
         fileUrl,
         customBlocksMapping,
@@ -76,21 +74,66 @@ export class ItemsInventory {
     )
   }
 
-  static async getInstancedChunk(itemType: ItemType, itemPos: Vector3) {
+  static getOffsetBounds(origin: Vector3, dims: Vector3) {
+    const bmin = origin.clone()
+    const bmax = origin.clone().add(dims)
+    const offsetBounds = new Box3(bmin, bmax)
+    return offsetBounds
+  }
+
+  static getCenteredBounds(origin: Vector3, dims: Vector3) {
+    const centeredBounds = new Box3().setFromCenterAndSize(origin, dims)
+    centeredBounds.min.y = origin.y
+    centeredBounds.max.y = origin.y + dims.y
+    centeredBounds.min.floor()
+    centeredBounds.max.floor()
+    return centeredBounds
+  }
+
+  static async getInstancedChunk(
+    itemType: ItemType,
+    itemPos: Vector3,
+    originCentered = true,
+    shallowInstance = false,
+  ) {
     let itemChunk: ChunkContainer | undefined
     const templateChunk = await this.getTemplateChunk(itemType)
     if (templateChunk) {
-      const dims = templateChunk.bounds.getSize(new Vector3())
-      // const translation = parseThreeStub(spawnLoc).sub(new Vector3(dims.x / 2, 0, dims.z / 2).round())
-      // const entityBounds = entity.template.bounds.clone().translate(translation)
-      const entityBounds = new Box3().setFromCenterAndSize(itemPos, dims)
-      entityBounds.min.y = itemPos.y
-      entityBounds.max.y = itemPos.y + dims.y
-      entityBounds.min.floor()
-      entityBounds.max.floor()
-      itemChunk = new ChunkContainer(entityBounds, 0)
-      itemChunk.rawData.set(templateChunk.rawData)
+      const itemDims = templateChunk.bounds.getSize(new Vector3())
+      const itemBounds = originCentered
+        ? this.getCenteredBounds(itemPos, itemDims)
+        : this.getOffsetBounds(itemPos, itemDims)
+      // itemChunk = new ChunkContainer(entityBounds, 0)
+      itemChunk = new ChunkContainer(itemBounds, 0)
+      if (!shallowInstance) {
+        itemChunk.rawData.set(templateChunk.rawData)
+      }
     }
     return itemChunk
   }
+
+  // static async getSliceSectorBlocks(
+  //   itemType: ItemType,
+  //   centerPos: Vector3,
+  //   requestedPos: Vector3,
+  // ) {
+  //   const templateChunk = await this.getTemplateChunk(itemType)
+  //   const shallowInstance = await this.getInstancedChunk(
+  //     itemType,
+  //     centerPos,
+  //     true,
+  //     true,
+  //   )
+
+  //   let sliceSectorData
+  //   if (templateChunk && shallowInstance) {
+  //     const localPos = shallowInstance.toLocalPos(requestedPos)
+  //     sliceSectorData = templateChunk.readBuffer(asVect2(localPos))
+  //     // const sliceSectors = templateChunk.iterChunkSlice(location)
+  //     // for (const sliceSector of sliceSectors) {
+  //     //   sliceSectorData = sliceSector.data
+  //     // }
+  //   }
+  //   return sliceSectorData
+  // }
 }
