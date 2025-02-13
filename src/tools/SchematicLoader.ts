@@ -3,7 +3,7 @@ import { Box3, Vector3 } from 'three'
 import { NBTReader } from '../third-party/nbt_custom'
 import { BlockType } from '../procgen/Biome'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
-import { WorldEnv } from '../config/WorldEnv'
+import { worldEnv } from '../config/WorldEnv'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
 
@@ -22,11 +22,11 @@ async function decompressData(data: ArrayBuffer) {
 }
 
 export class SchematicLoader {
-  static async loadNode(path: string) {
-    const { readFile } = await import('fs/promises')
-    const buffer = await readFile(path)
-    return await decompressData(buffer as any)
-  }
+  // static async loadNode(path: string) {
+  //   const { readFile } = await import('fs/promises')
+  //   const buffer = await readFile(path)
+  //   return await decompressData(buffer as any)
+  // }
 
   static async loadBrowser(path: string) {
     // const schem = await Schematic.read(Buffer.from(schemData), '1.16.4')
@@ -47,7 +47,7 @@ export class SchematicLoader {
 
   static async load(path: string) {
     if (isBrowser()) return this.loadBrowser(path)
-    else return this.loadNode(path)
+    // else return this.loadNode(path)
   }
 
   static async parse(rawData: any) {
@@ -83,7 +83,7 @@ export class SchematicLoader {
     const bbox = new Box3(orig, end)
     const chunkContainer = new ChunkContainer(bbox)
 
-    const { globalBlocksMapping } = WorldEnv.current.schematics
+    const { globalBlocksMapping } = worldEnv.rawSettings.schematics
 
     for (let y = 0; y < schemBlocks.length; y++) {
       for (let x = 0; x < schemBlocks[y].length; x++) {
@@ -93,7 +93,7 @@ export class SchematicLoader {
             localBlocksMapping?.[rawType] || globalBlocksMapping[rawType]
           if (blockType === undefined) {
             console.warn(`missing schematic block type ${rawType}`)
-            blockType = WorldEnv.current.debug.schematics.missingBlockType
+            blockType = worldEnv.rawSettings.debug.schematics.missingBlockType
           }
           // worldObj.rawData[index++] = blockType
           const localPos = new Vector3(x, y, z)

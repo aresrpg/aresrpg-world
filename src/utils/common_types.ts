@@ -3,7 +3,6 @@ import { Vector2, Vector3 } from 'three'
 import { GroundBlockData } from '../processing/GroundPatch'
 import { BiomeType, BlockType } from '../procgen/Biome'
 import { LinkedList } from '../datacontainers/LinkedList'
-import { ItemType } from '../factory/ItemsFactory'
 
 export type Block<T> = {
   pos: Vector3
@@ -270,3 +269,7 @@ export type BiomeLandsRawConf = Record<LandConfigId, Partial<LandConfigFields>>
 export type BiomesRawConf = Record<BiomeType, BiomeLandsRawConf>
 export type BiomeLands = LinkedList<LandConfigFields>
 export type BiomesConf = Record<BiomeType, BiomeLands>
+
+export type ItemType = string
+export type SpawnedItems = Record<ItemType, Vector3[]>
+export const VoidItemType = 'void'

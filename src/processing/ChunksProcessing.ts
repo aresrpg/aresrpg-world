@@ -1,10 +1,9 @@
-import { WorldEnv } from '../config/WorldEnv'
+import { worldEnv } from '../config/WorldEnv'
 import { asVect3, serializeChunkId } from '../utils/patch_chunk'
 import { PatchId, PatchKey } from '../utils/common_types'
 import {
   ChunkContainer,
   ChunkStub,
-  defaultDataEncoder,
 } from '../datacontainers/ChunkContainer'
 import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory'
 
@@ -62,7 +61,7 @@ const getChunksTask =
 export const ChunksProcessing = {
   lowerChunks: getChunksTask(ChunksProcessingRange.LowerRange),
   upperChunks: getChunksTask(ChunksProcessingRange.UpperRange),
-  allChunks: getChunksTask(ChunksProcessingRange.FullRange),
+  fullChunks: getChunksTask(ChunksProcessingRange.FullRange),
 }
 
 /**
@@ -97,7 +96,7 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
     chunksRange === ChunksProcessingRange.UpperRange ||
     chunksRange === ChunksProcessingRange.FullRange
   const lowerChunks = doLower
-    ? await lowerChunksGen(patchKey, processingParams)
+    ? await lowerChunksGen(patchKey)
     : []
   const upperChunks = doUpper
     ? await upperChunksGen(patchKey, processingParams)
@@ -116,8 +115,8 @@ ProcessingTask.taskHandlers[chunksProcessingHandlerName] =
  * Processing
  */
 
-const chunksRange = WorldEnv.current.chunks.range
-const { patchDimensions: patchDims } = WorldEnv.current
+const chunksRange = worldEnv.rawSettings.chunks.range
+const patchDims = worldEnv.getPatchDimensions()
 
 // Misc utils
 
@@ -132,7 +131,7 @@ const upperChunksGen = async (
   patchKey: PatchKey,
   params: ChunksProcessingParams,
 ) => {
-  const { skipEntities, noDataEncoding } = params
+  const { skipEntities } = params
   const groundLayer = new GroundPatch(patchKey)
   groundLayer.bake()
   const patchId = groundLayer.patchId as PatchId
@@ -168,8 +167,7 @@ const upperChunksGen = async (
       ChunkContainer.copySourceToTarget(mergedItemsChunk, worldChunk)
     if (worldChunk.bounds.min.y < groundLayer.valueRange.max) {
       // bake ground and undeground separately
-      const customEncoder = noDataEncoding ? defaultDataEncoder : undefined
-      const groundSurfaceChunk = new GroundChunk(chunkKey, 1, customEncoder)
+      const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
       const cavesMask = new CavesMask(chunkKey, 1)
       cavesMask.bake()
       await groundSurfaceChunk.bake(groundLayer, cavesMask)
@@ -194,9 +192,7 @@ const upperChunksGen = async (
  */
 const lowerChunksGen = async (
   patchKey: PatchKey,
-  params: ChunksProcessingParams,
 ) => {
-  const { noDataEncoding } = params
   // find upper chunkId
   const groundLayer = new GroundPatch(patchKey)
   groundLayer.bake()
@@ -208,8 +204,7 @@ const lowerChunksGen = async (
     const chunkId = asVect3(patchId, yId)
     const chunkKey = serializeChunkId(chunkId)
     const currentChunk = new ChunkContainer(chunkKey, 1)
-    const customEncoder = noDataEncoding ? defaultDataEncoder : undefined
-    const groundSurfaceChunk = new GroundChunk(chunkKey, 1, customEncoder)
+    const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
     const cavesMask = new CavesMask(chunkKey, 1)
     cavesMask.bake()
     await groundSurfaceChunk.bake(groundLayer, cavesMask)
