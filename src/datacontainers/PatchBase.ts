@@ -1,4 +1,5 @@
 import { Vector2, Box2, Vector3 } from 'three'
+import { worldEnv } from '../config/WorldEnv'
 
 import { PatchKey } from '../utils/common_types'
 import {
@@ -7,7 +8,6 @@ import {
   asVect2,
   parseThreeStub,
 } from '../utils/patch_chunk'
-import { WorldEnv } from '../index'
 
 // export class PatchChunkCommon<T> {
 
@@ -42,7 +42,7 @@ export class PatchBase<T> {
     const bounds =
       boundsOrPatchKey instanceof Box2
         ? boundsOrPatchKey.clone()
-        : asPatchBounds(boundsOrPatchKey, WorldEnv.current.patchDimensions)
+        : asPatchBounds(boundsOrPatchKey, worldEnv.getPatchDimensions())
     this.bounds = bounds
     this.dimensions = bounds.getSize(new Vector2())
     this.margin = margin
