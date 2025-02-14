@@ -3,7 +3,7 @@
 import { getWorldEnv, WorldIndividualSeeds } from '../WorldEnv'
 
 import { BIOMES_LANDSCAPES_CONFIG } from './settings/biome_landscapes'
-import { PROC_ITEMS_CONFIG } from './settings/procedural_items'
+// import { PROC_ITEMS_CONFIG } from './settings/procedural_items'
 import {
   BLOCKS_COLOR_MAPPING,
   SCHEMATICS_BLOCKS_MAPPING,
@@ -27,7 +27,7 @@ export const getWorldDemoEnvSettings = () => {
   // EXTERNAL CONF/RESOURCES
   rawSettings.biomes.rawConf = BIOMES_LANDSCAPES_CONFIG
   rawSettings.schematics.globalBlocksMapping = SCHEMATICS_BLOCKS_MAPPING
-  rawSettings.proceduralItems.configs = PROC_ITEMS_CONFIG
+  // rawSettings.proceduralItems.configs = PROC_ITEMS_CONFIG
   // worldEnv.schematics.globalBlocksMapping = {
   //   ...worldEnv.schematics.globalBlocksMapping,
   //   ...SCHEMATICS_BLOCKS_MAPPING,

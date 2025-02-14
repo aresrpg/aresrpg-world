@@ -2,7 +2,7 @@ import { WorkerProxy } from "../processing/WorkerProxy";
 import { Worker } from 'worker_threads'
 
 export class NodeWorkerProxy extends WorkerProxy {
-    init() {
+    override init() {
         // node env
         const workerUrl = new URL('./world_compute_node_worker', import.meta.url)
         const nodeWorker = new Worker(workerUrl)

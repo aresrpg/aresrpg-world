@@ -1,5 +1,7 @@
+
 // Config
 export { getWorldEnv } from './config/WorldEnv'
+export { getWorldDemoEnvSettings } from './config/demo/world_demo_setup'
 // Utils
 // export * as WorldUtils from './utils/index'
 export {
@@ -18,7 +20,8 @@ export {
   BlocksProcessingRecipe,
 } from './processing/BlocksProcessing'
 export { BoardProvider, BlockCategory } from './processing/BoardProvider'
-export { ChunksScheduler } from './processing/ChunksScheduling'
+// export { ChunksScheduler } from './processing/ChunksScheduling'
+export { ChunksPolling } from './processing/ChunksPolling'
 export {
   PseudoDistributionMap,
   DistributionProfile,
@@ -43,5 +46,5 @@ export {
   ProcItemCategory,
 } from './tools/ProceduralGenerators'
 // Services
-// export { chunksWsClientProvider } from './remote-services/ChunksWsClientService'
+export { chunksWsClient } from './remote-services/chunks_over_ws_client'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'

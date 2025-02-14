@@ -6,10 +6,9 @@
 */
 
 import { getWorldDemoEnvSettings } from '../config/demo/world_demo_setup'
-
-import { ChunksScheduler, parseThreeStub } from "../index"
 import { WebSocketServer, WebSocket } from 'ws'
 import { NodeWorkerPool } from '../node/NodeWorkerPool'
+import { ChunksPolling, parseThreeStub } from '../index'
 
 const SERVER_PORT = 3000
 const POOL_SIZE = 4
@@ -19,7 +18,8 @@ const initWorkerpool = async () => {
     const chunks_node_worker_pool = new NodeWorkerPool()
     await chunks_node_worker_pool.init(POOL_SIZE)
     await chunks_node_worker_pool.loadWorldEnv(world_demo_env)
-    const chunks_scheduler = new ChunksScheduler(chunks_node_worker_pool)
+    const chunks_scheduler = new ChunksPolling()
+    chunks_scheduler.chunksWorkerPool = chunks_node_worker_pool
     return chunks_scheduler
 }
 
@@ -32,11 +32,14 @@ const initWsServer = async () => {
         const request = JSON.parse(clientMsg)
         console.log('received client request:', request)
         const { viewPos, viewRange } = request
-        chunksScheduler.onChunkAvailable = async (chunkBlob: Blob) => {
-            console.log(chunkBlob)
-            clientWs.send(chunkBlob)
-        }
-        chunksScheduler.pollChunks(parseThreeStub(viewPos), viewRange)
+
+        const scheduledTasks = chunksScheduler.pollChunks(parseThreeStub(viewPos), viewRange)
+        scheduledTasks?.forEach(scheduledTask =>
+            scheduledTask.then(chunks =>
+                chunks.forEach(chunkBlob => {
+                    console.log(chunkBlob)
+                    clientWs.send(chunkBlob)
+                })))
         // const clientTask = wsRequest.task
         // this.enqueueTasks(clientTask)
     }

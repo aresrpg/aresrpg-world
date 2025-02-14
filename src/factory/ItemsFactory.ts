@@ -5,7 +5,7 @@ import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
 import { ItemType } from '../utils/common_types'
-import { asVect2 } from '../utils/patch_chunk'
+// import { asVect2 } from '../utils/patch_chunk'
 
 /**
  * Referencing all items either procedurally generated or coming from schematic definitions

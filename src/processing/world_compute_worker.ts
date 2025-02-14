@@ -11,6 +11,13 @@ import {
 } from './TaskProcessing'
 import { MessageData, workerRequestHandler } from './WorkerProxy'
 
+// hack for bundling worker deps
+(() => {
+  chunksProcessingTaskHandler
+  itemsProcessingTaskHandler
+  blocksProcessingHandler
+})()
+
 
 const initWebWorker = () => {
   // eslint-disable-next-line no-undef
@@ -20,13 +27,6 @@ const initWebWorker = () => {
   // eslint-disable-next-line no-undef
   addEventListener('unhandledrejection', unhandledRejectionHandler)
 }
-
-// hack: bundle worker deps
-(() => {
-  chunksProcessingTaskHandler
-  itemsProcessingTaskHandler
-  blocksProcessingHandler
-})()
 
 const messageHandler = async (
   e: MessageEvent<MessageData<GenericTaskStub | WorldEnvSettings>>,
