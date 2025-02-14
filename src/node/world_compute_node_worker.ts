@@ -1,5 +1,15 @@
 import { parentPort } from 'worker_threads'
+import { blocksProcessingHandler } from '../processing/BlocksProcessing'
+import { chunksProcessingTaskHandler } from '../processing/ChunksProcessing'
+import { itemsProcessingTaskHandler } from '../processing/ItemsProcessing'
 import { workerRequestHandler } from '../processing/WorkerProxy'
+
+// hack for bundling external deps into worker
+(() => {
+  chunksProcessingTaskHandler
+  itemsProcessingTaskHandler
+  blocksProcessingHandler
+})()
 
 const initNodeWorker = () => {
   parentPort?.on('unhandledrejection', (e) => {
@@ -13,14 +23,10 @@ const initNodeWorker = () => {
   })
 
   parentPort?.on('message', async requestData => {
-    const reply = workerRequestHandler(requestData)
+    const reply = await workerRequestHandler(requestData)
     parentPort?.postMessage(reply)
   })
 }
 
 // init worker code
-// initNodeWorker()
 initNodeWorker()
-// configure worker's own world environment
-// setupWorldDemo(WorldEnv.current)
-// WorldEnv.current.apply()

@@ -38,8 +38,6 @@ export class WorkerProxy {
 
   handleWorkerReply = (reply: MessageData<any>) => {
     const { timestamp, content } = reply
-    console.log(`worker reply: `, reply)
-
     if (timestamp !== undefined) {
       const msgResolver = this.resolvers[timestamp]
       msgResolver(content.data)
