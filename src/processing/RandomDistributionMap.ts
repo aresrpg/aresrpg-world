@@ -42,7 +42,10 @@ export const DistributionProfiles: Record<
 
 const probabilityThreshold = Math.pow(2, 8)
 const bmin = new Vector2(0, 0)
-const bmax = new Vector2(worldEnv.getDistributionMapPeriod(), worldEnv.getDistributionMapPeriod())
+const bmax = new Vector2(
+  worldEnv.getDistributionMapPeriod(),
+  worldEnv.getDistributionMapPeriod(),
+)
 const distMapDefaultBox = new Box2(bmin, bmax)
 
 /**

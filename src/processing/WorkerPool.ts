@@ -1,16 +1,16 @@
+import { WorldEnvSettings } from '../config/WorldEnv'
+
 import { WorkerProxy } from './WorkerProxy'
 import { GenericTask, ProcessingState } from './TaskProcessing'
-import { WorldEnvSettings } from '../config/WorldEnv'
-import { isBrowserEnv } from '../utils/misc_utils'
 
-const createDefaultWorkerPool = () => {
-  // const { count } = worldEnv.rawSettings.workerPool
-  const defaultPoolSize = 4
-  console.log(`create default workerpool, pool size: ${defaultPoolSize}`)
-  const defaultWorkerPool = new WorkerPool()
-  defaultWorkerPool.init(defaultPoolSize)
-  return defaultWorkerPool
-}
+// const createDefaultWorkerPool = () => {
+//   // const { count } = worldEnv.rawSettings.workerPool
+//   const defaultPoolSize = 4
+//   console.log(`create default workerpool, pool size: ${defaultPoolSize}`)
+//   const defaultWorkerPool = new WorkerPool()
+//   defaultWorkerPool.init(defaultPoolSize)
+//   return defaultWorkerPool
+// }
 
 // export interface WorkerPoolInterface {
 //   purgeQueue(whiteList: (task: GenericTask) => boolean,
@@ -22,7 +22,7 @@ const createDefaultWorkerPool = () => {
 
 /**
  * This will manage pool of worker in web or node environment,
- *  tasks enqueueing, dispatching 
+ *  tasks enqueueing, dispatching
  */
 export class WorkerPool {
   // implements WorkerPoolInterface {
@@ -52,8 +52,9 @@ export class WorkerPool {
   }
 
   async loadWorldEnv(worldEnv: WorldEnvSettings) {
-    const allLoaded = Promise.all(this.workerPool.map(workerProxy => workerProxy.forwardEnv(worldEnv)))
-      .then(() => this.processQueue())
+    const allLoaded = Promise.all(
+      this.workerPool.map(workerProxy => workerProxy.forwardEnv(worldEnv)),
+    ).then(() => this.processQueue())
     return await allLoaded
   }
 

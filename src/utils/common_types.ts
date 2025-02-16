@@ -252,6 +252,7 @@ export type ChunkIndex<T> = Record<ChunkKey, T>
 export type LandConfigId = string // landscape id assigned to noise level
 export type BiomeLandKey = string // combination of BiomeType and LandId
 
+export type ItemType = string
 export type LandConfigFields = {
   key: BiomeLandKey
   x: number // noise value
@@ -270,6 +271,5 @@ export type BiomesRawConf = Record<BiomeType, BiomeLandsRawConf>
 export type BiomeLands = LinkedList<LandConfigFields>
 export type BiomesConf = Record<BiomeType, BiomeLands>
 
-export type ItemType = string
 export type SpawnedItems = Record<ItemType, Vector3[]>
 export const VoidItemType = 'void'

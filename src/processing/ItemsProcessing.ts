@@ -11,10 +11,14 @@ import {
 } from '../index'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { asPatchBounds, asVect2, asVect3 } from '../utils/patch_chunk'
-import { ItemType, PatchKey, SpawnedItems, VoidItemType } from '../utils/common_types'
 import {
-  ItemsInventory,
-} from '../factory/ItemsFactory'
+  ItemType,
+  PatchKey,
+  SpawnedItems,
+  VoidItemType,
+} from '../utils/common_types'
+import { ItemsInventory } from '../factory/ItemsFactory'
+import { worldEnv } from '../config/WorldEnv'
 
 import { GroundPatch } from './GroundPatch'
 import { DistributionProfiles } from './RandomDistributionMap'
@@ -23,7 +27,6 @@ import {
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing'
-import { worldEnv } from '../config/WorldEnv'
 
 /**
  * Calling side

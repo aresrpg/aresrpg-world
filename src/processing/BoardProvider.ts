@@ -21,10 +21,10 @@ import {
 } from '../datacontainers/PatchBase'
 import { copySourceToTargetPatch } from '../utils/data_operations'
 import { ChunkStub } from '../datacontainers/ChunkContainer'
+import { worldEnv } from '../config/WorldEnv'
 
 import { ChunksProcessing } from './ChunksProcessing'
 import { ItemsProcessing } from './ItemsProcessing'
-import { worldEnv } from '../config/WorldEnv'
 
 export enum BlockCategory {
   EMPTY = 0,
@@ -106,9 +106,9 @@ export class BoardCacheProvider {
     chunks: ChunkContainer[]
     items: ChunkContainer[]
   } = {
-      chunks: [],
-      items: [],
-    }
+    chunks: [],
+    items: [],
+  }
 
   // taskIndex: Record<TaskId, GenericTask> = {}
   centerPatch = new Vector2(NaN, NaN)
@@ -275,7 +275,8 @@ export class BoardProvider {
     boardThickness?: number,
   ) {
     boardRadius = boardRadius || worldEnv.rawSettings.boards.boardRadius
-    boardThickness = boardThickness || worldEnv.rawSettings.boards.boardThickness
+    boardThickness =
+      boardThickness || worldEnv.rawSettings.boards.boardThickness
     this.boardParams.center = boardCenter.clone().floor()
     this.boardParams.radius = boardRadius
     this.boardParams.thickness = boardThickness
@@ -289,7 +290,10 @@ export class BoardProvider {
   }
 
   get centerPatchId() {
-    return getPatchId(asVect2(this.boardParams.center), worldEnv.getPatchDimensions())
+    return getPatchId(
+      asVect2(this.boardParams.center),
+      worldEnv.getPatchDimensions(),
+    )
   }
 
   get patchRange() {
@@ -368,7 +372,7 @@ export class BoardProvider {
         }
         // const blockMode =
         //   i === boardThickness ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
-        return blockType //ChunkContainer.dataEncoder(blockType, blockMode)
+        return blockType // ChunkContainer.dataEncoder(blockType, blockMode)
       }
     })
 
@@ -407,8 +411,10 @@ export class BoardProvider {
             : BlockCategory.FLAT
           : BlockCategory.EMPTY
       // override height buffer with board version if within board
-      const finalHeightBuffer = isWithinBoard && (!isHoleBlock || !skipHoleBlocks) ?
-        this.overrideHeightBuffer(heightBuff, isHoleBlock) : heightBuff
+      const finalHeightBuffer =
+        isWithinBoard && (!isHoleBlock || !skipHoleBlocks)
+          ? this.overrideHeightBuffer(heightBuff, isHoleBlock)
+          : heightBuff
       boardChunk.writeBuffer(patchIter.localPos, finalHeightBuffer)
       // boardPatch.
     }

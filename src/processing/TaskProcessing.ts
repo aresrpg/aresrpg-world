@@ -1,5 +1,5 @@
-
 import { parseThreeStub } from '../utils/patch_chunk'
+
 import { WorkerPool } from './WorkerPool'
 
 export const toTaskOutputStubs = (res: any) =>
@@ -201,7 +201,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() { }
+  request() {}
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -247,9 +247,9 @@ export class ProcessingTask<
     console.log(`skipped task processing`)
   }
 
-  onStarted = () => { }
+  onStarted = () => {}
 
-  onDone = () => { }
+  onDone = () => {}
 
   /**
    * additional callback where post process actions can be performed

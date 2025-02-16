@@ -1,6 +1,6 @@
 import { Vector2, Box2, Vector3 } from 'three'
-import { worldEnv } from '../config/WorldEnv'
 
+import { worldEnv } from '../config/WorldEnv'
 import { PatchKey } from '../utils/common_types'
 import {
   parsePatchKey,

@@ -18,9 +18,9 @@ import {
   typesNumbering,
 } from '../utils/misc_utils'
 import { asVect3 } from '../utils/patch_chunk'
+import { worldEnv } from '../config/WorldEnv'
 
 import { ProcLayer } from './ProcLayer'
-import { worldEnv } from '../config/WorldEnv'
 
 // reserved native block types
 export enum BlockType {
@@ -313,10 +313,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-      (biomeContribs[k as BiomeType] = roundToDec(
-        biomeContribs[k as BiomeType],
-        2,
-      )),
+        (biomeContribs[k as BiomeType] = roundToDec(
+          biomeContribs[k as BiomeType],
+          2,
+        )),
     )
 
     // biomeContribs[BiomeType.Arctic] = 1

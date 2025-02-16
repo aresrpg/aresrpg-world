@@ -20,7 +20,7 @@ export class EmptyChunk extends ChunkContainer {
     this.rawData = new Uint16Array()
   }
 
-  async bake() { }
+  async bake() {}
 }
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -44,14 +44,16 @@ export class GroundChunk extends ChunkContainer {
     // const blockMode = groundFlags.boardMode
     //   ? BlockMode.CHECKERBOARD
     //   : BlockMode.REGULAR
-    const groundSurface = blockType //this.dataEncoder(blockType, blockMode)
-    const undergroundLayer = landConf.subtype //this.dataEncoder(landConf.subtype || BlockType.BEDROCK)
+    const groundSurface = blockType // this.dataEncoder(blockType, blockMode)
+    const undergroundLayer = landConf.subtype // this.dataEncoder(landConf.subtype || BlockType.BEDROCK)
     // generate ground buffer
     const buffSize = clamp(block.data.level - ymin, 0, ymax - ymin)
     if (buffSize > 0) {
       const groundBuffer = new Uint16Array(block.data.level - ymin)
       // fill with bedrock first
-      groundBuffer.fill(biome === BiomeType.Arctic ? BlockType.BEDROCK : BlockType.ICE)
+      groundBuffer.fill(
+        biome === BiomeType.Arctic ? BlockType.BEDROCK : BlockType.ICE,
+      )
       // add underground layer
       groundBuffer.fill(
         undergroundLayer,
