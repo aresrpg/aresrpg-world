@@ -282,6 +282,7 @@ export class BoardProvider {
     this.boardParams.thickness = boardThickness
     // const holesLayer = new ProcLayer('holesMap')
     // holesLayer.sampling.periodicity = 0.25
+    // @ts-ignore
     this.cacheProvider = new BoardCacheProvider(dedicatedWorkerPool)
     // this.center = boardCenter
     console.log(
