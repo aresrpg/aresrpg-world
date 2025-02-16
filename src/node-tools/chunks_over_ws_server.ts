@@ -1,22 +1,22 @@
 /**
 * node server side POC aming to show
-- chunks streaming over websocket capabilites 
+- chunks streaming over websocket capabilites
 - ability to run chunks generation in node environment
 - distributed computing on remote device (for monitoring, local dev purposes)
 */
 
 import { WebSocketServer, WebSocket } from 'ws'
 
-import { getWorldDemoEnvSettings } from '../config/demo/world_demo_setup'
-import { NodeWorkerPool } from '../node/NodeWorkerPool'
-import { ChunksPolling, parseThreeStub } from '../index'
+import { getWorldDemoEnvSettings } from '../config/demo/world_demo_setup.js'
+import { WorkerPool } from '../node/NodeWorkerPool.js'
+import { ChunksPolling, parseThreeStub } from '../index.js'
 
 const SERVER_PORT = 3000
 const POOL_SIZE = 4
 
 const initWorkerpool = async () => {
   const world_demo_env = getWorldDemoEnvSettings()
-  const chunks_node_worker_pool = new NodeWorkerPool()
+  const chunks_node_worker_pool = new WorkerPool()
   await chunks_node_worker_pool.init(POOL_SIZE)
   await chunks_node_worker_pool.loadWorldEnv(world_demo_env)
   const chunks_scheduler = new ChunksPolling()

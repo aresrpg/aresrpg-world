@@ -1,6 +1,6 @@
 import { Worker } from 'worker_threads'
 
-import { WorkerProxy } from '../processing/WorkerProxy'
+import { WorkerProxy } from '../processing/WorkerProxy.js'
 
 export class NodeWorkerProxy extends WorkerProxy {
   override init() {

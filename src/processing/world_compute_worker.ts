@@ -2,13 +2,13 @@
  * Task processing worker
  */
 
-import { WorldEnvSettings } from '../config/WorldEnv'
+import { WorldEnvSettings } from '../config/WorldEnv.js'
 
 // import { blocksProcessingHandler } from './BlocksProcessing'
 // import { chunksProcessingTaskHandler } from './ChunksProcessing'
 // import { itemsProcessingTaskHandler } from './ItemsProcessing'
-import { GenericTaskStub } from './TaskProcessing'
-import { MessageData, workerRequestHandler } from './WorkerProxy'
+import { GenericTaskStub } from './TaskProcessing.js'
+import { MessageData, workerRequestHandler } from './WorkerProxy.js'
 
 // hack for bundling worker deps
 // ;(() => {

@@ -1,5 +1,5 @@
 // Config
-export { getWorldEnv } from './config/WorldEnv.js'
+export { getWorldEnv, worldEnv } from './config/WorldEnv.js'
 export { getWorldDemoEnvSettings } from './config/demo/world_demo_setup.js'
 // Utils
 // export * as WorldUtils from './utils/index'
@@ -21,12 +21,12 @@ export {
 export { BoardProvider, BlockCategory } from './processing/BoardProvider.js'
 // export { ChunksScheduler } from './processing/ChunksScheduling'
 export { ChunksPolling } from './processing/ChunksPolling.js'
+export { ChunksProcessing } from './processing/ChunksProcessing.js'
 export {
   PseudoDistributionMap,
   DistributionProfile,
 } from './processing/RandomDistributionMap.js'
 export { ProcessingState } from './processing/TaskProcessing.js'
-export { WorkerPool } from './processing/WorkerPool.js'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
