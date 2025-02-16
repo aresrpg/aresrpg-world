@@ -30,6 +30,7 @@ const messageHandler = async (
   e: MessageEvent<MessageData<GenericTaskStub | WorldEnvSettings>>,
 ) => {
   const reply = await workerRequestHandler(e.data)
+  // eslint-disable-next-line no-undef
   self.postMessage(reply)
 }
 
