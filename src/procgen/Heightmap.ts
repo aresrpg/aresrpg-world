@@ -1,9 +1,10 @@
 import { Vector3 } from 'three'
 
+import { worldEnv } from '../config/WorldEnv'
+
 import { ProcLayer } from './ProcLayer'
 import { Biome, BiomeInfluence } from './Biome'
 import { BlendMode, getCompositor } from './NoiseComposition'
-import { worldEnv } from '../config/WorldEnv'
 
 const MODULATION_THRESHOLD = 0.318
 

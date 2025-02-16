@@ -1,9 +1,15 @@
-
 import { applyWorldEnv, WorldEnvSettings } from '../config/WorldEnv'
-import { TaskId, GenericTask, GenericTaskStub, ProcessingContext, ProcessingTask } from './TaskProcessing'
+
+import {
+  TaskId,
+  GenericTask,
+  GenericTaskStub,
+  ProcessingContext,
+  ProcessingTask,
+} from './TaskProcessing'
 
 export type MessageData<T> = {
-  timestamp: number,
+  timestamp: number
   content: T
 }
 
@@ -57,7 +63,9 @@ export class WorkerProxy {
   async forwardEnv(worldEnv: WorldEnvSettings) {
     if (this.worker) {
       const timestamp = Date.now()
-      const pendingReply = new Promise<any>(resolve => (this.resolvers[timestamp] = resolve))
+      const pendingReply = new Promise<any>(
+        resolve => (this.resolvers[timestamp] = resolve),
+      )
       this.worker.postMessage({ timestamp, content: worldEnv })
       await pendingReply.then(() => console.log(`worker is ready`))
       return true
@@ -104,12 +112,15 @@ const onForwardedTask = async (taskStub: GenericTaskStub) => {
   return reply
 }
 
-export const workerRequestHandler = async (request: MessageData<WorldEnvSettings | GenericTaskStub>) => {
+export const workerRequestHandler = async (
+  request: MessageData<WorldEnvSettings | GenericTaskStub>,
+) => {
   const { timestamp, content } = request
   // console.log(`[worker] received task ${eventData.taskId} `)
   // const { id, task } = data
-  const res = (content as GenericTaskStub).taskId ? await onForwardedTask(content as GenericTaskStub) :
-    await onForwardedEnv(content as WorldEnvSettings)
+  const res = (content as GenericTaskStub).taskId
+    ? await onForwardedTask(content as GenericTaskStub)
+    : await onForwardedEnv(content as WorldEnvSettings)
   // eslint-disable-next-line no-undef
   const workerReply = { timestamp, content: res }
   return workerReply

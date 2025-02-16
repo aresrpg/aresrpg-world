@@ -1,6 +1,6 @@
 import { Box3, Vector3 } from 'three'
-import { worldEnv } from '../config/WorldEnv'
 
+import { worldEnv } from '../config/WorldEnv'
 import { ChunkContainer } from '../datacontainers/ChunkContainer'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators'
 import { SchematicLoader } from '../tools/SchematicLoader'
@@ -39,7 +39,7 @@ export class ItemsInventory {
     let chunk
     if (fileUrl) {
       const customBlocksMapping =
-      worldEnv.rawSettings.schematics.localBlocksMapping[id]
+        worldEnv.rawSettings.schematics.localBlocksMapping[id]
       chunk = await SchematicLoader.createChunkContainer(
         fileUrl,
         customBlocksMapping,

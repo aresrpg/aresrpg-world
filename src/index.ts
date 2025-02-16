@@ -1,4 +1,3 @@
-
 // Config
 export { getWorldEnv } from './config/WorldEnv'
 export { getWorldDemoEnvSettings } from './config/demo/world_demo_setup'

@@ -1,11 +1,6 @@
 import { Vector2, Vector3 } from 'three'
 
-import {
-  Biome,
-  ProcessingTask,
-  DensityVolume,
-  BlockType,
-} from '../index'
+import { Biome, ProcessingTask, DensityVolume, BlockType } from '../index'
 import {
   serializePatchId,
   getPatchId,
@@ -14,6 +9,7 @@ import {
   // parseThreeStub,
 } from '../utils/patch_chunk'
 import { PatchKey, Block, BlockData } from '../utils/common_types'
+import { worldEnv } from '../config/WorldEnv'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch'
 import { ItemsProcessing } from './ItemsProcessing'
@@ -23,7 +19,6 @@ import {
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing'
-import { worldEnv } from '../config/WorldEnv'
 
 /**
  * Calling side

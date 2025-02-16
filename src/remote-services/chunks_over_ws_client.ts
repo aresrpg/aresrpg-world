@@ -4,7 +4,10 @@ import { chunkStubFromCompressedBlob } from '../utils/chunk_utils'
 /**
  * WS client side
  */
-export const chunksWsClient = (wsUrl: string, onChunkReceived: (chunkStub: ChunkStub) => any) => {
+export const chunksWsClient = (
+  wsUrl: string,
+  onChunkReceived: (chunkStub: ChunkStub) => any,
+) => {
   // to replace onChunkReceived arg
   // const onChunkReceivedRef = {
   //   current: (data:ChunkStub)=>console.log(data)

@@ -1,10 +1,7 @@
 import { worldEnv } from '../config/WorldEnv'
 import { asVect3, serializeChunkId } from '../utils/patch_chunk'
 import { PatchId, PatchKey } from '../utils/common_types'
-import {
-  ChunkContainer,
-  ChunkStub,
-} from '../datacontainers/ChunkContainer'
+import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
 import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory'
 
 import { GroundPatch } from './GroundPatch'
@@ -95,9 +92,7 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
   const doUpper =
     chunksRange === ChunksProcessingRange.UpperRange ||
     chunksRange === ChunksProcessingRange.FullRange
-  const lowerChunks = doLower
-    ? await lowerChunksGen(patchKey)
-    : []
+  const lowerChunks = doLower ? await lowerChunksGen(patchKey) : []
   const upperChunks = doUpper
     ? await upperChunksGen(patchKey, processingParams)
     : []
@@ -190,9 +185,7 @@ const upperChunksGen = async (
 /**
  * Chunks below ground surface
  */
-const lowerChunksGen = async (
-  patchKey: PatchKey,
-) => {
+const lowerChunksGen = async (patchKey: PatchKey) => {
   // find upper chunkId
   const groundLayer = new GroundPatch(patchKey)
   groundLayer.bake()

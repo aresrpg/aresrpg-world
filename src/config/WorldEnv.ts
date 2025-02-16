@@ -1,4 +1,5 @@
 import { Vector2, Vector3 } from 'three'
+
 import { Biome, BlockType } from '../procgen/Biome'
 import { DensityVolume } from '../procgen/DensityVolume'
 import { Heightmap } from '../procgen/Heightmap'
@@ -18,66 +19,66 @@ export type WorldIndividualSeeds = {
 
 export type WorldEnvSettings = {
   seeds: {
-    main: string,
-    overrides: WorldIndividualSeeds,
-  },
+    main: string
+    overrides: WorldIndividualSeeds
+  }
 
-  patchPowSize: number, // as a power of two
+  patchPowSize: number // as a power of two
   // max cache radius as a power of two
-  cachePowLimit: number, // 4 => 16 patches radius
-  distributionMapPeriod: number,
+  cachePowLimit: number // 4 => 16 patches radius
+  distributionMapPeriod: number
 
   // in patch unit
   patchViewRanges: {
-    near: number, // undeground view dist
-    far: number, // ground surface view dist
-  },
+    near: number // undeground view dist
+    far: number // ground surface view dist
+  }
 
   debug: {
     patch: {
-      borderHighlightColor: BlockType,
-    },
+      borderHighlightColor: BlockType
+    }
     board: {
-      startPosHighlightColor: BlockType,
-      splitSidesColoring: boolean,
-    },
+      startPosHighlightColor: BlockType
+      splitSidesColoring: boolean
+    }
     schematics: {
-      missingBlockType: BlockType,
-    },
-  },
+      missingBlockType: BlockType
+    }
+  }
 
   chunks: {
     range: {
-      bottomId: number,
-      topId: number,
-    },
-  },
+      bottomId: number
+      topId: number
+    }
+  }
 
   schematics: {
-    globalBlocksMapping: SchematicsBlocksMapping,
-    localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>,
-    filesIndex: Record<ItemType, string>,
-  },
+    globalBlocksMapping: SchematicsBlocksMapping
+    localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>
+    filesIndex: Record<ItemType, string>
+  }
 
   proceduralItems: {
-    configs: Record<ItemType, ProcItemConf>,
-  },
+    configs: Record<ItemType, ProcItemConf>
+  }
 
   boards: {
-    boardRadius: number,
-    boardThickness: number,
-  },
+    boardRadius: number
+    boardThickness: number
+  }
 
   heightmap: {
-    spreading: number,
-    harmonics: number,
-  },
+    spreading: number
+    harmonics: number
+  }
 
   biomes: {
-    rawConf: BiomesRawConf,
-    seaLevel: number,
-    periodicity: number,
-    bilinearInterpolationRange: number, // from 0 to 0.1
+    rawConf: BiomesRawConf
+    seaLevel: number
+    periodicity: number
+    bilinearInterpolationRange: number // from 0 to 0.1
   }
 }
 
@@ -144,7 +145,7 @@ const getWorldDefaultEnv = () => {
       seaLevel: 0,
       periodicity: 8,
       bilinearInterpolationRange: 0.1, // from 0 to 0.1
-    }
+    },
   }
   return worldDefaults
 }
@@ -162,14 +163,17 @@ const overrideSeeds = (customSeeds: WorldIndividualSeeds) => {
   DensityVolume.instance.densityNoise.seed = customSeeds.density
 }
 
-export const applyWorldEnv = (worldEnvRawSettings: Partial<WorldEnvSettings>) => {
+export const applyWorldEnv = (
+  worldEnvRawSettings: Partial<WorldEnvSettings>,
+) => {
   Object.assign(worldEnv.rawSettings, worldEnvRawSettings)
   overrideSeeds(worldEnv.rawSettings.seeds.overrides)
 }
 
 export const getWorldEnv = (customSettings?: Partial<WorldEnvSettings>) => {
-  const rawSettings = customSettings ? Object.assign(getWorldDefaultEnv(), customSettings) :
-    getWorldDefaultEnv()
+  const rawSettings = customSettings
+    ? Object.assign(getWorldDefaultEnv(), customSettings)
+    : getWorldDefaultEnv()
 
   const getPatchSize = () => Math.pow(2, rawSettings.patchPowSize)
 
@@ -177,17 +181,21 @@ export const getWorldEnv = (customSettings?: Partial<WorldEnvSettings>) => {
 
   const getPatchDimensions = () => new Vector2(getPatchSize(), getPatchSize())
 
-  const getChunkDimensions = () => new Vector3(getPatchSize(), getPatchSize(), getPatchSize())
+  const getChunkDimensions = () =>
+    new Vector3(getPatchSize(), getPatchSize(), getPatchSize())
 
-  const getNearViewDist = () => rawSettings.patchViewRanges.near * getPatchSize()
+  const getNearViewDist = () =>
+    rawSettings.patchViewRanges.near * getPatchSize()
 
   const getFarViewDist = () => rawSettings.patchViewRanges.far * getPatchSize()
 
   const getSeaLevel = () => rawSettings.biomes.seaLevel
 
-  const setSeaLevel = (seaLevel: number) => rawSettings.biomes.seaLevel = seaLevel
+  const setSeaLevel = (seaLevel: number) =>
+    (rawSettings.biomes.seaLevel = seaLevel)
 
-  const getDistributionMapPeriod = () => rawSettings.distributionMapPeriod * getPatchSize()
+  const getDistributionMapPeriod = () =>
+    rawSettings.distributionMapPeriod * getPatchSize()
 
   return {
     rawSettings,
@@ -199,7 +207,7 @@ export const getWorldEnv = (customSettings?: Partial<WorldEnvSettings>) => {
     getFarViewDist,
     getSeaLevel,
     setSeaLevel,
-    getDistributionMapPeriod
+    getDistributionMapPeriod,
   }
 }
 
