@@ -12,7 +12,7 @@ import {
   parsePatchKey,
   serializePatchId,
 } from '../utils/patch_chunk.js'
-import { ChunkContainer, BlockType, WorkerPool } from '../index.js'
+import { ChunkContainer, BlockType } from '../index.js'
 import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
 import {
   DataContainer,
@@ -25,6 +25,7 @@ import { worldEnv } from '../config/WorldEnv.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
+import { WorkerPool } from './WorkerPool.js'
 
 export enum BlockCategory {
   EMPTY = 0,

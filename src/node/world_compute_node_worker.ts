@@ -3,7 +3,7 @@ import { parentPort } from 'worker_threads'
 // import { blocksProcessingHandler } from '../processing/BlocksProcessing'
 // import { chunksProcessingTaskHandler } from '../processing/ChunksProcessing'
 // import { itemsProcessingTaskHandler } from '../processing/ItemsProcessing'
-import { workerRequestHandler } from '../processing/WorkerProxy'
+import { workerRequestHandler } from '../processing/WorkerProxy.js'
 
 // hack for bundling external deps into worker
 // ;(() => {

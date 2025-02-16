@@ -1,8 +1,8 @@
-import { WorkerPool } from '../processing/WorkerPool'
+import { WorkerPool as BaseWorkerPool } from '../processing/WorkerPool.js'
 
-import { NodeWorkerProxy } from './NodeWorkerProxy'
+import { NodeWorkerProxy } from './NodeWorkerProxy.js'
 
-export class NodeWorkerPool extends WorkerPool {
+export class WorkerPool extends BaseWorkerPool {
   override init(poolSize: number): void {
     console.log(`create worker pool size: ${poolSize} `)
     for (let workerId = 0; workerId < poolSize; workerId++) {
