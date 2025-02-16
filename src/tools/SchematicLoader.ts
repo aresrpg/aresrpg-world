@@ -45,6 +45,7 @@ export class SchematicLoader {
     return rawData
   }
 
+  // @ts-ignore
   static async load(path: string) {
     if (isBrowser()) return this.loadBrowser(path)
     // else return this.loadNode(path)
