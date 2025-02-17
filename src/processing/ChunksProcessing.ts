@@ -31,7 +31,6 @@ export type ChunksProcessingInput = {
 }
 export type ChunksProcessingOutput = ChunkStub[]
 export type ChunksProcessingParams = {
-  noDataEncoding?: boolean
   skipEntities?: boolean
   chunksRange?: ChunksProcessingRange
   skipBlobCompression?: boolean
