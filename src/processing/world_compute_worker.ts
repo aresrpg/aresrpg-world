@@ -3,7 +3,6 @@ import { WorldEnvSettings } from '../config/WorldEnv.js'
 import './BlocksProcessing.js'
 import './ChunksProcessing.js'
 import './ItemsProcessing.js'
-
 import { GenericTaskStub } from './TaskProcessing.js'
 import { MessageData, workerRequestHandler } from './WorkerProxy.js'
 

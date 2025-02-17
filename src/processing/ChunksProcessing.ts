@@ -12,6 +12,7 @@ import {
   ProcessingTaskStub,
 } from './TaskProcessing.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
+import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
 
 /**
  * Calling side
@@ -77,7 +78,7 @@ type ChunksProcessingTaskStub = ProcessingTaskStub<
 type ChunksProcessingTaskHandler = ProcessingTaskHandler<
   ChunksProcessingInput,
   ChunksProcessingParams,
-  ChunkStub[] | Blob[]
+  ChunkStub[] | Blob
 >
 
 export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
@@ -99,7 +100,8 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
   const chunks = [...lowerChunks, ...upperChunks]
   return skipBlobCompression
     ? chunks.map(chunk => chunk.toStub())
-    : await Promise.all(chunks.map(chunk => chunk.toCompressedBlob()))
+    // : await Promise.all(chunks.map(chunk => chunk.toCompressedBlob()))
+    : await chunksToCompressedBlob(chunks)
 }
 
 // Registration

@@ -1,5 +1,5 @@
 import { ChunkStub } from '../datacontainers/ChunkContainer.js'
-import { chunkStubFromCompressedBlob } from '../utils/chunk_utils.js'
+import { chunksFromCompressedBlob } from '../utils/chunk_utils.js'
 
 /**
  * WS client side
@@ -14,8 +14,8 @@ export const chunksWsClient = (
   // }
   const onChunkDataReceived = async (chunkCompressedBlob: Blob) => {
     // process raw data blob received from server
-    const chunkStub = await chunkStubFromCompressedBlob(chunkCompressedBlob)
-    onChunkReceived(chunkStub)
+    const chunkStubs = await chunksFromCompressedBlob(chunkCompressedBlob)
+    chunkStubs.forEach(chunkStub => onChunkReceived(chunkStub))
   }
 
   // eslint-disable-next-line no-undef

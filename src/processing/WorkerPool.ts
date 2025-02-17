@@ -3,15 +3,6 @@ import { WorldEnvSettings } from '../config/WorldEnv.js'
 import { WorkerProxy } from './WorkerProxy.js'
 import { GenericTask, ProcessingState } from './TaskProcessing.js'
 
-// const createDefaultWorkerPool = () => {
-//   // const { count } = worldEnv.rawSettings.workerPool
-//   const defaultPoolSize = 4
-//   console.log(`create default workerpool, pool size: ${defaultPoolSize}`)
-//   const defaultWorkerPool = new WorkerPool()
-//   defaultWorkerPool.init(defaultPoolSize)
-//   return defaultWorkerPool
-// }
-
 // export interface WorkerPoolInterface {
 //   purgeQueue(whiteList: (task: GenericTask) => boolean,
 //     blackList: (task: GenericTask) => boolean): void
@@ -25,22 +16,12 @@ import { GenericTask, ProcessingState } from './TaskProcessing.js'
  *  tasks enqueueing, dispatching
  */
 export class WorkerPool {
-  // implements WorkerPoolInterface {
-  // eslint-disable-next-line no-use-before-define
-  static defaultWorkerPool: WorkerPool
-
-  static get default() {
-    // this.defaultWorkerPool = this.defaultWorkerPool || createDefaultWorkerPool()
-    // return this.defaultWorkerPool
-    console.warn(`default workerpool is suspended for now`)
-    return null
-  }
-
   processingQueue: GenericTask[] = []
-  suspended: GenericTask[] = []
+  // suspended: GenericTask[] = []
   workerPool: WorkerProxy[] = []
   // pendingRequests = []
   processedCount = 0
+  ready = false
 
   init(poolSize: number) {
     console.log(`create worker pool size: ${poolSize} `)
@@ -52,13 +33,13 @@ export class WorkerPool {
   }
 
   async loadWorldEnv(worldEnv: WorldEnvSettings) {
-    return await Promise.all(
+    const allLoaded = Promise.all(
       this.workerPool.map(workerProxy => workerProxy.forwardEnv(worldEnv)),
-    )
-      .then(() => this.processQueue())
-      .catch(error => {
-        console.error('error loading world env', error)
-      })
+    ).then(() => {
+      this.ready = true
+      this.processQueue()
+    })
+    return await allLoaded
   }
 
   get availableUnit() {
