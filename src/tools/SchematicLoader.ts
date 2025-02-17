@@ -22,11 +22,11 @@ async function decompressData(data: ArrayBuffer) {
 }
 
 export class SchematicLoader {
-  // static async loadNode(path: string) {
-  //   const { readFile } = await import('fs/promises')
-  //   const buffer = await readFile(path)
-  //   return await decompressData(buffer as any)
-  // }
+  static async loadNode(path: string) {
+    const { readFile } = await import('fs/promises')
+    const buffer = await readFile(path)
+    return await decompressData(buffer as any)
+  }
 
   static async loadBrowser(path: string) {
     // const schem = await Schematic.read(Buffer.from(schemData), '1.16.4')
@@ -48,7 +48,7 @@ export class SchematicLoader {
   // @ts-ignore
   static async load(path: string) {
     if (isBrowser()) return this.loadBrowser(path)
-    // else return this.loadNode(path)
+    else return this.loadNode(path)
   }
 
   static async parse(rawData: any) {

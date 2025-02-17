@@ -116,8 +116,6 @@ export const workerRequestHandler = async (
   request: MessageData<WorldEnvSettings | GenericTaskStub>,
 ) => {
   const { timestamp, content } = request
-  // console.log(`[worker] received task ${eventData.taskId} `)
-  // const { id, task } = data
   const res = (content as GenericTaskStub).taskId
     ? await onForwardedTask(content as GenericTaskStub)
     : await onForwardedEnv(content as WorldEnvSettings)

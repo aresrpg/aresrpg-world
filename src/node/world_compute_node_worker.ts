@@ -1,16 +1,10 @@
 import { parentPort } from 'worker_threads'
 
-// import { blocksProcessingHandler } from '../processing/BlocksProcessing'
-// import { chunksProcessingTaskHandler } from '../processing/ChunksProcessing'
-// import { itemsProcessingTaskHandler } from '../processing/ItemsProcessing'
-import { workerRequestHandler } from '../processing/WorkerProxy.js'
+import '../processing/BlocksProcessing.js'
+import '../processing/ChunksProcessing.js'
+import '../processing/ItemsProcessing.js'
 
-// hack for bundling external deps into worker
-// ;(() => {
-//   chunksProcessingTaskHandler
-//   itemsProcessingTaskHandler
-//   blocksProcessingHandler
-// })()
+import { workerRequestHandler } from '../processing/WorkerProxy.js'
 
 const initNodeWorker = () => {
   parentPort?.on('unhandledrejection', e => {

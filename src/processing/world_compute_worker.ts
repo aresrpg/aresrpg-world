@@ -4,18 +4,12 @@
 
 import { WorldEnvSettings } from '../config/WorldEnv.js'
 
-// import { blocksProcessingHandler } from './BlocksProcessing'
-// import { chunksProcessingTaskHandler } from './ChunksProcessing'
-// import { itemsProcessingTaskHandler } from './ItemsProcessing'
+import './BlocksProcessing.js'
+import './ChunksProcessing.js'
+import './ItemsProcessing.js'
+
 import { GenericTaskStub } from './TaskProcessing.js'
 import { MessageData, workerRequestHandler } from './WorkerProxy.js'
-
-// hack for bundling worker deps
-// ;(() => {
-//   chunksProcessingTaskHandler
-//   itemsProcessingTaskHandler
-//   blocksProcessingHandler
-// })()
 
 const initWebWorker = () => {
   // eslint-disable-next-line no-undef
