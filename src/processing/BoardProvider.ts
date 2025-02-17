@@ -13,7 +13,7 @@ import {
   serializePatchId,
 } from '../utils/patch_chunk.js'
 import { ChunkContainer, BlockType } from '../index.js'
-import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
+import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
 import {
   DataContainer,
   PatchBase,
@@ -49,6 +49,11 @@ export type BoardStub = {
   bounds: Box2
   content: Uint8Array
   elevation?: number
+}
+
+export type BoardCacheData = {
+  chunks: ChunkContainer[],
+  items: ChunkContainer[]
 }
 
 class BoardPatch extends PatchBase<number> implements DataContainer {
@@ -103,12 +108,9 @@ const chunksRange = worldEnv.rawSettings.chunks.range
 export class BoardCacheProvider {
   // eslint-disable-next-line no-undef
   workerPool: WorkerPool
-  localCache: {
-    chunks: ChunkContainer[]
-    items: ChunkContainer[]
-  } = {
+  localCache: BoardCacheData = {
     chunks: [],
-    items: [],
+    items: []
   }
 
   // taskIndex: Record<TaskId, GenericTask> = {}
@@ -154,7 +156,7 @@ export class BoardCacheProvider {
   }
 
   /**
-   * called each time cache needs to be rebuilt
+   * call each time cache board params changes
    */
   loadData = async (centerPatch: Vector2, patchRange: number) => {
     if (this.boardChanged(centerPatch, patchRange)) {
@@ -168,7 +170,6 @@ export class BoardCacheProvider {
         .filter(patchKey => !this.patchIndex[patchKey])
         .map(patchKey => ChunksProcessing.fullChunks(patchKey))
         .map(chunkTask => {
-          chunkTask.processingParams.noDataEncoding = true
           chunkTask.processingParams.skipEntities = true
           chunkTask.processingParams.skipBlobCompression = true
           const pendingChunkTask = chunkTask.delegate(this.workerPool)
@@ -235,6 +236,7 @@ export class BoardProvider {
   // eslint-disable-next-line no-use-before-define
   static singleton: BoardProvider | null
   cacheProvider: BoardCacheProvider
+  externalDataEncoder: any
   // dedicatedWorker:
   // board input
   boardParams: BoardParams = {
@@ -247,31 +249,11 @@ export class BoardProvider {
 
   boardData!: BoardPatch
 
-  /**
-   * access unique board instance from anywhere
-   */
-  static get instance() {
-    return this.singleton
-  }
-
-  /**
-   * create board instance running in background
-   */
-  static createInstance(boardPosition: Vector3) {
-    this.singleton = this.singleton || new BoardProvider(boardPosition)
-    return this.singleton
-  }
-
-  /**
-   *
-   */
-  static deleteInstance() {
-    this.singleton = null
-  }
-
   constructor(
     boardCenter: Vector3,
-    dedicatedWorkerPool = WorkerPool.default,
+    cacheProvider: BoardCacheProvider,
+    externalDataEncoder: any,
+    // dedicatedWorkerPool: WorkerPool,// = WorkerPool.default,
     boardRadius?: number,
     boardThickness?: number,
   ) {
@@ -283,8 +265,8 @@ export class BoardProvider {
     this.boardParams.thickness = boardThickness
     // const holesLayer = new ProcLayer('holesMap')
     // holesLayer.sampling.periodicity = 0.25
-    // @ts-ignore
-    this.cacheProvider = new BoardCacheProvider(dedicatedWorkerPool)
+    this.cacheProvider = cacheProvider //new BoardCacheProvider(dedicatedWorkerPool)
+    this.externalDataEncoder = externalDataEncoder
     // this.center = boardCenter
     console.log(
       `create board at ${serializePatchId(this.centerPatchId)} (radius: ${boardRadius}, thickness: ${boardThickness})`,
@@ -372,9 +354,9 @@ export class BoardProvider {
         } else {
           blockType = !val ? surfaceType || BlockType.NONE : blockType
         }
-        // const blockMode =
-        //   i === boardThickness ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
-        return blockType // ChunkContainer.dataEncoder(blockType, blockMode)
+        const blockMode =
+          i === boardThickness ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
+        return this.externalDataEncoder(blockType, blockMode)
       }
     })
 
@@ -416,7 +398,7 @@ export class BoardProvider {
       const finalHeightBuffer =
         isWithinBoard && (!isHoleBlock || !skipHoleBlocks)
           ? this.overrideHeightBuffer(heightBuff, isHoleBlock)
-          : heightBuff
+          : heightBuff.map((val, i) => this.externalDataEncoder(val))
       boardChunk.writeBuffer(patchIter.localPos, finalHeightBuffer)
       // boardPatch.
     }
@@ -488,13 +470,9 @@ export class BoardProvider {
   }
 
   *overrideOriginalChunksContent(
-    boardChunk: ChunkContainer,
-    targetChunkId?: ChunkId,
+    boardChunk: ChunkContainer
   ) {
     const { nonOverlappingItemsChunks } = this
-    if (targetChunkId) {
-      // TODO
-    }
     // iter processed original chunks
     for (const originalChunk of this.cacheProvider.chunks) {
       // board_chunk.rawData.fill(113)
@@ -502,12 +480,13 @@ export class BoardProvider {
         originalChunk.chunkKey,
         originalChunk.margin,
       )
-      // originalChunk.rawData.forEach(
-      //   (val, i) => (targetChunk.rawData[i] = ChunkContainer.dataEncoder(val)),
-      // )
+      originalChunk.rawData.forEach((val, i) => (targetChunk.rawData[i] = val))
       // copy items individually
       nonOverlappingItemsChunks.forEach(itemChunk =>
         ChunkContainer.copySourceToTarget(itemChunk, targetChunk),
+      )
+      targetChunk.rawData.forEach(
+        (val, i) => (targetChunk.rawData[i] = this.externalDataEncoder(val)),
       )
       // override with board_buffer
       ChunkContainer.copySourceToTarget(boardChunk, targetChunk, false)
@@ -523,13 +502,12 @@ export class BoardProvider {
         originalChunk.chunkKey,
         originalChunk.margin,
       )
-      // originalChunk.rawData.forEach(
-      //   (val, i) => (targetChunk.rawData[i] = ChunkContainer.dataEncoder(val)),
-      // )
+      originalChunk.rawData.forEach((val, i) => (targetChunk.rawData[i] = val))
       // copy items individually
-      this.cacheProvider.items.forEach(itemChunk =>
-        ChunkContainer.copySourceToTarget(itemChunk, targetChunk),
-      )
+      this.cacheProvider.items.forEach(itemChunk => {
+        ChunkContainer.copySourceToTarget(itemChunk, targetChunk)
+      })
+      targetChunk.rawData.forEach((val, i) => (targetChunk.rawData[i] = this.externalDataEncoder(val)))
       yield targetChunk
     }
   }
