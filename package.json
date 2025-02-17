@@ -8,11 +8,12 @@
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "types": "./dist/index.d.ts"
     },
     "./workerpool": {
       "browser": "./dist/pocessing/WorkerPool.js",
-      "node": "./dist/node/NodeWorkerPool.js"
+      "node": "./dist/node/NodeWorkerPool.js",
+      "types": "./dist/processing/WorkerPool.d.ts"
     }
   },
   "scripts": {
@@ -43,7 +44,7 @@
   "devDependencies": {
     "@parcel/packager-ts": "^2.13.3",
     "@parcel/transformer-typescript-types": "^2.13.3",
-    "@types/node": "^22.13.1",
+    "@types/node": "^22.13.4",
     "@types/poisson-disk-sampling": "^2.2.4",
     "@types/three": "^0.173.0",
     "@types/ws": "^8.5.14",
@@ -55,7 +56,7 @@
     "eslint-plugin-import": "2.31.0",
     "husky": "^4.3.8",
     "lint-staged": "15.4.3",
-    "prettier": "3.5.0",
+    "prettier": "3.5.1",
     "typescript": "^5.7.3",
     "ws": "^8.18.0"
   },
