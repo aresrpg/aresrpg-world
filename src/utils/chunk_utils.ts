@@ -1,3 +1,4 @@
+import { ChunkContainer } from '../datacontainers/ChunkContainer.js'
 import { parseThreeStub } from './patch_chunk.js'
 
 export const concatData = (data: Uint8Array[]) => {
@@ -59,26 +60,53 @@ export const concatBlobs = (blobs: Blob[]) => {
   return concat
 }
 
-export const chunkStubFromCompressedBlob = async (compressedBlob: Blob) => {
+export const chunksToCompressedBlob = async (chunks: ChunkContainer[]) => {
+  const allStubsConcat = chunks.map(chunk => chunk.toStubConcat())
+  const total = allStubsConcat.reduce((sum, arr) => sum + arr.length, 0);
+
+  const allStubsCombined = new Uint8Array(total);
+  let offset = 0;
+
+  allStubsConcat.forEach(stubConcat => {
+    allStubsCombined.set(stubConcat, offset);
+    offset += stubConcat.length
+  })
+
+  // eslint-disable-next-line no-undef
+  const concatBlob = new Blob([allStubsCombined.buffer as BlobPart])
+  const compressionStream = concatBlob
+    .stream()
+    .pipeThrough(new CompressionStream('gzip'))
+  const compressedBlob = await new Response(compressionStream).blob()
+  console.log(compressedBlob)
+  return compressedBlob
+}
+
+export const chunksFromCompressedBlob = async (compressedBlob: Blob) => {
   try {
     // decompress
     const streamDecomp = compressedBlob
       .stream()
       .pipeThrough(new DecompressionStream('gzip'))
-    const rawDecompressedData = await new Response(streamDecomp).arrayBuffer()
+    const blobContent = await new Response(streamDecomp).arrayBuffer()
     // deconcat
-    const [metadataContent, rawdataContent] = deconcatData(
-      new Uint8Array(rawDecompressedData),
-    )
-    const metadata = JSON.parse(new TextDecoder().decode(metadataContent))
-    metadata.bounds = parseThreeStub(metadata.bounds)
-    const rawdata =
-      rawdataContent && rawdataContent.byteLength > 0
-        ? new Uint16Array(rawdataContent.buffer)
-        : new Uint16Array(0)
+    const chunkStubs = []
+    let leftItems = deconcatData(new Uint8Array(blobContent))
+    console.log(leftItems.length)
+    while (leftItems.length) {
+      const [metadataContent, rawdataContent, ...leftContent] = leftItems
+      const metadata = JSON.parse(new TextDecoder().decode(metadataContent))
+      metadata.bounds = parseThreeStub(metadata.bounds)
+      const rawdata =
+        rawdataContent && rawdataContent.byteLength > 0
+          ? new Uint16Array(rawdataContent.buffer)
+          : new Uint16Array(0)
 
-    const chunkStub = { metadata, rawdata }
-    return chunkStub
+      const chunkStub = { metadata, rawdata }
+      chunkStubs.push(chunkStub)
+      leftItems = leftContent
+    }
+    return chunkStubs
   } catch (error) {
     console.error('Error occured during blob decompression:', error)
     throw new Error('Failed to process the compressed blob')

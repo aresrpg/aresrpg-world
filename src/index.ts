@@ -10,7 +10,7 @@ export {
   parseChunkKey,
   parseThreeStub,
 } from './utils/patch_chunk.js'
-export { chunkStubFromCompressedBlob } from './utils/chunk_utils.js'
+export { chunksFromCompressedBlob } from './utils/chunk_utils.js'
 export { BlockMode } from './utils/common_types.js'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing.js'
@@ -18,7 +18,7 @@ export {
   BlocksProcessing,
   BlocksProcessingRecipe,
 } from './processing/BlocksProcessing.js'
-export { BoardProvider, BlockCategory } from './processing/BoardProvider.js'
+export { BoardProvider, BoardCacheProvider, BlockCategory } from './processing/BoardProvider.js'
 // export { ChunksScheduler } from './processing/ChunksScheduling'
 export { ChunksPolling } from './processing/ChunksPolling.js'
 export { ChunksProcessing } from './processing/ChunksProcessing.js'
@@ -27,6 +27,7 @@ export {
   DistributionProfile,
 } from './processing/RandomDistributionMap.js'
 export { ProcessingState } from './processing/TaskProcessing.js'
+export { WorkerPool } from './processing/WorkerPool.js'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
