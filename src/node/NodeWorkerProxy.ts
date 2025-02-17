@@ -10,7 +10,6 @@ export class NodeWorkerProxy extends WorkerProxy {
     // const nodeWorker = new Worker('./world_compute_node_worker.js')
     nodeWorker.on('message', this.handleWorkerReply)
     this.worker = nodeWorker
-    console.log(`node worker is up`)
     return nodeWorker as any
   }
 }

@@ -67,7 +67,7 @@ export class WorkerProxy {
         resolve => (this.resolvers[timestamp] = resolve),
       )
       this.worker.postMessage({ timestamp, content: worldEnv })
-      await pendingReply.then(() => console.log(`worker is ready`))
+      await pendingReply
       return true
     }
     console.warn(`unexpected worker not running`)
