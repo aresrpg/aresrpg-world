@@ -11,7 +11,7 @@
       "types": "./dist/index.d.ts"
     },
     "./workerpool": {
-      "browser": "./dist/pocessing/WorkerPool.js",
+      "browser": "./dist/processing/WorkerPool.js",
       "node": "./dist/node/NodeWorkerPool.js",
       "types": "./dist/processing/WorkerPool.d.ts"
     }
