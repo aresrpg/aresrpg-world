@@ -52,10 +52,9 @@ export class WorkerPool {
   }
 
   async loadWorldEnv(worldEnv: WorldEnvSettings) {
-    const allLoaded = Promise.all(
+    return await Promise.all(
       this.workerPool.map(workerProxy => workerProxy.forwardEnv(worldEnv)),
     ).then(() => this.processQueue())
-    return await allLoaded
   }
 
   get availableUnit() {
