@@ -1,5 +1,6 @@
 import PoissonDiskSampling from 'poisson-disk-sampling'
 import { Box2, Vector2 } from 'three'
+
 import Alea from '../utils/alea.js'
 
 export type DistributionParams = {
