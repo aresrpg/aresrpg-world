@@ -1,4 +1,5 @@
 import { applyWorldEnv, WorldEnvSettings } from '../config/WorldEnv.js'
+import './world_compute_worker.js?url'
 
 import {
   TaskId,
@@ -28,7 +29,7 @@ export class WorkerProxy {
 
   // browser env default impl
   init() {
-    const workerUrl = new URL('./world_compute_worker', import.meta.url)
+    const workerUrl = new URL('./world_compute_worker.js', import.meta.url)
     // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module' })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
