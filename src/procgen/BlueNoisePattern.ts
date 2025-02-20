@@ -1,6 +1,6 @@
-import alea from 'alea'
 import PoissonDiskSampling from 'poisson-disk-sampling'
 import { Box2, Vector2 } from 'three'
+import Alea from '../utils/alea.js'
 
 export type DistributionParams = {
   minDistance: number
@@ -33,7 +33,7 @@ export class BlueNoisePattern {
   populate() {
     const { dimensions, params } = this
     const { aleaSeed } = this.params
-    const prng = alea(aleaSeed || '')
+    const prng = Alea(aleaSeed || '')
     const p = new PoissonDiskSampling(
       {
         shape: [dimensions.x, dimensions.y],

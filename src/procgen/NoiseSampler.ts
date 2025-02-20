@@ -1,9 +1,9 @@
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
-import alea from 'alea'
 import { Vector2, Vector3 } from 'three'
 
 import { clamp } from '../utils/math_utils.js'
 import { worldEnv } from '../config/WorldEnv.js'
+import Alea from '../utils/alea.js'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
@@ -66,7 +66,7 @@ export class NoiseSampler {
 
   init() {
     // create a new random function based on the seed
-    const prng = alea(this.seed)
+    const prng = Alea(this.seed)
     this.noiseSource = noiseConstructor[this.params.dimensions](prng)
     const { harmonics } = this.params
     const periodicity = Math.pow(2, this.params.periodicity)

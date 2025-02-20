@@ -1,4 +1,3 @@
-import alea from 'alea'
 import { Box2, Vector2 } from 'three'
 
 import { ProcLayer } from '../procgen/ProcLayer.js'
@@ -9,6 +8,7 @@ import {
 import { asVect3, getPatchIds } from '../utils/patch_chunk.js'
 import { worldEnv } from '../config/WorldEnv.js'
 import { ItemType } from '../utils/common_types.js'
+import Alea from '../utils/alea.js'
 
 const distDefaults = {
   aleaSeed: 'treeMap',
@@ -130,7 +130,7 @@ export class PseudoDistributionMap {
     const itemsCount = spawnableItems.length
     // spawnablePlaces.forEach(itemPos => {
     const itemId = itemPos.x + ':' + itemPos.y
-    const prng = alea(itemId)
+    const prng = Alea(itemId)
     const rand = prng()
     const hasSpawned =
       rand * spawnProbabilityEval(itemPos) < probabilityThreshold

@@ -34,7 +34,6 @@
   },
   "keywords": [],
   "dependencies": {
-    "alea": "^1.0.1",
     "poisson-disk-sampling": "^2.3.1",
     "simplex-noise": "^4.0.3"
   },
