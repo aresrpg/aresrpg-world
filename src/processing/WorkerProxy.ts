@@ -1,5 +1,4 @@
 import { applyWorldEnv, WorldEnvSettings } from '../config/WorldEnv.js'
-import './world_compute_worker.js'
 
 import {
   TaskId,
