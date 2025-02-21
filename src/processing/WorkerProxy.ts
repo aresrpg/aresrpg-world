@@ -1,6 +1,5 @@
 import { applyWorldEnv, WorldEnvSettings } from '../config/WorldEnv.js'
 import './world_compute_worker.js'
-import { Biome } from '../procgen/Biome.js'
 
 import {
   TaskId,
@@ -96,12 +95,6 @@ export class WorkerProxy {
  */
 
 const onForwardedEnv = (envSettings: WorldEnvSettings) => {
-  // TODO: remove this once workers can properly make use of multiple Biome instances
-  if (!Biome.singleton) {
-    // Unfortunately we currently have use `new` as a side effect here, awaiting for refactoring and removal of the singleton
-    // eslint-disable-next-line no-new
-    new Biome(envSettings.biomes.rawConf)
-  }
   // this will apply settings for worker's environment
   applyWorldEnv(envSettings)
   const done = true

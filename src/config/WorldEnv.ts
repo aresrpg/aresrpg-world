@@ -163,9 +163,13 @@ const overrideSeeds = (customSeeds: WorldIndividualSeeds) => {
   DensityVolume.instance.densityNoise.seed = customSeeds.density
 }
 
-export const applyWorldEnv = (
-  worldEnvRawSettings: Partial<WorldEnvSettings>,
-) => {
+export const applyWorldEnv = (worldEnvRawSettings: WorldEnvSettings) => {
+  // TODO: remove this once workers can properly make use of multiple Biome instances
+  if (!Biome.singleton) {
+    // Unfortunately we currently have use `new` as a side effect here, awaiting for refactoring and removal of the singleton
+    // eslint-disable-next-line no-new
+    new Biome(worldEnvRawSettings.biomes.rawConf)
+  }
   Object.assign(worldEnv.rawSettings, worldEnvRawSettings)
   overrideSeeds(worldEnv.rawSettings.seeds.overrides)
 }
