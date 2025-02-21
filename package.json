@@ -1,6 +1,6 @@
 {
   "name": "@aresrpg/aresrpg-world",
-  "version": "1.9.14",
+  "version": "1.9.15",
   "description": "Procedural voxel terrain generation for AresRPG",
   "type": "module",
   "source": "src/index.ts",
