@@ -1,5 +1,5 @@
 // Config
-export { getWorldEnv, worldEnv } from './config/WorldEnv.js'
+export { getWorldEnv, worldEnv, applyWorldEnv } from './config/WorldEnv.js'
 export { getWorldDemoEnvSettings } from './config/demo/world_demo_setup.js'
 // Utils
 // export * as WorldUtils from './utils/index'
