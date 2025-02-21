@@ -177,9 +177,6 @@ const getTransitionSteps = () => {
 export class Biome {
   // eslint-disable-next-line no-use-before-define
   static singleton: Biome
-  static get externalRawConf() {
-    return worldEnv.rawSettings.biomes.rawConf
-  }
 
   heatmap: ProcLayer
   rainmap: ProcLayer
@@ -199,7 +196,7 @@ export class Biome {
 
   preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()
 
-  constructor() {
+  constructor(configuration: BiomesRawConf) {
     this.heatmap = new ProcLayer('heatmap')
     this.heatmap.sampling.harmonicsCount = 6
     this.heatmap.sampling.periodicity = worldEnv.rawSettings.biomes.periodicity
@@ -211,16 +208,27 @@ export class Biome {
     // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
     this.posRandomizer = new ProcLayer('pos_random')
     this.posRandomizer.sampling.periodicity = 6
-    const isEmptyConf = Object.keys(Biome.externalRawConf).length === 0
+    const isEmptyConf = Object.keys(configuration).length === 0
     if (!isEmptyConf) {
-      this.parseBiomesConfig(Biome.externalRawConf)
+      this.parseBiomesConfig(configuration)
     } else {
       console.warn(`missing biome configuration`)
     }
+
+    // This is quite unwanted, a biome config should not be mutated runtime and we should refer to a single configured instance
+    // since many parts of the world are relying on Biome.instance, we have to keep the singleton.
+    // The problem is that is was initially relying on worldEnv.biomes.rawConf, which is not properly set at the time of Biome instance creation
+    // It is set later through the parseBiomesConfig function, but the initial order of execution makes it ambiguous because it will first parse the default WorldEnv
+    // and we don't want that, we want to make sure our own custom env is used everywhere.
+    // At least by defining the singleton here, we make sure that the code will fail if instance() is used before our custom config is set.
+    // In case we need to generate multiple dimensions, we should isolate multiple Biome instances and make sure they are properly set before being used.
+    if (Biome.singleton)
+      throw new Error('The Biome class can only be created once!')
+    Biome.singleton = this
   }
 
   static get instance() {
-    Biome.singleton = Biome.singleton || new Biome()
+    if (!Biome.singleton) throw new Error('Biome class not initialized!')
     return Biome.singleton
   }
 
