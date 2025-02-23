@@ -166,13 +166,13 @@ const overrideSeeds = (customSeeds: WorldIndividualSeeds) => {
 export const applyWorldEnv = (worldEnvRawSettings: WorldEnvSettings) => {
   // We have to assign the world env even before creating the biome, as it is used in the biome constructor
   Object.assign(worldEnv.rawSettings, worldEnvRawSettings)
-  overrideSeeds(worldEnv.rawSettings.seeds.overrides)
   // TODO: remove this once workers can properly make use of multiple Biome instances
   if (!Biome.singleton) {
     // Unfortunately we currently have use `new` as a side effect here, awaiting for refactoring and removal of the singleton
     // eslint-disable-next-line no-new
     new Biome(worldEnvRawSettings.biomes.rawConf)
   }
+  overrideSeeds(worldEnv.rawSettings.seeds.overrides)
 }
 
 export const getWorldEnv = (customSettings?: Partial<WorldEnvSettings>) => {
