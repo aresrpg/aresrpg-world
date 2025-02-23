@@ -238,8 +238,8 @@ export class Biome {
    * @returns
    */
   getBiomeType(input: Vector3 | BiomeInfluence) {
-    const biomeContribs =
-      input instanceof Vector3 ? this.getBiomeInfluence(input) : input
+    //! somehow, when passing a Vector3 from another service, it is not recognized as a Vector3 instance
+    const biomeContribs = 'x' in input ? this.getBiomeInfluence(input) : input
     const dominantBiome = Object.entries(biomeContribs).sort(
       (a, b) => b[1] - a[1],
     )[0]?.[0] as string
