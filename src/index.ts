@@ -23,7 +23,6 @@ export {
 export { ProcessingState } from './processing/TaskProcessing'
 export { WorkerPool } from './processing/WorkerPool'
 export { taskWorkerSetup } from './processing/TaskWorker'
-export { chunksStreamClientWorkerSetup } from './remote-clients/ChunksStreamClientWorker'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'
@@ -41,12 +40,8 @@ export {
   ProcItemType,
   ProcItemCategory,
 } from './tools/ProceduralGenerators'
-export { ChunksStreamClientProxy } from './remote-clients/ChunksStreamClientProxy'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
 // Config
 export { WorldEnv } from './config/WorldEnv'
 // export * as WorldDevSetup from './config/demo-samples/configs/world_dev_setup'
-export {
-  EnvOverride,
-  BlocksColorOverride,
-} from './config/demo-samples/world_demo_setup'
+
