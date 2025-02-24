@@ -166,6 +166,7 @@ const overrideSeeds = (customSeeds: WorldIndividualSeeds) => {
 export const applyWorldEnv = (worldEnvRawSettings: WorldEnvSettings) => {
   Object.assign(worldEnv.rawSettings, worldEnvRawSettings)
   overrideSeeds(worldEnv.rawSettings.seeds.overrides)
+  Biome.instance.parseBiomesConfig(worldEnvRawSettings.biomes.rawConf)
 }
 
 export const getWorldEnv = (customSettings?: Partial<WorldEnvSettings>) => {
