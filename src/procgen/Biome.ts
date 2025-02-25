@@ -199,8 +199,7 @@ export class Biome {
   #initialized = false
 
   static get instance() {
-    if (!Biome.singleton) this.singleton = new Biome()
-    return Biome.singleton
+    return (Biome.singleton ||= new Biome())
   }
 
   ensureInitialized() {
