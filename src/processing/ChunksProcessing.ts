@@ -3,6 +3,7 @@ import { asVect3, serializeChunkId } from '../utils/patch_chunk.js'
 import { PatchId, PatchKey } from '../utils/common_types.js'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory.js'
+import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
 
 import { GroundPatch } from './GroundPatch.js'
 import {
@@ -12,7 +13,6 @@ import {
   ProcessingTaskStub,
 } from './TaskProcessing.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
-import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
 
 /**
  * Calling side
@@ -99,8 +99,8 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
   const chunks = [...lowerChunks, ...upperChunks]
   return skipBlobCompression
     ? chunks.map(chunk => chunk.toStub())
-    // : await Promise.all(chunks.map(chunk => chunk.toCompressedBlob()))
-    : await chunksToCompressedBlob(chunks)
+    : // : await Promise.all(chunks.map(chunk => chunk.toCompressedBlob()))
+      await chunksToCompressedBlob(chunks)
 }
 
 // Registration

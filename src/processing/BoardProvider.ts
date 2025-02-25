@@ -52,7 +52,7 @@ export type BoardStub = {
 }
 
 export type BoardCacheData = {
-  chunks: ChunkContainer[],
+  chunks: ChunkContainer[]
   items: ChunkContainer[]
 }
 
@@ -110,7 +110,7 @@ export class BoardCacheProvider {
   workerPool: WorkerPool
   localCache: BoardCacheData = {
     chunks: [],
-    items: []
+    items: [],
   }
 
   // taskIndex: Record<TaskId, GenericTask> = {}
@@ -265,7 +265,7 @@ export class BoardProvider {
     this.boardParams.thickness = boardThickness
     // const holesLayer = new ProcLayer('holesMap')
     // holesLayer.sampling.periodicity = 0.25
-    this.cacheProvider = cacheProvider //new BoardCacheProvider(dedicatedWorkerPool)
+    this.cacheProvider = cacheProvider // new BoardCacheProvider(dedicatedWorkerPool)
     this.externalDataEncoder = externalDataEncoder
     // this.center = boardCenter
     console.log(
@@ -398,7 +398,7 @@ export class BoardProvider {
       const finalHeightBuffer =
         isWithinBoard && (!isHoleBlock || !skipHoleBlocks)
           ? this.overrideHeightBuffer(heightBuff, isHoleBlock)
-          : heightBuff.map((val, i) => this.externalDataEncoder(val))
+          : heightBuff.map(val => this.externalDataEncoder(val))
       boardChunk.writeBuffer(patchIter.localPos, finalHeightBuffer)
       // boardPatch.
     }
@@ -469,9 +469,7 @@ export class BoardProvider {
     }
   }
 
-  *overrideOriginalChunksContent(
-    boardChunk: ChunkContainer
-  ) {
+  *overrideOriginalChunksContent(boardChunk: ChunkContainer) {
     const { nonOverlappingItemsChunks } = this
     // iter processed original chunks
     for (const originalChunk of this.cacheProvider.chunks) {
@@ -507,7 +505,9 @@ export class BoardProvider {
       this.cacheProvider.items.forEach(itemChunk => {
         ChunkContainer.copySourceToTarget(itemChunk, targetChunk)
       })
-      targetChunk.rawData.forEach((val, i) => (targetChunk.rawData[i] = this.externalDataEncoder(val)))
+      targetChunk.rawData.forEach(
+        (val, i) => (targetChunk.rawData[i] = this.externalDataEncoder(val)),
+      )
       yield targetChunk
     }
   }
