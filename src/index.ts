@@ -18,7 +18,11 @@ export {
   BlocksProcessing,
   BlocksProcessingRecipe,
 } from './processing/BlocksProcessing.js'
-export { BoardProvider, BoardCacheProvider, BlockCategory } from './processing/BoardProvider.js'
+export {
+  BoardProvider,
+  BoardCacheProvider,
+  BlockCategory,
+} from './processing/BoardProvider.js'
 // export { ChunksScheduler } from './processing/ChunksScheduling'
 export { ChunksPolling } from './processing/ChunksPolling.js'
 export { ChunksProcessing } from './processing/ChunksProcessing.js'
