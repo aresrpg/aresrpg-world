@@ -192,6 +192,7 @@ export class ProcessingTask<
   defer(delay = 0) {
     if (this.processingState === ProcessingState.None) {
       this.processingState = ProcessingState.Scheduled
+      // TODO: this can't work as delegate needs a worker
       setTimeout(this.delegate, delay)
       return this.getPromise()
     }
@@ -206,6 +207,7 @@ export class ProcessingTask<
   cancel() {
     // this will instruct worker pool to reject task
     this.processingState = ProcessingState.Canceled
+    this.resolve(null)
   }
 
   suspend() {
