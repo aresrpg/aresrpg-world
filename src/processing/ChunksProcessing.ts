@@ -80,39 +80,85 @@ type ChunksProcessingTaskHandler = ProcessingTaskHandler<
   ChunkStub[] | Blob
 >
 
+// Helper function to extract the y-coordinate ID from a chunk key
+function extractYIdFromChunk(chunkKey: string): number {
+  // For a chunk key format 'chunk_x_y_z', extract the y component
+  const [, , y] = chunkKey.split('_')
+  return Number(y)
+}
+
+/**
+ * Processing
+ */
+
+const patchDims = worldEnv.getPatchDimensions()
+
 export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
   taskStub: ChunksProcessingTaskStub,
 ) => {
   const { processingInput, processingParams } = taskStub
   const { patchKey } = processingInput
   const { chunksRange, skipBlobCompression } = processingParams
+
+  // Get the ground layer to determine patchId
+  const groundLayer = new GroundPatch(patchKey)
+  groundLayer.bake()
+  const patchId = groundLayer.patchId as PatchId
+
+  // Determine which ranges to process based on request
   const doLower =
     chunksRange === ChunksProcessingRange.LowerRange ||
     chunksRange === ChunksProcessingRange.FullRange
   const doUpper =
     chunksRange === ChunksProcessingRange.UpperRange ||
     chunksRange === ChunksProcessingRange.FullRange
+
+  // Generate requested chunks
   const lowerChunks = doLower ? await lowerChunksGen(patchKey) : []
   const upperChunks = doUpper
     ? await upperChunksGen(patchKey, processingParams)
     : []
-  const chunks = [...lowerChunks, ...upperChunks]
+
+  // Create a map of existing chunks by their y-coordinate ID
+  const chunksByYId = new Map<number, ChunkContainer>()
+
+  // Add lower chunks to the map
+  lowerChunks.forEach(chunk => {
+    const yId = extractYIdFromChunk(chunk.chunkKey)
+    chunksByYId.set(yId, chunk)
+  })
+
+  // Add upper chunks to the map
+  upperChunks.forEach(chunk => {
+    const yId = extractYIdFromChunk(chunk.chunkKey)
+    chunksByYId.set(yId, chunk)
+  })
+
+  // Create the full range array with all chunks
+  const fullRangeChunks: ChunkContainer[] = []
+  const { bottomId, topId } = worldEnv.rawSettings.chunks.range
+
+  // Fill the range from bottom to top with existing chunks or empty ones
+  for (let yId = bottomId; yId <= topId; yId++) {
+    if (chunksByYId.has(yId)) {
+      // Use existing chunk
+      fullRangeChunks.push(chunksByYId.get(yId)!)
+    } else {
+      // Create empty chunk
+      const chunkId = asVect3(patchId, yId)
+      const chunkKey = serializeChunkId(chunkId)
+      fullRangeChunks.push(new EmptyChunk(chunkKey))
+    }
+  }
+
   return skipBlobCompression
-    ? chunks.map(chunk => chunk.toStub())
-    : // : await Promise.all(chunks.map(chunk => chunk.toCompressedBlob()))
-      await chunksToCompressedBlob(chunks)
+    ? fullRangeChunks.map(chunk => chunk.toStub())
+    : await chunksToCompressedBlob(fullRangeChunks)
 }
 
 // Registration
 ProcessingTask.taskHandlers[chunksProcessingHandlerName] =
   chunksProcessingTaskHandler
-
-/**
- * Processing
- */
-
-const chunksRange = worldEnv.rawSettings.chunks.range
-const patchDims = worldEnv.getPatchDimensions()
 
 // Misc utils
 
@@ -174,7 +220,11 @@ const upperChunksGen = async (
   }
 
   // remaining chunks: empty chunks start 1 chunk above ground surface
-  for (let y = surfaceIds.yMaxId + 1; y <= chunksRange.topId; y++) {
+  for (
+    let y = surfaceIds.yMaxId + 1;
+    y <= worldEnv.rawSettings.chunks.range.topId;
+    y++
+  ) {
     const chunkId = asVect3(patchId, y)
     const chunkKey = serializeChunkId(chunkId)
     const emptyChunk = new EmptyChunk(chunkKey)
@@ -194,7 +244,11 @@ const lowerChunksGen = async (patchKey: PatchKey) => {
   const upperId = Math.floor(groundLayer.valueRange.min / patchDims.y) - 1
   const lowerChunks = []
   // then iter until bottom is reached
-  for (let yId = upperId; yId >= chunksRange.bottomId; yId--) {
+  for (
+    let yId = upperId;
+    yId >= worldEnv.rawSettings.chunks.range.bottomId;
+    yId--
+  ) {
     const chunkId = asVect3(patchId, yId)
     const chunkKey = serializeChunkId(chunkId)
     const currentChunk = new ChunkContainer(chunkKey, 1)
