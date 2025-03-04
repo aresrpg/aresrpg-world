@@ -47,9 +47,9 @@ export class WorldEnv {
     main: string
     overrides: WorldIndividualSeeds
   } = {
-    main: 'world',
-    overrides: {},
-  }
+      main: 'world',
+      overrides: {},
+    }
 
   patchPowSize = 6 // as a power of two
   // max cache radius as a power of two
@@ -79,11 +79,7 @@ export class WorldEnv {
     range: {
       bottomId: 0,
       topId: 5,
-    },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) =>
-      blockType || BlockType.NONE,
-    dataDecoder: (rawData: number) => rawData || BlockType.NONE,
+    }
   }
 
   schematics: {
@@ -91,16 +87,16 @@ export class WorldEnv {
     localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>
     filesIndex: Record<ItemType, string>
   } = {
-    globalBlocksMapping: {},
-    localBlocksMapping: {},
-    filesIndex: {},
-  }
+      globalBlocksMapping: {},
+      localBlocksMapping: {},
+      filesIndex: {},
+    }
 
   proceduralItems: {
     configs: Record<ItemType, ProcItemConf>
   } = {
-    configs: {},
-  }
+      configs: {},
+    }
 
   workerPool = {
     count: 4,
@@ -155,5 +151,20 @@ export class WorldEnv {
 
   set seaLevel(seaLevel: number) {
     this.biomes.seaLevel = seaLevel
+  }
+
+  fromStub(envStub: any) {
+    Object.assign(WorldEnv.current, envStub)
+    this.overrideSeeds()
+  }
+
+  toStub() {
+    const { seeds, patchPowSize, cachePowLimit, defaultDistMapPeriod, patchViewCount, debug,
+      chunks, schematics, proceduralItems, workerPool, boardSettings, heightmap, biomes } = this
+    const envStub = {
+      seeds, patchPowSize, cachePowLimit, defaultDistMapPeriod, patchViewCount, debug,
+      chunks, schematics, proceduralItems, workerPool, boardSettings, heightmap, biomes
+    }
+    return envStub
   }
 }

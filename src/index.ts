@@ -1,6 +1,7 @@
 // Utils
 
 export { WorldEnv } from './config/WorldEnv'
+export {getWorldDemoEnvSettings} from './config/demo/world_demo_setup'
 
 // export * as WorldUtils from './utils/index'
 export {

@@ -1,6 +1,6 @@
 // import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index'
 // import { initWorldDevTools } from '../../tools/DevTools'
-import { getWorldEnv, WorldIndividualSeeds } from '../WorldEnv'
+import { WorldEnv, WorldIndividualSeeds } from '../WorldEnv'
 
 import { BIOMES_LANDSCAPES_CONFIG } from './settings/biome_landscapes'
 // import { PROC_ITEMS_CONFIG } from './settings/procedural_items'
@@ -18,7 +18,7 @@ const restoreOriginalSeeds = (individualSeeds: WorldIndividualSeeds) => {
 }
 
 export const getWorldDemoEnvSettings = () => {
-  const { rawSettings } = getWorldEnv()
+  const rawSettings = WorldEnv.current
 
   // SEEDS
   rawSettings.seeds.main = 'test' // common seed used everywhere
@@ -39,8 +39,8 @@ export const getWorldDemoEnvSettings = () => {
   // world_env.workerPool.count = WORLD_WORKER_COUNT
 
   // BOARDS conf
-  rawSettings.boards.boardRadius = 15
-  rawSettings.boards.boardThickness = 3
+  // rawSettings.boards.boardRadius = 15
+  // rawSettings.boards.boardThickness = 3
 
   // BIOME tuning
   rawSettings.biomes.periodicity = 8 // biome size

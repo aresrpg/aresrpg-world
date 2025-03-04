@@ -1,31 +1,28 @@
-import { isBrowserEnv } from '../utils/misc_utils'
 
+import { WorldEnv } from '../config/WorldEnv'
 import { TaskId, GenericTask } from './TaskProcessing'
+
+export type MessageData<T> = {
+  timestamp: number,
+  content: T
+}
 
 /**
  * Interface to interact and proxy requests to worker
  */
 export class WorkerProxy {
   id
-  worker: any
+  worker: any // will be available when worker is ready
   resolvers: Record<TaskId, any> = {}
 
   // abstract initWorker(workerUrl: string | URL): WorkerType
-
-  constructor(workerUrl: string | URL, workerId = 0) {
-    if (isBrowserEnv()) {
-      this.worker = this.initWorker(workerUrl)
-    } else {
-      this.initNodeWorker(workerUrl).then(worker => {
-        console.log(`node worker is ready`)
-        this.worker = worker
-      })
-    }
+  constructor(workerId = 0) {
     this.id = workerId
   }
 
-  // default implementation running in browser env
-  initWorker(workerUrl: string | URL) {
+  // browser env default impl
+  init(worldEnv: WorldEnv) {
+    const workerUrl = new URL('./world_compute_worker', import.meta.url)
     // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module' })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
@@ -35,50 +32,39 @@ export class WorkerProxy {
     worker.onmessageerror = error => {
       console.error('WorldComputeProxy worker messageerror', error)
     }
-    return worker
+    this.worker = worker
+    const timestamp = Date.now()
+    const pendingInit = new Promise<any>(resolve => (this.resolvers[timestamp] = resolve))
+    this.worker.postMessage({ timestamp, content: worldEnv.toStub() })
+    pendingInit.then(() => console.log(`worker is ready`))
+    return pendingInit
   }
 
-  // adaptation for node environment
-  async initNodeWorker(workerUrl: string | URL) {
-    const { Worker } = await import('worker_threads')
-    const nodeWorker = new Worker(workerUrl)
-    nodeWorker.on('message', this.handleWorkerReply)
-    return nodeWorker
-  }
-
-  handleWorkerReply = (reply: any) => {
-    if (reply.id !== undefined) {
-      const taskResolver = this.resolvers[reply.id]
-      taskResolver(reply.data)
-      delete this.resolvers[reply.id]
+  handleWorkerReply = (reply: MessageData<any>) => {
+    const { timestamp, content } = reply
+    if (timestamp !== undefined) {
+      const msgResolver = this.resolvers[timestamp]
+      msgResolver(content.data)
+      delete this.resolvers[timestamp]
     }
   }
 
-  get isBusy() {
-    return Object.keys(this.resolvers).length > 0
+  get isReady() {
+    const isBusy = () => Object.keys(this.resolvers).length > 0
+    return this.worker && !isBusy()
   }
 
   get pendingRequests() {
     return Object.keys(this.resolvers)
   }
 
-  async proxyRequest(task: GenericTask) {
-    if (!this.isBusy) {
-      const { taskId } = task
-      // const request = {
-      //     id: this.processedCount++,
-      //     task
-      // }
+  async forwardTask(task: GenericTask) {
+    if (this.worker && this.isReady) {
+      const timestamp = Date.now()
       // task?.onProcessingStart()
-      // console.log(`send task: ${taskId}`)
-      // console.log(this.worker)
-      const transferredData = task.toStub()
-      // console.log(transferredData)
-      this.worker.postMessage(transferredData)
-      // const pendingReply = new Promise<any>(resolve => (this.resolvers[taskId] = resolve))
-      this.resolvers[taskId] = task.resolve
-      // const reply = await task.promise
-      // return reply.data
+      const content = task.toStub()
+      this.worker.postMessage({ timestamp, content })
+      this.resolvers[timestamp] = task.resolve
       return true
     }
     return false

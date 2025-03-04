@@ -11,13 +11,10 @@ import {
 } from '../index'
 import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { asPatchBounds, asVect2, asVect3 } from '../utils/patch_chunk'
-import { PatchKey } from '../utils/common_types'
+import { ItemType, PatchKey, SpawnedItems, VoidItemType } from '../utils/common_types'
 import { WorldEnv } from '../config/WorldEnv'
 import {
   ItemsInventory,
-  ItemType,
-  SpawnedItems,
-  VoidItemType,
 } from '../factory/ItemsFactory'
 
 import { GroundPatch } from './GroundPatch'
@@ -366,11 +363,10 @@ export const queryPointPeakBlock = async (
 
         if (index !== -1) {
           const peakBlockLevel = shallowInstance.bounds.max.y - index
-          const preEncodedData = dataArray[index]
-          if (preEncodedData && peakBlockLevel > peakBlock.level) {
+          const rawData = dataArray[index]
+          if (rawData && peakBlockLevel > peakBlock.level) {
             peakBlock.level = peakBlockLevel
-            peakBlock.type =
-              ChunkContainer.dataDecoder(preEncodedData) || BlockType.NONE
+            peakBlock.type = rawData || BlockType.NONE
           }
         }
       }

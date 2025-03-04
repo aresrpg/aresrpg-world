@@ -1,17 +1,17 @@
 // import { MathUtils, Vector3 } from 'three'
 import { Vector3 } from 'three'
-
 import { WorldEnv } from '../config/WorldEnv'
 import { asVect2, serializePatchId, asBox2 } from '../utils/patch_chunk'
-import { BlockMode, ChunkKey, PatchBlock } from '../utils/common_types'
+import { ChunkKey, PatchBlock } from '../utils/common_types'
 import {
   ChunkBuffer,
   ChunkContainer,
   ChunkMask,
 } from '../datacontainers/ChunkContainer'
-import { BlockType, Biome, BiomeType, DensityVolume } from '../index'
-import { GroundPatch, parseGroundFlags } from '../processing/GroundPatch'
+import { GroundPatch } from '../processing/GroundPatch'
 import { clamp } from '../utils/math_utils'
+import { Biome, BiomeType, BlockType } from '../procgen/Biome'
+import { DensityVolume } from '../procgen/DensityVolume'
 
 export class EmptyChunk extends ChunkContainer {
   constructor(chunkKey: ChunkKey) {
@@ -19,7 +19,7 @@ export class EmptyChunk extends ChunkContainer {
     this.rawData = new Uint16Array()
   }
 
-  async bake() {}
+  async bake() { }
 }
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -33,28 +33,24 @@ export class GroundChunk extends ChunkContainer {
   generateGroundBuffer(block: PatchBlock, ymin: number, ymax: number) {
     //, isTransition = false) {
     const undegroundDepth = 4
-    const bedrock = this.dataEncoder(BlockType.BEDROCK)
-    const bedrockIce = this.dataEncoder(BlockType.ICE)
-    const { biome, landIndex, flags } = block.data
+    const { biome, landIndex } = block.data
     const blockLocalPos = block.localPos as Vector3
     const biomeLand = Biome.instance.mappings[biome].nth(landIndex)
     const landConf = biomeLand.data
-    const groundFlags = parseGroundFlags(flags)
     const blockType = // isTransition ? BlockType.SAND :
       highlightPatchBorders(blockLocalPos, landConf.type) || landConf.type
-    const blockMode = groundFlags.boardMode
-      ? BlockMode.CHECKERBOARD
-      : BlockMode.REGULAR
-    const groundSurface = this.dataEncoder(blockType, blockMode)
-    const undergroundLayer = this.dataEncoder(
-      landConf.subtype || BlockType.BEDROCK,
-    )
+    // const groundFlags = parseGroundFlags(flags)
+    // const blockMode = groundFlags.boardMode
+    //   ? BlockMode.CHECKERBOARD
+    //   : BlockMode.REGULAR
+    const groundSurface = blockType //this.dataEncoder(blockType, blockMode)
+    const undergroundLayer = landConf.subtype || BlockType.BEDROCK //this.dataEncoder(landConf.subtype || BlockType.BEDROCK)
     // generate ground buffer
     const buffSize = clamp(block.data.level - ymin, 0, ymax - ymin)
     if (buffSize > 0) {
       const groundBuffer = new Uint16Array(block.data.level - ymin)
       // fill with bedrock first
-      groundBuffer.fill(biome === BiomeType.Arctic ? bedrockIce : bedrock)
+      groundBuffer.fill(biome === BiomeType.Arctic ? BlockType.ICE : BlockType.BEDROCK)
       // add underground layer
       groundBuffer.fill(
         undergroundLayer,

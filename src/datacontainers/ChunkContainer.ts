@@ -1,6 +1,6 @@
 import { Vector2, Box3, Vector3 } from 'three'
 
-import { BlockMode, ChunkId, ChunkKey } from '../utils/common_types'
+import { ChunkId, ChunkKey } from '../utils/common_types'
 import {
   asVect3,
   asChunkBounds,
@@ -53,25 +53,11 @@ export class ChunkContainer {
   chunkId: ChunkId | undefined
   rawData = new Uint16Array()
   axisOrder: ChunkAxisOrder
-  // local data encoder (defaulting to global)
-  dataEncoder: (blockType: BlockType, _blockMode?: BlockMode) => number
-  dataDecoder: (rawVal: number) => number
   isEmpty?: boolean
-
-  // global version
-  static get dataEncoder() {
-    return WorldEnv.current.chunks.dataEncoder
-  }
-
-  static get dataDecoder() {
-    return WorldEnv.current.chunks.dataDecoder
-  }
 
   constructor(
     boundsOrChunkKey: Box3 | ChunkKey = new Box3(),
     margin = 0,
-    customDataEncoder = ChunkContainer.dataEncoder,
-    customDataDecoder = ChunkContainer.dataDecoder,
     axisOrder = ChunkAxisOrder.ZXY,
   ) {
     //, bitLength = BitLength.Uint16) {
@@ -89,8 +75,6 @@ export class ChunkContainer {
     if (chunkId) {
       this.id = chunkId
     }
-    this.dataEncoder = customDataEncoder
-    this.dataDecoder = customDataDecoder
     this.adjustChunkBounds(bounds)
     // this.rawData = getArrayConstructor(bitLength)
   }
@@ -360,10 +344,10 @@ export class ChunkContainer {
   writeBlockData(
     sectorIndex: number,
     blockType: BlockType,
-    blockMode = BlockMode.REGULAR,
+    // blockMode = BlockMode.REGULAR,
   ) {
     // const sectorIndex = this.getIndex(this.toLocalPos(pos))
-    this.rawData[sectorIndex] = this.dataEncoder(blockType, blockMode)
+    this.rawData[sectorIndex] = blockType
   }
 
   readBuffer(localPos: Vector2) {

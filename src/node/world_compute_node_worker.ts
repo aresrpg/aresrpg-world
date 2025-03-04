@@ -2,7 +2,7 @@ import { parentPort } from 'worker_threads'
 import { blocksProcessingHandler } from '../processing/BlocksProcessing'
 import { chunksProcessingTaskHandler } from '../processing/ChunksProcessing'
 import { itemsProcessingTaskHandler } from '../processing/ItemsProcessing'
-import { workerRequestHandler } from '../processing/WorkerProxy'
+import { onMessage } from '../processing/WorldWorker'
 
 // hack for bundling external deps into worker
 (() => {
@@ -22,9 +22,9 @@ const initNodeWorker = () => {
     parentPort?.postMessage({ type: 'error', message: e.message })
   })
 
-  parentPort?.on('message', async requestData => {
-    const reply = await workerRequestHandler(requestData)
-    parentPort?.postMessage(reply)
+  parentPort?.on('message', async incomingData => {
+    const replyData = await onMessage(incomingData)
+    parentPort?.postMessage(replyData)
   })
 }
 

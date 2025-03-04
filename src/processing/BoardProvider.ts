@@ -13,7 +13,7 @@ import {
   serializePatchId,
 } from '../utils/patch_chunk'
 import { WorldEnv, ChunkContainer, BlockType, WorkerPool } from '../index'
-import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/common_types'
+import { ChunkId, PatchId, PatchKey } from '../utils/common_types'
 import {
   DataContainer,
   PatchBase,
@@ -107,9 +107,9 @@ export class BoardCacheProvider {
     chunks: ChunkContainer[]
     items: ChunkContainer[]
   } = {
-    chunks: [],
-    items: [],
-  }
+      chunks: [],
+      items: [],
+    }
 
   // taskIndex: Record<TaskId, GenericTask> = {}
   centerPatch = new Vector2(NaN, NaN)
@@ -166,7 +166,7 @@ export class BoardCacheProvider {
       // enqueue chunks processing tasks
       const chunksPendingTasks = Object.keys(patchIndex)
         .filter(patchKey => !this.patchIndex[patchKey])
-        .map(patchKey => ChunksProcessing.allChunks(patchKey))
+        .map(patchKey => ChunksProcessing.fullChunks(patchKey))
         .map(chunkTask => {
           chunkTask.processingParams.noDataEncoding = true
           chunkTask.processingParams.skipEntities = true
@@ -225,8 +225,6 @@ type BoardContent = {
   chunk: ChunkContainer
   patch: BoardPatch
 }
-
-const emptyBlock = ChunkContainer.dataEncoder(BlockType.NONE)
 
 /**
  * Call:
@@ -362,7 +360,7 @@ export class BoardProvider {
     const boardHeightBuffer = heightBuff.map((val, i) => {
       // return i <= boardThickness ? val : BlockType.NONE
       if (i > boardThickness) {
-        return emptyBlock
+        return BlockType.NONE
       } else {
         let blockType = val
         if (isHoleBlock) {
@@ -370,9 +368,9 @@ export class BoardProvider {
         } else {
           blockType = !val ? surfaceType || BlockType.NONE : blockType
         }
-        const blockMode =
-          i === boardThickness ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
-        return ChunkContainer.dataEncoder(blockType, blockMode)
+        // const blockMode =
+        //   i === boardThickness ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
+        return blockType //ChunkContainer.dataEncoder(blockType, blockMode)
       }
     })
 
@@ -411,12 +409,9 @@ export class BoardProvider {
             : BlockCategory.FLAT
           : BlockCategory.EMPTY
       // override height buffer with board version if within board
-      // and encode before writing back to chunk
-      const encodedBuffer =
-        isWithinBoard && (!isHoleBlock || !skipHoleBlocks)
-          ? this.overrideHeightBuffer(heightBuff, isHoleBlock)
-          : heightBuff.map(val => ChunkContainer.dataEncoder(val))
-      boardChunk.writeBuffer(patchIter.localPos, encodedBuffer)
+      const finalHeightBuffer = isWithinBoard && (!isHoleBlock || !skipHoleBlocks) ?
+        this.overrideHeightBuffer(heightBuff, isHoleBlock) : heightBuff
+      boardChunk.writeBuffer(patchIter.localPos, finalHeightBuffer)
       // boardPatch.
     }
     // compute final bounds & version of patch and chunk
@@ -501,9 +496,9 @@ export class BoardProvider {
         originalChunk.chunkKey,
         originalChunk.margin,
       )
-      originalChunk.rawData.forEach(
-        (val, i) => (targetChunk.rawData[i] = ChunkContainer.dataEncoder(val)),
-      )
+      // originalChunk.rawData.forEach(
+      //   (val, i) => (targetChunk.rawData[i] = ChunkContainer.dataEncoder(val)),
+      // )
       // copy items individually
       nonOverlappingItemsChunks.forEach(itemChunk =>
         ChunkContainer.copySourceToTarget(itemChunk, targetChunk),
@@ -522,9 +517,9 @@ export class BoardProvider {
         originalChunk.chunkKey,
         originalChunk.margin,
       )
-      originalChunk.rawData.forEach(
-        (val, i) => (targetChunk.rawData[i] = ChunkContainer.dataEncoder(val)),
-      )
+      // originalChunk.rawData.forEach(
+      //   (val, i) => (targetChunk.rawData[i] = ChunkContainer.dataEncoder(val)),
+      // )
       // copy items individually
       this.cacheProvider.items.forEach(itemChunk =>
         ChunkContainer.copySourceToTarget(itemChunk, targetChunk),

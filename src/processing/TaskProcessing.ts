@@ -1,5 +1,6 @@
-import { WorkerPool } from '../index'
+
 import { parseThreeStub } from '../utils/patch_chunk'
+import { WorkerPool } from './WorkerPool'
 
 export const toTaskOutputStubs = (res: any) =>
   res instanceof Array
@@ -73,7 +74,6 @@ export class ProcessingTask<
   handlerId: ProcessingTaskHandlerId = ''
   processingState: ProcessingState = ProcessingState.None
   taskId: TaskId
-  order = 0
   rank = 0
   promise!: Promise<ProcessingOutput>
   resolve: any
@@ -135,7 +135,7 @@ export class ProcessingTask<
   // }
 
   /**
-   * run task on current thread
+   * Depending on task being run, result will be either sync or async
    */
   process() {
     const res = ProcessingTask.handleTask<ProcessingInput, ProcessingOutput>(
@@ -145,19 +145,19 @@ export class ProcessingTask<
   }
 
   /**
-   * run task on worker
-   * pass inputs and parameters to worker
-   * @param processingParams
-   * @param processingUnit
+   * This will delegate task processing (always running async)
+   * with ability to target specific processing environment like (local, remote, ..):
+   * @param targetEnv target processing environment
+   * @returns
    */
-  delegate = async (processingUnit = WorkerPool.default) => {
+  delegate = async (targetEnv: WorkerPool) => {
     // prevents task from being enqueued several times
     // if (this.isNotEnqueued()) {
     // if (this.processingState !== ProcessingState.Done) {
     // this.processingState = ProcessingState.Pending
     // const taskStub = this.toStub()
     const pendingPromise = this.getPromise()
-    processingUnit.enqueueTasks(this)
+    targetEnv.enqueueTasks(this)
     //   .exec('delegateTask', transferredData)
     //   .catch((e: any) => {
     //     console.log(e)
@@ -201,7 +201,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() {}
+  request() { }
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -247,9 +247,9 @@ export class ProcessingTask<
     console.log(`skipped task processing`)
   }
 
-  onStarted = () => {}
+  onStarted = () => { }
 
-  onDone = () => {}
+  onDone = () => { }
 
   /**
    * additional callback where post process actions can be performed
@@ -278,6 +278,7 @@ export class ProcessingTask<
 }
 
 export type GenericTask = ProcessingTask<any, any, any>
+export type GenericTaskStub = ProcessingTaskStub<any, any>
 
 // export class ProcessingTaskHandler {
 //   handleTask(task: ProcessingTask<any, any, any>) {

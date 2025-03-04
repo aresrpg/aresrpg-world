@@ -16,8 +16,7 @@ const POOL_SIZE = 4
 const initWorkerpool = async () => {
     const world_demo_env = getWorldDemoEnvSettings()
     const chunks_node_worker_pool = new NodeWorkerPool()
-    await chunks_node_worker_pool.init(POOL_SIZE)
-    await chunks_node_worker_pool.loadWorldEnv(world_demo_env)
+    await chunks_node_worker_pool.initPoolEnv(POOL_SIZE, world_demo_env)
     const chunks_scheduler = new ChunksPolling()
     chunks_scheduler.chunksWorkerPool = chunks_node_worker_pool
     return chunks_scheduler

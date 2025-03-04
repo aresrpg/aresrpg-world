@@ -1,15 +1,6 @@
-import { WorldEnv } from '../index'
-
 import { WorkerProxy } from './WorkerProxy'
 import { GenericTask, ProcessingState } from './TaskProcessing'
-
-const createDefaultWorkerPool = () => {
-  const { url, count } = WorldEnv.current.workerPool
-  console.log(`create default workerpool, pool size: ${count}`)
-  const defaultWorkerPool = new WorkerPool()
-  defaultWorkerPool.init(url, count)
-  return defaultWorkerPool
-}
+import { WorldEnv } from '../config/WorldEnv'
 
 // export interface WorkerPoolInterface {
 //   purgeQueue(whiteList: (task: GenericTask) => boolean,
@@ -20,7 +11,8 @@ const createDefaultWorkerPool = () => {
 // }
 
 /**
- * This will handle tasks enqueueing, dispatching to multiple workers
+ * This will manage pool of worker in web or node environment,
+ *  tasks enqueueing, dispatching 
  */
 export class WorkerPool {
   // implements WorkerPoolInterface {
@@ -28,8 +20,10 @@ export class WorkerPool {
   static defaultWorkerPool: WorkerPool
 
   static get default() {
-    this.defaultWorkerPool = this.defaultWorkerPool || createDefaultWorkerPool()
-    return this.defaultWorkerPool
+    // this.defaultWorkerPool = this.defaultWorkerPool || createDefaultWorkerPool()
+    // return this.defaultWorkerPool
+    console.warn(`default workerpool is suspended for now`)
+    return null
   }
 
   processingQueue: GenericTask[] = []
@@ -37,21 +31,26 @@ export class WorkerPool {
   workerPool: WorkerProxy[] = []
   // pendingRequests = []
   processedCount = 0
+  isReady = false
 
-  init(workerUrl: string | URL, poolSize: number) {
-    // isNodeWorker = false) {
-    if (workerUrl instanceof URL || workerUrl.length > 0) {
-      console.log(`create workerpool, pool size: ${poolSize} `)
-      for (let workerId = 0; workerId < poolSize; workerId++) {
-        const workerProxy = new WorkerProxy(workerUrl, workerId)
-        this.workerPool.push(workerProxy)
-      }
+  async initPoolEnv(poolSize: number, worldEnv: WorldEnv) {
+    console.log(`create worker pool size: ${poolSize} `)
+    const pendingInits = []
+    for (let workerId = 0; workerId < poolSize; workerId++) {
+      const workerProxy = new WorkerProxy(workerId)
+      const pendingInit = workerProxy.init(worldEnv)
+      pendingInits.push(pendingInit)
+      this.workerPool.push(workerProxy)
     }
+    await Promise.all(pendingInits).then(() => {
+      this.isReady = true
+      this.processQueue()
+    })
   }
 
   get availableUnit() {
     // this.workerPool.find(worker=>worker.)
-    return this.workerPool.find(workerUnit => !workerUnit.isBusy)
+    return this.workerPool.find(workerUnit => workerUnit.isReady)
   }
 
   get nextTask() {
@@ -71,7 +70,7 @@ export class WorkerPool {
    * or new task is added to the queue
    */
   reorderTasks() {
-    this.processingQueue.sort((t1, t2) => t1.order - t2.order)
+    this.processingQueue.sort((t1, t2) => t1.rank - t2.rank)
   }
 
   enqueueTasks(...tasks: GenericTask[]) {
@@ -92,11 +91,12 @@ export class WorkerPool {
    * Dispatch items from the queue as much as possible to available workers
    */
   processQueue() {
-    while (this.availableUnit && this.processingQueue.length > 0) {
+    // prevent any task processing until workerpool is ready
+    while (this.isReady && this.availableUnit && this.processingQueue.length > 0) {
       const nextTask = this.processingQueue.shift()
       if (nextTask) {
         if (nextTask.isWaiting()) {
-          const pending = this.availableUnit?.proxyRequest(nextTask)
+          const pending = this.availableUnit.forwardTask(nextTask)
           if (!pending) {
             // this should not happen
             console.warn(
