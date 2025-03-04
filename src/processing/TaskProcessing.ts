@@ -74,6 +74,7 @@ export class ProcessingTask<
   processingState: ProcessingState = ProcessingState.None
   taskId: TaskId
   order = 0
+  rank = 0
   promise!: Promise<ProcessingOutput>
   resolve: any
   // result: any

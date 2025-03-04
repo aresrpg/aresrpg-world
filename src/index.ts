@@ -1,4 +1,7 @@
 // Utils
+
+export { WorldEnv } from './config/WorldEnv'
+
 // export * as WorldUtils from './utils/index'
 export {
   getPatchId,
@@ -15,7 +18,8 @@ export {
   BlocksProcessingRecipe,
 } from './processing/BlocksProcessing'
 export { BoardProvider, BlockCategory } from './processing/BoardProvider'
-export { ChunksScheduler } from './processing/ChunksScheduling'
+// export { ChunksScheduler } from './processing/ChunksScheduling'
+export { ChunksPolling } from './processing/ChunksPolling'
 export {
   PseudoDistributionMap,
   DistributionProfile,
@@ -40,8 +44,6 @@ export {
   ProcItemType,
   ProcItemCategory,
 } from './tools/ProceduralGenerators'
+// Services
+export { chunksWsClient } from './remote-services/chunks_over_ws_client'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
-// Config
-export { WorldEnv } from './config/WorldEnv'
-// export * as WorldDevSetup from './config/demo-samples/configs/world_dev_setup'
-
