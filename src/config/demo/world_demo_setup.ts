@@ -1,6 +1,6 @@
 // import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index'
 // import { initWorldDevTools } from '../../tools/DevTools'
-import { WorldEnv, WorldIndividualSeeds } from '../WorldEnv'
+import { WorldIndividualSeeds, WorldEnv } from '../WorldEnv'
 
 import { BIOMES_LANDSCAPES_CONFIG } from './settings/biome_landscapes'
 // import { PROC_ITEMS_CONFIG } from './settings/procedural_items'
@@ -17,8 +17,9 @@ const restoreOriginalSeeds = (individualSeeds: WorldIndividualSeeds) => {
   individualSeeds.density = 'Caverns'
 }
 
-export const getWorldDemoEnvSettings = () => {
-  const rawSettings = WorldEnv.current
+export const getWorldDemoEnv = () => {
+  const worldEnv = new WorldEnv()
+  const { rawSettings } = worldEnv //WorldEnv.current
 
   // SEEDS
   rawSettings.seeds.main = 'test' // common seed used everywhere
@@ -45,7 +46,7 @@ export const getWorldDemoEnvSettings = () => {
   // BIOME tuning
   rawSettings.biomes.periodicity = 8 // biome size
   rawSettings.biomes.bilinearInterpolationRange = 0.1
-  return rawSettings
+  return worldEnv
 }
 
 export const BlocksColorOverride = (

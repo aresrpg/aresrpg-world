@@ -1,8 +1,7 @@
+// Config
+export { worldRootEnv, WorldEnv } from './config/WorldEnv'
+export { getWorldDemoEnv } from './config/demo/world_demo_setup'
 // Utils
-
-export { WorldEnv } from './config/WorldEnv'
-export {getWorldDemoEnvSettings} from './config/demo/world_demo_setup'
-
 // export * as WorldUtils from './utils/index'
 export {
   getPatchId,
@@ -11,6 +10,7 @@ export {
   parseChunkKey,
   parseThreeStub,
 } from './utils/patch_chunk'
+export { chunkStubFromCompressedBlob } from './utils/chunk_utils'
 export { BlockMode } from './utils/common_types'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing'
@@ -27,7 +27,6 @@ export {
 } from './processing/RandomDistributionMap'
 export { ProcessingState } from './processing/TaskProcessing'
 export { WorkerPool } from './processing/WorkerPool'
-export { taskWorkerSetup } from './processing/TaskWorker'
 // Procgen
 export { Biome, BiomeType, BlockType } from './procgen/Biome'
 export { Heightmap } from './procgen/Heightmap'

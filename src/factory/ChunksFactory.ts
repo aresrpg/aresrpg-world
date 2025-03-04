@@ -1,6 +1,5 @@
 // import { MathUtils, Vector3 } from 'three'
 import { Vector3 } from 'three'
-import { WorldEnv } from '../config/WorldEnv'
 import { asVect2, serializePatchId, asBox2 } from '../utils/patch_chunk'
 import { ChunkKey, PatchBlock } from '../utils/common_types'
 import {
@@ -10,6 +9,7 @@ import {
 } from '../datacontainers/ChunkContainer'
 import { GroundPatch } from '../processing/GroundPatch'
 import { clamp } from '../utils/math_utils'
+import { worldRootEnv } from '../config/WorldEnv'
 import { Biome, BiomeType, BlockType } from '../procgen/Biome'
 import { DensityVolume } from '../procgen/DensityVolume'
 
@@ -23,7 +23,7 @@ export class EmptyChunk extends ChunkContainer {
 }
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
-  const { borderHighlightColor } = WorldEnv.current.debug.patch
+  const { borderHighlightColor } = worldRootEnv.rawSettings.debug.patch
   return borderHighlightColor && (localPos.x === 1 || localPos.z === 1)
     ? borderHighlightColor
     : blockType

@@ -9,9 +9,9 @@ import {
   parseThreeStub,
   asVect2,
 } from '../utils/patch_chunk'
-import { WorldEnv } from '../config/WorldEnv'
-import { BlockType } from '../index'
 import { concatData, deconcatData } from '../utils/chunk_utils'
+import { BlockType } from '../procgen/Biome'
+import { worldRootEnv } from '../config/WorldEnv'
 
 enum ChunkAxisOrder {
   ZXY,
@@ -64,7 +64,7 @@ export class ChunkContainer {
     const bounds =
       boundsOrChunkKey instanceof Box3
         ? boundsOrChunkKey.clone()
-        : asChunkBounds(boundsOrChunkKey, WorldEnv.current.chunkDimensions)
+        : asChunkBounds(boundsOrChunkKey, worldRootEnv.getChunkDimensions())
     this.margin = margin
 
     this.axisOrder = axisOrder

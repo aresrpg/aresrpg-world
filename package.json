@@ -14,7 +14,7 @@
     "typecheck": "tsc --build",
     "format": "prettier . --write && eslint . --fix --ext .ts",
     "postversion": "git push --follow-tags",
-    "chunks-local-stream-server": "node --experimental-specifier-resolution=node dist/tests/chunks_stream_ws_service.js"
+    "chunks-over-ws-local-server": "node --experimental-specifier-resolution=node dist/node-tools/chunks_over_ws_server.js"
   },
   "repository": {
     "type": "git",

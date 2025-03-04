@@ -12,7 +12,6 @@ import {
 import { DistributionParams } from '../procgen/BlueNoisePattern'
 import { asPatchBounds, asVect2, asVect3 } from '../utils/patch_chunk'
 import { ItemType, PatchKey, SpawnedItems, VoidItemType } from '../utils/common_types'
-import { WorldEnv } from '../config/WorldEnv'
 import {
   ItemsInventory,
 } from '../factory/ItemsFactory'
@@ -24,6 +23,7 @@ import {
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing'
+import { worldRootEnv } from '../config/WorldEnv'
 
 /**
  * Calling side
@@ -199,7 +199,7 @@ const getPatchBounds = (input: Vector2 | PatchKey) => {
   }
   return input instanceof Vector2
     ? asPointBounds(input)
-    : asPatchBounds(input, WorldEnv.current.patchDimensions)
+    : asPatchBounds(input, worldRootEnv.getPatchDimensions())
 }
 
 const parseInput = (input: ItemsProcessingInput) => {

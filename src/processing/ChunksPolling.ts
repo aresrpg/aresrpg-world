@@ -12,12 +12,11 @@ import {
     ChunksProcessingTask,
     isChunksProcessingTask,
 } from './ChunksProcessing'
-// import { worldEnv } from '../config/WorldEnv'
 import { WorkerPool } from './WorkerPool'
-import { WorldEnv } from '../config/WorldEnv'
+import { worldRootEnv } from '../config/WorldEnv'
 
-const chunksRange = WorldEnv.current.chunks.range
-const patchViewRanges = WorldEnv.current.patchViewCount
+const chunksRange = worldRootEnv.rawSettings.chunks.range
+const patchViewRanges = worldRootEnv.rawSettings.patchViewRanges
 const getTaskPatchId = (task: ChunksProcessingTask) =>
     parsePatchKey(task.processingInput.patchKey) as PatchId
 

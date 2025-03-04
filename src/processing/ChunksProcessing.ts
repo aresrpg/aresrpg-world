@@ -1,4 +1,3 @@
-import { WorldEnv } from '../config/WorldEnv'
 import { asVect3, serializeChunkId } from '../utils/patch_chunk'
 import { PatchId, PatchKey } from '../utils/common_types'
 import {
@@ -15,6 +14,7 @@ import {
   ProcessingTaskStub,
 } from './TaskProcessing'
 import { ItemsProcessing } from './ItemsProcessing'
+import { worldRootEnv } from '../config/WorldEnv'
 
 /**
  * Calling side
@@ -115,9 +115,6 @@ ProcessingTask.taskHandlers[chunksProcessingHandlerName] =
  * Processing
  */
 
-const chunksRange = WorldEnv.current.chunks.range
-const { patchDimensions: patchDims } = WorldEnv.current
-
 // Misc utils
 
 export const isChunksProcessingTask = (task: GenericTask) =>
@@ -131,6 +128,8 @@ const upperChunksGen = async (
   patchKey: PatchKey,
   params: ChunksProcessingParams,
 ) => {
+  const patchDims = worldRootEnv.getPatchDimensions()
+  const chunksRange = worldRootEnv.rawSettings.chunks.range
   const { skipEntities } = params
   const groundLayer = new GroundPatch(patchKey)
   groundLayer.bake()
@@ -193,6 +192,8 @@ const upperChunksGen = async (
 const lowerChunksGen = async (
   patchKey: PatchKey,
 ) => {
+  const patchDims = worldRootEnv.getPatchDimensions()
+  const chunksRange = worldRootEnv.rawSettings.chunks.range
   // find upper chunkId
   const groundLayer = new GroundPatch(patchKey)
   groundLayer.bake()

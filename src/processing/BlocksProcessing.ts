@@ -1,11 +1,10 @@
 import { Vector2, Vector3 } from 'three'
 
 import {
-  WorldEnv,
   Biome,
   ProcessingTask,
   DensityVolume,
-  BlockType,
+  BlockType
 } from '../index'
 import {
   serializePatchId,
@@ -24,6 +23,7 @@ import {
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing'
+import { worldRootEnv } from '../config/WorldEnv'
 
 /**
  * Calling side
@@ -99,7 +99,7 @@ type BlocksProcessingTaskHandler = ProcessingTaskHandler<
 >
 
 const getPatchKey = (inputPos: Vector2) => {
-  const patchId = getPatchId(inputPos, WorldEnv.current.patchDimensions)
+  const patchId = getPatchId(inputPos, worldRootEnv.getPatchDimensions())
   const patchKey = serializePatchId(patchId)
   return patchKey
 }

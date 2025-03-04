@@ -7,7 +7,7 @@ import {
   asVect2,
   parseThreeStub,
 } from '../utils/patch_chunk'
-import { WorldEnv } from '../index'
+import { worldRootEnv } from '../config/WorldEnv'
 
 // export class PatchChunkCommon<T> {
 
@@ -42,7 +42,7 @@ export class PatchBase<T> {
     const bounds =
       boundsOrPatchKey instanceof Box2
         ? boundsOrPatchKey.clone()
-        : asPatchBounds(boundsOrPatchKey, WorldEnv.current.patchDimensions)
+        : asPatchBounds(boundsOrPatchKey, worldRootEnv.getPatchDimensions())
     this.bounds = bounds
     this.dimensions = bounds.getSize(new Vector2())
     this.margin = margin

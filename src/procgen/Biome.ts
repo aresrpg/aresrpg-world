@@ -9,8 +9,8 @@ import {
   BiomesRawConf,
   LandConfigFields,
   BiomeLands,
+  ItemType,
 } from '../utils/common_types'
-import { WorldEnv } from '../index'
 import { clamp, roundToDec, smoothStep } from '../utils/math_utils'
 import {
   findMatchingRange,
@@ -18,9 +18,8 @@ import {
   typesNumbering,
 } from '../utils/misc_utils'
 import { asVect3 } from '../utils/patch_chunk'
-import { ItemType } from '../factory/ItemsFactory'
-
 import { ProcLayer } from './ProcLayer'
+import { worldRootEnv } from '../config/WorldEnv'
 
 // reserved native block types
 export enum BlockType {
@@ -160,7 +159,7 @@ type PreprocessedLandConf = {
 }
 
 const getTransitionSteps = () => {
-  const { bilinearInterpolationRange } = WorldEnv.current.biomes
+  const { bilinearInterpolationRange } = worldRootEnv.rawSettings.biomes
   const transitionOffset = (0.1 - bilinearInterpolationRange) / 2
   const transitionSteps = {
     lowToMid: 0.3 + transitionOffset,
@@ -178,7 +177,7 @@ export class Biome {
   // eslint-disable-next-line no-use-before-define
   static singleton: Biome
   static get externalRawConf() {
-    return WorldEnv.current.biomes.rawConf
+    return worldRootEnv.rawSettings.biomes.rawConf
   }
 
   heatmap: ProcLayer
@@ -202,16 +201,21 @@ export class Biome {
   constructor() {
     this.heatmap = new ProcLayer('heatmap')
     this.heatmap.sampling.harmonicsCount = 6
-    this.heatmap.sampling.periodicity = WorldEnv.current.biomes.periodicity
+    this.heatmap.sampling.periodicity = worldRootEnv.rawSettings.biomes.periodicity
     this.rainmap = new ProcLayer('rainmap')
     this.rainmap.sampling.harmonicsCount = 6
-    this.rainmap.sampling.periodicity = WorldEnv.current.biomes.periodicity
+    this.rainmap.sampling.periodicity = worldRootEnv.rawSettings.biomes.periodicity
     // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
     // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
     // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
     this.posRandomizer = new ProcLayer('pos_random')
     this.posRandomizer.sampling.periodicity = 6
-    if (Biome.externalRawConf) this.parseBiomesConfig(Biome.externalRawConf)
+    const isEmptyConf = Object.keys(Biome.externalRawConf).length === 0
+    if (!isEmptyConf) {
+      this.parseBiomesConfig(Biome.externalRawConf)
+    } else {
+      console.warn(`missing biome configuration`)
+    }
   }
 
   static get instance() {
@@ -308,10 +312,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-        (biomeContribs[k as BiomeType] = roundToDec(
-          biomeContribs[k as BiomeType],
-          2,
-        )),
+      (biomeContribs[k as BiomeType] = roundToDec(
+        biomeContribs[k as BiomeType],
+        2,
+      )),
     )
 
     // biomeContribs[BiomeType.Arctic] = 1
@@ -403,7 +407,7 @@ export class Biome {
     biomeType: BiomeType,
     includeSea = false,
   ) => {
-    const { seaLevel } = WorldEnv.current.biomes
+    const { seaLevel } = worldRootEnv.rawSettings.biomes
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]

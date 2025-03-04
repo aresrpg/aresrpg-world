@@ -12,7 +12,6 @@ import {
   parsePatchKey,
   serializePatchId,
 } from '../utils/patch_chunk'
-import { WorldEnv, ChunkContainer, BlockType, WorkerPool } from '../index'
 import { ChunkId, PatchId, PatchKey } from '../utils/common_types'
 import {
   DataContainer,
@@ -20,10 +19,13 @@ import {
   PatchElement,
 } from '../datacontainers/PatchBase'
 import { copySourceToTargetPatch } from '../utils/data_operations'
-import { ChunkStub } from '../datacontainers/ChunkContainer'
+import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer'
 
 import { ChunksProcessing } from './ChunksProcessing'
 import { ItemsProcessing } from './ItemsProcessing'
+import { WorkerPool } from './WorkerPool'
+import { worldRootEnv } from '../config/WorldEnv'
+import { BlockType } from '../procgen/Biome'
 
 export enum BlockCategory {
   EMPTY = 0,
@@ -48,8 +50,6 @@ export type BoardStub = {
   content: Uint8Array
   elevation?: number
 }
-
-const { patchSize, patchDimensions } = WorldEnv.current
 
 class BoardPatch extends PatchBase<number> implements DataContainer {
   rawData: Uint8Array
@@ -95,7 +95,7 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
   }
 }
 
-const chunksRange = WorldEnv.current.chunks.range
+const chunksRange = worldRootEnv.rawSettings.chunks.range
 
 /**
  * Handle chunks and items tasks and provide data required to build board content:
@@ -275,9 +275,8 @@ export class BoardProvider {
     boardRadius?: number,
     boardThickness?: number,
   ) {
-    const { boardSettings } = WorldEnv.current
-    boardRadius = boardRadius || boardSettings.boardRadius
-    boardThickness = boardThickness || boardSettings.boardThickness
+    boardRadius = boardRadius || worldRootEnv.rawSettings.boards.boardRadius
+    boardThickness = boardThickness || worldRootEnv.rawSettings.boards.boardThickness
     this.boardParams.center = boardCenter.clone().floor()
     this.boardParams.radius = boardRadius
     this.boardParams.thickness = boardThickness
@@ -291,11 +290,11 @@ export class BoardProvider {
   }
 
   get centerPatchId() {
-    return getPatchId(asVect2(this.boardParams.center), patchDimensions)
+    return getPatchId(asVect2(this.boardParams.center), worldRootEnv.getPatchDimensions())
   }
 
   get patchRange() {
-    return getUpperScalarId(this.boardParams.radius, patchSize)
+    return getUpperScalarId(this.boardParams.radius, worldRootEnv.getPatchSize())
   }
 
   get initialDims() {
