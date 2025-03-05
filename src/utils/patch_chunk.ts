@@ -75,10 +75,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-        parseVect3Stub(stub) ||
-        parseBox2Stub(stub) ||
-        parseVect2Stub(stub) ||
-        stub
+    parseVect3Stub(stub) ||
+    parseBox2Stub(stub) ||
+    parseVect2Stub(stub) ||
+    stub
     : stub
 }
 
@@ -132,24 +132,24 @@ const getPatchId = (position: Vector2, patchSize: Vector2) => {
   return patchId
 }
 
-const getBoundsPatchRange = (bounds: Box2, patchDims: Vector2) => {
+const patchRangeFromBounds = (bounds: Box2, patchDims: Vector2) => {
   const rangeMin = getPatchId(bounds.min, patchDims)
-  const rangeMax = patchUpperId(bounds.max, patchDims) // .addScalar(1)
+  const rangeMax = getPatchId(bounds.max, patchDims)//patchUpperId(bounds.max, patchDims) // .addScalar(1)
   const patchRange = new Box2(rangeMin, rangeMax)
   return patchRange
 }
 
-const getPatchMapRange = (patchMapCenter: Vector2, patchMapRadius: number) => {
+const patchRangeFromMapCenterRad = (patchMapCenter: Vector2, patchMapRadius: number) => {
   const bmin = patchMapCenter.clone().subScalar(patchMapRadius)
   const bmax = patchMapCenter.clone().addScalar(patchMapRadius)
   const patchMapRange = new Box2(bmin, bmax)
   return patchMapRange
 }
 
-const genPatchMapIndex = (patchMapCenter: Vector2, patchMapRadius: number) => {
+const patchIndexFromMapRange = (mapRange: Box2) => {
   const patchIndex: Record<PatchKey, boolean> = {}
   // const patchIds = []
-  const { min, max } = getPatchMapRange(patchMapCenter, patchMapRadius)
+  const { min, max } = mapRange
   for (let { y } = min; y <= max.y; y++) {
     for (let { x } = min; x <= max.x; x++) {
       const patchId = new Vector2(x, y)
@@ -163,7 +163,7 @@ const genPatchMapIndex = (patchMapCenter: Vector2, patchMapRadius: number) => {
 
 const getPatchIds = (bounds: Box2, patchDims: Vector2) => {
   const patchIds = []
-  const patchRange = getBoundsPatchRange(bounds, patchDims)
+  const patchRange = patchRangeFromBounds(bounds, patchDims)
   // iter elements on computed range
   const { min, max } = patchRange
   for (let { y } = min; y <= max.y; y++) {
@@ -175,7 +175,7 @@ const getPatchIds = (bounds: Box2, patchDims: Vector2) => {
 }
 
 const getRoundedBox = (bounds: Box2, patchDims: Vector2) => {
-  const { min, max } = getBoundsPatchRange(bounds, patchDims)
+  const { min, max } = patchRangeFromBounds(bounds, patchDims)
   min.multiply(patchDims)
   max.multiply(patchDims)
   const extBbox = new Box2(min, max)
@@ -230,8 +230,9 @@ export {
   patchUpperId,
   serializePatchId,
   // getBoundsPatchRange,
-  getPatchMapRange,
-  genPatchMapIndex,
+  patchRangeFromBounds,
+  patchRangeFromMapCenterRad,
+  patchIndexFromMapRange,
   getPatchIds,
   getRoundedBox,
   asPatchBounds,
