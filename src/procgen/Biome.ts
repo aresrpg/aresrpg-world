@@ -1,4 +1,4 @@
-import { Vector2, Vector3 } from 'three'
+import { Vector2, Vector3, Vector3Like } from 'three'
 
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 // import {  smoothstep as smoothStep } from 'three/src/math/MathUtils'
@@ -17,8 +17,8 @@ import {
   MappingRangeSorter,
   typesNumbering,
 } from '../utils/misc_utils.js'
-import { asVect3 } from '../utils/patch_chunk.js'
-import { worldEnv } from '../config/WorldEnv.js'
+import { asVect3, isVect3Stub } from '../utils/patch_chunk.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 
 import { ProcLayer } from './ProcLayer.js'
 
@@ -160,7 +160,7 @@ type PreprocessedLandConf = {
 }
 
 const getTransitionSteps = () => {
-  const { bilinearInterpolationRange } = worldEnv.rawSettings.biomes
+  const { bilinearInterpolationRange } = worldRootEnv.rawSettings.biomes
   const transitionOffset = (0.1 - bilinearInterpolationRange) / 2
   const transitionSteps = {
     lowToMid: 0.3 + transitionOffset,
@@ -176,15 +176,18 @@ const getTransitionSteps = () => {
  */
 export class Biome {
   // eslint-disable-next-line no-use-before-define
-  static singleton: Biome
+  private static singleton: Biome
+  static get externalRawConf() {
+    return worldRootEnv.rawSettings.biomes.rawConf
+  }
 
-  heatmap = new ProcLayer('heatmap')
-  rainmap = new ProcLayer('rainmap')
+  heatmap: ProcLayer
+  rainmap: ProcLayer
   // heatProfile: MappingRanges
   // rainProfile: MappingRanges
 
   mappings = {} as BiomesConf
-  posRandomizer = new ProcLayer('pos_random')
+  posRandomizer: ProcLayer
   /**
    * val < lowToMid=> LOW = 1
    * lowToMid < val < mid => LOW decrease, MID increase
@@ -196,14 +199,39 @@ export class Biome {
 
   preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()
 
-  #initialized = false
+  constructor() {
+    this.heatmap = new ProcLayer('heatmap')
+    this.heatmap.sampling.harmonicsCount = 6
+    this.heatmap.sampling.periodicity =
+      worldRootEnv.rawSettings.biomes.periodicity
+    this.rainmap = new ProcLayer('rainmap')
+    this.rainmap.sampling.harmonicsCount = 6
+    this.rainmap.sampling.periodicity =
+      worldRootEnv.rawSettings.biomes.periodicity
+    // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
+    // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
+    // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
+    this.posRandomizer = new ProcLayer('pos_random')
+    this.posRandomizer.sampling.periodicity = 6
+    const isEmptyConf = Object.keys(Biome.externalRawConf).length === 0
+    if (!isEmptyConf) {
+      this.parseBiomesConfig(Biome.externalRawConf)
+    } else {
+      console.warn(`missing biome configuration at creation, must provide conf later`)
+    }
+  }
 
   static get instance() {
     return (Biome.singleton ||= new Biome())
   }
 
-  ensureInitialized() {
-    if (!this.#initialized) throw new Error('Biome not initialized')
+  // safe access from outside of the world to prevent uninitialized use
+  static get safeInstance() {
+    return Biome.singleton?.ready ? Biome.singleton : null
+  }
+
+  get ready() {
+    return Object.keys(this.mappings).length > 0
   }
 
   /**
@@ -212,10 +240,9 @@ export class Biome {
    * @returns
    */
   getBiomeType(input: Vector3 | BiomeInfluence) {
-    this.ensureInitialized()
-
-    //! somehow, when passing a Vector3 from another service, it is not recognized as a Vector3 instance
-    const biomeContribs = 'x' in input ? this.getBiomeInfluence(input) : input
+    const biomeContribs = isVect3Stub(input as Vector3Like)
+      ? this.getBiomeInfluence(input as Vector3)
+      : input
     const dominantBiome = Object.entries(biomeContribs).sort(
       (a, b) => b[1] - a[1],
     )[0]?.[0] as string
@@ -223,8 +250,6 @@ export class Biome {
   }
 
   calculateContributions(value: number) {
-    this.ensureInitialized()
-
     const { steps } = this
 
     const contributions = {
@@ -272,8 +297,6 @@ export class Biome {
   }
 
   getBiomeInfluence(pos: Vector3): BiomeInfluence {
-    this.ensureInitialized()
-
     const biomeContribs: BiomeInfluence = {
       [BiomeType.Temperate]: 0,
       [BiomeType.Arctic]: 0,
@@ -333,15 +356,6 @@ export class Biome {
   }
 
   parseBiomesConfig(biomesRawConf: BiomesRawConf) {
-    this.heatmap.sampling.harmonicsCount = 6
-    this.heatmap.sampling.periodicity = worldEnv.rawSettings.biomes.periodicity
-    this.rainmap.sampling.harmonicsCount = 6
-    this.rainmap.sampling.periodicity = worldEnv.rawSettings.biomes.periodicity
-    // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
-    // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
-    // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
-    this.posRandomizer.sampling.periodicity = 6
-
     // complete missing data
     for (const [biomeType, biomeLands] of Object.entries(biomesRawConf)) {
       for (const [landId, landConf] of Object.entries(biomeLands)) {
@@ -355,8 +369,6 @@ export class Biome {
       this.mappings[biomeType as BiomeType] = mappingRanges
       this.preprocessLandConfig(biomeType as BiomeType, mappingRanges)
     }
-
-    this.#initialized = true
   }
 
   landscapeTransition = (
@@ -364,8 +376,6 @@ export class Biome {
     baseHeight: number,
     biomeLands: BiomeLands,
   ) => {
-    this.ensureInitialized()
-
     const period = 0.005 * Math.pow(2, 2)
     const mapCoords = groundPos.clone().multiplyScalar(period)
     const posRandomizerVal = this.posRandomizer.eval(asVect3(mapCoords))
@@ -409,9 +419,7 @@ export class Biome {
     biomeType: BiomeType,
     includeSea = false,
   ) => {
-    this.ensureInitialized()
-
-    const { seaLevel } = worldEnv.rawSettings.biomes
+    const { seaLevel } = worldRootEnv.rawSettings.biomes
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]
@@ -429,8 +437,6 @@ export class Biome {
     rawVal: number,
     biomeContribs: BiomeInfluence,
   ) => {
-    this.ensureInitialized()
-
     // sum weighted contributions from all biome types
     const blockLevel = Object.entries(biomeContribs).reduce(
       (res, [biome, weight]) =>
@@ -441,16 +447,12 @@ export class Biome {
   }
 
   getBiomeLandConf = (biomeType: BiomeType, landId: string) => {
-    this.ensureInitialized()
-
     const confKey = biomeType + '_' + landId
     const biomeConf = this.preprocessed.get(confKey)
     return biomeConf
   }
 
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
-    this.ensureInitialized()
-
     const firstItem = this.mappings[biomeType]
     const confId = findMatchingRange(rawVal as number, firstItem)
     let currentItem = firstItem.nth(confId)
