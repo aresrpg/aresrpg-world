@@ -1,24 +1,23 @@
 /**
 * node server side POC aming to show
-- chunks streaming over websocket capabilites
+- chunks streaming over websocket capabilites 
 - ability to run chunks generation in node environment
 - distributed computing on remote device (for monitoring, local dev purposes)
 */
 
 import { WebSocketServer, WebSocket } from 'ws'
 
-import { getWorldDemoEnvSettings } from '../config/demo/world_demo_setup.js'
 import { WorkerPool } from '../node/NodeWorkerPool.js'
 import { ChunksPolling, parseThreeStub } from '../index.js'
+import { getWorldDemoEnv } from '../config/demo/world_demo_setup.js'
 
 const SERVER_PORT = 3000
 const POOL_SIZE = 4
 
 const initWorkerpool = async () => {
-  const world_demo_env = getWorldDemoEnvSettings()
+  const world_demo_env = getWorldDemoEnv()
   const chunks_node_worker_pool = new WorkerPool()
-  await chunks_node_worker_pool.init(POOL_SIZE)
-  await chunks_node_worker_pool.loadWorldEnv(world_demo_env)
+  await chunks_node_worker_pool.initPoolEnv(POOL_SIZE, world_demo_env)
   const chunks_scheduler = new ChunksPolling()
   chunks_scheduler.chunksWorkerPool = chunks_node_worker_pool
   return chunks_scheduler
@@ -39,7 +38,12 @@ const initWsServer = async () => {
       viewRange,
     )
     scheduledTasks?.forEach(scheduledTask =>
-      scheduledTask.then(chunkBlob => clientWs.send(chunkBlob)),
+      scheduledTask.then(chunks =>
+        chunks.forEach(chunkBlob => {
+          console.log(chunkBlob)
+          clientWs.send(chunkBlob)
+        }),
+      ),
     )
     // const clientTask = wsRequest.task
     // this.enqueueTasks(clientTask)

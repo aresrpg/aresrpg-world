@@ -1,9 +1,9 @@
 import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
 import { Vector2, Vector3 } from 'three'
 
+import Alea from '../third-party/alea.js'
 import { clamp } from '../utils/math_utils.js'
-import { worldEnv } from '../config/WorldEnv.js'
-import Alea from '../utils/alea.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
@@ -58,7 +58,7 @@ export class NoiseSampler {
   parent: any
 
   constructor(name = '', noiseDimension = NoiseDimension.Two) {
-    this.params.seed = worldEnv.rawSettings.seeds.main || name
+    this.params.seed = worldRootEnv.rawSettings.seeds.main || name
     this.params.dimensions = noiseDimension
     this.init()
     NoiseSampler.instances.push(this)

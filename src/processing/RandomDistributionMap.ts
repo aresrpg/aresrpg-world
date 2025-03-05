@@ -6,9 +6,9 @@ import {
   DistributionParams,
 } from '../procgen/BlueNoisePattern.js'
 import { asVect3, getPatchIds } from '../utils/patch_chunk.js'
-import { worldEnv } from '../config/WorldEnv.js'
 import { ItemType } from '../utils/common_types.js'
-import Alea from '../utils/alea.js'
+import Alea from '../third-party/alea.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 
 const distDefaults = {
   aleaSeed: 'treeMap',
@@ -43,8 +43,8 @@ export const DistributionProfiles: Record<
 const probabilityThreshold = Math.pow(2, 8)
 const bmin = new Vector2(0, 0)
 const bmax = new Vector2(
-  worldEnv.getDistributionMapPeriod(),
-  worldEnv.getDistributionMapPeriod(),
+  worldRootEnv.getDistributionMapPeriod(),
+  worldRootEnv.getDistributionMapPeriod(),
 )
 const distMapDefaultBox = new Box2(bmin, bmax)
 

@@ -1,12 +1,6 @@
-import { applyWorldEnv, WorldEnvSettings } from '../config/WorldEnv.js'
+import { WorldEnv } from '../config/WorldEnv.js'
 
-import {
-  TaskId,
-  GenericTask,
-  GenericTaskStub,
-  ProcessingContext,
-  ProcessingTask,
-} from './TaskProcessing.js'
+import { TaskId, GenericTask } from './TaskProcessing.js'
 
 export type MessageData<T> = {
   timestamp: number
@@ -27,8 +21,8 @@ export class WorkerProxy {
   }
 
   // browser env default impl
-  init() {
-    const workerUrl = new URL('./world_compute_worker.js', import.meta.url)
+  init(worldEnv: WorldEnv) {
+    const workerUrl = new URL('./world_compute_worker', import.meta.url)
     // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module' })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
@@ -39,17 +33,21 @@ export class WorkerProxy {
       console.error('WorldComputeProxy worker messageerror', error)
     }
     this.worker = worker
-    return worker
+    const timestamp = Date.now()
+    const pendingInit = new Promise<any>(
+      resolve => (this.resolvers[timestamp] = resolve),
+    )
+    this.worker.postMessage({ timestamp, content: worldEnv.toStub() })
+    pendingInit.then(() => console.log(`worker is ready`))
+    return pendingInit
   }
 
   handleWorkerReply = (reply: MessageData<any>) => {
     const { timestamp, content } = reply
     if (timestamp !== undefined) {
       const msgResolver = this.resolvers[timestamp]
-      if (msgResolver) {
-        msgResolver(content.data)
-        delete this.resolvers[timestamp]
-      }
+      msgResolver(content.data)
+      delete this.resolvers[timestamp]
     }
   }
 
@@ -60,20 +58,6 @@ export class WorkerProxy {
 
   get pendingRequests() {
     return Object.keys(this.resolvers)
-  }
-
-  async forwardEnv(worldEnv: WorldEnvSettings) {
-    if (this.worker) {
-      const timestamp = Date.now()
-      const pendingReply = new Promise<any>(
-        resolve => (this.resolvers[timestamp] = resolve),
-      )
-      this.worker.postMessage({ timestamp, content: worldEnv })
-      await pendingReply
-      return true
-    }
-    console.warn(`unexpected worker not running`)
-    return false
   }
 
   async forwardTask(task: GenericTask) {
@@ -87,44 +71,4 @@ export class WorkerProxy {
     }
     return false
   }
-}
-
-/**
- * Worker side handlers
- */
-
-const onForwardedEnv = (envSettings: WorldEnvSettings) => {
-  // this will apply settings for worker's environment
-  applyWorldEnv(envSettings)
-  const done = true
-  return { done }
-}
-
-const onForwardedTask = async (taskStub: GenericTaskStub) => {
-  const reply = {
-    id: taskStub.taskId,
-    data: null,
-  }
-  const { taskHandlers } = ProcessingTask
-  const taskHandler = taskHandlers[taskStub.handlerId]
-  if (taskHandler) {
-    const taskOutput = await taskHandler(taskStub, ProcessingContext.Worker)
-    reply.data = taskOutput
-  }
-  return reply
-}
-
-export const workerRequestHandler = async (
-  request: MessageData<WorldEnvSettings | GenericTaskStub>,
-) => {
-  const { timestamp, content } = request
-  if (content) {
-    const res = (content as GenericTaskStub).taskId
-      ? await onForwardedTask(content as GenericTaskStub)
-      : await onForwardedEnv(content as WorldEnvSettings)
-    // eslint-disable-next-line no-undef
-    const workerReply = { timestamp, content: res }
-    return workerReply
-  }
-  return {}
 }

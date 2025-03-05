@@ -12,7 +12,6 @@ import {
   parsePatchKey,
   serializePatchId,
 } from '../utils/patch_chunk.js'
-import { ChunkContainer, BlockType } from '../index.js'
 import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
 import {
   DataContainer,
@@ -20,8 +19,9 @@ import {
   PatchElement,
 } from '../datacontainers/PatchBase.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
-import { ChunkStub } from '../datacontainers/ChunkContainer.js'
-import { worldEnv } from '../config/WorldEnv.js'
+import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
+import { BlockType } from '../procgen/Biome.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
@@ -100,7 +100,7 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
   }
 }
 
-const chunksRange = worldEnv.rawSettings.chunks.range
+const chunksRange = worldRootEnv.rawSettings.chunks.range
 
 /**
  * Handle chunks and items tasks and provide data required to build board content:
@@ -257,9 +257,9 @@ export class BoardProvider {
     boardRadius?: number,
     boardThickness?: number,
   ) {
-    boardRadius = boardRadius || worldEnv.rawSettings.boards.boardRadius
+    boardRadius = boardRadius || worldRootEnv.rawSettings.boards.boardRadius
     boardThickness =
-      boardThickness || worldEnv.rawSettings.boards.boardThickness
+      boardThickness || worldRootEnv.rawSettings.boards.boardThickness
     this.boardParams.center = boardCenter.clone().floor()
     this.boardParams.radius = boardRadius
     this.boardParams.thickness = boardThickness
@@ -276,12 +276,15 @@ export class BoardProvider {
   get centerPatchId() {
     return getPatchId(
       asVect2(this.boardParams.center),
-      worldEnv.getPatchDimensions(),
+      worldRootEnv.getPatchDimensions(),
     )
   }
 
   get patchRange() {
-    return getUpperScalarId(this.boardParams.radius, worldEnv.getPatchSize())
+    return getUpperScalarId(
+      this.boardParams.radius,
+      worldRootEnv.getPatchSize(),
+    )
   }
 
   get initialDims() {

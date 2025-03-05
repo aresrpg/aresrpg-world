@@ -7,7 +7,7 @@ import {
   parsePatchKey,
 } from '../utils/patch_chunk.js'
 import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
-import { worldEnv } from '../config/WorldEnv.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 
 import {
   ChunksProcessing,
@@ -16,8 +16,8 @@ import {
 } from './ChunksProcessing.js'
 import { WorkerPool } from './WorkerPool.js'
 
-const chunksRange = worldEnv.rawSettings.chunks.range
-const { patchViewRanges } = worldEnv.rawSettings
+const chunksRange = worldRootEnv.rawSettings.chunks.range
+const { patchViewRanges } = worldRootEnv.rawSettings
 const getTaskPatchId = (task: ChunksProcessingTask) =>
   parsePatchKey(task.processingInput.patchKey) as PatchId
 

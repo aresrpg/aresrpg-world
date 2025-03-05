@@ -4,7 +4,7 @@ import '../processing/BlocksProcessing.js'
 import '../processing/ChunksProcessing.js'
 import '../processing/ItemsProcessing.js'
 
-import { workerRequestHandler } from '../processing/WorkerProxy.js'
+import { onMessage } from '../processing/WorldWorker.js'
 
 const initNodeWorker = () => {
   parentPort?.on('unhandledrejection', e => {
@@ -17,9 +17,9 @@ const initNodeWorker = () => {
     parentPort?.postMessage({ type: 'error', message: e.message })
   })
 
-  parentPort?.on('message', async requestData => {
-    const reply = await workerRequestHandler(requestData)
-    parentPort?.postMessage(reply)
+  parentPort?.on('message', async incomingData => {
+    const replyData = await onMessage(incomingData)
+    parentPort?.postMessage(replyData)
   })
 }
 
