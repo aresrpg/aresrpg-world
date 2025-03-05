@@ -441,7 +441,9 @@ export class BoardProvider {
       // iter slice from item which is at same level as the board
       if (itemOffset >= 0) {
         for (const heightBuff of itemChunk.iterChunkSlice()) {
-          const itemBlockData = heightBuff.data[itemOffset]
+          const itemBlockData = this.externalDataEncoder(
+            heightBuff.data[itemOffset],
+          )
           // if blocks belongs to board
           if (itemBlockData && boardPatch.containsPoint(heightBuff.pos)) {
             const itemBlockPos = asVect3(heightBuff.pos, this.boardElevation)
