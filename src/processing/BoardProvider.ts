@@ -157,7 +157,10 @@ export class BoardCacheProvider {
   loadData = async (center: Vector2, radius: number) => {
     const dims = new Vector2(radius, radius).floor().multiplyScalar(2)
     const bounds = new Box2().setFromCenterAndSize(center.clone().floor(), dims)
-    const patchRange = patchRangeFromBounds(bounds, worldRootEnv.getPatchDimensions())
+    const patchRange = patchRangeFromBounds(
+      bounds,
+      worldRootEnv.getPatchDimensions(),
+    )
     const changed = !patchRange.equals(this.patchRange)
     if (changed) {
       this.pendingBoardGen = true

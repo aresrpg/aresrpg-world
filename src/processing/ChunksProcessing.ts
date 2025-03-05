@@ -1,9 +1,13 @@
-import { worldEnv } from '../config/WorldEnv.js'
-import { asVect3, serializeChunkId } from '../utils/patch_chunk.js'
+import {
+  asVect3,
+  parsePatchKey,
+  serializeChunkId,
+} from '../utils/patch_chunk.js'
 import { PatchId, PatchKey } from '../utils/common_types.js'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory.js'
 import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 
 import { GroundPatch } from './GroundPatch.js'
 import {
@@ -13,7 +17,6 @@ import {
   ProcessingTaskStub,
 } from './TaskProcessing.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
-
 /**
  * Calling side
  */
@@ -34,6 +37,7 @@ export type ChunksProcessingParams = {
   skipEntities?: boolean
   chunksRange?: ChunksProcessingRange
   skipBlobCompression?: boolean
+  fakeEmpty?: boolean
 }
 
 // constructor
@@ -80,85 +84,39 @@ type ChunksProcessingTaskHandler = ProcessingTaskHandler<
   ChunkStub[] | Blob
 >
 
-// Helper function to extract the y-coordinate ID from a chunk key
-function extractYIdFromChunk(chunkKey: string): number {
-  // For a chunk key format 'chunk_x_y_z', extract the y component
-  const [, , y] = chunkKey.split('_')
-  return Number(y)
-}
-
-/**
- * Processing
- */
-
-const patchDims = worldEnv.getPatchDimensions()
-
 export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
   taskStub: ChunksProcessingTaskStub,
 ) => {
   const { processingInput, processingParams } = taskStub
   const { patchKey } = processingInput
-  const { chunksRange, skipBlobCompression } = processingParams
-
-  // Get the ground layer to determine patchId
-  const groundLayer = new GroundPatch(patchKey)
-  groundLayer.bake()
-  const patchId = groundLayer.patchId as PatchId
-
-  // Determine which ranges to process based on request
+  const { chunksRange, skipBlobCompression, fakeEmpty } = processingParams
   const doLower =
     chunksRange === ChunksProcessingRange.LowerRange ||
     chunksRange === ChunksProcessingRange.FullRange
   const doUpper =
     chunksRange === ChunksProcessingRange.UpperRange ||
     chunksRange === ChunksProcessingRange.FullRange
-
-  // Generate requested chunks
   const lowerChunks = doLower ? await lowerChunksGen(patchKey) : []
   const upperChunks = doUpper
     ? await upperChunksGen(patchKey, processingParams)
     : []
 
-  // Create a map of existing chunks by their y-coordinate ID
-  const chunksByYId = new Map<number, ChunkContainer>()
-
-  // Add lower chunks to the map
-  lowerChunks.forEach(chunk => {
-    const yId = extractYIdFromChunk(chunk.chunkKey)
-    chunksByYId.set(yId, chunk)
-  })
-
-  // Add upper chunks to the map
-  upperChunks.forEach(chunk => {
-    const yId = extractYIdFromChunk(chunk.chunkKey)
-    chunksByYId.set(yId, chunk)
-  })
-
-  // Create the full range array with all chunks
-  const fullRangeChunks: ChunkContainer[] = []
-  const { bottomId, topId } = worldEnv.rawSettings.chunks.range
-
-  // Fill the range from bottom to top with existing chunks or empty ones
-  for (let yId = bottomId; yId <= topId; yId++) {
-    if (chunksByYId.has(yId)) {
-      // Use existing chunk
-      fullRangeChunks.push(chunksByYId.get(yId)!)
-    } else {
-      // Create empty chunk
-      const chunkId = asVect3(patchId, yId)
-      const chunkKey = serializeChunkId(chunkId)
-      fullRangeChunks.push(new EmptyChunk(chunkKey))
-    }
+  const chunks = [...lowerChunks, ...upperChunks]
+  if (fakeEmpty && chunksRange !== ChunksProcessingRange.FullRange) {
+    addFakeEmptyChunks(patchKey, chunks)
   }
-
   return skipBlobCompression
-    ? fullRangeChunks.map(chunk => chunk.toStub())
-    : await chunksToCompressedBlob(fullRangeChunks)
+    ? chunks.map(chunk => chunk.toStub())
+    : await chunksToCompressedBlob(chunks)
 }
 
 // Registration
 ProcessingTask.taskHandlers[chunksProcessingHandlerName] =
   chunksProcessingTaskHandler
+
+/**
+ * Processing
+ */
 
 // Misc utils
 
@@ -173,6 +131,8 @@ const upperChunksGen = async (
   patchKey: PatchKey,
   params: ChunksProcessingParams,
 ) => {
+  const patchDims = worldRootEnv.getPatchDimensions()
+  const chunksRange = worldRootEnv.rawSettings.chunks.range
   const { skipEntities } = params
   const groundLayer = new GroundPatch(patchKey)
   groundLayer.bake()
@@ -220,11 +180,7 @@ const upperChunksGen = async (
   }
 
   // remaining chunks: empty chunks start 1 chunk above ground surface
-  for (
-    let y = surfaceIds.yMaxId + 1;
-    y <= worldEnv.rawSettings.chunks.range.topId;
-    y++
-  ) {
+  for (let y = surfaceIds.yMaxId + 1; y <= chunksRange.topId; y++) {
     const chunkId = asVect3(patchId, y)
     const chunkKey = serializeChunkId(chunkId)
     const emptyChunk = new EmptyChunk(chunkKey)
@@ -237,6 +193,8 @@ const upperChunksGen = async (
  * Chunks below ground surface
  */
 const lowerChunksGen = async (patchKey: PatchKey) => {
+  const patchDims = worldRootEnv.getPatchDimensions()
+  const chunksRange = worldRootEnv.rawSettings.chunks.range
   // find upper chunkId
   const groundLayer = new GroundPatch(patchKey)
   groundLayer.bake()
@@ -244,11 +202,7 @@ const lowerChunksGen = async (patchKey: PatchKey) => {
   const upperId = Math.floor(groundLayer.valueRange.min / patchDims.y) - 1
   const lowerChunks = []
   // then iter until bottom is reached
-  for (
-    let yId = upperId;
-    yId >= worldEnv.rawSettings.chunks.range.bottomId;
-    yId--
-  ) {
+  for (let yId = upperId; yId >= chunksRange.bottomId; yId--) {
     const chunkId = asVect3(patchId, yId)
     const chunkKey = serializeChunkId(chunkId)
     const currentChunk = new ChunkContainer(chunkKey, 1)
@@ -264,6 +218,21 @@ const lowerChunksGen = async (patchKey: PatchKey) => {
   //   `processed undeground chunkset: ${this.printChunkset(undergoundChunks)}`,
   // )
   return lowerChunks
+}
+
+const addFakeEmptyChunks = (patchKey: PatchKey, chunks: ChunkContainer[]) => {
+  const chunksRange = worldRootEnv.rawSettings.chunks.range
+  const patchId = parsePatchKey(patchKey) as PatchId
+  // remaining chunks: empty chunks start 1 chunk above ground surface
+  for (let y = chunksRange.bottomId; y <= chunksRange.topId; y++) {
+    const chunkId = asVect3(patchId, y)
+    const chunkKey = serializeChunkId(chunkId)
+    const found = chunks.find(chunk => chunk.chunkKey === chunkKey)
+    if (!found) {
+      const emptyChunk = new EmptyChunk(chunkKey)
+      chunks.push(emptyChunk)
+    }
+  }
 }
 
 const postProcess = (rawData: ChunkStub[]) => {
