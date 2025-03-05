@@ -6,10 +6,11 @@ import {
   asVect2,
   asVect3,
   genChunkIds,
-  genPatchMapIndex,
   getPatchId,
   getUpperScalarId,
   parsePatchKey,
+  patchIndexFromMapRange,
+  patchRangeFromBounds,
   serializePatchId,
 } from '../utils/patch_chunk.js'
 import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
@@ -114,8 +115,7 @@ export class BoardCacheProvider {
   }
 
   // taskIndex: Record<TaskId, GenericTask> = {}
-  centerPatch = new Vector2(NaN, NaN)
-  patchRange = 0
+  patchRange = new Box2()
   patchIndex: Record<PatchKey, any> = {}
   pendingBoardGen = false
 
@@ -123,10 +123,6 @@ export class BoardCacheProvider {
   constructor(workerPool: WorkerPool) {
     this.workerPool = workerPool
   }
-
-  boardChanged = (centerPatch: Vector2, patchRange: number) =>
-    this.centerPatch.distanceTo(centerPatch) > 0 ||
-    this.patchRange !== patchRange
 
   // constructor(centerPatchId: Vector2, patchRange: number) {
   //   this.centerPatchId = centerPatchId
@@ -158,13 +154,16 @@ export class BoardCacheProvider {
   /**
    * call each time cache board params changes
    */
-  loadData = async (centerPatch: Vector2, patchRange: number) => {
-    if (this.boardChanged(centerPatch, patchRange)) {
+  loadData = async (center: Vector2, radius: number) => {
+    const dims = new Vector2(radius, radius).floor().multiplyScalar(2)
+    const bounds = new Box2().setFromCenterAndSize(center.clone().floor(), dims)
+    const patchRange = patchRangeFromBounds(bounds, worldRootEnv.getPatchDimensions())
+    const changed = !patchRange.equals(this.patchRange)
+    if (changed) {
       this.pendingBoardGen = true
-      this.centerPatch = centerPatch
       this.patchRange = patchRange
       // regen patch index from current board position
-      const patchIndex = genPatchMapIndex(this.centerPatch, this.patchRange)
+      const patchIndex = patchIndexFromMapRange(patchRange)
       // enqueue chunks processing tasks
       const chunksPendingTasks = Object.keys(patchIndex)
         .filter(patchKey => !this.patchIndex[patchKey])
@@ -369,7 +368,7 @@ export class BoardProvider {
   async genBoardContent(skipHoleBlocks = true) {
     const { thickness: boardThickness } = this.boardParams
     // wait for cache to be filled
-    await this.cacheProvider.loadData(this.centerPatchId, this.patchRange)
+    await this.cacheProvider.loadData(this.boardCenter, this.boardParams.radius)
     // this.boardParams.center = center
     this.finalBounds.setFromPoints([this.boardCenter])
     const initialPatchBounds = asBox2(this.initialBounds)
