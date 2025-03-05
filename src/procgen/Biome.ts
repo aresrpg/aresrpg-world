@@ -217,7 +217,9 @@ export class Biome {
     if (!isEmptyConf) {
       this.parseBiomesConfig(Biome.externalRawConf)
     } else {
-      console.warn(`missing biome configuration at creation, must provide conf later`)
+      console.warn(
+        `missing biome configuration at creation, must provide conf later`,
+      )
     }
   }
 
