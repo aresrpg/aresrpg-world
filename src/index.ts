@@ -1,6 +1,6 @@
 // Config
-export { getWorldEnv, worldEnv, applyWorldEnv } from './config/WorldEnv.js'
-export { getWorldDemoEnvSettings } from './config/demo/world_demo_setup.js'
+export { worldRootEnv, WorldEnv } from './config/WorldEnv.js'
+export { getWorldDemoEnv } from './config/demo/world_demo_setup.js'
 // Utils
 // export * as WorldUtils from './utils/index'
 export {
@@ -25,7 +25,6 @@ export {
 } from './processing/BoardProvider.js'
 // export { ChunksScheduler } from './processing/ChunksScheduling'
 export { ChunksPolling } from './processing/ChunksPolling.js'
-export { ChunksProcessing } from './processing/ChunksProcessing.js'
 export {
   PseudoDistributionMap,
   DistributionProfile,

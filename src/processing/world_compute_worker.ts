@@ -1,34 +1,35 @@
-import { WorldEnvSettings } from '../config/WorldEnv.js'
+/**
+ * Task processing worker
+ */
 
 import './BlocksProcessing.js'
 import './ChunksProcessing.js'
 import './ItemsProcessing.js'
-import { GenericTaskStub } from './TaskProcessing.js'
-import { MessageData, workerRequestHandler } from './WorkerProxy.js'
+import { onMessage } from './WorldWorker.js'
+
+// import {
+//   GenericTaskStub,
+// } from './TaskProcessing'
+// import { MessageData, workerRequestHandler } from './WorkerProxy'
 
 const initWebWorker = () => {
-  globalThis.addEventListener('message', messageHandler)
-  globalThis.addEventListener('error', errorHandler)
-  globalThis.addEventListener('unhandledrejection', unhandledRejectionHandler)
-}
-
-const messageHandler = async (
-  e: MessageEvent<MessageData<GenericTaskStub | WorldEnvSettings>>,
-) => {
-  const reply = await workerRequestHandler(e.data)
-  globalThis.postMessage(reply)
-}
-
-// eslint-disable-next-line no-undef
-const errorHandler = (e: ErrorEvent) => {
-  console.error('Worker script error:', e)
-  globalThis.postMessage({ type: 'error', message: e.message })
-}
-
-// eslint-disable-next-line no-undef
-const unhandledRejectionHandler = (e: PromiseRejectionEvent) => {
-  console.error('Worker script unhandled rejection:', e)
-  globalThis.postMessage({ type: 'error', message: e.reason })
+  // eslint-disable-next-line no-undef
+  globalThis.addEventListener('message', async (e: MessageEvent<any>) => {
+    const replyData = await onMessage(e.data)
+    globalThis.postMessage(replyData)
+  })
+  // eslint-disable-next-line no-undef
+  globalThis.addEventListener('error', (e: ErrorEvent) => {
+    console.error(e)
+    // eslint-disable-next-line no-undef
+    globalThis.postMessage({ type: 'error', message: e.message })
+  })
+  // eslint-disable-next-line no-undef
+  globalThis.addEventListener('unhandledrejection', (e: any) => {
+    console.error('Worker script unhandled rejection:', e)
+    // eslint-disable-next-line no-undef
+    globalThis.postMessage({ type: 'error', message: e.reason })
+  })
 }
 
 initWebWorker()

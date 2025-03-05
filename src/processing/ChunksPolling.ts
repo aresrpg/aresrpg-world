@@ -2,12 +2,12 @@ import { Vector2 } from 'three'
 
 import {
   asVect3,
-  genPatchMapIndex,
-  getPatchMapRange,
   parsePatchKey,
+  patchIndexFromMapRange,
+  patchRangeFromMapCenterRad,
 } from '../utils/patch_chunk.js'
 import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
-import { worldEnv } from '../config/WorldEnv.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 
 import {
   ChunksProcessing,
@@ -16,8 +16,8 @@ import {
 } from './ChunksProcessing.js'
 import { WorkerPool } from './WorkerPool.js'
 
-const chunksRange = worldEnv.rawSettings.chunks.range
-const { patchViewRanges } = worldEnv.rawSettings
+const chunksRange = worldRootEnv.rawSettings.chunks.range
+const { patchViewRanges } = worldRootEnv.rawSettings
 const getTaskPatchId = (task: ChunksProcessingTask) =>
   parsePatchKey(task.processingInput.patchKey) as PatchId
 
@@ -93,12 +93,12 @@ export class ChunksPolling {
 
   get nearBoundingRange() {
     const { viewPos, viewRanges } = this.viewState
-    return getPatchMapRange(viewPos, viewRanges.near)
+    return patchRangeFromMapCenterRad(viewPos, viewRanges.near)
   }
 
   get farBoundingRange() {
     const { viewPos, viewRanges } = this.viewState
-    return getPatchMapRange(viewPos, viewRanges.far)
+    return patchRangeFromMapCenterRad(viewPos, viewRanges.far)
   }
 
   rankTasks(tasks: ChunksProcessingTask[]) {
@@ -186,7 +186,8 @@ export class ChunksPolling {
       this.viewState.viewRanges.far = viewRange
 
       // regen patch index from current view
-      const patchIndex = genPatchMapIndex(viewPos, viewRange)
+      const patchRange = patchRangeFromMapCenterRad(viewPos, viewRange)
+      const patchIndex = patchIndexFromMapRange(patchRange)
       // ret scheduled tasks
       const scheduledTasks = this.scheduleTasks(patchIndex)
       // update chunks index

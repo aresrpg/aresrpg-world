@@ -9,7 +9,7 @@ import {
   // parseThreeStub,
 } from '../utils/patch_chunk.js'
 import { PatchKey, Block, BlockData } from '../utils/common_types.js'
-import { worldEnv } from '../config/WorldEnv.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
@@ -94,7 +94,7 @@ type BlocksProcessingTaskHandler = ProcessingTaskHandler<
 >
 
 const getPatchKey = (inputPos: Vector2) => {
-  const patchId = getPatchId(inputPos, worldEnv.getPatchDimensions())
+  const patchId = getPatchId(inputPos, worldRootEnv.getPatchDimensions())
   const patchKey = serializePatchId(patchId)
   return patchKey
 }

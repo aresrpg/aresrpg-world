@@ -82,8 +82,22 @@ export type WorldEnvSettings = {
   }
 }
 
-const getWorldDefaultEnv = () => {
-  const worldDefaults: WorldEnvSettings = {
+// export type WorldEnvCustomSettings = Partial<WorldEnvSettings>
+// // use for having auto-complete in non-TS projects
+// export const getWorldEnvCustomSettings = () => ({} as WorldEnvCustomSettings)
+
+const overrideSeeds = (customSeeds: WorldIndividualSeeds) => {
+  Heightmap.instance.heightmap.sampling.seed = customSeeds.heightmap
+  Heightmap.instance.amplitude.sampling.seed = customSeeds.amplitude
+  Biome.instance.heatmap.sampling.seed = customSeeds.heatmap
+  Biome.instance.rainmap.sampling.seed = customSeeds.rainmap
+  Biome.instance.posRandomizer.sampling.seed = customSeeds.randompos
+  DensityVolume.instance.densityNoise.seed = customSeeds.density
+}
+
+export class WorldEnv {
+  // export const getWorldEnv = () => {
+  rawSettings: WorldEnvSettings = {
     seeds: {
       main: 'world',
       overrides: {} as WorldIndividualSeeds,
@@ -147,67 +161,57 @@ const getWorldDefaultEnv = () => {
       bilinearInterpolationRange: 0.1, // from 0 to 0.1
     },
   }
-  return worldDefaults
-}
 
-// export type WorldEnvCustomSettings = Partial<WorldEnvSettings>
-// // use for having auto-complete in non-TS projects
-// export const getWorldEnvCustomSettings = () => ({} as WorldEnvCustomSettings)
+  getPatchSize = () => Math.pow(2, this.rawSettings.patchPowSize)
+  getCacheLimit = () => Math.pow(2, this.rawSettings.cachePowLimit)
+  getPatchDimensions = () =>
+    new Vector2(this.getPatchSize(), this.getPatchSize())
 
-const overrideSeeds = (customSeeds: WorldIndividualSeeds) => {
-  Heightmap.instance.heightmap.sampling.seed = customSeeds.heightmap
-  Heightmap.instance.amplitude.sampling.seed = customSeeds.amplitude
-  Biome.instance.heatmap.sampling.seed = customSeeds.heatmap
-  Biome.instance.rainmap.sampling.seed = customSeeds.rainmap
-  Biome.instance.posRandomizer.sampling.seed = customSeeds.randompos
-  DensityVolume.instance.densityNoise.seed = customSeeds.density
-}
+  getChunkDimensions = () =>
+    new Vector3(this.getPatchSize(), this.getPatchSize(), this.getPatchSize())
 
-export const applyWorldEnv = (worldEnvRawSettings: WorldEnvSettings) => {
-  Object.assign(worldEnv.rawSettings, worldEnvRawSettings)
-  overrideSeeds(worldEnv.rawSettings.seeds.overrides)
-  Biome.instance.parseBiomesConfig(worldEnvRawSettings.biomes.rawConf)
-}
+  getNearViewDist = () =>
+    this.rawSettings.patchViewRanges.near * this.getPatchSize()
 
-export const getWorldEnv = (customSettings?: Partial<WorldEnvSettings>) => {
-  const rawSettings = customSettings
-    ? Object.assign(getWorldDefaultEnv(), customSettings)
-    : getWorldDefaultEnv()
+  getFarViewDist = () =>
+    this.rawSettings.patchViewRanges.far * this.getPatchSize()
 
-  const getPatchSize = () => Math.pow(2, rawSettings.patchPowSize)
+  getSeaLevel = () => this.rawSettings.biomes.seaLevel
+  setSeaLevel = (seaLevel: number) =>
+    (this.rawSettings.biomes.seaLevel = seaLevel)
 
-  const getCacheLimit = () => Math.pow(2, rawSettings.cachePowLimit)
+  getDistributionMapPeriod = () =>
+    this.rawSettings.distributionMapPeriod * this.getPatchSize()
 
-  const getPatchDimensions = () => new Vector2(getPatchSize(), getPatchSize())
-
-  const getChunkDimensions = () =>
-    new Vector3(getPatchSize(), getPatchSize(), getPatchSize())
-
-  const getNearViewDist = () =>
-    rawSettings.patchViewRanges.near * getPatchSize()
-
-  const getFarViewDist = () => rawSettings.patchViewRanges.far * getPatchSize()
-
-  const getSeaLevel = () => rawSettings.biomes.seaLevel
-
-  const setSeaLevel = (seaLevel: number) =>
-    (rawSettings.biomes.seaLevel = seaLevel)
-
-  const getDistributionMapPeriod = () =>
-    rawSettings.distributionMapPeriod * getPatchSize()
-
-  return {
-    rawSettings,
-    getPatchSize,
-    getCacheLimit,
-    getPatchDimensions,
-    getChunkDimensions,
-    getNearViewDist,
-    getFarViewDist,
-    getSeaLevel,
-    setSeaLevel,
-    getDistributionMapPeriod,
+  fromStub = (envStub: Partial<WorldEnvSettings>) => {
+    Object.assign(this.rawSettings, envStub)
+    overrideSeeds(this.rawSettings.seeds.overrides)
   }
+
+  toStub() {
+    return this.rawSettings
+    //   const { seeds, patchPowSize, cachePowLimit, defaultDistMapPeriod, patchViewCount, debug,
+    //     chunks, schematics, proceduralItems, workerPool, boardSettings, heightmap, biomes } = this
+    //   const envStub = {
+    //     seeds, patchPowSize, cachePowLimit, defaultDistMapPeriod, patchViewCount, debug,
+    //     chunks, schematics, proceduralItems, workerPool, boardSettings, heightmap, biomes
+    //   }
+    //   return envStub
+  }
+
+  // return {
+  //   rawSettings,
+  //   getPatchSize,
+  //   getCacheLimit,
+  //   getPatchDimensions,
+  //   getChunkDimensions,
+  //   getNearViewDist,
+  //   getFarViewDist,
+  //   getSeaLevel,
+  //   setSeaLevel,
+  //   getDistributionMapPeriod,
+  //   fromStub
+  // }
 }
 
-export const worldEnv = getWorldEnv()
+export const worldRootEnv = new WorldEnv()

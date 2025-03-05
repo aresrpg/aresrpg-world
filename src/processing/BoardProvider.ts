@@ -6,13 +6,13 @@ import {
   asVect2,
   asVect3,
   genChunkIds,
-  genPatchMapIndex,
   getPatchId,
   getUpperScalarId,
   parsePatchKey,
+  patchIndexFromMapRange,
+  patchRangeFromBounds,
   serializePatchId,
 } from '../utils/patch_chunk.js'
-import { ChunkContainer, BlockType } from '../index.js'
 import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
 import {
   DataContainer,
@@ -20,8 +20,9 @@ import {
   PatchElement,
 } from '../datacontainers/PatchBase.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
-import { ChunkStub } from '../datacontainers/ChunkContainer.js'
-import { worldEnv } from '../config/WorldEnv.js'
+import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
+import { BlockType } from '../procgen/Biome.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
@@ -100,7 +101,7 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
   }
 }
 
-const chunksRange = worldEnv.rawSettings.chunks.range
+const chunksRange = worldRootEnv.rawSettings.chunks.range
 
 /**
  * Handle chunks and items tasks and provide data required to build board content:
@@ -114,8 +115,7 @@ export class BoardCacheProvider {
   }
 
   // taskIndex: Record<TaskId, GenericTask> = {}
-  centerPatch = new Vector2(NaN, NaN)
-  patchRange = 0
+  patchRange = new Box2()
   patchIndex: Record<PatchKey, any> = {}
   pendingBoardGen = false
 
@@ -123,10 +123,6 @@ export class BoardCacheProvider {
   constructor(workerPool: WorkerPool) {
     this.workerPool = workerPool
   }
-
-  boardChanged = (centerPatch: Vector2, patchRange: number) =>
-    this.centerPatch.distanceTo(centerPatch) > 0 ||
-    this.patchRange !== patchRange
 
   // constructor(centerPatchId: Vector2, patchRange: number) {
   //   this.centerPatchId = centerPatchId
@@ -158,13 +154,19 @@ export class BoardCacheProvider {
   /**
    * call each time cache board params changes
    */
-  loadData = async (centerPatch: Vector2, patchRange: number) => {
-    if (this.boardChanged(centerPatch, patchRange)) {
+  loadData = async (center: Vector2, radius: number) => {
+    const dims = new Vector2(radius, radius).floor().multiplyScalar(2)
+    const bounds = new Box2().setFromCenterAndSize(center.clone().floor(), dims)
+    const patchRange = patchRangeFromBounds(
+      bounds,
+      worldRootEnv.getPatchDimensions(),
+    )
+    const changed = !patchRange.equals(this.patchRange)
+    if (changed) {
       this.pendingBoardGen = true
-      this.centerPatch = centerPatch
       this.patchRange = patchRange
       // regen patch index from current board position
-      const patchIndex = genPatchMapIndex(this.centerPatch, this.patchRange)
+      const patchIndex = patchIndexFromMapRange(patchRange)
       // enqueue chunks processing tasks
       const chunksPendingTasks = Object.keys(patchIndex)
         .filter(patchKey => !this.patchIndex[patchKey])
@@ -257,9 +259,9 @@ export class BoardProvider {
     boardRadius?: number,
     boardThickness?: number,
   ) {
-    boardRadius = boardRadius || worldEnv.rawSettings.boards.boardRadius
+    boardRadius = boardRadius || worldRootEnv.rawSettings.boards.boardRadius
     boardThickness =
-      boardThickness || worldEnv.rawSettings.boards.boardThickness
+      boardThickness || worldRootEnv.rawSettings.boards.boardThickness
     this.boardParams.center = boardCenter.clone().floor()
     this.boardParams.radius = boardRadius
     this.boardParams.thickness = boardThickness
@@ -276,12 +278,15 @@ export class BoardProvider {
   get centerPatchId() {
     return getPatchId(
       asVect2(this.boardParams.center),
-      worldEnv.getPatchDimensions(),
+      worldRootEnv.getPatchDimensions(),
     )
   }
 
   get patchRange() {
-    return getUpperScalarId(this.boardParams.radius, worldEnv.getPatchSize())
+    return getUpperScalarId(
+      this.boardParams.radius,
+      worldRootEnv.getPatchSize(),
+    )
   }
 
   get initialDims() {
@@ -366,7 +371,7 @@ export class BoardProvider {
   async genBoardContent(skipHoleBlocks = true) {
     const { thickness: boardThickness } = this.boardParams
     // wait for cache to be filled
-    await this.cacheProvider.loadData(this.centerPatchId, this.patchRange)
+    await this.cacheProvider.loadData(this.boardCenter, this.boardParams.radius)
     // this.boardParams.center = center
     this.finalBounds.setFromPoints([this.boardCenter])
     const initialPatchBounds = asBox2(this.initialBounds)
@@ -436,7 +441,9 @@ export class BoardProvider {
       // iter slice from item which is at same level as the board
       if (itemOffset >= 0) {
         for (const heightBuff of itemChunk.iterChunkSlice()) {
-          const itemBlockData = heightBuff.data[itemOffset]
+          const itemBlockData = this.externalDataEncoder(
+            heightBuff.data[itemOffset],
+          )
           // if blocks belongs to board
           if (itemBlockData && boardPatch.containsPoint(heightBuff.pos)) {
             const itemBlockPos = asVect3(heightBuff.pos, this.boardElevation)
