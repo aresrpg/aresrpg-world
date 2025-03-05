@@ -1,8 +1,7 @@
-import { WorldEnvSettings } from '../config/WorldEnv.js'
+import { WorldEnv } from '../config/WorldEnv.js'
 
 import { WorkerProxy } from './WorkerProxy.js'
 import { GenericTask, ProcessingState } from './TaskProcessing.js'
-
 // export interface WorkerPoolInterface {
 //   purgeQueue(whiteList: (task: GenericTask) => boolean,
 //     blackList: (task: GenericTask) => boolean): void
@@ -23,19 +22,16 @@ export class WorkerPool {
   processedCount = 0
   ready = false
 
-  // eslint-disable-next-line no-undef
-  init(poolSize: number, worker: Worker) {
+  async initPoolEnv(poolSize: number, worldEnv: WorldEnv) {
+    console.log(`create worker pool size: ${poolSize} `)
+    const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
       const workerProxy = new WorkerProxy(workerId)
-      workerProxy.init(worker)
+      const pendingInit = workerProxy.init(worldEnv)
+      pendingInits.push(pendingInit)
       this.workerPool.push(workerProxy)
     }
-  }
-
-  async loadWorldEnv(worldEnv: WorldEnvSettings) {
-    return Promise.all(
-      this.workerPool.map(workerProxy => workerProxy.forwardEnv(worldEnv)),
-    ).then(() => {
+    await Promise.all(pendingInits).then(() => {
       this.ready = true
       this.processQueue()
     })
@@ -84,7 +80,12 @@ export class WorkerPool {
    * Dispatch items from the queue as much as possible to available workers
    */
   processQueue() {
-    while (this.availableUnit && this.processingQueue.length > 0) {
+    // postpone task processing until workerpool is ready
+    while (
+      this.ready &&
+      this.availableUnit &&
+      this.processingQueue.length > 0
+    ) {
       const nextTask = this.processingQueue.shift()
       if (nextTask) {
         if (nextTask.isWaiting()) {

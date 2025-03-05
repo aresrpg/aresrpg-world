@@ -1,10 +1,10 @@
 import { Box3, Vector3 } from 'three'
 
-import { worldEnv } from '../config/WorldEnv.js'
 import { ChunkContainer } from '../datacontainers/ChunkContainer.js'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators.js'
 import { SchematicLoader } from '../tools/SchematicLoader.js'
 import { ItemType } from '../utils/common_types.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 // import { asVect2 } from '../utils/patch_chunk'
 
 /**
@@ -15,17 +15,18 @@ export class ItemsInventory {
   // TODO rename catalog as inventory
   static catalog: Record<ItemType, ChunkContainer> = {}
   static get externalSources() {
-    const schematicsFilesIndex = worldEnv.rawSettings.schematics.filesIndex
-    const proceduralItemsConfigs = worldEnv.rawSettings.proceduralItems.configs
+    const schematicsFilesIndex = worldRootEnv.rawSettings.schematics.filesIndex
+    const proceduralItemsConfigs =
+      worldRootEnv.rawSettings.proceduralItems.configs
     return { schematicsFilesIndex, proceduralItemsConfigs }
   }
 
   static get schematicFilesIndex() {
-    return worldEnv.rawSettings.schematics.filesIndex
+    return worldRootEnv.rawSettings.schematics.filesIndex
   }
 
   static get proceduralItemsConf() {
-    return worldEnv.rawSettings.proceduralItems.configs
+    return worldRootEnv.rawSettings.proceduralItems.configs
   }
 
   // static spawners: Record<ItemType, PseudoDistributionMap> = {}
@@ -39,7 +40,7 @@ export class ItemsInventory {
     let chunk
     if (fileUrl) {
       const customBlocksMapping =
-        worldEnv.rawSettings.schematics.localBlocksMapping[id]
+        worldRootEnv.rawSettings.schematics.localBlocksMapping[id]
       chunk = await SchematicLoader.createChunkContainer(
         fileUrl,
         customBlocksMapping,

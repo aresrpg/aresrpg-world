@@ -18,7 +18,7 @@ import {
   VoidItemType,
 } from '../utils/common_types.js'
 import { ItemsInventory } from '../factory/ItemsFactory.js'
-import { worldEnv } from '../config/WorldEnv.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 
 import { GroundPatch } from './GroundPatch.js'
 import { DistributionProfiles } from './RandomDistributionMap.js'
@@ -202,7 +202,7 @@ const getPatchBounds = (input: Vector2 | PatchKey) => {
   }
   return input instanceof Vector2
     ? asPointBounds(input)
-    : asPatchBounds(input, worldEnv.getPatchDimensions())
+    : asPatchBounds(input, worldRootEnv.getPatchDimensions())
 }
 
 const parseInput = (input: ItemsProcessingInput) => {
