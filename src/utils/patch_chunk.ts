@@ -217,6 +217,7 @@ function genChunkIds(patchId: PatchId, ymin: number, ymax: number) {
 export {
   // roundToDec,
   // vectRoundToDec,
+  isVect3Stub,
   parseThreeStub,
   asVect2,
   asVect3,
