@@ -10,7 +10,7 @@ import {
 } from '../datacontainers/ChunkContainer.js'
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
-import { worldEnv } from '../config/WorldEnv.js'
+import { worldRootEnv } from '../config/WorldEnv.js'
 import { Biome, BiomeType, BlockType } from '../procgen/Biome.js'
 import { DensityVolume } from '../procgen/DensityVolume.js'
 
@@ -24,7 +24,7 @@ export class EmptyChunk extends ChunkContainer {
 }
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
-  const { borderHighlightColor } = worldEnv.rawSettings.debug.patch
+  const { borderHighlightColor } = worldRootEnv.rawSettings.debug.patch
   return borderHighlightColor && (localPos.x === 1 || localPos.z === 1)
     ? borderHighlightColor
     : blockType
@@ -45,14 +45,14 @@ export class GroundChunk extends ChunkContainer {
     //   ? BlockMode.CHECKERBOARD
     //   : BlockMode.REGULAR
     const groundSurface = blockType // this.dataEncoder(blockType, blockMode)
-    const undergroundLayer = landConf.subtype // this.dataEncoder(landConf.subtype || BlockType.BEDROCK)
+    const undergroundLayer = landConf.subtype || BlockType.BEDROCK // this.dataEncoder(landConf.subtype || BlockType.BEDROCK)
     // generate ground buffer
     const buffSize = clamp(block.data.level - ymin, 0, ymax - ymin)
     if (buffSize > 0) {
       const groundBuffer = new Uint16Array(block.data.level - ymin)
       // fill with bedrock first
       groundBuffer.fill(
-        biome === BiomeType.Arctic ? BlockType.BEDROCK : BlockType.ICE,
+        biome === BiomeType.Arctic ? BlockType.ICE : BlockType.BEDROCK,
       )
       // add underground layer
       groundBuffer.fill(
