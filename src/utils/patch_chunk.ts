@@ -75,10 +75,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-    parseVect3Stub(stub) ||
-    parseBox2Stub(stub) ||
-    parseVect2Stub(stub) ||
-    stub
+        parseVect3Stub(stub) ||
+        parseBox2Stub(stub) ||
+        parseVect2Stub(stub) ||
+        stub
     : stub
 }
 
@@ -134,12 +134,15 @@ const getPatchId = (position: Vector2, patchSize: Vector2) => {
 
 const patchRangeFromBounds = (bounds: Box2, patchDims: Vector2) => {
   const rangeMin = getPatchId(bounds.min, patchDims)
-  const rangeMax = getPatchId(bounds.max, patchDims)//patchUpperId(bounds.max, patchDims) // .addScalar(1)
+  const rangeMax = getPatchId(bounds.max, patchDims) // patchUpperId(bounds.max, patchDims) // .addScalar(1)
   const patchRange = new Box2(rangeMin, rangeMax)
   return patchRange
 }
 
-const patchRangeFromMapCenterRad = (patchMapCenter: Vector2, patchMapRadius: number) => {
+const patchRangeFromMapCenterRad = (
+  patchMapCenter: Vector2,
+  patchMapRadius: number,
+) => {
   const bmin = patchMapCenter.clone().subScalar(patchMapRadius)
   const bmax = patchMapCenter.clone().addScalar(patchMapRadius)
   const patchMapRange = new Box2(bmin, bmax)
