@@ -1,13 +1,13 @@
 // import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index'
 // import { initWorldDevTools } from '../../tools/DevTools'
-import { WorldIndividualSeeds, WorldEnv } from '../WorldEnv.js'
+import { WorldIndividualSeeds, WorldEnv } from '../../config/WorldEnv.js'
 
-import { BIOMES_LANDSCAPES_CONFIG } from './settings/biome_landscapes.js'
+import { BIOMES_LANDSCAPES_CONFIG } from './biome_landscapes.js'
 // import { PROC_ITEMS_CONFIG } from './settings/procedural_items'
 import {
   BLOCKS_COLOR_MAPPING,
   SCHEMATICS_BLOCKS_MAPPING,
-} from './settings/blocks_mappings.js'
+} from './blocks_mappings.js'
 
 const restoreOriginalSeeds = (individualSeeds: WorldIndividualSeeds) => {
   individualSeeds.heightmap = 'heightmap'
@@ -44,7 +44,7 @@ export const getWorldDemoEnv = () => {
   // rawSettings.boards.boardThickness = 3
 
   // BIOME tuning
-  rawSettings.biomes.periodicity = 8 // biome size
+  rawSettings.biomes.periodicity = 6 // biome size
   rawSettings.biomes.bilinearInterpolationRange = 0.1
   return worldEnv
 }

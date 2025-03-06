@@ -11,7 +11,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 
 import { WorkerPool } from '../node/NodeWorkerPool.js'
 import { ChunksPolling, parseThreeStub } from '../index.js'
-import { getWorldDemoEnv } from '../config/demo/world_demo_setup.js'
+import { getWorldDemoEnv } from '../tests/configs/world_demo_setup.js'
 
 const SERVER_PORT = 3000
 const POOL_SIZE = 4
@@ -40,12 +40,7 @@ const initWsServer = async () => {
       viewRange,
     )
     scheduledTasks?.forEach(scheduledTask =>
-      scheduledTask.then(chunks =>
-        chunks.forEach(chunkBlob => {
-          console.log(chunkBlob)
-          clientWs.send(chunkBlob)
-        }),
-      ),
+      scheduledTask.then(chunkBlob => clientWs.send(chunkBlob)),
     )
     // const clientTask = wsRequest.task
     // this.enqueueTasks(clientTask)

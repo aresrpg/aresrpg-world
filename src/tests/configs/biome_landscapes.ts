@@ -1,8 +1,19 @@
-import { BiomeType, BlockType } from '../../../index.js'
+import { BiomeType, BlockType } from '../../index.js'
+import { ExtBlock } from './blocks_mappings.js'
 
 import { SCHEMATICS_COLLECTIONS } from './schematics_collections.js'
 
 const { alpine, temperate_forest, siberian } = SCHEMATICS_COLLECTIONS
+
+const firstStep = {
+  x: 0,
+  y: 0.1
+}
+
+const lastStep = {
+  x: 1,
+  y: 0.1
+}
 
 /**
  * Temperate landscapes
@@ -203,6 +214,53 @@ const desert = {
     subtype: BlockType.ROCK,
     fadeIn: 5,
     fadeOut: 25,
+  },
+}
+
+const grassland = {
+  first: {
+    ...firstStep,
+    type: BlockType.FOLIAGE_DARK,
+  },
+  last: { ...lastStep },
+}
+
+const swamp = {
+  first: {
+    ...firstStep,
+    type: BlockType.MUD,
+  },
+  last: { ...lastStep },
+}
+
+const glacier = {
+  first: {
+    ...firstStep,
+    type: BlockType.ICE,
+  },
+  last: { ...lastStep },
+}
+
+const taiga = {
+  first: {
+    ...firstStep,
+    type: BlockType,
+  },
+  last: { ...lastStep },
+}
+
+const tropical = {
+  first: {
+    ...firstStep,
+    type: ExtBlock.DBG_ORANGE,
+  },
+  last: { ...lastStep },
+}
+
+const scorched = {
+  first: {
+    ...firstStep,
+    type: BlockType.HOLE,
   },
 }
 
