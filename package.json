@@ -28,7 +28,8 @@
     "typecheck": "tsc --build",
     "format": "prettier . --write && eslint . --fix --ext .ts",
     "postversion": "git push --follow-tags",
-    "chunks-over-ws-local-server": "node --experimental-specifier-resolution=node dist/node-tools/chunks_over_ws_server.js"
+    "chunks-over-ws-local-server": "node dist/node-tools/chunks_over_ws_server.js",
+    "tests-noreg": "node dist/tests/tests_noreg.js"
   },
   "repository": {
     "type": "git",
