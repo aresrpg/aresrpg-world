@@ -78,7 +78,10 @@ export type WorldEnvSettings = {
     rawConf: BiomesRawConf
     seaLevel: number
     periodicity: number
-    bilinearInterpolationRange: number // from 0 to 0.1
+    repartition: {
+      centralHalfSegment: number
+      transitionHalfRange: number
+    }
   }
 }
 
@@ -158,7 +161,10 @@ export class WorldEnv {
       rawConf: {} as BiomesRawConf,
       seaLevel: 0,
       periodicity: 8,
-      bilinearInterpolationRange: 0.1, // from 0 to 0.1
+      repartition: {
+        centralHalfSegment: 0.07, // half range of central segment in proportion to first and last symetrical segments 
+        transitionHalfRange: 0.05, // bilinear interpolation: 0 = no transition, 0.05 = max transition
+      },
     },
   }
 

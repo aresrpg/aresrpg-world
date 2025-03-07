@@ -159,15 +159,26 @@ type PreprocessedLandConf = {
   floraItems: ItemType[]
 }
 
+/**
+ *  FIRST SEGMENT | TRANSIT | CENTRAL SEGMENT | TRANSIT | LAST SEGMENT
+ * 0             0.3        
+ * @returns 
+ */
 const getTransitionSteps = () => {
-  const { bilinearInterpolationRange } = worldRootEnv.rawSettings.biomes
-  const transitionOffset = (0.1 - bilinearInterpolationRange) / 2
+  const { transitionHalfRange, centralHalfSegment } = worldRootEnv.rawSettings.biomes.repartition
+  const firstSegmentEnd = 0.5 - centralHalfSegment - transitionHalfRange
+  const lastSegmentStart = 0.5 + centralHalfSegment + transitionHalfRange
+  const centralSegmentStart = 0.5 - centralHalfSegment + transitionHalfRange
+  const centralSegmentEnd = 0.5 + centralHalfSegment - transitionHalfRange
+
   const transitionSteps = {
-    lowToMid: 0.3 + transitionOffset,
-    mid: 0.4 - transitionOffset,
-    midToHigh: 0.6 + transitionOffset,
-    high: 0.7 - transitionOffset,
+    lowToMid: roundToDec(firstSegmentEnd, 2),
+    mid: roundToDec(centralSegmentStart, 2),
+    midToHigh: roundToDec(centralSegmentEnd, 2),
+    high: roundToDec(lastSegmentStart, 2),
   }
+
+  // console.log(`biome repartition level segments settings: `, transitionSteps)
   return transitionSteps
 }
 
@@ -326,10 +337,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-        (biomeContribs[k as BiomeType] = roundToDec(
-          biomeContribs[k as BiomeType],
-          2,
-        )),
+      (biomeContribs[k as BiomeType] = roundToDec(
+        biomeContribs[k as BiomeType],
+        2,
+      )),
     )
 
     // biomeContribs[BiomeType.Arctic] = 1
