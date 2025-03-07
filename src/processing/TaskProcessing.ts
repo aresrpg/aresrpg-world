@@ -141,12 +141,21 @@ export class ProcessingTask<
     const res = ProcessingTask.handleTask<ProcessingInput, ProcessingOutput>(
       this,
     ) as ProcessingOutput
+    this.onCompleted(res)
     return res
   }
 
+  async asyncProcess() {
+    this.onStarted()
+    const res = await ProcessingTask.handleTask<ProcessingInput, ProcessingOutput>(
+      this,
+    ) as ProcessingOutput
+    return this.onCompleted(res)
+  }
+
   /**
-   * This will delegate task processing (always running async)
-   * with ability to target specific processing environment like (local, remote, ..):
+   * This will delegate task processing to specific processing environment 
+   * like (workerpool, remote, ..):
    * @param targetEnv target processing environment
    * @returns
    */
@@ -171,14 +180,14 @@ export class ProcessingTask<
         ? ProcessingState.Done
         : this.processingState
     const taskData: ProcessingOutput = this.postProcess(taskOutput)
-    this.onTaskCompleted(taskData)
+    return this.onCompleted(taskData)
     // this.resolveDeferredPromise(taskData)
     // this.pendingTask = null
     // this.onTaskProcessed(taskRes)
     // const taskRes = stubs ? this.reconcile(stubs) : null
     // this.result = taskRes
     // return taskRes // this.reconcile(stubs)
-    return taskData
+    // return taskData
     // }
     // }
   }
@@ -202,7 +211,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() {}
+  request() { }
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -249,9 +258,7 @@ export class ProcessingTask<
     console.log(`skipped task processing`)
   }
 
-  onStarted = () => {}
-
-  onDone = () => {}
+  onStarted = () => { }
 
   /**
    * additional callback where post process actions can be performed
@@ -259,7 +266,7 @@ export class ProcessingTask<
    * @param rawData
    * @returns
    */
-  onTaskCompleted(taskOutput: ProcessingOutput) {
+  onCompleted(taskOutput: ProcessingOutput): any {
     // console.log(taskOutput)
     return taskOutput
   }

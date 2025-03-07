@@ -12,9 +12,8 @@ import { worldRootEnv } from '../config/WorldEnv.js'
 import {
   ChunksProcessing,
   ChunksProcessingTask,
-  isChunksProcessingTask,
 } from './ChunksProcessing.js'
-import { WorkerPool } from './WorkerPool.js'
+import { ProcessingState } from './TaskProcessing.js'
 
 const chunksRange = worldRootEnv.rawSettings.chunks.range
 const { patchViewRanges } = worldRootEnv.rawSettings
@@ -32,10 +31,9 @@ export type ViewState = {
 }
 
 /**
- * OTF chunks processing depending on near/far view dist
- * with tasks priorization inside processing queue
+ * Chunks tasks creation, prioritization, cancellation
  *
- * Chunk tasks are scheduled to follow these 2 rules:
+ * Tasks are scheduled to follow these 2 rules:
  * - ground surface chunks always precedes underground chunks because view distance
  * is always greater above rather than below ground surface
  * - underground chunks always have higher priority than surface chunks because
@@ -44,7 +42,6 @@ export type ViewState = {
  */
 
 export class ChunksPolling {
-  chunksWorkerPool?: WorkerPool
   // taskIndex: Record<TaskId, GenericTask> = {}
   viewState: ViewState = {
     viewPos: new Vector2(NaN, NaN),
@@ -64,15 +61,8 @@ export class ChunksPolling {
   // processedChunksQueue = []
   onChunkAvailable: any
   postponedTasks: ChunksProcessingTask[] = []
+  pendingTasks: ChunksProcessingTask[] = []
   skipBlobCompression = false
-
-  get chunksProcessingTasks() {
-    return (
-      (this.chunksWorkerPool?.processingQueue.filter(
-        isChunksProcessingTask,
-      ) as ChunksProcessingTask[]) || []
-    )
-  }
 
   get visiblePatchKeys() {
     return Object.keys(this.patchIndex)
@@ -101,11 +91,10 @@ export class ChunksPolling {
     return patchRangeFromMapCenterRad(viewPos, viewRanges.far)
   }
 
-  rankTasks(tasks: ChunksProcessingTask[]) {
+  rankTasks() {
     const { viewPos } = this.viewState
-    tasks.forEach(
-      task => (task.rank = getTaskPatchId(task).distanceTo(viewPos)),
-    )
+    this.pendingTasks.forEach(task =>
+      task.rank = getTaskPatchId(task).distanceTo(viewPos))
   }
 
   isBeyondNearDist = (task: ChunksProcessingTask) =>
@@ -122,71 +111,69 @@ export class ChunksPolling {
   }
 
   scheduleTasks(patchIndex: Record<PatchKey, boolean>) {
-    const { chunksWorkerPool } = this
-    if (chunksWorkerPool) {
-      // cancel out of range tasks in the queue
-      const removedTasks = this.chunksProcessingTasks.filter(
-        task => !patchIndex[task.processingInput.patchKey],
+    // clear processed tasks
+    this.pendingTasks = this.pendingTasks.filter(task => task.processingState !== ProcessingState.Done)
+    // cancel out of range tasks in the queue
+    const removedTasks = this.pendingTasks.filter(
+      task => !patchIndex[task.processingInput.patchKey],
+    )
+    removedTasks.forEach(task => task.cancel())
+    removedTasks.length &&
+      console.log(
+        `canceled ${removedTasks.length} out-of-range items from queue`,
       )
-      removedTasks.forEach(task => task.cancel())
-      removedTasks.length &&
-        console.log(
-          `canceled ${removedTasks.length} out-of-range items from queue`,
-        )
-      const previousTasks = this.chunksProcessingTasks.filter(
-        task => patchIndex[task.processingInput.patchKey],
-      )
-      // generate new elements skipping patch keys already found in current index
-      const postponedTasks = this.postponedTasks.filter(task =>
-        this.isBeyondNearDist(task),
-      )
-      const newTasks: ChunksProcessingTask[] = this.postponedTasks.filter(
-        task => !this.isBeyondNearDist(task),
-      )
-      Object.keys(patchIndex)
-        .filter(patchKey => !this.patchIndex[patchKey])
-        .forEach(patchKey => {
-          const lowerChunksTask = ChunksProcessing.lowerChunks(patchKey)
-          lowerChunksTask.processingParams.skipBlobCompression =
-            this.skipBlobCompression
-          const upperChunksTask = ChunksProcessing.upperChunks(patchKey)
-          upperChunksTask.processingParams.skipBlobCompression =
-            this.skipBlobCompression
-          newTasks.push(upperChunksTask)
-          this.isBeyondNearDist(lowerChunksTask)
-            ? postponedTasks.push(lowerChunksTask)
-            : newTasks.push(lowerChunksTask)
-        })
-      // reset previous tasks state
-      // previousTasks.forEach(task => task.processingState = ProcessingState.Waiting)
-      // suspend lower chunks processing beyond near dist
+    this.pendingTasks.forEach(task => console.log(task.processingState))
+    // clear cancelled tasks
+    this.pendingTasks = this.pendingTasks.filter(task => task.processingState !== ProcessingState.Canceled)
 
-      // update postponedTasks
-      this.postponedTasks = postponedTasks
-      // rank task based on distance from center
-      this.rankTasks([...previousTasks, ...newTasks])
-      // add new tasks to processing queue
-      const pendingTasks = newTasks.map(task => task.delegate(chunksWorkerPool))
-      // .then(chunks => {
-      //     chunks.forEach(chunk => this.onChunkAvailable(chunk))
-      // }))
-      return pendingTasks
-    }
-    return []
+    // generate new elements skipping patch keys already found in current index
+    const postponedTasks = this.postponedTasks.filter(task =>
+      this.isBeyondNearDist(task),
+    )
+    const newTasks: ChunksProcessingTask[] = this.postponedTasks.filter(
+      task => !this.isBeyondNearDist(task),
+    )
+    Object.keys(patchIndex)
+      .filter(patchKey => !this.patchIndex[patchKey])
+      .forEach(patchKey => {
+        const lowerChunksTask = ChunksProcessing.lowerChunks(patchKey)
+        lowerChunksTask.processingParams.skipBlobCompression =
+          this.skipBlobCompression
+        const upperChunksTask = ChunksProcessing.upperChunks(patchKey)
+        upperChunksTask.processingParams.skipBlobCompression =
+          this.skipBlobCompression
+        newTasks.push(upperChunksTask)
+        this.isBeyondNearDist(lowerChunksTask)
+          ? postponedTasks.push(lowerChunksTask)
+          : newTasks.push(lowerChunksTask)
+      })
+    // reset previous tasks state
+    // previousTasks.forEach(task => task.processingState = ProcessingState.Waiting)
+    // suspend lower chunks processing beyond near dist
+
+    // update postponedTasks
+    this.postponedTasks = postponedTasks
+
+    // add new tasks to pending tasks
+    this.pendingTasks.push(...newTasks)
+    // rank task based on distance from center
+    this.rankTasks()
+    // return new tasks so they can be sent to processing unit
+    return newTasks
   }
 
   /**
    * look for chunks required each time view state changes
    * and schedule related tasks
    */
-  pollChunks(viewPos: Vector2, viewRange: number) {
-    if (this.viewStateChanged(viewPos, viewRange)) {
-      this.viewState.viewPos = viewPos
-      this.viewState.viewRanges.near = Math.min(viewRange, patchViewRanges.near)
-      this.viewState.viewRanges.far = viewRange
+  pollChunks(patchPos: Vector2, patchViewRange: number) {
+    if (this.viewStateChanged(patchPos, patchViewRange)) {
+      this.viewState.viewPos = patchPos
+      this.viewState.viewRanges.near = Math.min(patchViewRange, patchViewRanges.near)
+      this.viewState.viewRanges.far = patchViewRange
 
       // regen patch index from current view
-      const patchRange = patchRangeFromMapCenterRad(viewPos, viewRange)
+      const patchRange = patchRangeFromMapCenterRad(patchPos, patchViewRange)
       const patchIndex = patchIndexFromMapRange(patchRange)
       // ret scheduled tasks
       const scheduledTasks = this.scheduleTasks(patchIndex)
