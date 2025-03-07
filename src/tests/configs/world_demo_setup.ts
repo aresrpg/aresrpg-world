@@ -44,8 +44,9 @@ export const getWorldDemoEnv = () => {
   // rawSettings.boards.boardThickness = 3
 
   // BIOME tuning
-  rawSettings.biomes.periodicity = 6 // biome size
-  rawSettings.biomes.bilinearInterpolationRange = 0.1
+  rawSettings.biomes.periodicity = 8 // biome size
+  rawSettings.biomes.repartition.centralHalfSegment = 0.15
+  // rawSettings.biomes.repartition.transitionHalfRange = 0.05
   return worldEnv
 }
 

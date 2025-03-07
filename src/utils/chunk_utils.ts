@@ -79,7 +79,6 @@ export const chunksToCompressedBlob = async (chunks: ChunkContainer[]) => {
     .stream()
     .pipeThrough(new CompressionStream('gzip'))
   const compressedBlob = await new Response(compressionStream).blob()
-  console.log(compressedBlob)
   return compressedBlob
 }
 
@@ -93,7 +92,7 @@ export const chunksFromCompressedBlob = async (compressedBlob: Blob) => {
     // deconcat
     const chunkStubs = []
     let leftItems = deconcatData(new Uint8Array(blobContent))
-    console.log(leftItems.length)
+    // console.log(leftItems.length)
     while (leftItems.length) {
       const [metadataContent, rawdataContent, ...leftContent] = leftItems
       const metadata = JSON.parse(new TextDecoder().decode(metadataContent))
