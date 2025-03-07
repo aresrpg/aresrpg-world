@@ -162,7 +162,7 @@ export class WorldEnv {
       seaLevel: 0,
       periodicity: 8,
       repartition: {
-        centralHalfSegment: 0.07, // half range of central segment in proportion to first and last symetrical segments 
+        centralHalfSegment: 0.07, // half range of central segment in proportion to first and last symetrical segments
         transitionHalfRange: 0.05, // bilinear interpolation: 0 = no transition, 0.05 = max transition
       },
     },
