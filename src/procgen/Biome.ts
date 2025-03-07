@@ -161,11 +161,12 @@ type PreprocessedLandConf = {
 
 /**
  *  FIRST SEGMENT | TRANSIT | CENTRAL SEGMENT | TRANSIT | LAST SEGMENT
- * 0             0.3        
- * @returns 
+ * 0             0.3
+ * @returns
  */
 const getTransitionSteps = () => {
-  const { transitionHalfRange, centralHalfSegment } = worldRootEnv.rawSettings.biomes.repartition
+  const { transitionHalfRange, centralHalfSegment } =
+    worldRootEnv.rawSettings.biomes.repartition
   const firstSegmentEnd = 0.5 - centralHalfSegment - transitionHalfRange
   const lastSegmentStart = 0.5 + centralHalfSegment + transitionHalfRange
   const centralSegmentStart = 0.5 - centralHalfSegment + transitionHalfRange
@@ -337,10 +338,10 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-      (biomeContribs[k as BiomeType] = roundToDec(
-        biomeContribs[k as BiomeType],
-        2,
-      )),
+        (biomeContribs[k as BiomeType] = roundToDec(
+          biomeContribs[k as BiomeType],
+          2,
+        )),
     )
 
     // biomeContribs[BiomeType.Arctic] = 1

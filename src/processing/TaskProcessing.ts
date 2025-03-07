@@ -147,14 +147,15 @@ export class ProcessingTask<
 
   async asyncProcess() {
     this.onStarted()
-    const res = await ProcessingTask.handleTask<ProcessingInput, ProcessingOutput>(
-      this,
-    ) as ProcessingOutput
+    const res = (await ProcessingTask.handleTask<
+      ProcessingInput,
+      ProcessingOutput
+    >(this)) as ProcessingOutput
     return this.onCompleted(res)
   }
 
   /**
-   * This will delegate task processing to specific processing environment 
+   * This will delegate task processing to specific processing environment
    * like (workerpool, remote, ..):
    * @param targetEnv target processing environment
    * @returns
@@ -211,7 +212,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() { }
+  request() {}
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -258,7 +259,7 @@ export class ProcessingTask<
     console.log(`skipped task processing`)
   }
 
-  onStarted = () => { }
+  onStarted = () => {}
 
   /**
    * additional callback where post process actions can be performed

@@ -9,10 +9,7 @@ import {
 import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
 import { worldRootEnv } from '../config/WorldEnv.js'
 
-import {
-  ChunksProcessing,
-  ChunksProcessingTask,
-} from './ChunksProcessing.js'
+import { ChunksProcessing, ChunksProcessingTask } from './ChunksProcessing.js'
 import { ProcessingState } from './TaskProcessing.js'
 
 const chunksRange = worldRootEnv.rawSettings.chunks.range
@@ -93,8 +90,9 @@ export class ChunksPolling {
 
   rankTasks() {
     const { viewPos } = this.viewState
-    this.pendingTasks.forEach(task =>
-      task.rank = getTaskPatchId(task).distanceTo(viewPos))
+    this.pendingTasks.forEach(
+      task => (task.rank = getTaskPatchId(task).distanceTo(viewPos)),
+    )
   }
 
   isBeyondNearDist = (task: ChunksProcessingTask) =>
@@ -112,7 +110,9 @@ export class ChunksPolling {
 
   scheduleTasks(patchIndex: Record<PatchKey, boolean>) {
     // clear processed tasks
-    this.pendingTasks = this.pendingTasks.filter(task => task.processingState !== ProcessingState.Done)
+    this.pendingTasks = this.pendingTasks.filter(
+      task => task.processingState !== ProcessingState.Done,
+    )
     // cancel out of range tasks in the queue
     const removedTasks = this.pendingTasks.filter(
       task => !patchIndex[task.processingInput.patchKey],
@@ -124,7 +124,9 @@ export class ChunksPolling {
       )
     this.pendingTasks.forEach(task => console.log(task.processingState))
     // clear cancelled tasks
-    this.pendingTasks = this.pendingTasks.filter(task => task.processingState !== ProcessingState.Canceled)
+    this.pendingTasks = this.pendingTasks.filter(
+      task => task.processingState !== ProcessingState.Canceled,
+    )
 
     // generate new elements skipping patch keys already found in current index
     const postponedTasks = this.postponedTasks.filter(task =>
@@ -169,7 +171,10 @@ export class ChunksPolling {
   pollChunks(patchPos: Vector2, patchViewRange: number) {
     if (this.viewStateChanged(patchPos, patchViewRange)) {
       this.viewState.viewPos = patchPos
-      this.viewState.viewRanges.near = Math.min(patchViewRange, patchViewRanges.near)
+      this.viewState.viewRanges.near = Math.min(
+        patchViewRange,
+        patchViewRanges.near,
+      )
       this.viewState.viewRanges.far = patchViewRange
 
       // regen patch index from current view
