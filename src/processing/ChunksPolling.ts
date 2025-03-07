@@ -120,9 +120,8 @@ export class ChunksPolling {
     removedTasks.forEach(task => task.cancel())
     removedTasks.length &&
       console.log(
-        `canceled ${removedTasks.length} out-of-range items from queue`,
+        `canceled ${removedTasks.length} items from queue (out-of-range)`,
       )
-    this.pendingTasks.forEach(task => console.log(task.processingState))
     // clear cancelled tasks
     this.pendingTasks = this.pendingTasks.filter(
       task => task.processingState !== ProcessingState.Canceled,
