@@ -77,6 +77,7 @@ export class ProcessingTask<
   rank = 0
   promise!: Promise<ProcessingOutput>
   resolve: any
+  reject: any
   // result: any
   // deferredPromise
   // resolveDeferredPromise: any
@@ -123,7 +124,10 @@ export class ProcessingTask<
   getPromise() {
     this.promise =
       this.promise ||
-      new Promise<ProcessingOutput>(resolve => (this.resolve = resolve))
+      new Promise<ProcessingOutput>((resolve, reject) => {
+        this.resolve = resolve
+        this.reject = reject
+      }).catch(this.onRejected)
     return this.promise
   }
 
@@ -212,12 +216,13 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() {}
+  request() { }
 
   cancel() {
     // this will instruct worker pool to reject task
     this.processingState = ProcessingState.Canceled
-    this.resolve(null)
+    // this.resolve?.(null)
+    this?.reject("task cancelled")
   }
 
   suspend() {
@@ -255,11 +260,7 @@ export class ProcessingTask<
     return rawOutputData
   }
 
-  onRejected = () => {
-    console.log(`skipped task processing`)
-  }
-
-  onStarted = () => {}
+  onStarted = () => { }
 
   /**
    * additional callback where post process actions can be performed
@@ -270,6 +271,11 @@ export class ProcessingTask<
   onCompleted(taskOutput: ProcessingOutput): any {
     // console.log(taskOutput)
     return taskOutput
+  }
+
+  onRejected = (error: string) => {
+    console.log(error)
+    return null
   }
 
   toStub() {
