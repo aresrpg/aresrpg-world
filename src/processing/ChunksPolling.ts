@@ -12,8 +12,6 @@ import { worldRootEnv } from '../config/WorldEnv.js'
 import { ChunksProcessing, ChunksProcessingTask } from './ChunksProcessing.js'
 import { ProcessingState } from './TaskProcessing.js'
 
-const chunksRange = worldRootEnv.rawSettings.chunks.range
-const { patchViewRanges } = worldRootEnv.rawSettings
 const getTaskPatchId = (task: ChunksProcessingTask) =>
   parsePatchKey(task.processingInput.patchKey) as PatchId
 
@@ -66,7 +64,7 @@ export class ChunksPolling {
   }
 
   getVisibleChunkIds = () => {
-    const { bottomId, topId } = chunksRange
+    const { bottomId, topId } = worldRootEnv.rawSettings.chunks.range
     const chunkIds: ChunkId[] = []
     this.visiblePatchKeys.forEach(patchKey => {
       const patchId = parsePatchKey(patchKey) as PatchId
@@ -169,6 +167,7 @@ export class ChunksPolling {
    */
   pollChunks(patchPos: Vector2, patchViewRange: number) {
     if (this.viewStateChanged(patchPos, patchViewRange)) {
+      const { patchViewRanges } = worldRootEnv.rawSettings
       this.viewState.viewPos = patchPos
       this.viewState.viewRanges.near = Math.min(
         patchViewRange,
