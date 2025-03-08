@@ -256,12 +256,9 @@ export class BoardProvider {
     cacheProvider: BoardCacheProvider,
     externalDataEncoder: any,
     // dedicatedWorkerPool: WorkerPool,// = WorkerPool.default,
-    boardRadius?: number,
-    boardThickness?: number,
+    boardRadius: number,
+    boardThickness: number,
   ) {
-    boardRadius = boardRadius || worldRootEnv.rawSettings.boards.boardRadius
-    boardThickness =
-      boardThickness || worldRootEnv.rawSettings.boards.boardThickness
     this.boardParams.center = boardCenter.clone().floor()
     this.boardParams.radius = boardRadius
     this.boardParams.thickness = boardThickness
