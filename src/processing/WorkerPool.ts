@@ -71,11 +71,6 @@ export class WorkerPool {
     this.processQueue()
   }
 
-  onRejectedTask = (task: GenericTask) => {
-    console.log(`rejected task with processing state: ${task.processingState} `)
-    task.onRejected()
-  }
-
   /**
    * Dispatch items from the queue as much as possible to available workers
    */
@@ -104,9 +99,6 @@ export class WorkerPool {
               this.processQueue()
             })
           }
-        } else {
-          // canceled task, move on to next one
-          nextTask.onRejected()
         }
       } else {
         // this should not happen
