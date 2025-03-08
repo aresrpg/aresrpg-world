@@ -216,13 +216,13 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() { }
+  request() {}
 
   cancel() {
     // this will instruct worker pool to reject task
     this.processingState = ProcessingState.Canceled
     // this.resolve?.(null)
-    this?.reject("task cancelled")
+    this?.reject('task cancelled')
   }
 
   suspend() {
@@ -260,7 +260,7 @@ export class ProcessingTask<
     return rawOutputData
   }
 
-  onStarted = () => { }
+  onStarted = () => {}
 
   /**
    * additional callback where post process actions can be performed
