@@ -64,11 +64,6 @@ export type WorldEnvSettings = {
     configs: Record<ItemType, ProcItemConf>
   }
 
-  boards: {
-    boardRadius: number
-    boardThickness: number
-  }
-
   heightmap: {
     spreading: number
     harmonics: number
@@ -145,11 +140,6 @@ export class WorldEnv {
 
     proceduralItems: {
       configs: {} as Record<ItemType, ProcItemConf>,
-    },
-
-    boards: {
-      boardRadius: 32,
-      boardThickness: 5,
     },
 
     heightmap: {
