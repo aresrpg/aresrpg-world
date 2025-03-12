@@ -1,9 +1,9 @@
 import { Box3, Vector3 } from 'three'
 
 import { NBTReader } from '../third-party/nbt_custom.js'
-import { BlockType } from '../procgen/Biome.js'
 import { ChunkContainer } from '../datacontainers/ChunkContainer.js'
 import { worldRootEnv } from '../config/WorldEnv.js'
+import { BlockType } from '../utils/common_types.js'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
 

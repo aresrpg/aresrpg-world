@@ -13,7 +13,13 @@ import {
   patchRangeFromBounds,
   serializePatchId,
 } from '../utils/patch_chunk.js'
-import { BlockMode, ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
+import {
+  BlockMode,
+  BlockType,
+  ChunkId,
+  PatchId,
+  PatchKey,
+} from '../utils/common_types.js'
 import {
   DataContainer,
   PatchBase,
@@ -22,7 +28,6 @@ import {
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { worldRootEnv } from '../config/WorldEnv.js'
-import { BlockType } from '../procgen/Biome.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { ItemsProcessing } from './ItemsProcessing.js'

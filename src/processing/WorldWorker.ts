@@ -1,4 +1,5 @@
-import { WorldEnvSettings, worldRootEnv } from '../config/WorldEnv.js'
+import { WorldEnvSettings } from '../config/WorldEnv.js'
+import { WorldModules } from '../WorldModules.js'
 
 import {
   GenericTaskStub,
@@ -7,13 +8,16 @@ import {
 } from './TaskProcessing.js'
 import { MessageData } from './WorkerProxy.js'
 
+let worldModules: WorldModules
+
 /**
  * Worker commons
  */
 
-const onSetup = (envSettings: any) => {
+const onSetup = (envSettings: WorldEnvSettings) => {
   // apply settings in worker's environment
-  worldRootEnv.fromStub(envSettings)
+  worldModules = new WorldModules(envSettings)
+  // worldRootEnv.fromStub(envSettings)
   const done = true
   return { done }
 }
@@ -25,8 +29,12 @@ const onTask = async (taskStub: GenericTaskStub) => {
   }
   const { taskHandlers } = ProcessingTask
   const taskHandler = taskHandlers[taskStub.handlerId]
-  if (taskHandler) {
-    const taskOutput = await taskHandler(taskStub, ProcessingContext.Worker)
+  if (taskHandler && worldModules) {
+    const taskOutput = await taskHandler(
+      taskStub,
+      worldModules,
+      ProcessingContext.Worker,
+    )
     reply.data = taskOutput
   }
   return reply

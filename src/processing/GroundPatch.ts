@@ -7,15 +7,15 @@ import {
   PatchBoundId,
   PatchKey,
   PatchId,
+  BlockType,
 } from '../utils/common_types.js'
 import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk.js'
-import { BlockMode, Heightmap } from '../index.js'
+import { BlockMode } from '../index.js'
 import {
   Biome,
   BiomeInfluence,
   BiomeNumericType,
   BiomeType,
-  BlockType,
   ReverseBiomeNumericType,
 } from '../procgen/Biome.js'
 import {
@@ -29,6 +29,7 @@ import {
 } from '../utils/spatial_utils.js'
 import { bilinearInterpolation } from '../utils/math_utils.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
+import { WorldModules } from '../WorldModules.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
@@ -90,8 +91,33 @@ export class GroundPatch
     this.rawData = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
   }
 
-  prepare() {
-    this.biomeInfluence = this.getBiomeInfluence()
+  prepare(biome: Biome) {
+    const getBiomeInfluence = () => {
+      const { xMyM, xMyP, xPyM, xPyP } = PatchBoundId
+      // eval biome at patch corners
+      const equals = (v1: BiomeInfluence, v2: BiomeInfluence) => {
+        const different = Object.keys(v1)
+          // .map(k => parseInt(k) as BiomeType)
+          .find(k => v1[k as BiomeType] !== v2[k as BiomeType])
+        return !different
+      }
+      const boundsPoints = getPatchBoundingPoints(this.bounds)
+      const boundsInfluences = {} as PatchBoundingBiomes
+      ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+        const boundPos = boundsPoints[key] as Vector2
+        const biomeInfluence = biome.getBiomeInfluence(asVect3(boundPos))
+        boundsInfluences[key] = biomeInfluence
+        // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+        return biomeInfluence
+      })
+      const allEquals =
+        equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
+        equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
+        equals(boundsInfluences[xMyM], boundsInfluences[xPyP])
+      return allEquals ? boundsInfluences[xMyM] : boundsInfluences
+    }
+
+    this.biomeInfluence = getBiomeInfluence()
 
     //   const stub: GroundPatchStub =
     //   await WorldComputeProxy.current.bakeGroundPatch(this.key || this.bounds)
@@ -213,31 +239,6 @@ export class GroundPatch
     }
   }
 
-  getBiomeInfluence() {
-    const { xMyM, xMyP, xPyM, xPyP } = PatchBoundId
-    // eval biome at patch corners
-    const equals = (v1: BiomeInfluence, v2: BiomeInfluence) => {
-      const different = Object.keys(v1)
-        // .map(k => parseInt(k) as BiomeType)
-        .find(k => v1[k as BiomeType] !== v2[k as BiomeType])
-      return !different
-    }
-    const boundsPoints = getPatchBoundingPoints(this.bounds)
-    const boundsInfluences = {} as PatchBoundingBiomes
-    ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-      const boundPos = boundsPoints[key] as Vector2
-      const biomeInfluence = Biome.instance.getBiomeInfluence(asVect3(boundPos))
-      boundsInfluences[key] = biomeInfluence
-      // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-      return biomeInfluence
-    })
-    const allEquals =
-      equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
-      equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
-      equals(boundsInfluences[xMyM], boundsInfluences[xPyP])
-    return allEquals ? boundsInfluences[xMyM] : boundsInfluences
-  }
-
   getBlockBiome(blockPos: Vector2) {
     if (this.isTransitionPatch()) {
       return bilinearInterpolation(
@@ -249,18 +250,18 @@ export class GroundPatch
     return this.biomeInfluence as BiomeInfluence
   }
 
-  computeGroundBlock = (blockPos: Vector3) => {
+  computeGroundBlock = (blockPos: Vector3, worldInstance: WorldModules) => {
     const biomeInfluence = this.getBlockBiome(asVect2(blockPos))
     // const biomeInfluenceBis = Biome.instance.getBiomeInfluence(blockPos)
-    const biomeType = Biome.instance.getBiomeType(biomeInfluence)
-    const rawVal = Heightmap.instance.getRawVal(blockPos)
-    const nominalConf = Biome.instance.getBiomeConf(
+    const biomeType = worldInstance.biome.getBiomeType(biomeInfluence)
+    const rawVal = worldInstance.heightmap.getRawVal(blockPos)
+    const nominalConf = worldInstance.biome.getBiomeConf(
       rawVal,
       biomeType,
     ) as BiomeLands
     // const confIndex = Biome.instance.getConfIndex(currLevelConf.key)
     // const confData = Biome.instance.indexedConf.get(confIndex)
-    const level = Heightmap.instance.getGroundLevel(
+    const level = worldInstance.heightmap.getGroundLevel(
       blockPos,
       rawVal,
       biomeInfluence,
@@ -274,7 +275,7 @@ export class GroundPatch
     // }
     // const pos = new Vector3(blockPos.x, level, blockPos.z)
     if (!isCavern && nominalConf.next?.data) {
-      const variation = Biome.instance.posRandomizer.eval(
+      const variation = worldInstance.biome.posRandomizer.eval(
         blockPos.clone().multiplyScalar(50),
       ) // Math.cos(0.1 * blockPos.length()) / 100
       const min = new Vector2(nominalConf.data.x, nominalConf.data.y)
@@ -308,32 +309,32 @@ export class GroundPatch
   }
 
   /**
-   * required for transition patches to insure interpolated patch corners
-   * used to compute blocks are the same as near patch
-   */
-  fillMarginsFromNearPatches() {
-    // copy four edges margins
-    const sidePatches = getPatchNeighbours(this.patchId as PatchId).map(
-      patchId => new GroundPatch(serializePatchId(patchId), 0),
-    )
-    sidePatches.forEach(sidePatch => {
-      const marginOverlap = this.extendedBounds.intersect(sidePatch.bounds)
-      // for each side patches only gen overlapping margins with current patch
-      sidePatch.bake(marginOverlap)
-      // copy side patch to current patch on overlapping margin zone
-      // const count = this.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
-      // const count2 = sidePatch.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
-      // console.log(`rawData count:  source ${count2} target ${count}`)
-      copySourceToTargetPatch(sidePatch, this, false)
-    })
-  }
-
-  /**
    * whole patch by default
    * if genBounds specified, only sub rows/cols will be generated
    */
-  bake(regionBounds?: Box2) {
-    this.prepare()
+  bake(worldContext: WorldModules, regionBounds?: Box2) {
+    /**
+     * required for transition patches to insure interpolated patch corners
+     * used to compute blocks are the same as near patch
+     */
+    const fillMarginsFromNearPatches = () => {
+      // copy four edges margins
+      const sidePatches = getPatchNeighbours(this.patchId as PatchId).map(
+        patchId => new GroundPatch(serializePatchId(patchId), 0),
+      )
+      sidePatches.forEach(sidePatch => {
+        const marginOverlap = this.extendedBounds.intersect(sidePatch.bounds)
+        // for each side patches only gen overlapping margins with current patch
+        sidePatch.bake(worldContext, marginOverlap)
+        // copy side patch to current patch on overlapping margin zone
+        // const count = this.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
+        // const count2 = sidePatch.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
+        // console.log(`rawData count:  source ${count2} target ${count}`)
+        copySourceToTargetPatch(sidePatch, this, false)
+      })
+    }
+
+    this.prepare(worldContext.biome)
     const { valueRange } = this
     // omit margin blocks to bake them separately
     const doMarginsApart =
@@ -343,7 +344,7 @@ export class GroundPatch
       // EXPERIMENTAL: is it faster to perform bilinear interpolation rather
       // than sampling biome for each block?
       // if biome is the same at each patch corners, no need to interpolate
-      const blockData = this.computeGroundBlock(block.pos)
+      const blockData = this.computeGroundBlock(block.pos, worldContext)
       // blockData.landIndex = this.isTransitionPatch() ? 0 : blockData.landIndex
       valueRange.min = Math.min(valueRange.min, blockData.level)
       valueRange.max = Math.max(valueRange.max, blockData.level)
@@ -351,7 +352,7 @@ export class GroundPatch
     }
     this.isEmpty = false
     // for whole patch with margins only
-    doMarginsApart && this.fillMarginsFromNearPatches()
+    doMarginsApart && fillMarginsFromNearPatches()
     // return groundPatch
   }
 

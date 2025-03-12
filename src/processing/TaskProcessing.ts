@@ -1,4 +1,5 @@
 import { parseThreeStub } from '../utils/patch_chunk.js'
+import { WorldModules } from '../WorldModules.js'
 
 import { WorkerPool } from './WorkerPool.js'
 
@@ -51,7 +52,8 @@ export type ProcessingTaskHandler<
   ProcessingOutput,
 > = (
   taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
-  context?: ProcessingContext,
+  worldContext: WorldModules,
+  procContext?: ProcessingContext,
 ) => Promise<ProcessingOutput> | ProcessingOutput
 type ProcessingTasksHandlers = Record<
   ProcessingTaskHandlerId,
@@ -85,7 +87,8 @@ export class ProcessingTask<
 
   static handleTask<T, U>(
     taskStub: ProcessingTaskStub<T, U> | ProcessingTask<T, any, U>,
-    context?: ProcessingContext,
+    worldContext: WorldModules,
+    procContext?: ProcessingContext,
   ) {
     // const [delegatedTask, processingArgs, processingParams] = taskStub
     const { handlerId } = taskStub
@@ -95,7 +98,7 @@ export class ProcessingTask<
     ] as ProcessingTaskHandler<T, any, U>
     if (taskHandler) {
       // const task = new Task(...args)
-      const taskRes = taskHandler(taskStub, context)
+      const taskRes = taskHandler(taskStub, worldContext, procContext)
       // const res = await task.preProcess(processingArgs, processingParams)
       // const stubs = toStubs(res)
       return taskRes // targetObj.toStub()
@@ -141,20 +144,21 @@ export class ProcessingTask<
   /**
    * Depending on task being run, result will be either sync or async
    */
-  process() {
+  process(worldInstance: WorldModules) {
     const res = ProcessingTask.handleTask<ProcessingInput, ProcessingOutput>(
       this,
+      worldInstance,
     ) as ProcessingOutput
     this.onCompleted(res)
     return res
   }
 
-  async asyncProcess() {
+  async asyncProcess(worldInstance: WorldModules) {
     this.onStarted()
     const res = (await ProcessingTask.handleTask<
       ProcessingInput,
       ProcessingOutput
-    >(this)) as ProcessingOutput
+    >(this, worldInstance)) as ProcessingOutput
     return this.onCompleted(res)
   }
 
@@ -203,11 +207,10 @@ export class ProcessingTask<
    * @param onDeferredStart
    * @returns
    */
-  defer(delay = 0) {
+  defer(workerPool: WorkerPool, delay = 0) {
     if (this.processingState === ProcessingState.None) {
       this.processingState = ProcessingState.Scheduled
-      // TODO: this can't work as delegate needs a worker
-      setTimeout(this.delegate, delay)
+      setTimeout(() => this.delegate(workerPool), delay)
       return this.getPromise()
     }
     return null
