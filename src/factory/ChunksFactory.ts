@@ -2,7 +2,7 @@
 import { Vector3 } from 'three'
 
 import { asVect2, serializePatchId, asBox2 } from '../utils/patch_chunk.js'
-import { ChunkKey, PatchBlock } from '../utils/common_types.js'
+import { BlockType, ChunkKey, PatchBlock } from '../utils/common_types.js'
 import {
   ChunkBuffer,
   ChunkContainer,
@@ -11,8 +11,9 @@ import {
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
 import { worldRootEnv } from '../config/WorldEnv.js'
-import { Biome, BiomeType, BlockType } from '../procgen/Biome.js'
+import { Biome, BiomeType } from '../procgen/Biome.js'
 import { DensityVolume } from '../procgen/DensityVolume.js'
+import { WorldModules } from '../WorldModules.js'
 
 export class EmptyChunk extends ChunkContainer {
   constructor(chunkKey: ChunkKey) {
@@ -31,12 +32,17 @@ const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
 }
 
 export class GroundChunk extends ChunkContainer {
-  generateGroundBuffer(block: PatchBlock, ymin: number, ymax: number) {
+  generateGroundBuffer(
+    block: PatchBlock,
+    ymin: number,
+    ymax: number,
+    biome: Biome,
+  ) {
     //, isTransition = false) {
     const undegroundDepth = 4
-    const { biome, landIndex } = block.data
+    const { biome: biomeType, landIndex } = block.data
     const blockLocalPos = block.localPos as Vector3
-    const biomeLand = Biome.instance.mappings[biome].nth(landIndex)
+    const biomeLand = biome.mappings[biomeType].nth(landIndex)
     const landConf = biomeLand.data
     const blockType = // isTransition ? BlockType.SAND :
       highlightPatchBorders(blockLocalPos, landConf.type) || landConf.type
@@ -52,7 +58,7 @@ export class GroundChunk extends ChunkContainer {
       const groundBuffer = new Uint16Array(block.data.level - ymin)
       // fill with bedrock first
       groundBuffer.fill(
-        biome === BiomeType.Arctic ? BlockType.ICE : BlockType.BEDROCK,
+        biomeType === BiomeType.Arctic ? BlockType.ICE : BlockType.BEDROCK,
       )
       // add underground layer
       groundBuffer.fill(
@@ -70,11 +76,15 @@ export class GroundChunk extends ChunkContainer {
     return undefined
   }
 
-  async bake(groundLayer?: GroundPatch, cavesMask?: ChunkMask) {
+  async bake(
+    worldContext: WorldModules,
+    groundLayer?: GroundPatch,
+    cavesMask?: ChunkMask,
+  ) {
     const patchId = asVect2(this.chunkId as Vector3)
     const patchKey = serializePatchId(patchId)
     groundLayer = groundLayer || new GroundPatch(patchKey)
-    groundLayer.isEmpty && (await groundLayer.bake())
+    groundLayer.isEmpty && (await groundLayer.bake(worldContext))
 
     const ymin = this.extendedBounds.min.y
     const ymax = this.extendedBounds.max.y
@@ -83,7 +93,12 @@ export class GroundChunk extends ChunkContainer {
 
     const blocks = groundLayer.iterBlocksQuery()
     for (const block of blocks) {
-      const groundBuff = this.generateGroundBuffer(block, ymin, ymax)
+      const groundBuff = this.generateGroundBuffer(
+        block,
+        ymin,
+        ymax,
+        worldContext.biome,
+      )
       if (groundBuff) {
         const chunk_buffer = this.readBuffer(groundBuff.pos)
         chunk_buffer.set(groundBuff.content)
@@ -100,9 +115,9 @@ export class GroundChunk extends ChunkContainer {
  */
 
 export class CavesMask extends ChunkMask {
-  bake() {
+  bake(worldContext: WorldModules) {
     const groundLayer = new GroundPatch(asBox2(this.bounds))
-    groundLayer.bake()
+    groundLayer.bake(worldContext)
     // const bounds = asBox3(groundLayer.bounds)
     // bounds.max.y = groundLayer.valueRange.max
     // const chunkContainer = new ChunkContainer(bounds, 1)

@@ -22,24 +22,6 @@ import { worldRootEnv } from '../config/WorldEnv.js'
 
 import { ProcLayer } from './ProcLayer.js'
 
-// reserved native block types
-export enum BlockType {
-  NONE,
-  HOLE,
-  BEDROCK,
-  WATER,
-  ICE,
-  MUD,
-  TRUNK,
-  SAND,
-  GRASS,
-  ROCK,
-  SNOW,
-  FOLIAGE_LIGHT,
-  FOLIAGE_DARK,
-  LAST_PLACEHOLDER,
-}
-
 enum Level {
   LOW = 'low',
   MID = 'mid',
@@ -211,7 +193,7 @@ export class Biome {
 
   preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()
 
-  constructor() {
+  constructor(biomesRawConf?: BiomesRawConf) {
     this.heatmap = new ProcLayer('heatmap')
     this.heatmap.sampling.harmonicsCount = 6
     this.heatmap.sampling.periodicity =
@@ -225,9 +207,10 @@ export class Biome {
     // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
     this.posRandomizer = new ProcLayer('pos_random')
     this.posRandomizer.sampling.periodicity = 6
-    const isEmptyConf = Object.keys(Biome.externalRawConf).length === 0
+    const isEmptyConf =
+      Object.keys(Biome.externalRawConf).length === 0 && !biomesRawConf
     if (!isEmptyConf) {
-      this.parseBiomesConfig(Biome.externalRawConf)
+      this.parseBiomesConfig(biomesRawConf || Biome.externalRawConf)
     } else {
       console.warn(
         `missing biome configuration at creation, must provide conf later`,

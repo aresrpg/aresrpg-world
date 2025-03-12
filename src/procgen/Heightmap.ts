@@ -19,26 +19,21 @@ const MODULATION_THRESHOLD = 0.318
  */
 
 export class Heightmap {
-  // eslint-disable-next-line no-use-before-define
-  static singleton: Heightmap
   parent: any
   compositor = getCompositor(BlendMode.MUL)
   // maps (externally provided)
   heightmap: ProcLayer
   amplitude: ProcLayer
+  biome: Biome
 
-  constructor() {
+  constructor(biome: Biome) {
     this.heightmap = new ProcLayer('heightmap')
     this.heightmap.params.spreading =
       worldRootEnv.rawSettings.heightmap.spreading
     this.heightmap.sampling.harmonicsCount =
       worldRootEnv.rawSettings.heightmap.harmonics
     this.amplitude = new ProcLayer('amplitude')
-  }
-
-  static get instance() {
-    Heightmap.singleton = Heightmap.singleton || new Heightmap()
-    return Heightmap.singleton
+    this.biome = biome
   }
 
   applyModulation(input: Vector3, initialVal: number, threshold: number) {
@@ -76,11 +71,10 @@ export class Heightmap {
     // includeSea?: boolean,
   ) {
     rawVal = rawVal || this.getRawVal(blockPos)
-    biomeInfluence =
-      biomeInfluence || Biome.instance.getBiomeInfluence(blockPos)
+    biomeInfluence = biomeInfluence || this.biome.getBiomeInfluence(blockPos)
     // (blockData as BlockIterData).cache.type = Biome.instance.getBlockType(blockPos, noiseVal)
     // noiseVal = includeSea ? Math.max(noiseVal, Biome.instance.params.seaLevel) : noiseVal
-    const initialVal = Biome.instance.getBlockLevelInterpolated(
+    const initialVal = this.biome.getBlockLevelInterpolated(
       rawVal,
       biomeInfluence,
     )

@@ -1,6 +1,5 @@
 import { Vector2, Vector3 } from 'three'
 
-import { Biome, ProcessingTask, DensityVolume, BlockType } from '../index.js'
 import {
   serializePatchId,
   getPatchId,
@@ -8,14 +7,17 @@ import {
   asVect2,
   // parseThreeStub,
 } from '../utils/patch_chunk.js'
-import { PatchKey, Block, BlockData } from '../utils/common_types.js'
+import { PatchKey, Block, BlockData, BlockType } from '../utils/common_types.js'
 import { worldRootEnv } from '../config/WorldEnv.js'
+import { WorldModules } from '../WorldModules.js'
+import { DensityVolume } from '../procgen/DensityVolume.js'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
 import {
   parseTaskInputStubs,
   ProcessingContext,
+  ProcessingTask,
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing.js'
@@ -99,12 +101,6 @@ const getPatchKey = (inputPos: Vector2) => {
   return patchKey
 }
 
-const createGroundPatch = (patchKey: PatchKey) => {
-  const groundLayer = new GroundPatch(patchKey)
-  groundLayer.prepare()
-  return groundLayer
-}
-
 // const floorPositionsHandler = (input: Vector3[]) => {
 
 // }
@@ -115,6 +111,7 @@ const createGroundPatch = (patchKey: PatchKey) => {
 
 export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
   taskStub: BlocksProcessingTask | BlocksProcessingTaskStub,
+  worldContext: WorldModules,
   processingContext = ProcessingContext.None,
 ) => {
   const { processingInput, processingParams } = taskStub
@@ -122,6 +119,12 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
   const buildCache: Record<PatchKey, GroundPatch> = {}
 
   const isAsync = recipe === BlocksProcessingRecipe.Peak
+
+  const createGroundPatch = (patchKey: PatchKey) => {
+    const groundLayer = new GroundPatch(patchKey)
+    groundLayer.prepare(worldContext.biome)
+    return groundLayer
+  }
 
   const getGroundPatch = (requestedPos: Vector2) => {
     const patchKey = getPatchKey(requestedPos)
@@ -160,6 +163,106 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
     // return block as Block<BlockData>
   }
 
+  /**
+   * requires: ground patch
+   * provides: ground block
+   */
+  const bakeGroundBlock = (
+    pos: Vector3,
+    groundPatch: GroundPatch,
+    densityEval = false,
+  ) => {
+    const groundData = groundPatch?.computeGroundBlock(pos, worldContext)
+    // return groundData
+    // }).filter(val => val) as GroundBlockData[]
+    // const batchOutput = groundBlocksData.map(groundData => {
+    const { biome, landIndex, level } = groundData as GroundBlockData
+    const landscapeConf = worldContext.biome.mappings[biome].nth(landIndex)
+    const groundConf = landscapeConf.data
+    // check for block emptyness if specified
+    const isEmptyBlock = () =>
+      DensityVolume.instance.getBlockDensity(pos, level + 20)
+    const blockData: BlockData = {
+      level,
+      type: densityEval && isEmptyBlock() ? BlockType.HOLE : groundConf.type,
+    }
+    const block: Block<BlockData> = {
+      pos,
+      data: blockData,
+    }
+    return block
+  }
+
+  /**
+   * provides: highest overground block
+   * usage: LOD
+   */
+  const bakePeakBlock = async (groundBlock: Block<BlockData>) => {
+    const peakBlock = (await ItemsProcessing.pointPeakBlock(
+      asVect2(groundBlock.pos),
+    ).process(worldContext)) as any
+    if (peakBlock.type !== BlockType.NONE) {
+      groundBlock.data.level = peakBlock.level
+      groundBlock.data.type = peakBlock.type
+    }
+    return groundBlock
+  }
+
+  /**
+   * to avoid spawning above schematics like trees returned block should not be
+   * above schematic block or not at greater distance from ground surface
+   * usage: random spawn above floor surface
+   *
+   */
+  // start with normal query to find ground level,
+  // - if requested pos is above ground: returns ground pos provided there is no
+  // schematic blocks at given location or schematics blocks are lesser than predefined value
+  // - if requested pos is below ground: look down or up for closest empty block
+  // stop iterating in up direction if reaching ground surface with schematic block
+  // offset from requested pos
+  const bakeFloorBlock = (
+    groundBlock: Block<BlockData>,
+    initialBlockLevel: number,
+  ) => {
+    const groundLevel = groundBlock.pos.y
+    const groundPos = asVect2(groundBlock.pos)
+
+    const isEmptyBlock = (level: number) =>
+      DensityVolume.instance.getBlockDensity(
+        asVect3(groundPos, level),
+        groundLevel + 20,
+      )
+
+    const isAboveSurface = initialBlockLevel > groundLevel
+
+    let currentLevel = initialBlockLevel
+    if (isAboveSurface) {
+      // above ground level => start from ground level
+      currentLevel = groundLevel
+    } else {
+      // below ground level =>  find first empty block below
+      while (!isEmptyBlock(currentLevel) && currentLevel-- >= 0);
+    }
+    // then look for last empty block below
+    while (isEmptyBlock(currentLevel) && currentLevel-- >= 0);
+    // currentLevel = 128
+    groundBlock.pos.y = currentLevel
+    groundBlock.data.level = currentLevel
+    return groundBlock
+  }
+
+  /**
+   * needs:
+   * provides: nearest ceiling block
+   */
+  const bakeCeilingBlock = (
+    groundBlock: Block<BlockData>,
+    requestedBlockLevel: number,
+  ) => {
+    console.log(groundBlock)
+    console.log(requestedBlockLevel)
+  }
+
   const parsedInput =
     processingContext === ProcessingContext.Worker
       ? (parseTaskInputStubs(...processingInput) as BlocksProcessingInput)
@@ -178,106 +281,6 @@ ProcessingTask.taskHandlers[blocksProcessingHandlerName] =
 /**
  * Processing
  */
-
-/**
- * requires: ground patch
- * provides: ground block
- */
-const bakeGroundBlock = (
-  pos: Vector3,
-  groundPatch: GroundPatch,
-  densityEval = false,
-) => {
-  const groundData = groundPatch?.computeGroundBlock(pos)
-  // return groundData
-  // }).filter(val => val) as GroundBlockData[]
-  // const batchOutput = groundBlocksData.map(groundData => {
-  const { biome, landIndex, level } = groundData as GroundBlockData
-  const landscapeConf = Biome.instance.mappings[biome].nth(landIndex)
-  const groundConf = landscapeConf.data
-  // check for block emptyness if specified
-  const isEmptyBlock = () =>
-    DensityVolume.instance.getBlockDensity(pos, level + 20)
-  const blockData: BlockData = {
-    level,
-    type: densityEval && isEmptyBlock() ? BlockType.HOLE : groundConf.type,
-  }
-  const block: Block<BlockData> = {
-    pos,
-    data: blockData,
-  }
-  return block
-}
-
-/**
- * provides: highest overground block
- * usage: LOD
- */
-const bakePeakBlock = async (groundBlock: Block<BlockData>) => {
-  const peakBlock = (await ItemsProcessing.pointPeakBlock(
-    asVect2(groundBlock.pos),
-  ).process()) as any
-  if (peakBlock.type !== BlockType.NONE) {
-    groundBlock.data.level = peakBlock.level
-    groundBlock.data.type = peakBlock.type
-  }
-  return groundBlock
-}
-
-/**
- * to avoid spawning above schematics like trees returned block should not be
- * above schematic block or not at greater distance from ground surface
- * usage: random spawn above floor surface
- *
- */
-// start with normal query to find ground level,
-// - if requested pos is above ground: returns ground pos provided there is no
-// schematic blocks at given location or schematics blocks are lesser than predefined value
-// - if requested pos is below ground: look down or up for closest empty block
-// stop iterating in up direction if reaching ground surface with schematic block
-// offset from requested pos
-const bakeFloorBlock = (
-  groundBlock: Block<BlockData>,
-  initialBlockLevel: number,
-) => {
-  const groundLevel = groundBlock.pos.y
-  const groundPos = asVect2(groundBlock.pos)
-
-  const isEmptyBlock = (level: number) =>
-    DensityVolume.instance.getBlockDensity(
-      asVect3(groundPos, level),
-      groundLevel + 20,
-    )
-
-  const isAboveSurface = initialBlockLevel > groundLevel
-
-  let currentLevel = initialBlockLevel
-  if (isAboveSurface) {
-    // above ground level => start from ground level
-    currentLevel = groundLevel
-  } else {
-    // below ground level =>  find first empty block below
-    while (!isEmptyBlock(currentLevel) && currentLevel-- >= 0);
-  }
-  // then look for last empty block below
-  while (isEmptyBlock(currentLevel) && currentLevel-- >= 0);
-  // currentLevel = 128
-  groundBlock.pos.y = currentLevel
-  groundBlock.data.level = currentLevel
-  return groundBlock
-}
-
-/**
- * needs:
- * provides: nearest ceiling block
- */
-const bakeCeilingBlock = (
-  groundBlock: Block<BlockData>,
-  requestedBlockLevel: number,
-) => {
-  console.log(groundBlock)
-  console.log(requestedBlockLevel)
-}
 
 // or build artefacts
 // type BuildData = {
