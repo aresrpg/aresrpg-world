@@ -14,6 +14,44 @@ export type WorldIndividualSeeds = {
   density?: string // 'Caverns'
 }
 
+export type ChunksVerticalRange = {
+  bottomId: number
+  topId: number
+}
+
+export type PatchViewRanges = {
+  near: number // undeground view dist
+  far: number // ground surface view dist
+}
+
+export type BiomesEnvSettings = {
+  rawConf: BiomesRawConf
+  seaLevel: number
+  periodicity: number
+  repartition: {
+    centralHalfSegment: number
+    transitionHalfRange: number
+  }
+}
+
+export type HeightmapEnvSettings = {
+  spreading: number
+  harmonics: number
+}
+
+export type DebugEnvSettings = {
+  patch: {
+    borderHighlightColor: BlockType
+  }
+  board: {
+    startPosHighlightColor: BlockType
+    splitSidesColoring: boolean
+  }
+  schematics: {
+    missingBlockType: BlockType
+  }
+}
+
 export type WorldEnvSettings = {
   seeds: {
     main: string
@@ -26,29 +64,12 @@ export type WorldEnvSettings = {
   distributionMapPeriod: number
 
   // in patch unit
-  patchViewRanges: {
-    near: number // undeground view dist
-    far: number // ground surface view dist
-  }
+  patchViewRanges: PatchViewRanges
 
-  debug: {
-    patch: {
-      borderHighlightColor: BlockType
-    }
-    board: {
-      startPosHighlightColor: BlockType
-      splitSidesColoring: boolean
-    }
-    schematics: {
-      missingBlockType: BlockType
-    }
-  }
+  debug: DebugEnvSettings
 
   chunks: {
-    range: {
-      bottomId: number
-      topId: number
-    }
+    verticalRange: ChunksVerticalRange
   }
 
   schematics: {
@@ -61,19 +82,13 @@ export type WorldEnvSettings = {
     configs: Record<ItemType, ProcItemConf>
   }
 
-  heightmap: {
-    spreading: number
-    harmonics: number
-  }
+  heightmap: HeightmapEnvSettings
 
-  biomes: {
-    rawConf: BiomesRawConf
-    seaLevel: number
-    periodicity: number
-    repartition: {
-      centralHalfSegment: number
-      transitionHalfRange: number
-    }
+  biomes: BiomesEnvSettings
+
+  boards: {
+    radius: number
+    thickness: number
   }
 }
 
@@ -110,7 +125,7 @@ export class WorldEnv {
     },
 
     chunks: {
-      range: {
+      verticalRange: {
         bottomId: 0,
         topId: 5,
       },
@@ -140,6 +155,11 @@ export class WorldEnv {
         transitionHalfRange: 0.05, // bilinear interpolation: 0 = no transition, 0.05 = max transition
       },
     },
+
+    boards: {
+      radius: 16,
+      thickness: 3,
+    },
   }
 
   getPatchSize = () => Math.pow(2, this.rawSettings.patchPowSize)
@@ -149,6 +169,8 @@ export class WorldEnv {
 
   getChunkDimensions = () =>
     new Vector3(this.getPatchSize(), this.getPatchSize(), this.getPatchSize())
+
+  getChunksVerticalRange = () => this.rawSettings.chunks.verticalRange
 
   getNearViewDist = () =>
     this.rawSettings.patchViewRanges.near * this.getPatchSize()
@@ -165,6 +187,7 @@ export class WorldEnv {
 
   fromStub = (envStub: Partial<WorldEnvSettings>) => {
     Object.assign(this.rawSettings, envStub)
+    return this
     // overrideSeeds(this.rawSettings.seeds.overrides)
   }
 

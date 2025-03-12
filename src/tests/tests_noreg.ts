@@ -123,7 +123,10 @@ const testChunksPolling = async (
   world_env: WorldEnv,
 ) => {
   console.log(`[TESTENV: WORKERPOOL]: chunks polling`)
-  const chunksPolling = new ChunksPolling()
+  const chunksPolling = new ChunksPolling(
+    world_env.rawSettings.patchViewRanges,
+    world_env.getChunksVerticalRange(),
+  )
   // skip compression for local gen
   // chunksPolling.skipBlobCompression = true
 

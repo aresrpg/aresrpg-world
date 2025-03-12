@@ -18,7 +18,7 @@ import {
   typesNumbering,
 } from '../utils/misc_utils.js'
 import { asVect3, isVect3Stub } from '../utils/patch_chunk.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
+import { BiomesEnvSettings } from '../config/WorldEnv.js'
 
 import { ProcLayer } from './ProcLayer.js'
 
@@ -146,9 +146,9 @@ type PreprocessedLandConf = {
  * 0             0.3
  * @returns
  */
-const getTransitionSteps = () => {
-  const { transitionHalfRange, centralHalfSegment } =
-    worldRootEnv.rawSettings.biomes.repartition
+const getTransitionSteps = (biomesRepartition: any) => {
+  const { transitionHalfRange, centralHalfSegment } = biomesRepartition
+
   const firstSegmentEnd = 0.5 - centralHalfSegment - transitionHalfRange
   const lastSegmentStart = 0.5 + centralHalfSegment + transitionHalfRange
   const centralSegmentStart = 0.5 - centralHalfSegment + transitionHalfRange
@@ -169,12 +169,6 @@ const getTransitionSteps = () => {
  * assign block types: water, sand, grass, mud, rock, snow, ..
  */
 export class Biome {
-  // eslint-disable-next-line no-use-before-define
-  private static singleton: Biome
-  static get externalRawConf() {
-    return worldRootEnv.rawSettings.biomes.rawConf
-  }
-
   heatmap: ProcLayer
   rainmap: ProcLayer
   // heatProfile: MappingRanges
@@ -189,42 +183,25 @@ export class Biome {
    * midToHigh < val < high => MID decrease, HIGH increase
    * val > hight => HIGH = 1
    */
-  steps = getTransitionSteps()
-
+  steps
   preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()
+  biomesEnv: BiomesEnvSettings
 
-  constructor(biomesRawConf?: BiomesRawConf) {
+  constructor(biomesEnv: BiomesEnvSettings) {
     this.heatmap = new ProcLayer('heatmap')
     this.heatmap.sampling.harmonicsCount = 6
-    this.heatmap.sampling.periodicity =
-      worldRootEnv.rawSettings.biomes.periodicity
+    this.heatmap.sampling.periodicity = biomesEnv.periodicity
     this.rainmap = new ProcLayer('rainmap')
     this.rainmap.sampling.harmonicsCount = 6
-    this.rainmap.sampling.periodicity =
-      worldRootEnv.rawSettings.biomes.periodicity
+    this.rainmap.sampling.periodicity = biomesEnv.periodicity
     // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
     // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
     // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
     this.posRandomizer = new ProcLayer('pos_random')
     this.posRandomizer.sampling.periodicity = 6
-    const isEmptyConf =
-      Object.keys(Biome.externalRawConf).length === 0 && !biomesRawConf
-    if (!isEmptyConf) {
-      this.parseBiomesConfig(biomesRawConf || Biome.externalRawConf)
-    } else {
-      console.warn(
-        `missing biome configuration at creation, must provide conf later`,
-      )
-    }
-  }
-
-  static get instance() {
-    return (Biome.singleton ||= new Biome())
-  }
-
-  // safe access from outside of the world to prevent uninitialized use
-  static get safeInstance() {
-    return Biome.singleton?.ready ? Biome.singleton : null
+    this.parseBiomesConfig(biomesEnv.rawConf)
+    this.steps = getTransitionSteps(biomesEnv.repartition)
+    this.biomesEnv = biomesEnv
   }
 
   get ready() {
@@ -416,7 +393,7 @@ export class Biome {
     biomeType: BiomeType,
     includeSea = false,
   ) => {
-    const { seaLevel } = worldRootEnv.rawSettings.biomes
+    const { seaLevel } = this.biomesEnv
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]

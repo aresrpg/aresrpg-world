@@ -7,7 +7,6 @@ import { PatchId, PatchKey } from '../utils/common_types.js'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory.js'
 import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
 import { WorldModules } from '../WorldModules.js'
 
 import { GroundPatch } from './GroundPatch.js'
@@ -87,8 +86,9 @@ type ChunksProcessingTaskHandler = ProcessingTaskHandler<
 
 export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
   taskStub: ChunksProcessingTaskStub,
-  worldContext: WorldModules,
+  worldModules: WorldModules,
 ) => {
+  const { worldEnv } = worldModules
   /**
    * Chunks above ground surface including overground items & empty chunks
    */
@@ -96,11 +96,11 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
     patchKey: PatchKey,
     params: ChunksProcessingParams,
   ) => {
-    const patchDims = worldRootEnv.getPatchDimensions()
-    const chunksRange = worldRootEnv.rawSettings.chunks.range
+    const patchDims = worldEnv.getPatchDimensions()
+    const chunksVerticalRange = worldEnv.getChunksVerticalRange()
     const { skipEntities } = params
     const groundLayer = new GroundPatch(patchKey)
-    groundLayer.bake(worldContext)
+    groundLayer.bake(worldModules)
     const patchId = groundLayer.patchId as PatchId
     const upperChunks: ChunkContainer[] = []
     // compute chunk id range
@@ -111,7 +111,7 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
     if (!skipEntities) {
       const itemsMerging =
         await ItemsProcessing.mergeIndividualChunks(patchKey).process(
-          worldContext,
+          worldModules,
         )
       mergedItemsChunk = itemsMerging as ChunkContainer // .mergedChunk
       if (mergedItemsChunk) {
@@ -138,8 +138,8 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
         // bake ground and undeground separately
         const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
         const cavesMask = new CavesMask(chunkKey, 1)
-        cavesMask.bake(worldContext)
-        await groundSurfaceChunk.bake(worldContext, groundLayer, cavesMask)
+        cavesMask.bake(worldModules)
+        await groundSurfaceChunk.bake(worldModules, groundLayer, cavesMask)
         // copy ground over items at last
         ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
       }
@@ -147,7 +147,7 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
     }
 
     // remaining chunks: empty chunks start 1 chunk above ground surface
-    for (let y = surfaceIds.yMaxId + 1; y <= chunksRange.topId; y++) {
+    for (let y = surfaceIds.yMaxId + 1; y <= chunksVerticalRange.topId; y++) {
       const chunkId = asVect3(patchId, y)
       const chunkKey = serializeChunkId(chunkId)
       const emptyChunk = new EmptyChunk(chunkKey)
@@ -160,23 +160,23 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
    * Chunks below ground surface
    */
   const lowerChunksGen = async (patchKey: PatchKey) => {
-    const patchDims = worldRootEnv.getPatchDimensions()
-    const chunksRange = worldRootEnv.rawSettings.chunks.range
+    const patchDims = worldEnv.getPatchDimensions()
+    const chunksVerticalRange = worldEnv.getChunksVerticalRange()
     // find upper chunkId
     const groundLayer = new GroundPatch(patchKey)
-    groundLayer.bake(worldContext)
+    groundLayer.bake(worldModules)
     const patchId = groundLayer.patchId as PatchId
     const upperId = Math.floor(groundLayer.valueRange.min / patchDims.y) - 1
     const lowerChunks = []
     // then iter until bottom is reached
-    for (let yId = upperId; yId >= chunksRange.bottomId; yId--) {
+    for (let yId = upperId; yId >= chunksVerticalRange.bottomId; yId--) {
       const chunkId = asVect3(patchId, yId)
       const chunkKey = serializeChunkId(chunkId)
       const currentChunk = new ChunkContainer(chunkKey, 1)
       const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
       const cavesMask = new CavesMask(chunkKey, 1)
-      cavesMask.bake(worldContext)
-      await groundSurfaceChunk.bake(worldContext, groundLayer, cavesMask)
+      cavesMask.bake(worldModules)
+      await groundSurfaceChunk.bake(worldModules, groundLayer, cavesMask)
       // copy ground over items at last
       ChunkContainer.copySourceToTarget(groundSurfaceChunk, currentChunk)
       lowerChunks.push(currentChunk)
@@ -188,7 +188,7 @@ export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
   }
 
   const addFakeEmptyChunks = (patchKey: PatchKey, chunks: ChunkContainer[]) => {
-    const chunksRange = worldRootEnv.rawSettings.chunks.range
+    const chunksRange = worldEnv.getChunksVerticalRange()
     const patchId = parsePatchKey(patchKey) as PatchId
     // remaining chunks: empty chunks start 1 chunk above ground surface
     for (let y = chunksRange.bottomId; y <= chunksRange.topId; y++) {

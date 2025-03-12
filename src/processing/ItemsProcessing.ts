@@ -17,7 +17,6 @@ import {
   VoidItemType,
 } from '../utils/common_types.js'
 import { ItemsInventory } from '../factory/ItemsFactory.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
 import { WorldModules } from '../WorldModules.js'
 
 import { GroundPatch } from './GroundPatch.js'
@@ -117,8 +116,25 @@ type ItemsProcessingTaskHandler = ProcessingTaskHandler<
 
 export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
   taskStub: ItemsProcessingTaskStub,
-  worldContext: WorldModules,
+  worldModules: WorldModules,
 ) => {
+  // Misc utils
+
+  const getPatchBounds = (input: Vector2 | PatchKey) => {
+    const asPointBounds = (point: Vector2) => {
+      const pointBounds = new Box2(point.clone(), point.clone())
+      pointBounds.expandByScalar(1)
+      return pointBounds
+    }
+    return input instanceof Vector2
+      ? asPointBounds(input)
+      : asPatchBounds(input, worldModules.worldEnv.getPatchDimensions())
+  }
+
+  const parseInput = (input: ItemsProcessingInput) => {
+    return input instanceof Box2 ? input.clone() : getPatchBounds(input)
+  }
+
   const retrieveItemBottomBlocks = async (itemChunk: ChunkContainer) => {
     const chunkBottomBlocks: Vector3[] = []
     // iter slice blocks
@@ -127,7 +143,7 @@ export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
     }
     const blocksTask = BlocksProcessing.getGroundPositions(chunkBottomBlocks)
     blocksTask.processingParams.densityEval = true
-    const blocksBatch = await blocksTask.process(worldContext)
+    const blocksBatch = await blocksTask.process(worldModules)
     // console.log(testBlock)
     return blocksBatch
   }
@@ -327,7 +343,7 @@ export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
   const { processingInput, processingParams } = taskStub
   const { recipe } = processingParams
   const patchBounds = parseInput(processingInput)
-  const spawnedItems = retrieveOvergroundItems(patchBounds, worldContext)
+  const spawnedItems = retrieveOvergroundItems(patchBounds, worldModules)
 
   if (recipe === ItemsProcessingRecipe.SpawnedItems) {
     return spawnedItems
@@ -365,23 +381,6 @@ ProcessingTask.taskHandlers[itemsProcessingHandlerName] =
 /**
  * MISC
  */
-
-// Misc utils
-
-const getPatchBounds = (input: Vector2 | PatchKey) => {
-  const asPointBounds = (point: Vector2) => {
-    const pointBounds = new Box2(point.clone(), point.clone())
-    pointBounds.expandByScalar(1)
-    return pointBounds
-  }
-  return input instanceof Vector2
-    ? asPointBounds(input)
-    : asPatchBounds(input, worldRootEnv.getPatchDimensions())
-}
-
-const parseInput = (input: ItemsProcessingInput) => {
-  return input instanceof Box2 ? input.clone() : getPatchBounds(input)
-}
 
 // Defaults
 

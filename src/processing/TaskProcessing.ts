@@ -52,7 +52,7 @@ export type ProcessingTaskHandler<
   ProcessingOutput,
 > = (
   taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
-  worldContext: WorldModules,
+  worldModules: WorldModules,
   procContext?: ProcessingContext,
 ) => Promise<ProcessingOutput> | ProcessingOutput
 type ProcessingTasksHandlers = Record<
@@ -87,7 +87,7 @@ export class ProcessingTask<
 
   static handleTask<T, U>(
     taskStub: ProcessingTaskStub<T, U> | ProcessingTask<T, any, U>,
-    worldContext: WorldModules,
+    worldModules: WorldModules,
     procContext?: ProcessingContext,
   ) {
     // const [delegatedTask, processingArgs, processingParams] = taskStub
@@ -98,7 +98,7 @@ export class ProcessingTask<
     ] as ProcessingTaskHandler<T, any, U>
     if (taskHandler) {
       // const task = new Task(...args)
-      const taskRes = taskHandler(taskStub, worldContext, procContext)
+      const taskRes = taskHandler(taskStub, worldModules, procContext)
       // const res = await task.preProcess(processingArgs, processingParams)
       // const stubs = toStubs(res)
       return taskRes // targetObj.toStub()

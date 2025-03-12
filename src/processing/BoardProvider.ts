@@ -27,7 +27,7 @@ import {
 } from '../datacontainers/PatchBase.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
+import { WorldEnv } from '../config/WorldEnv.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
@@ -45,11 +45,11 @@ export enum BlockCategory {
 //   category: BlockCategory
 // }
 
-export type BoardParams = {
-  center: Vector3
-  radius: number
-  thickness: number
-}
+// export type BoardParams = {
+//   center: Vector3
+//   radius: number
+//   thickness: number
+// }
 
 export type BoardStub = {
   bounds: Box2
@@ -106,14 +106,13 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
   }
 }
 
-const chunksRange = worldRootEnv.rawSettings.chunks.range
-
 /**
  * Handle chunks and items tasks and provide data required to build board content:
  */
 export class BoardCacheProvider {
   // eslint-disable-next-line no-undef
   workerPool: WorkerPool
+  worldEnv: WorldEnv
   localCache: BoardCacheData = {
     chunks: [],
     items: [],
@@ -125,8 +124,9 @@ export class BoardCacheProvider {
   pendingBoardGen = false
 
   // eslint-disable-next-line no-undef
-  constructor(workerPool: WorkerPool) {
+  constructor(workerPool: WorkerPool, worldEnv: WorldEnv) {
     this.workerPool = workerPool
+    this.worldEnv = worldEnv
   }
 
   // constructor(centerPatchId: Vector2, patchRange: number) {
@@ -139,7 +139,7 @@ export class BoardCacheProvider {
   }
 
   get chunkIds() {
-    const { bottomId, topId } = chunksRange
+    const { bottomId, topId } = this.worldEnv.getChunksVerticalRange()
     const chunkIds: ChunkId[] = []
     this.patchKeys.forEach(patchKey => {
       const patchId = parsePatchKey(patchKey) as PatchId
@@ -164,7 +164,7 @@ export class BoardCacheProvider {
     const bounds = new Box2().setFromCenterAndSize(center.clone().floor(), dims)
     const patchRange = patchRangeFromBounds(
       bounds,
-      worldRootEnv.getPatchDimensions(),
+      this.worldEnv.getPatchDimensions(),
     )
     const changed = !patchRange.equals(this.patchRange)
     if (changed) {
@@ -240,87 +240,85 @@ type BoardContent = {
  * - `terminate` to remove board instance
  */
 export class BoardProvider {
-  // eslint-disable-next-line no-use-before-define
-  static singleton: BoardProvider | null
   cacheProvider: BoardCacheProvider
   externalDataEncoder: any
-  // dedicatedWorker:
-  // board input
-  boardParams: BoardParams = {
-    center: new Vector3(),
-    radius: 0,
-    thickness: 0,
-  }
+  boardCenter = new Vector3()
 
   finalBounds = new Box2()
-
   boardData!: BoardPatch
-
+  worldEnv: WorldEnv
   constructor(
     boardCenter: Vector3,
     cacheProvider: BoardCacheProvider,
     externalDataEncoder: any,
+    worldEnv: WorldEnv,
     // dedicatedWorkerPool: WorkerPool,// = WorkerPool.default,
-    boardRadius: number,
-    boardThickness: number,
   ) {
-    this.boardParams.center = boardCenter.clone().floor()
-    this.boardParams.radius = boardRadius
-    this.boardParams.thickness = boardThickness
+    const { radius, thickness } = worldEnv.rawSettings.boards
+    this.worldEnv = worldEnv
+    this.boardCenter = boardCenter.clone().floor()
+
     // const holesLayer = new ProcLayer('holesMap')
     // holesLayer.sampling.periodicity = 0.25
     this.cacheProvider = cacheProvider // new BoardCacheProvider(dedicatedWorkerPool)
     this.externalDataEncoder = externalDataEncoder
     // this.center = boardCenter
     console.log(
-      `create board at ${serializePatchId(this.centerPatchId)} (radius: ${boardRadius}, thickness: ${boardThickness})`,
+      `create board at ${serializePatchId(this.centerPatchId)} (radius: ${radius}, thickness: ${thickness})`,
     )
+  }
+
+  get boardThickness() {
+    return this.worldEnv.rawSettings.boards.thickness
+  }
+
+  get boardRadius() {
+    return this.worldEnv.rawSettings.boards.radius
   }
 
   get centerPatchId() {
     return getPatchId(
-      asVect2(this.boardParams.center),
-      worldRootEnv.getPatchDimensions(),
+      asVect2(this.boardCenter),
+      this.worldEnv.getPatchDimensions(),
     )
   }
 
   get patchRange() {
-    return getUpperScalarId(
-      this.boardParams.radius,
-      worldRootEnv.getPatchSize(),
-    )
+    return getUpperScalarId(this.boardRadius, this.worldEnv.getPatchSize())
   }
 
   get initialDims() {
-    const { radius, thickness } = this.boardParams
-    const boardDims = new Vector3(radius, thickness, radius).multiplyScalar(2)
+    const { boardRadius, boardThickness } = this
+    const boardDims = new Vector3(
+      boardRadius,
+      boardThickness,
+      boardRadius,
+    ).multiplyScalar(2)
     return boardDims
   }
 
   get initialBounds() {
-    const { center } = this.boardParams
     const initialBounds = new Box3().setFromCenterAndSize(
-      center,
+      this.boardCenter,
       this.initialDims,
     )
     return initialBounds
   }
 
   get boardElevation() {
-    return this.boardParams.center.y
+    return this.boardCenter.y
   }
 
-  get boardCenter() {
-    return asVect2(this.boardParams.center)
+  get groundCenter() {
+    return asVect2(this.boardCenter)
   }
 
   isWithinBoard(buffPos: Vector2, buffer: Uint16Array) {
-    const { radius, center } = this.boardParams
     if (buffPos) {
       const lastBlock = buffer[buffer.length - 2]
       // const isFull = buffer.slice(1, -1).find(val => val === 0) === undefined
-      const centerDist = buffPos.distanceTo(asVect2(center))
-      const isInside = centerDist <= radius && lastBlock === 0
+      const centerDist = buffPos.distanceTo(this.groundCenter)
+      const isInside = centerDist <= this.boardRadius && lastBlock === 0
       return isInside
     }
     // isInsideBoard && this.boardBounds.expandByPoint(asVect2(blockPos))
@@ -344,7 +342,7 @@ export class BoardProvider {
   }
 
   overrideHeightBuffer = (heightBuff: Uint16Array, isHoleBlock: boolean) => {
-    const { thickness: boardThickness } = this.boardParams
+    const { boardThickness } = this
     // const marginBlockType = isHoleBlock ? BlockType.HOLE : heightBuff[0]
     const surfaceType = heightBuff
       .slice(1, boardThickness + 1)
@@ -371,11 +369,10 @@ export class BoardProvider {
   }
 
   async genBoardContent(skipHoleBlocks = true) {
-    const { thickness: boardThickness } = this.boardParams
     // wait for cache to be filled
-    await this.cacheProvider.loadData(this.boardCenter, this.boardParams.radius)
+    await this.cacheProvider.loadData(this.groundCenter, this.boardRadius)
     // this.boardParams.center = center
-    this.finalBounds.setFromPoints([this.boardCenter])
+    this.finalBounds.setFromPoints([this.groundCenter])
     const initialPatchBounds = asBox2(this.initialBounds)
     const boardPatch = new BoardPatch(initialPatchBounds)
     const boardChunk = new ChunkContainer(this.initialBounds, 1)
@@ -389,7 +386,7 @@ export class BoardProvider {
       const isHoleBlock =
         isWithinBoard &&
         heightBuff
-          .slice(1, boardThickness + 1)
+          .slice(1, this.boardThickness + 1)
           .reduce((sum, val) => sum + val, 0) === 0
       // const empty = chunkBuff.data.reduce((sum, val) => sum + val, 0) === 0
       // const full = chunkBuff.data.find(val => val === 0) === undefined
