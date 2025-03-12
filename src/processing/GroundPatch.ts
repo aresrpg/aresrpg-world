@@ -312,7 +312,7 @@ export class GroundPatch
    * whole patch by default
    * if genBounds specified, only sub rows/cols will be generated
    */
-  bake(worldContext: WorldModules, regionBounds?: Box2) {
+  bake(worldModules: WorldModules, regionBounds?: Box2) {
     /**
      * required for transition patches to insure interpolated patch corners
      * used to compute blocks are the same as near patch
@@ -325,7 +325,7 @@ export class GroundPatch
       sidePatches.forEach(sidePatch => {
         const marginOverlap = this.extendedBounds.intersect(sidePatch.bounds)
         // for each side patches only gen overlapping margins with current patch
-        sidePatch.bake(worldContext, marginOverlap)
+        sidePatch.bake(worldModules, marginOverlap)
         // copy side patch to current patch on overlapping margin zone
         // const count = this.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
         // const count2 = sidePatch.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
@@ -334,7 +334,7 @@ export class GroundPatch
       })
     }
 
-    this.prepare(worldContext.biome)
+    this.prepare(worldModules.biome)
     const { valueRange } = this
     // omit margin blocks to bake them separately
     const doMarginsApart =
@@ -344,7 +344,7 @@ export class GroundPatch
       // EXPERIMENTAL: is it faster to perform bilinear interpolation rather
       // than sampling biome for each block?
       // if biome is the same at each patch corners, no need to interpolate
-      const blockData = this.computeGroundBlock(block.pos, worldContext)
+      const blockData = this.computeGroundBlock(block.pos, worldModules)
       // blockData.landIndex = this.isTransitionPatch() ? 0 : blockData.landIndex
       valueRange.min = Math.min(valueRange.min, blockData.level)
       valueRange.max = Math.max(valueRange.max, blockData.level)

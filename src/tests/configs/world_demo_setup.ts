@@ -47,6 +47,7 @@ export const getWorldDemoEnv = () => {
   rawSettings.biomes.periodicity = 8 // biome size
   rawSettings.biomes.repartition.centralHalfSegment = 0.15
   // rawSettings.biomes.repartition.transitionHalfRange = 0.05
+  rawSettings.chunks.verticalRange.topId = 6
   return worldEnv
 }
 

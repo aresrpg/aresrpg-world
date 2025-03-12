@@ -7,7 +7,7 @@ import {
   patchRangeFromMapCenterRad,
 } from '../utils/patch_chunk.js'
 import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
+import { ChunksVerticalRange } from '../config/WorldEnv.js'
 
 import { ChunksProcessing, ChunksProcessingTask } from './ChunksProcessing.js'
 import { ProcessingState } from './TaskProcessing.js'
@@ -52,19 +52,29 @@ export class ChunksPolling {
     added: [],
   }
 
+  patchViewRanges: PatchViewRanges
   patchIndex: Record<PatchKey, any> = {}
   // processedChunksQueue = []
   onChunkAvailable: any
   postponedTasks: ChunksProcessingTask[] = []
   pendingTasks: ChunksProcessingTask[] = []
   skipBlobCompression = false
+  chunksVerticalRange: ChunksVerticalRange
+
+  constructor(
+    patchViewRanges: PatchViewRanges,
+    chunksVerticalRange: ChunksVerticalRange,
+  ) {
+    this.patchViewRanges = patchViewRanges
+    this.chunksVerticalRange = chunksVerticalRange
+  }
 
   get visiblePatchKeys() {
     return Object.keys(this.patchIndex)
   }
 
   getVisibleChunkIds = () => {
-    const { bottomId, topId } = worldRootEnv.rawSettings.chunks.range
+    const { bottomId, topId } = this.chunksVerticalRange
     const chunkIds: ChunkId[] = []
     this.visiblePatchKeys.forEach(patchKey => {
       const patchId = parsePatchKey(patchKey) as PatchId
@@ -167,7 +177,7 @@ export class ChunksPolling {
    */
   pollChunks(patchPos: Vector2, patchViewRange: number) {
     if (this.viewStateChanged(patchPos, patchViewRange)) {
-      const { patchViewRanges } = worldRootEnv.rawSettings
+      const { patchViewRanges } = this
       this.viewState.viewPos = patchPos
       this.viewState.viewRanges.near = Math.min(
         patchViewRange,

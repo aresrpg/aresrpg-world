@@ -8,9 +8,7 @@ import {
   // parseThreeStub,
 } from '../utils/patch_chunk.js'
 import { PatchKey, Block, BlockData, BlockType } from '../utils/common_types.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
 import { WorldModules } from '../WorldModules.js'
-import { DensityVolume } from '../procgen/DensityVolume.js'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
@@ -95,12 +93,6 @@ type BlocksProcessingTaskHandler = ProcessingTaskHandler<
   any
 >
 
-const getPatchKey = (inputPos: Vector2) => {
-  const patchId = getPatchId(inputPos, worldRootEnv.getPatchDimensions())
-  const patchKey = serializePatchId(patchId)
-  return patchKey
-}
-
 // const floorPositionsHandler = (input: Vector3[]) => {
 
 // }
@@ -111,7 +103,7 @@ const getPatchKey = (inputPos: Vector2) => {
 
 export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
   taskStub: BlocksProcessingTask | BlocksProcessingTaskStub,
-  worldContext: WorldModules,
+  worldModules: WorldModules,
   processingContext = ProcessingContext.None,
 ) => {
   const { processingInput, processingParams } = taskStub
@@ -120,9 +112,18 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
 
   const isAsync = recipe === BlocksProcessingRecipe.Peak
 
+  const getPatchKey = (inputPos: Vector2) => {
+    const patchId = getPatchId(
+      inputPos,
+      worldModules.worldEnv.getPatchDimensions(),
+    )
+    const patchKey = serializePatchId(patchId)
+    return patchKey
+  }
+
   const createGroundPatch = (patchKey: PatchKey) => {
     const groundLayer = new GroundPatch(patchKey)
-    groundLayer.prepare(worldContext.biome)
+    groundLayer.prepare(worldModules.biome)
     return groundLayer
   }
 
@@ -172,16 +173,16 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
     groundPatch: GroundPatch,
     densityEval = false,
   ) => {
-    const groundData = groundPatch?.computeGroundBlock(pos, worldContext)
+    const groundData = groundPatch?.computeGroundBlock(pos, worldModules)
     // return groundData
     // }).filter(val => val) as GroundBlockData[]
     // const batchOutput = groundBlocksData.map(groundData => {
     const { biome, landIndex, level } = groundData as GroundBlockData
-    const landscapeConf = worldContext.biome.mappings[biome].nth(landIndex)
+    const landscapeConf = worldModules.biome.mappings[biome].nth(landIndex)
     const groundConf = landscapeConf.data
     // check for block emptyness if specified
     const isEmptyBlock = () =>
-      DensityVolume.instance.getBlockDensity(pos, level + 20)
+      worldModules.densityVolume.getBlockDensity(pos, level + 20)
     const blockData: BlockData = {
       level,
       type: densityEval && isEmptyBlock() ? BlockType.HOLE : groundConf.type,
@@ -200,7 +201,7 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
   const bakePeakBlock = async (groundBlock: Block<BlockData>) => {
     const peakBlock = (await ItemsProcessing.pointPeakBlock(
       asVect2(groundBlock.pos),
-    ).process(worldContext)) as any
+    ).process(worldModules)) as any
     if (peakBlock.type !== BlockType.NONE) {
       groundBlock.data.level = peakBlock.level
       groundBlock.data.type = peakBlock.type
@@ -228,7 +229,7 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
     const groundPos = asVect2(groundBlock.pos)
 
     const isEmptyBlock = (level: number) =>
-      DensityVolume.instance.getBlockDensity(
+      worldModules.densityVolume.getBlockDensity(
         asVect3(groundPos, level),
         groundLevel + 20,
       )

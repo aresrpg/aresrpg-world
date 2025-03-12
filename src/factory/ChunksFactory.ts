@@ -10,10 +10,23 @@ import {
 } from '../datacontainers/ChunkContainer.js'
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
+import { DebugEnvSettings } from '../config/WorldEnv.js'
 import { Biome, BiomeType } from '../procgen/Biome.js'
-import { DensityVolume } from '../procgen/DensityVolume.js'
 import { WorldModules } from '../WorldModules.js'
+
+const highlightPatchBorders = (
+  localPos: Vector3,
+  blockType: BlockType,
+  borderHighlightColor?: BlockType,
+) => {
+  return borderHighlightColor && (localPos.x === 1 || localPos.z === 1)
+    ? borderHighlightColor
+    : blockType
+}
+
+// export type GroundGenSettings = {
+//   borderHighlightColor
+// }
 
 export class EmptyChunk extends ChunkContainer {
   constructor(chunkKey: ChunkKey) {
@@ -24,19 +37,13 @@ export class EmptyChunk extends ChunkContainer {
   async bake() {}
 }
 
-const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
-  const { borderHighlightColor } = worldRootEnv.rawSettings.debug.patch
-  return borderHighlightColor && (localPos.x === 1 || localPos.z === 1)
-    ? borderHighlightColor
-    : blockType
-}
-
 export class GroundChunk extends ChunkContainer {
   generateGroundBuffer(
     block: PatchBlock,
     ymin: number,
     ymax: number,
     biome: Biome,
+    debugEnv?: DebugEnvSettings,
   ) {
     //, isTransition = false) {
     const undegroundDepth = 4
@@ -45,7 +52,11 @@ export class GroundChunk extends ChunkContainer {
     const biomeLand = biome.mappings[biomeType].nth(landIndex)
     const landConf = biomeLand.data
     const blockType = // isTransition ? BlockType.SAND :
-      highlightPatchBorders(blockLocalPos, landConf.type) || landConf.type
+      highlightPatchBorders(
+        blockLocalPos,
+        landConf.type,
+        debugEnv?.patch?.borderHighlightColor,
+      ) || landConf.type
     // const groundFlags = parseGroundFlags(flags)
     // const blockMode = groundFlags.boardMode
     //   ? BlockMode.CHECKERBOARD
@@ -77,14 +88,14 @@ export class GroundChunk extends ChunkContainer {
   }
 
   async bake(
-    worldContext: WorldModules,
+    worldModules: WorldModules,
     groundLayer?: GroundPatch,
     cavesMask?: ChunkMask,
   ) {
     const patchId = asVect2(this.chunkId as Vector3)
     const patchKey = serializePatchId(patchId)
     groundLayer = groundLayer || new GroundPatch(patchKey)
-    groundLayer.isEmpty && (await groundLayer.bake(worldContext))
+    groundLayer.isEmpty && (await groundLayer.bake(worldModules))
 
     const ymin = this.extendedBounds.min.y
     const ymax = this.extendedBounds.max.y
@@ -97,7 +108,7 @@ export class GroundChunk extends ChunkContainer {
         block,
         ymin,
         ymax,
-        worldContext.biome,
+        worldModules.biome,
       )
       if (groundBuff) {
         const chunk_buffer = this.readBuffer(groundBuff.pos)
@@ -115,9 +126,9 @@ export class GroundChunk extends ChunkContainer {
  */
 
 export class CavesMask extends ChunkMask {
-  bake(worldContext: WorldModules) {
+  bake(worldModules: WorldModules) {
     const groundLayer = new GroundPatch(asBox2(this.bounds))
-    groundLayer.bake(worldContext)
+    groundLayer.bake(worldModules)
     // const bounds = asBox3(groundLayer.bounds)
     // bounds.max.y = groundLayer.valueRange.max
     // const chunkContainer = new ChunkContainer(bounds, 1)
@@ -133,7 +144,7 @@ export class CavesMask extends ChunkMask {
       let startIndex = this.getIndex(startLocalPos)
       for (let y = ymin; y <= ymax; y++) {
         block.pos.y = y
-        const isEmptyBlock = DensityVolume.instance.getBlockDensity(
+        const isEmptyBlock = worldModules.densityVolume.getBlockDensity(
           block.pos,
           groundLevel + 20,
         )
