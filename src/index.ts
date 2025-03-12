@@ -1,3 +1,4 @@
+export { WorldModules } from './WorldModules.js'
 // Config
 export { worldRootEnv, WorldEnv } from './config/WorldEnv.js'
 export { getWorldDemoEnv } from './tests/configs/world_demo_setup.js'
@@ -11,7 +12,7 @@ export {
   parseThreeStub,
 } from './utils/patch_chunk.js'
 export { chunksFromCompressedBlob } from './utils/chunk_utils.js'
-export { BlockMode } from './utils/common_types.js'
+export { BlockType, BlockMode } from './utils/common_types.js'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing.js'
 export {
@@ -32,7 +33,7 @@ export {
 export { ProcessingState } from './processing/TaskProcessing.js'
 export { WorkerPool } from './processing/WorkerPool.js'
 // Procgen
-export { Biome, BiomeType, BlockType } from './procgen/Biome.js'
+export { Biome, BiomeType } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
 export { DensityVolume } from './procgen/DensityVolume.js'
 // Data structures

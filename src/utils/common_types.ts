@@ -1,8 +1,26 @@
 import { Vector2, Vector3 } from 'three'
 
 import { GroundBlockData } from '../processing/GroundPatch.js'
-import { BiomeType, BlockType } from '../procgen/Biome.js'
+import { BiomeType } from '../procgen/Biome.js'
 import { LinkedList } from '../datacontainers/LinkedList.js'
+
+// reserved native block types
+export enum BlockType {
+  NONE,
+  HOLE,
+  BEDROCK,
+  WATER,
+  ICE,
+  MUD,
+  TRUNK,
+  SAND,
+  GRASS,
+  ROCK,
+  SNOW,
+  FOLIAGE_LIGHT,
+  FOLIAGE_DARK,
+  LAST_PLACEHOLDER,
+}
 
 export type Block<T> = {
   pos: Vector3

@@ -8,6 +8,7 @@ import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory.js'
 import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
 import { worldRootEnv } from '../config/WorldEnv.js'
+import { WorldModules } from '../WorldModules.js'
 
 import { GroundPatch } from './GroundPatch.js'
 import {
@@ -86,7 +87,121 @@ type ChunksProcessingTaskHandler = ProcessingTaskHandler<
 
 export const chunksProcessingTaskHandler: ChunksProcessingTaskHandler = async (
   taskStub: ChunksProcessingTaskStub,
+  worldContext: WorldModules,
 ) => {
+  /**
+   * Chunks above ground surface including overground items & empty chunks
+   */
+  const upperChunksGen = async (
+    patchKey: PatchKey,
+    params: ChunksProcessingParams,
+  ) => {
+    const patchDims = worldRootEnv.getPatchDimensions()
+    const chunksRange = worldRootEnv.rawSettings.chunks.range
+    const { skipEntities } = params
+    const groundLayer = new GroundPatch(patchKey)
+    groundLayer.bake(worldContext)
+    const patchId = groundLayer.patchId as PatchId
+    const upperChunks: ChunkContainer[] = []
+    // compute chunk id range
+    let yMin = groundLayer.valueRange.min
+    let yMax = groundLayer.valueRange.max
+
+    let mergedItemsChunk
+    if (!skipEntities) {
+      const itemsMerging =
+        await ItemsProcessing.mergeIndividualChunks(patchKey).process(
+          worldContext,
+        )
+      mergedItemsChunk = itemsMerging as ChunkContainer // .mergedChunk
+      if (mergedItemsChunk) {
+        // adjust chunks range accordingly
+        yMin = Math.min(mergedItemsChunk.bounds.min.y, yMin)
+        yMax = Math.max(mergedItemsChunk.bounds.max.y, yMax)
+      }
+    }
+
+    const surfaceIds = {
+      yMinId: Math.floor(yMin / patchDims.y),
+      yMaxId: Math.floor(yMax / patchDims.y),
+    }
+
+    // gen each surface chunk in range
+    for (let yId = surfaceIds.yMinId; yId <= surfaceIds.yMaxId; yId++) {
+      const chunkId = asVect3(patchId, yId)
+      const chunkKey = serializeChunkId(chunkId)
+      const worldChunk = new ChunkContainer(chunkKey, 1)
+      // copy items layer first to prevent overriding ground
+      mergedItemsChunk &&
+        ChunkContainer.copySourceToTarget(mergedItemsChunk, worldChunk)
+      if (worldChunk.bounds.min.y < groundLayer.valueRange.max) {
+        // bake ground and undeground separately
+        const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
+        const cavesMask = new CavesMask(chunkKey, 1)
+        cavesMask.bake(worldContext)
+        await groundSurfaceChunk.bake(worldContext, groundLayer, cavesMask)
+        // copy ground over items at last
+        ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
+      }
+      upperChunks.push(worldChunk)
+    }
+
+    // remaining chunks: empty chunks start 1 chunk above ground surface
+    for (let y = surfaceIds.yMaxId + 1; y <= chunksRange.topId; y++) {
+      const chunkId = asVect3(patchId, y)
+      const chunkKey = serializeChunkId(chunkId)
+      const emptyChunk = new EmptyChunk(chunkKey)
+      upperChunks.push(emptyChunk)
+    }
+    return upperChunks
+  }
+
+  /**
+   * Chunks below ground surface
+   */
+  const lowerChunksGen = async (patchKey: PatchKey) => {
+    const patchDims = worldRootEnv.getPatchDimensions()
+    const chunksRange = worldRootEnv.rawSettings.chunks.range
+    // find upper chunkId
+    const groundLayer = new GroundPatch(patchKey)
+    groundLayer.bake(worldContext)
+    const patchId = groundLayer.patchId as PatchId
+    const upperId = Math.floor(groundLayer.valueRange.min / patchDims.y) - 1
+    const lowerChunks = []
+    // then iter until bottom is reached
+    for (let yId = upperId; yId >= chunksRange.bottomId; yId--) {
+      const chunkId = asVect3(patchId, yId)
+      const chunkKey = serializeChunkId(chunkId)
+      const currentChunk = new ChunkContainer(chunkKey, 1)
+      const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
+      const cavesMask = new CavesMask(chunkKey, 1)
+      cavesMask.bake(worldContext)
+      await groundSurfaceChunk.bake(worldContext, groundLayer, cavesMask)
+      // copy ground over items at last
+      ChunkContainer.copySourceToTarget(groundSurfaceChunk, currentChunk)
+      lowerChunks.push(currentChunk)
+    }
+    // console.log(
+    //   `processed undeground chunkset: ${this.printChunkset(undergoundChunks)}`,
+    // )
+    return lowerChunks
+  }
+
+  const addFakeEmptyChunks = (patchKey: PatchKey, chunks: ChunkContainer[]) => {
+    const chunksRange = worldRootEnv.rawSettings.chunks.range
+    const patchId = parsePatchKey(patchKey) as PatchId
+    // remaining chunks: empty chunks start 1 chunk above ground surface
+    for (let y = chunksRange.bottomId; y <= chunksRange.topId; y++) {
+      const chunkId = asVect3(patchId, y)
+      const chunkKey = serializeChunkId(chunkId)
+      const found = chunks.find(chunk => chunk.chunkKey === chunkKey)
+      if (!found) {
+        const emptyChunk = new EmptyChunk(chunkKey)
+        chunks.push(emptyChunk)
+      }
+    }
+  }
+
   const { processingInput, processingParams } = taskStub
   const { patchKey } = processingInput
   const { chunksRange, skipBlobCompression, fakeEmpty } = processingParams
@@ -124,116 +239,6 @@ export const isChunksProcessingTask = (task: GenericTask) =>
   task.handlerId === chunksProcessingHandlerName
 
 // Task input processors
-/**
- * Chunks above ground surface including overground items & empty chunks
- */
-const upperChunksGen = async (
-  patchKey: PatchKey,
-  params: ChunksProcessingParams,
-) => {
-  const patchDims = worldRootEnv.getPatchDimensions()
-  const chunksRange = worldRootEnv.rawSettings.chunks.range
-  const { skipEntities } = params
-  const groundLayer = new GroundPatch(patchKey)
-  groundLayer.bake()
-  const patchId = groundLayer.patchId as PatchId
-  const upperChunks: ChunkContainer[] = []
-  // compute chunk id range
-  let yMin = groundLayer.valueRange.min
-  let yMax = groundLayer.valueRange.max
-
-  let mergedItemsChunk
-  if (!skipEntities) {
-    const itemsMerging =
-      await ItemsProcessing.mergeIndividualChunks(patchKey).process()
-    mergedItemsChunk = itemsMerging as ChunkContainer // .mergedChunk
-    if (mergedItemsChunk) {
-      // adjust chunks range accordingly
-      yMin = Math.min(mergedItemsChunk.bounds.min.y, yMin)
-      yMax = Math.max(mergedItemsChunk.bounds.max.y, yMax)
-    }
-  }
-
-  const surfaceIds = {
-    yMinId: Math.floor(yMin / patchDims.y),
-    yMaxId: Math.floor(yMax / patchDims.y),
-  }
-
-  // gen each surface chunk in range
-  for (let yId = surfaceIds.yMinId; yId <= surfaceIds.yMaxId; yId++) {
-    const chunkId = asVect3(patchId, yId)
-    const chunkKey = serializeChunkId(chunkId)
-    const worldChunk = new ChunkContainer(chunkKey, 1)
-    // copy items layer first to prevent overriding ground
-    mergedItemsChunk &&
-      ChunkContainer.copySourceToTarget(mergedItemsChunk, worldChunk)
-    if (worldChunk.bounds.min.y < groundLayer.valueRange.max) {
-      // bake ground and undeground separately
-      const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
-      const cavesMask = new CavesMask(chunkKey, 1)
-      cavesMask.bake()
-      await groundSurfaceChunk.bake(groundLayer, cavesMask)
-      // copy ground over items at last
-      ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
-    }
-    upperChunks.push(worldChunk)
-  }
-
-  // remaining chunks: empty chunks start 1 chunk above ground surface
-  for (let y = surfaceIds.yMaxId + 1; y <= chunksRange.topId; y++) {
-    const chunkId = asVect3(patchId, y)
-    const chunkKey = serializeChunkId(chunkId)
-    const emptyChunk = new EmptyChunk(chunkKey)
-    upperChunks.push(emptyChunk)
-  }
-  return upperChunks
-}
-
-/**
- * Chunks below ground surface
- */
-const lowerChunksGen = async (patchKey: PatchKey) => {
-  const patchDims = worldRootEnv.getPatchDimensions()
-  const chunksRange = worldRootEnv.rawSettings.chunks.range
-  // find upper chunkId
-  const groundLayer = new GroundPatch(patchKey)
-  groundLayer.bake()
-  const patchId = groundLayer.patchId as PatchId
-  const upperId = Math.floor(groundLayer.valueRange.min / patchDims.y) - 1
-  const lowerChunks = []
-  // then iter until bottom is reached
-  for (let yId = upperId; yId >= chunksRange.bottomId; yId--) {
-    const chunkId = asVect3(patchId, yId)
-    const chunkKey = serializeChunkId(chunkId)
-    const currentChunk = new ChunkContainer(chunkKey, 1)
-    const groundSurfaceChunk = new GroundChunk(chunkKey, 1)
-    const cavesMask = new CavesMask(chunkKey, 1)
-    cavesMask.bake()
-    await groundSurfaceChunk.bake(groundLayer, cavesMask)
-    // copy ground over items at last
-    ChunkContainer.copySourceToTarget(groundSurfaceChunk, currentChunk)
-    lowerChunks.push(currentChunk)
-  }
-  // console.log(
-  //   `processed undeground chunkset: ${this.printChunkset(undergoundChunks)}`,
-  // )
-  return lowerChunks
-}
-
-const addFakeEmptyChunks = (patchKey: PatchKey, chunks: ChunkContainer[]) => {
-  const chunksRange = worldRootEnv.rawSettings.chunks.range
-  const patchId = parsePatchKey(patchKey) as PatchId
-  // remaining chunks: empty chunks start 1 chunk above ground surface
-  for (let y = chunksRange.bottomId; y <= chunksRange.topId; y++) {
-    const chunkId = asVect3(patchId, y)
-    const chunkKey = serializeChunkId(chunkId)
-    const found = chunks.find(chunk => chunk.chunkKey === chunkKey)
-    if (!found) {
-      const emptyChunk = new EmptyChunk(chunkKey)
-      chunks.push(emptyChunk)
-    }
-  }
-}
 
 const postProcess = (rawData: ChunkStub[]) => {
   // postprocess raw data from task to recreate chunks

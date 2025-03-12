@@ -1,6 +1,6 @@
 import { Vector2, Box3, Vector3 } from 'three'
 
-import { ChunkId, ChunkKey } from '../utils/common_types.js'
+import { BlockType, ChunkId, ChunkKey } from '../utils/common_types.js'
 import {
   asVect3,
   asChunkBounds,
@@ -10,7 +10,6 @@ import {
   asVect2,
 } from '../utils/patch_chunk.js'
 import { concatData, deconcatData } from '../utils/chunk_utils.js'
-import { BlockType } from '../procgen/Biome.js'
 import { worldRootEnv } from '../config/WorldEnv.js'
 
 enum ChunkAxisOrder {

@@ -1,11 +1,8 @@
 import { Vector2, Vector3 } from 'three'
 
-import { Biome, BlockType } from '../procgen/Biome.js'
-import { DensityVolume } from '../procgen/DensityVolume.js'
-import { Heightmap } from '../procgen/Heightmap.js'
 import { ProcItemConf } from '../tools/ProceduralGenerators.js'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader.js'
-import { BiomesRawConf, ItemType } from '../utils/common_types.js'
+import { BiomesRawConf, BlockType, ItemType } from '../utils/common_types.js'
 
 export type WorldIndividualSeeds = {
   heightmap?: string // 'heatmap',
@@ -78,19 +75,6 @@ export type WorldEnvSettings = {
       transitionHalfRange: number
     }
   }
-}
-
-// export type WorldEnvCustomSettings = Partial<WorldEnvSettings>
-// // use for having auto-complete in non-TS projects
-// export const getWorldEnvCustomSettings = () => ({} as WorldEnvCustomSettings)
-
-const overrideSeeds = (customSeeds: WorldIndividualSeeds) => {
-  Heightmap.instance.heightmap.sampling.seed = customSeeds.heightmap
-  Heightmap.instance.amplitude.sampling.seed = customSeeds.amplitude
-  Biome.instance.heatmap.sampling.seed = customSeeds.heatmap
-  Biome.instance.rainmap.sampling.seed = customSeeds.rainmap
-  Biome.instance.posRandomizer.sampling.seed = customSeeds.randompos
-  DensityVolume.instance.densityNoise.seed = customSeeds.density
 }
 
 export class WorldEnv {
@@ -181,7 +165,7 @@ export class WorldEnv {
 
   fromStub = (envStub: Partial<WorldEnvSettings>) => {
     Object.assign(this.rawSettings, envStub)
-    overrideSeeds(this.rawSettings.seeds.overrides)
+    // overrideSeeds(this.rawSettings.seeds.overrides)
   }
 
   toStub() {
