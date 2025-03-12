@@ -3,8 +3,6 @@ import { Vector3 } from 'three'
 import { NoiseDimension, NoiseSampler } from './NoiseSampler.js'
 
 export class DensityVolume {
-  // eslint-disable-next-line no-use-before-define
-  static singleton: DensityVolume
   parent: any
   params = {
     spreading: 0,
@@ -17,11 +15,6 @@ export class DensityVolume {
     this.densityNoise = new NoiseSampler('densityVolume', NoiseDimension.Three)
     this.densityNoise.periodicity = 7
     this.densityNoise.harmonicsCount = 4
-  }
-
-  static get instance() {
-    DensityVolume.singleton = DensityVolume.singleton || new DensityVolume()
-    return DensityVolume.singleton
   }
 
   /**

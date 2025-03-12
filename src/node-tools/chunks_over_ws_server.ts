@@ -20,7 +20,10 @@ const initWsServer = async () => {
   const world_demo_env = getWorldDemoEnv()
   const chunks_node_worker_pool = new WorkerPool()
   await chunks_node_worker_pool.initPoolEnv(POOL_SIZE, world_demo_env)
-  const chunks_scheduler = new ChunksPolling()
+  const chunks_scheduler = new ChunksPolling(
+    world_demo_env.rawSettings.patchViewRanges,
+    world_demo_env.getChunksVerticalRange(),
+  )
 
   const wsClients: Record<number, WebSocket> = {}
   const wss = new WebSocketServer({ port: SERVER_PORT })

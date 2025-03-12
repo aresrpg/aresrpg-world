@@ -1,6 +1,6 @@
 export { WorldModules } from './WorldModules.js'
 // Config
-export { worldRootEnv, WorldEnv } from './config/WorldEnv.js'
+export { WorldEnv } from './config/WorldEnv.js'
 export { getWorldDemoEnv } from './tests/configs/world_demo_setup.js'
 // Utils
 // export * as WorldUtils from './utils/index'

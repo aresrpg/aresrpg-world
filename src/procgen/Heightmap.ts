@@ -1,6 +1,6 @@
 import { Vector3 } from 'three'
 
-import { worldRootEnv } from '../config/WorldEnv.js'
+import { HeightmapEnvSettings } from '../config/WorldEnv.js'
 
 import { ProcLayer } from './ProcLayer.js'
 import { Biome, BiomeInfluence } from './Biome.js'
@@ -26,12 +26,10 @@ export class Heightmap {
   amplitude: ProcLayer
   biome: Biome
 
-  constructor(biome: Biome) {
+  constructor(biome: Biome, envSettings: HeightmapEnvSettings) {
     this.heightmap = new ProcLayer('heightmap')
-    this.heightmap.params.spreading =
-      worldRootEnv.rawSettings.heightmap.spreading
-    this.heightmap.sampling.harmonicsCount =
-      worldRootEnv.rawSettings.heightmap.harmonics
+    this.heightmap.params.spreading = envSettings.spreading
+    this.heightmap.sampling.harmonicsCount = envSettings.harmonics
     this.amplitude = new ProcLayer('amplitude')
     this.biome = biome
   }
