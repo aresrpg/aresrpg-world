@@ -7,7 +7,6 @@ import {
   ProcessingTask,
   PseudoDistributionMap,
 } from '../index.js'
-import { DistributionParams } from '../procgen/BlueNoisePattern.js'
 import { asPatchBounds, asVect2, asVect3 } from '../utils/patch_chunk.js'
 import {
   BlockType,
@@ -16,8 +15,8 @@ import {
   SpawnedItems,
   VoidItemType,
 } from '../utils/common_types.js'
-import { ItemsInventory } from '../factory/ItemsFactory.js'
 import { WorldModules } from '../WorldModules.js'
+import { BlueNoiseParams } from '../procgen/BlueNoisePattern.js'
 
 import { GroundPatch } from './GroundPatch.js'
 import { DistributionProfiles } from './RandomDistributionMap.js'
@@ -114,11 +113,37 @@ type ItemsProcessingTaskHandler = ProcessingTaskHandler<
   any
 >
 
+// Defaults
+
+type ItemsProcessingDefaults = {
+  spawnMap: PseudoDistributionMap
+  itemDims: Vector3
+}
+
+const defaultDistribution: BlueNoiseParams = {
+  ...DistributionProfiles[DistributionProfile.MEDIUM],
+  minDistance: 10,
+}
+
+const getItemsProcessingDefaults = (dimensions: Vector2) => {
+  const res: ItemsProcessingDefaults = {
+    spawnMap: new PseudoDistributionMap(dimensions, defaultDistribution),
+    itemDims: new Vector3(10, 13, 10),
+  }
+  return res
+}
+
 export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
   taskStub: ItemsProcessingTaskStub,
   worldModules: WorldModules,
 ) => {
   // Misc utils
+
+  const { itemsInventory, worldLocalEnv } = worldModules
+
+  const defaults = getItemsProcessingDefaults(
+    worldLocalEnv.getDistributionMapDimensions(),
+  )
 
   const getPatchBounds = (input: Vector2 | PatchKey) => {
     const asPointBounds = (point: Vector2) => {
@@ -128,7 +153,7 @@ export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
     }
     return input instanceof Vector2
       ? asPointBounds(input)
-      : asPatchBounds(input, worldModules.worldEnv.getPatchDimensions())
+      : asPatchBounds(input, worldModules.worldLocalEnv.getPatchDimensions())
   }
 
   const parseInput = (input: ItemsProcessingInput) => {
@@ -188,7 +213,7 @@ export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
     let ymax = NaN // compute y range
     for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
       for await (const spawnOrigin of spawnPlaces) {
-        const itemChunk = await ItemsInventory.getInstancedChunk(
+        const itemChunk = await itemsInventory.getInstancedChunk(
           itemType,
           spawnOrigin,
         )
@@ -237,8 +262,8 @@ export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
     }
     for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
       for await (const spawnOrigin of spawnPlaces) {
-        const templateChunk = await ItemsInventory.getTemplateChunk(itemType)
-        const shallowInstance = await ItemsInventory.getInstancedChunk(
+        const templateChunk = await itemsInventory.getTemplateChunk(itemType)
+        const shallowInstance = await itemsInventory.getInstancedChunk(
           itemType,
           spawnOrigin,
         )
@@ -276,8 +301,8 @@ export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
     const mergeBuffer: number[] = []
     for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
       for await (const spawnOrigin of spawnPlaces) {
-        const templateChunk = await ItemsInventory.getTemplateChunk(itemType)
-        const shallowInstance = await ItemsInventory.getInstancedChunk(
+        const templateChunk = await itemsInventory.getTemplateChunk(itemType)
+        const shallowInstance = await itemsInventory.getInstancedChunk(
           itemType,
           spawnOrigin,
         )
@@ -312,9 +337,9 @@ export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
 
     // take approximative item dimension until item type is known
     const spawnedItems: Record<ItemType, Vector3[]> = {}
-    const spawnPlaces = getDefaults().spawnMap.querySpawnLocations(
+    const spawnPlaces = defaults.spawnMap.querySpawnLocations(
       patchBounds,
-      asVect2(getDefaults().itemDims),
+      asVect2(defaults.itemDims),
     )
     for (const pos of spawnPlaces) {
       // console.log(pos)
@@ -327,7 +352,7 @@ export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
       const { floraItems } =
         worldInstance.biome.getBiomeLandConf(biome, landId as string) || {}
       if (floraItems && floraItems?.length > 0) {
-        const itemType = getDefaults().spawnMap.getSpawnedItem(
+        const itemType = defaults.spawnMap.getSpawnedItem(
           pos,
           floraItems,
         ) as ItemType
@@ -377,35 +402,3 @@ export const itemsProcessingTaskHandler: ItemsProcessingTaskHandler = async (
 // Registration
 ProcessingTask.taskHandlers[itemsProcessingHandlerName] =
   itemsProcessingTaskHandler
-
-/**
- * MISC
- */
-
-// Defaults
-
-type ItemsProcessingDefaults = {
-  spawnMap: PseudoDistributionMap
-  itemDims: Vector3
-}
-
-let defaults: ItemsProcessingDefaults
-
-const initDefaults = () => {
-  const defaultDistribution: DistributionParams = {
-    ...DistributionProfiles[DistributionProfile.MEDIUM],
-    minDistance: 10,
-  }
-
-  const defaults: ItemsProcessingDefaults = {
-    spawnMap: new PseudoDistributionMap(undefined, defaultDistribution),
-    itemDims: new Vector3(10, 13, 10),
-  }
-  return defaults
-}
-
-// wrapper to insure one time init
-const getDefaults = () => {
-  defaults = defaults || initDefaults()
-  return defaults
-}

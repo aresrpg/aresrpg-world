@@ -1,4 +1,4 @@
-import { WorldEnv } from '../config/WorldEnv.js'
+import { WorldLocals } from '../config/WorldEnv.js'
 
 import { TaskId, GenericTask } from './TaskProcessing.js'
 
@@ -21,7 +21,7 @@ export class WorkerProxy {
   }
 
   // browser env default impl
-  init(worldEnv: WorldEnv) {
+  init(worldLocalEnv: WorldLocals) {
     const workerUrl = new URL('./world_compute_worker', import.meta.url)
     // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module' })
@@ -37,7 +37,7 @@ export class WorkerProxy {
     const pendingInit = new Promise<any>(
       resolve => (this.resolvers[timestamp] = resolve),
     )
-    this.worker.postMessage({ timestamp, content: worldEnv.toStub() })
+    this.worker.postMessage({ timestamp, content: worldLocalEnv.toStub() })
     pendingInit.then(() => console.log(`worker is ready`))
     return pendingInit
   }

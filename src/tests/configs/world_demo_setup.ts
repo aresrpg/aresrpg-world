@@ -1,6 +1,6 @@
 // import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index'
 // import { initWorldDevTools } from '../../tools/DevTools'
-import { WorldIndividualSeeds, WorldEnv } from '../../config/WorldEnv.js'
+import { WorldLocals, WorldSeed, WorldSeeds } from '../../config/WorldEnv.js'
 
 import { BIOMES_LANDSCAPES_CONFIG } from './biome_landscapes.js'
 // import { PROC_ITEMS_CONFIG } from './settings/procedural_items'
@@ -9,25 +9,25 @@ import {
   SCHEMATICS_BLOCKS_MAPPING,
 } from './blocks_mappings.js'
 
-const restoreOriginalSeeds = (individualSeeds: WorldIndividualSeeds) => {
-  individualSeeds.heightmap = 'heightmap'
-  individualSeeds.amplitude = 'amplitude_mod'
-  individualSeeds.heatmap = 'heatmap'
-  individualSeeds.rainmap = 'rainmap'
-  individualSeeds.density = 'Caverns'
+const restoreOriginalSeeds = (worldSeeds: WorldSeeds) => {
+  worldSeeds[WorldSeed.Heightmap] = 'heightmap'
+  worldSeeds[WorldSeed.Amplitude] = 'amplitude_mod'
+  worldSeeds[WorldSeed.Heatmap] = 'heatmap'
+  worldSeeds[WorldSeed.Rainmap] = 'rainmap'
+  worldSeeds[WorldSeed.Density] = 'Caverns'
 }
 
 export const getWorldDemoEnv = () => {
-  const worldEnv = new WorldEnv()
-  const { rawSettings } = worldEnv // WorldEnv.current
+  const worldLocalEnv = new WorldLocals()
+  const { rawSettings } = worldLocalEnv // WorldEnv.current
 
   // SEEDS
-  rawSettings.seeds.main = 'test' // common seed used everywhere
-  restoreOriginalSeeds(rawSettings.seeds.overrides)
+  rawSettings.seeds[WorldSeed.Global] = 'test' // common seed used everywhere
+  restoreOriginalSeeds(rawSettings.seeds)
 
   // EXTERNAL CONF/RESOURCES
   rawSettings.biomes.rawConf = BIOMES_LANDSCAPES_CONFIG
-  rawSettings.schematics.globalBlocksMapping = SCHEMATICS_BLOCKS_MAPPING
+  rawSettings.items.schematics.globalBlocksMapping = SCHEMATICS_BLOCKS_MAPPING
   // rawSettings.proceduralItems.configs = PROC_ITEMS_CONFIG
   // worldEnv.schematics.globalBlocksMapping = {
   //   ...worldEnv.schematics.globalBlocksMapping,
@@ -48,7 +48,7 @@ export const getWorldDemoEnv = () => {
   rawSettings.biomes.repartition.centralHalfSegment = 0.15
   // rawSettings.biomes.repartition.transitionHalfRange = 0.05
   rawSettings.chunks.verticalRange.topId = 6
-  return worldEnv
+  return worldLocalEnv
 }
 
 export const BlocksColorOverride = (

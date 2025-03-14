@@ -3,7 +3,7 @@ import { Box2, Vector2 } from 'three'
 
 import Alea from '../third-party/alea.js'
 
-export type DistributionParams = {
+export type BlueNoiseParams = {
   minDistance: number
   maxDistance?: number
   tries?: number
@@ -17,10 +17,10 @@ export type DistributionParams = {
  */
 export class BlueNoisePattern {
   bbox: Box2
-  params: DistributionParams
+  params: BlueNoiseParams
   elements: Vector2[] = []
 
-  constructor(bbox: Box2, distParams: DistributionParams) {
+  constructor(bbox: Box2, distParams: BlueNoiseParams) {
     this.bbox = bbox
     this.params = distParams
     this.populate()

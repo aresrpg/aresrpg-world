@@ -1,4 +1,4 @@
-import { WorldEnv } from '../config/WorldEnv.js'
+import { WorldLocals } from '../config/WorldEnv.js'
 
 import { WorkerProxy } from './WorkerProxy.js'
 import { GenericTask, ProcessingState } from './TaskProcessing.js'
@@ -22,12 +22,12 @@ export class WorkerPool {
   processedCount = 0
   ready = false
 
-  async initPoolEnv(poolSize: number, worldEnv: WorldEnv) {
+  async initPoolEnv(poolSize: number, worldLocalEnv: WorldLocals) {
     console.log(`create worker pool size: ${poolSize} `)
     const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
       const workerProxy = new WorkerProxy(workerId)
-      const pendingInit = workerProxy.init(worldEnv)
+      const pendingInit = workerProxy.init(worldLocalEnv)
       pendingInits.push(pendingInit)
       this.workerPool.push(workerProxy)
     }

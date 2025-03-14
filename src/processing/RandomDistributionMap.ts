@@ -1,14 +1,13 @@
 import { Box2, Vector2 } from 'three'
 
-import { ProcLayer } from '../procgen/ProcLayer.js'
 import {
+  BlueNoiseParams,
   BlueNoisePattern,
-  DistributionParams,
 } from '../procgen/BlueNoisePattern.js'
 import { asVect3, getPatchIds } from '../utils/patch_chunk.js'
 import { ItemType } from '../utils/common_types.js'
 import Alea from '../third-party/alea.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
+import { NoiseSampler } from '../procgen/NoiseSampler.js'
 
 const distDefaults = {
   aleaSeed: 'treeMap',
@@ -22,9 +21,14 @@ export enum DistributionProfile {
   LARGE,
 }
 
+// export type DistributionParams = {
+//   noise: BlueNoiseParams,
+//   period: number
+// }
+
 export const DistributionProfiles: Record<
   DistributionProfile,
-  DistributionParams
+  BlueNoiseParams
 > = {
   [DistributionProfile.SMALL]: {
     ...distDefaults,
@@ -41,31 +45,26 @@ export const DistributionProfiles: Record<
 }
 
 const probabilityThreshold = Math.pow(2, 8)
-const bmin = new Vector2(0, 0)
-const bmax = new Vector2(
-  worldRootEnv.getDistributionMapPeriod(),
-  worldRootEnv.getDistributionMapPeriod(),
-)
-const distMapDefaultBox = new Box2(bmin, bmax)
 
 /**
  * Pseudo infinite random distribution from patch repetition
  * with independant and deterministic behavior
  */
 export class PseudoDistributionMap {
-  patchDimensions: Vector2
+  patchDim: Vector2
   repeatedPattern: BlueNoisePattern
-  densityMap: ProcLayer
+  densityMap: NoiseSampler
 
   constructor(
-    bounds: Box2 = distMapDefaultBox,
-    distParams: DistributionParams = DistributionProfiles[
+    dimensions: Vector2,
+    bNoiseParams: BlueNoiseParams = DistributionProfiles[
       DistributionProfile.MEDIUM
     ],
   ) {
-    this.patchDimensions = bounds.getSize(new Vector2())
-    this.repeatedPattern = new BlueNoisePattern(bounds, distParams)
-    this.densityMap = new ProcLayer(distParams.aleaSeed || '')
+    this.patchDim = dimensions
+    const bounds = new Box2(new Vector2(), dimensions)
+    this.repeatedPattern = new BlueNoisePattern(bounds, bNoiseParams)
+    this.densityMap = new NoiseSampler(bNoiseParams.aleaSeed || '')
   }
 
   spawnProbabilityEval = (pos: Vector2) => {
@@ -99,9 +98,9 @@ export class PseudoDistributionMap {
     //   .filter(entityPos => overlapsTest(localTestBox, entityPos))
     //   .map(relativePos => relativePos.clone().add(offset))
     const spawnLocations: Vector2[] = []
-    const patchIds = getPatchIds(queryBox, this.patchDimensions)
+    const patchIds = getPatchIds(queryBox, this.patchDim)
     for (const patchId of patchIds) {
-      const offset = patchId.clone().multiply(this.patchDimensions)
+      const offset = patchId.clone().multiply(this.patchDim)
       const localRegionQuery = queryBox
         .clone()
         .translate(offset.clone().negate())

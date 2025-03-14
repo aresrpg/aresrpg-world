@@ -4,15 +4,18 @@ import { ProcItemConf } from '../tools/ProceduralGenerators.js'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader.js'
 import { BiomesRawConf, BlockType, ItemType } from '../utils/common_types.js'
 
-export type WorldIndividualSeeds = {
-  heightmap?: string // 'heatmap',
-  amplitude?: string // 'amplitude_mod',
-  heatmap?: string // 'heatmap',
-  rainmap?: string // 'rainmap',
-  randompos?: string // 'pos_random',
-  entityspawn?: string // 'treemap',
-  density?: string // 'Caverns'
+export enum WorldSeed {
+  Global = 'global',
+  Heightmap = 'heightmap',
+  Amplitude = 'amplitude',
+  Heatmap = 'heatmap',
+  Rainmap = 'rainmap',
+  RandomPos = 'random_pos',
+  Spawn = 'spawn',
+  Density = 'density',
 }
+
+export type WorldSeeds = Partial<Record<WorldSeed, string>>
 
 export type ChunksVerticalRange = {
   bottomId: number
@@ -37,6 +40,7 @@ export type BiomesEnvSettings = {
 export type HeightmapEnvSettings = {
   spreading: number
   harmonics: number
+  seed?: string
 }
 
 export type DebugEnvSettings = {
@@ -52,11 +56,22 @@ export type DebugEnvSettings = {
   }
 }
 
-export type WorldEnvSettings = {
-  seeds: {
-    main: string
-    overrides: WorldIndividualSeeds
+export type ItemsEnv = {
+  schematics: {
+    globalBlocksMapping: SchematicsBlocksMapping
+    localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>
+    filesIndex: Record<ItemType, string>
   }
+  proceduralConfigs: Record<ItemType, ProcItemConf>
+}
+
+export const getWorldSeed = (worldSeeds: WorldSeeds, seedName: WorldSeed) => {
+  const seed = worldSeeds[seedName] || worldSeeds[WorldSeed.Global]
+  // console.log(`${seedName}: ${seed}`)
+  return seed
+}
+export type WorldLocalSettings = {
+  seeds: WorldSeeds
 
   patchPowSize: number // as a power of two
   // max cache radius as a power of two
@@ -66,21 +81,11 @@ export type WorldEnvSettings = {
   // in patch unit
   patchViewRanges: PatchViewRanges
 
-  debug: DebugEnvSettings
-
   chunks: {
     verticalRange: ChunksVerticalRange
   }
 
-  schematics: {
-    globalBlocksMapping: SchematicsBlocksMapping
-    localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>
-    filesIndex: Record<ItemType, string>
-  }
-
-  proceduralItems: {
-    configs: Record<ItemType, ProcItemConf>
-  }
+  items: ItemsEnv
 
   heightmap: HeightmapEnvSettings
 
@@ -92,12 +97,11 @@ export type WorldEnvSettings = {
   }
 }
 
-export class WorldEnv {
+export class WorldLocals {
   // export const getWorldEnv = () => {
-  rawSettings: WorldEnvSettings = {
+  rawSettings: WorldLocalSettings = {
     seeds: {
-      main: 'world',
-      overrides: {} as WorldIndividualSeeds,
+      [WorldSeed.Global]: 'world',
     },
 
     patchPowSize: 6, // as a power of two
@@ -111,19 +115,6 @@ export class WorldEnv {
       far: 8, // ground surface view dist
     },
 
-    debug: {
-      patch: {
-        borderHighlightColor: BlockType.NONE,
-      },
-      board: {
-        startPosHighlightColor: BlockType.NONE,
-        splitSidesColoring: false,
-      },
-      schematics: {
-        missingBlockType: BlockType.NONE,
-      },
-    },
-
     chunks: {
       verticalRange: {
         bottomId: 0,
@@ -131,14 +122,13 @@ export class WorldEnv {
       },
     },
 
-    schematics: {
-      globalBlocksMapping: {} as SchematicsBlocksMapping,
-      localBlocksMapping: {} as Record<ItemType, SchematicsBlocksMapping>,
-      filesIndex: {} as Record<ItemType, string>,
-    },
-
-    proceduralItems: {
-      configs: {} as Record<ItemType, ProcItemConf>,
+    items: {
+      schematics: {
+        globalBlocksMapping: {} as SchematicsBlocksMapping,
+        localBlocksMapping: {} as Record<ItemType, SchematicsBlocksMapping>,
+        filesIndex: {} as Record<ItemType, string>,
+      },
+      proceduralConfigs: {} as Record<ItemType, ProcItemConf>,
     },
 
     heightmap: {
@@ -162,6 +152,11 @@ export class WorldEnv {
     },
   }
 
+  getBiomeEnv = () => this.rawSettings.biomes
+  getHeightmapEnv = () => this.rawSettings.heightmap
+  getBoardEnv = () => this.rawSettings.boards
+  getItemsEnv = () => this.rawSettings.items
+
   getPatchSize = () => Math.pow(2, this.rawSettings.patchPowSize)
   getCacheLimit = () => Math.pow(2, this.rawSettings.cachePowLimit)
   getPatchDimensions = () =>
@@ -182,10 +177,15 @@ export class WorldEnv {
   setSeaLevel = (seaLevel: number) =>
     (this.rawSettings.biomes.seaLevel = seaLevel)
 
-  getDistributionMapPeriod = () =>
-    this.rawSettings.distributionMapPeriod * this.getPatchSize()
+  getDistributionMapDimensions = () =>
+    new Vector2(1, 1).multiplyScalar(
+      this.rawSettings.distributionMapPeriod * this.getPatchSize(),
+    )
 
-  fromStub = (envStub: Partial<WorldEnvSettings>) => {
+  getSeed = (seedName: WorldSeed) =>
+    getWorldSeed(this.rawSettings.seeds, seedName)
+
+  fromStub = (envStub: Partial<WorldLocalSettings>) => {
     Object.assign(this.rawSettings, envStub)
     return this
     // overrideSeeds(this.rawSettings.seeds.overrides)
@@ -217,4 +217,17 @@ export class WorldEnv {
   // }
 }
 
-export const worldRootEnv = new WorldEnv()
+export class WorldGlobals {
+  static debug: DebugEnvSettings = {
+    patch: {
+      borderHighlightColor: BlockType.NONE,
+    },
+    board: {
+      startPosHighlightColor: BlockType.NONE,
+      splitSidesColoring: false,
+    },
+    schematics: {
+      missingBlockType: BlockType.NONE,
+    },
+  }
+}
