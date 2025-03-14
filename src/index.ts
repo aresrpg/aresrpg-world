@@ -1,6 +1,6 @@
 export { WorldModules } from './WorldModules.js'
-// Config
-export { WorldEnv } from './config/WorldEnv.js'
+// Env
+export { WorldLocals, WorldGlobals } from './config/WorldEnv.js'
 export { getWorldDemoEnv } from './tests/configs/world_demo_setup.js'
 // Utils
 // export * as WorldUtils from './utils/index'
@@ -24,7 +24,6 @@ export {
   BoardCacheProvider,
   BlockCategory,
 } from './processing/BoardProvider.js'
-// export { ChunksScheduler } from './processing/ChunksScheduling'
 export { ChunksPolling } from './processing/ChunksPolling.js'
 export {
   PseudoDistributionMap,
@@ -37,10 +36,9 @@ export { Biome, BiomeType } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
 export { DensityVolume } from './procgen/DensityVolume.js'
 // Data structures
-// export { GroundContainer, GroundCache } from './datacontainers/PatchesIndexer'
 export { ChunkContainer } from './datacontainers/ChunkContainer.js'
 // Factory
-export { ItemsInventory } from './factory/ItemsFactory.js'
+// export { ItemsInventory } from './factory/ItemsFactory.js'
 export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory.js'
 // Tools
 export { SchematicLoader } from './tools/SchematicLoader.js'
@@ -49,6 +47,6 @@ export {
   ProcItemType,
   ProcItemCategory,
 } from './tools/ProceduralGenerators.js'
+// export * as ProceduralGenerators from './tools/ProceduralGenerators'
 // Services
 export { chunksWsClient } from './remote-services/chunks_over_ws_client.js'
-// export * as ProceduralGenerators from './tools/ProceduralGenerators'

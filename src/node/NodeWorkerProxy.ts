@@ -1,10 +1,10 @@
 import { Worker } from 'worker_threads'
 
-import { WorldEnv } from '../config/WorldEnv.js'
 import { WorkerProxy } from '../processing/WorkerProxy.js'
+import { WorldLocals } from '../config/WorldEnv.js'
 
 export class NodeWorkerProxy extends WorkerProxy {
-  override init(worldEnv: WorldEnv): Promise<any> {
+  override init(worldLocalEnv: WorldLocals): Promise<any> {
     // node env
     const workerUrl = new URL('./world_compute_node_worker.js', import.meta.url)
     const nodeWorker = new Worker(workerUrl)
@@ -16,7 +16,7 @@ export class NodeWorkerProxy extends WorkerProxy {
     const pendingInit = new Promise<any>(
       resolve => (this.resolvers[timestamp] = resolve),
     )
-    this.worker.postMessage({ timestamp, content: worldEnv.toStub() })
+    this.worker.postMessage({ timestamp, content: worldLocalEnv.toStub() })
     pendingInit.then(() => console.log(`worker is ready`))
     return pendingInit
   }

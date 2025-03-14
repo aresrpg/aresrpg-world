@@ -10,7 +10,6 @@ import {
   asVect2,
 } from '../utils/patch_chunk.js'
 import { concatData, deconcatData } from '../utils/chunk_utils.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
 
 enum ChunkAxisOrder {
   ZXY,
@@ -54,27 +53,10 @@ export class ChunkContainer {
   axisOrder: ChunkAxisOrder
   isEmpty?: boolean
 
-  constructor(
-    boundsOrChunkKey: Box3 | ChunkKey = new Box3(),
-    margin = 0,
-    axisOrder = ChunkAxisOrder.ZXY,
-  ) {
-    //, bitLength = BitLength.Uint16) {
-    const bounds =
-      boundsOrChunkKey instanceof Box3
-        ? boundsOrChunkKey.clone()
-        : asChunkBounds(boundsOrChunkKey, worldRootEnv.getChunkDimensions())
+  constructor(bounds?: Box3, margin = 0, axisOrder = ChunkAxisOrder.ZXY) {
     this.margin = margin
-
     this.axisOrder = axisOrder
-    const chunkId =
-      typeof boundsOrChunkKey === 'string'
-        ? parseChunkKey(boundsOrChunkKey)
-        : null
-    if (chunkId) {
-      this.id = chunkId
-    }
-    this.adjustChunkBounds(bounds)
+    bounds && this.adjustChunkBounds(bounds)
     // this.rawData = getArrayConstructor(bitLength)
   }
 
@@ -439,6 +421,15 @@ export class ChunkContainer {
     }
   }
 
+  fromKey(chunkKey: ChunkKey, chunkDim: Vector3) {
+    const chunkBounds = asChunkBounds(chunkKey, chunkDim)
+    this.adjustChunkBounds(chunkBounds)
+    this.chunkKey = chunkKey
+    this.id = parseChunkKey(chunkKey)
+    return this
+  }
+
+  // DEPRECATED as cannot be used from child classes TODO: remove
   static fromStub(chunkStub: ChunkStub) {
     const { chunkKey, bounds, margin, isEmpty } = chunkStub.metadata
     const chunk = new ChunkContainer(chunkKey || parseThreeStub(bounds), margin)

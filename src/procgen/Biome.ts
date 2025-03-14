@@ -18,9 +18,14 @@ import {
   typesNumbering,
 } from '../utils/misc_utils.js'
 import { asVect3, isVect3Stub } from '../utils/patch_chunk.js'
-import { BiomesEnvSettings } from '../config/WorldEnv.js'
+import {
+  BiomesEnvSettings,
+  getWorldSeed,
+  WorldSeed,
+  WorldSeeds,
+} from '../config/WorldEnv.js'
 
-import { ProcLayer } from './ProcLayer.js'
+import { NoiseSampler } from './NoiseSampler.js'
 
 enum Level {
   LOW = 'low',
@@ -169,13 +174,13 @@ const getTransitionSteps = (biomesRepartition: any) => {
  * assign block types: water, sand, grass, mud, rock, snow, ..
  */
 export class Biome {
-  heatmap: ProcLayer
-  rainmap: ProcLayer
+  heatmap: NoiseSampler
+  rainmap: NoiseSampler
   // heatProfile: MappingRanges
   // rainProfile: MappingRanges
 
   mappings = {} as BiomesConf
-  posRandomizer: ProcLayer
+  posRandomizer: NoiseSampler
   /**
    * val < lowToMid=> LOW = 1
    * lowToMid < val < mid => LOW decrease, MID increase
@@ -185,23 +190,32 @@ export class Biome {
    */
   steps
   preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()
-  biomesEnv: BiomesEnvSettings
+  biomeEnv: BiomesEnvSettings
 
-  constructor(biomesEnv: BiomesEnvSettings) {
-    this.heatmap = new ProcLayer('heatmap')
-    this.heatmap.sampling.harmonicsCount = 6
-    this.heatmap.sampling.periodicity = biomesEnv.periodicity
-    this.rainmap = new ProcLayer('rainmap')
-    this.rainmap.sampling.harmonicsCount = 6
-    this.rainmap.sampling.periodicity = biomesEnv.periodicity
+  constructor(biomeEnv: BiomesEnvSettings, worldSeeds: WorldSeeds) {
+    this.heatmap = new NoiseSampler(
+      getWorldSeed(worldSeeds, WorldSeed.Heatmap),
+      WorldSeed.Heatmap,
+    )
+    this.heatmap.harmonicsCount = 6
+    this.heatmap.periodicity = biomeEnv.periodicity
+    this.rainmap = new NoiseSampler(
+      getWorldSeed(worldSeeds, WorldSeed.Rainmap),
+      WorldSeed.Rainmap,
+    )
+    this.rainmap.harmonicsCount = 6
+    this.rainmap.periodicity = biomeEnv.periodicity
     // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
     // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
     // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
-    this.posRandomizer = new ProcLayer('pos_random')
-    this.posRandomizer.sampling.periodicity = 6
-    this.parseBiomesConfig(biomesEnv.rawConf)
-    this.steps = getTransitionSteps(biomesEnv.repartition)
-    this.biomesEnv = biomesEnv
+    this.posRandomizer = new NoiseSampler(
+      getWorldSeed(worldSeeds, WorldSeed.RandomPos),
+      WorldSeed.RandomPos,
+    )
+    this.posRandomizer.periodicity = 6
+    this.parseBiomesConfig(biomeEnv.rawConf)
+    this.steps = getTransitionSteps(biomeEnv.repartition)
+    this.biomeEnv = biomeEnv
   }
 
   get ready() {
@@ -393,7 +407,7 @@ export class Biome {
     biomeType: BiomeType,
     includeSea = false,
   ) => {
-    const { seaLevel } = this.biomesEnv
+    const { seaLevel } = this.biomeEnv
     rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
     rawVal = clamp(rawVal, 0, 1)
     const firstItem = this.mappings[biomeType]
