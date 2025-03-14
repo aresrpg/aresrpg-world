@@ -7,7 +7,6 @@ import {
   asVect2,
   parseThreeStub,
 } from '../utils/patch_chunk.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
 
 // export class PatchChunkCommon<T> {
 
@@ -31,24 +30,16 @@ export type PatchStub = {
  * Generic patch struct
  */
 export class PatchBase<T> {
-  bounds: Box2
-  dimensions: Vector2
+  bounds = new Box2()
+  dimensions = new Vector2()
   margin = 0
   key = '' // needed for patch export
   id: Vector2 | undefined
 
-  constructor(boundsOrPatchKey: Box2 | PatchKey = new Box2(), margin = 0) {
+  constructor(bounds = new Box2(), margin = 0) {
     //, bitLength = BitLength.Uint16) {
-    const bounds =
-      boundsOrPatchKey instanceof Box2
-        ? boundsOrPatchKey.clone()
-        : asPatchBounds(boundsOrPatchKey, worldRootEnv.getPatchDimensions())
-    this.bounds = bounds
-    this.dimensions = bounds.getSize(new Vector2())
+    this.init(bounds.clone())
     this.margin = margin
-    if (typeof boundsOrPatchKey === 'string') {
-      this.patchKey = boundsOrPatchKey
-    }
     // this.rawData = getArrayConstructor(bitLength)
   }
 
@@ -223,6 +214,13 @@ export class PatchBase<T> {
     this.init(parseThreeStub(patchStub.bounds) as Box2)
     this.id = patchStub.key ? parsePatchKey(patchStub.key) : this.id
     return this
+  }
+
+  static fromKey(patchKey: PatchKey, patchDim: Vector2, patchMargin = 1) {
+    const bounds = asPatchBounds(patchKey, patchDim)
+    const patch = new PatchBase(bounds, patchMargin)
+    patch.patchKey = patchKey
+    return patch
   }
 
   // abstract get chunkIds(): ChunkId[]

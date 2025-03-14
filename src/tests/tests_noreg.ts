@@ -7,7 +7,7 @@ import { Vector2 } from 'three'
 import { WorkerPool } from '../node/NodeWorkerPool.js'
 import { ChunksPolling } from '../processing/ChunksPolling.js'
 import { getPatchId } from '../utils/patch_chunk.js'
-import { WorldEnv } from '../config/WorldEnv.js'
+import { WorldLocals } from '../config/WorldEnv.js'
 import { ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { hashContent } from '../node/utils/chunk_node_utils.js'
 import {
@@ -120,18 +120,21 @@ const testChunksProcessing = async (worldInstance: WorldModules) => {
  */
 const testChunksPolling = async (
   localSource: WorkerPool,
-  world_env: WorldEnv,
+  world_local_env: WorldLocals,
 ) => {
   console.log(`[TESTENV: WORKERPOOL]: chunks polling`)
   const chunksPolling = new ChunksPolling(
-    world_env.rawSettings.patchViewRanges,
-    world_env.getChunksVerticalRange(),
+    world_local_env.rawSettings.patchViewRanges,
+    world_local_env.getChunksVerticalRange(),
   )
   // skip compression for local gen
   // chunksPolling.skipBlobCompression = true
 
   const current_pos = new Vector2(0, 0)
-  const patch_pos = getPatchId(current_pos, world_env.getPatchDimensions())
+  const patch_pos = getPatchId(
+    current_pos,
+    world_local_env.getPatchDimensions(),
+  )
   const patch_view_dist = 2
   const chunks_tasks = chunksPolling.pollChunks(patch_pos, patch_view_dist)
   if (chunks_tasks) {
@@ -147,15 +150,15 @@ const testChunksPolling = async (
   }
 }
 
-const test_env_main_setup = (world_env: WorldEnv) => {
-  const world_modules = new WorldModules(world_env.rawSettings)
+const test_env_main_setup = (world_local_env: WorldLocals) => {
+  const world_modules = new WorldModules(world_local_env.rawSettings)
   return world_modules
 }
 
-const test_env_workerpool_setup = async (world_env: WorldEnv) => {
+const test_env_workerpool_setup = async (world_local_env: WorldLocals) => {
   // create workerpool to run locally
   const workerpool = new WorkerPool()
-  await workerpool.initPoolEnv(4, world_env)
+  await workerpool.initPoolEnv(4, world_local_env)
   console.log(`test env ready!!`)
   return workerpool
 }

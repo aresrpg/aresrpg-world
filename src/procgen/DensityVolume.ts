@@ -1,5 +1,7 @@
 import { Vector3 } from 'three'
 
+import { getWorldSeed, WorldSeed, WorldSeeds } from '../config/WorldEnv.js'
+
 import { NoiseDimension, NoiseSampler } from './NoiseSampler.js'
 
 export class DensityVolume {
@@ -11,8 +13,13 @@ export class DensityVolume {
 
   densityNoise: NoiseSampler
 
-  constructor() {
-    this.densityNoise = new NoiseSampler('densityVolume', NoiseDimension.Three)
+  constructor(worldSeeds: WorldSeeds) {
+    const densitySeed = getWorldSeed(worldSeeds, WorldSeed.Density)
+    this.densityNoise = new NoiseSampler(
+      densitySeed,
+      'densityVolume',
+      NoiseDimension.Three,
+    )
     this.densityNoise.periodicity = 7
     this.densityNoise.harmonicsCount = 4
   }
@@ -30,7 +37,7 @@ export class DensityVolume {
   ) {
     const { scaling } = this.params
     const { x, y, z } = blockPos.clone().multiplyScalar(scaling)
-    const density = this.densityNoise.eval(
+    const density = this.densityNoise.rawEval(
       x * scaling,
       y * scaling,
       z * scaling,

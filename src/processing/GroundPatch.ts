@@ -9,7 +9,12 @@ import {
   PatchId,
   BlockType,
 } from '../utils/common_types.js'
-import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk.js'
+import {
+  asVect3,
+  asVect2,
+  serializePatchId,
+  asPatchBounds,
+} from '../utils/patch_chunk.js'
 import { BlockMode } from '../index.js'
 import {
   Biome,
@@ -81,8 +86,8 @@ export class GroundPatch
   valueRange = { min: 512, max: 0 } // here elevation
   isEmpty = true
 
-  constructor(boundsOrPatchKey: Box2 | PatchKey = new Box2(), margin = 1) {
-    super(boundsOrPatchKey, margin)
+  constructor(bounds = new Box2(), margin = 1) {
+    super(bounds, margin)
     this.rawData = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
   }
 
@@ -318,9 +323,10 @@ export class GroundPatch
      * used to compute blocks are the same as near patch
      */
     const fillMarginsFromNearPatches = () => {
+      const patchDim = worldModules.worldLocalEnv.getPatchDimensions()
       // copy four edges margins
       const sidePatches = getPatchNeighbours(this.patchId as PatchId).map(
-        patchId => new GroundPatch(serializePatchId(patchId), 0),
+        patchId => GroundPatch.fromKey(serializePatchId(patchId), patchDim, 0),
       )
       sidePatches.forEach(sidePatch => {
         const marginOverlap = this.extendedBounds.intersect(sidePatch.bounds)
@@ -356,11 +362,11 @@ export class GroundPatch
     // return groundPatch
   }
 
-  duplicate() {
-    const copy = new GroundPatch(this.key || this.bounds, this.margin)
-    copy.rawData.set(this.rawData)
-    return copy
-  }
+  // duplicate() {
+  //   const copy = this.key ? GroundPatch.fromKey(this.key) : new GroundPatch(this.bounds, this.margin)
+  //   copy.rawData.set(this.rawData)
+  //   return copy
+  // }
 
   override toStub() {
     const patchStub = super.toStub()
@@ -379,6 +385,17 @@ export class GroundPatch
     this.valueRange.min = patchStub.valueRange?.min || this.valueRange.min
     this.valueRange.max = patchStub.valueRange?.max || this.valueRange.max
     return this
+  }
+
+  static override fromKey(
+    patchKey: PatchKey,
+    patchDim: Vector2,
+    patchMargin = 1,
+  ) {
+    const bounds = asPatchBounds(patchKey, patchDim)
+    const groundPatch = new GroundPatch(bounds, patchMargin)
+    groundPatch.patchKey = patchKey
+    return groundPatch
   }
 
   // getBlocksRow(zRowIndex: number) {

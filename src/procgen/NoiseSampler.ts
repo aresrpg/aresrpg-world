@@ -3,7 +3,6 @@ import { Vector2, Vector3 } from 'three'
 
 import Alea from '../third-party/alea.js'
 import { clamp } from '../utils/math_utils.js'
-import { worldRootEnv } from '../config/WorldEnv.js'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
@@ -34,6 +33,8 @@ export type NoiseSamplerParams = {
   periodicity: number
   harmonics: NoiseHarmonicsSettings
   dimensions: NoiseDimension
+  scaling: number
+  spreading: number
 }
 
 export class NoiseSampler {
@@ -51,17 +52,20 @@ export class NoiseSampler {
       gain: 0.5,
     },
     dimensions: NoiseDimension.Two,
+    spreading: 0,
+    scaling: 0.001,
   }
 
   shadowParams = {}
   stats = {}
   parent: any
 
-  constructor(name = '', noiseDimension = NoiseDimension.Two) {
-    this.params.seed = worldRootEnv.rawSettings.seeds.main || name
+  constructor(seed?: string, name = '', noiseDimension = NoiseDimension.Two) {
+    this.params.seed = seed || name
     this.params.dimensions = noiseDimension
     this.init()
     NoiseSampler.instances.push(this)
+    console.log(`noise sampler ${name}: ${this.params.seed}`)
   }
 
   init() {
@@ -136,7 +140,7 @@ export class NoiseSampler {
     // this.parent?.onChange(`Sampler:${_originator}`)
   }
 
-  eval(x: number, y: number, z?: number, t?: number): number {
+  rawEval(x: number, y: number, z?: number, t?: number): number {
     // const { x, y, z } = input
     // const y = input instanceof Vector2 ? input.y : input.z
     const density = Math.pow(2, 6) // TODO remove hardcoding
@@ -155,5 +159,14 @@ export class NoiseSampler {
       })
     noise /= this.harmonicsAmplitudeSum
     return clamp(noise, 0, 1)
+  }
+
+  eval(rawInput: Vector3) {
+    const { scaling } = this.params
+    const { x, z } = rawInput
+    const noiseRawVal = this.rawEval(x * scaling, z * scaling)
+    const noiseVal = (noiseRawVal - 0.5) * 2 ** this.params.spreading + 0.5
+    // val = this.mapping.apply(val)
+    return noiseVal
   }
 }

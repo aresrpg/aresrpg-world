@@ -106,6 +106,8 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
   worldModules: WorldModules,
   processingContext = ProcessingContext.None,
 ) => {
+  const { worldLocalEnv } = worldModules
+  const patchDim = worldLocalEnv.getPatchDimensions()
   const { processingInput, processingParams } = taskStub
   const { recipe, densityEval } = processingParams
   const buildCache: Record<PatchKey, GroundPatch> = {}
@@ -113,16 +115,13 @@ export const blocksProcessingHandler: BlocksProcessingTaskHandler = (
   const isAsync = recipe === BlocksProcessingRecipe.Peak
 
   const getPatchKey = (inputPos: Vector2) => {
-    const patchId = getPatchId(
-      inputPos,
-      worldModules.worldEnv.getPatchDimensions(),
-    )
+    const patchId = getPatchId(inputPos, patchDim)
     const patchKey = serializePatchId(patchId)
     return patchKey
   }
 
   const createGroundPatch = (patchKey: PatchKey) => {
-    const groundLayer = new GroundPatch(patchKey)
+    const groundLayer = GroundPatch.fromKey(patchKey, patchDim)
     groundLayer.prepare(worldModules.biome)
     return groundLayer
   }

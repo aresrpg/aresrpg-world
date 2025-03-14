@@ -27,7 +27,7 @@ import {
 } from '../datacontainers/PatchBase.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
-import { WorldEnv } from '../config/WorldEnv.js'
+import { WorldLocals } from '../config/WorldEnv.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { ItemsProcessing } from './ItemsProcessing.js'
@@ -112,7 +112,7 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
 export class BoardCacheProvider {
   // eslint-disable-next-line no-undef
   workerPool: WorkerPool
-  worldEnv: WorldEnv
+  worldLocalEnv: WorldLocals
   localCache: BoardCacheData = {
     chunks: [],
     items: [],
@@ -124,9 +124,9 @@ export class BoardCacheProvider {
   pendingBoardGen = false
 
   // eslint-disable-next-line no-undef
-  constructor(workerPool: WorkerPool, worldEnv: WorldEnv) {
+  constructor(workerPool: WorkerPool, worldLocalEnv: WorldLocals) {
     this.workerPool = workerPool
-    this.worldEnv = worldEnv
+    this.worldLocalEnv = worldLocalEnv
   }
 
   // constructor(centerPatchId: Vector2, patchRange: number) {
@@ -139,7 +139,7 @@ export class BoardCacheProvider {
   }
 
   get chunkIds() {
-    const { bottomId, topId } = this.worldEnv.getChunksVerticalRange()
+    const { bottomId, topId } = this.worldLocalEnv.getChunksVerticalRange()
     const chunkIds: ChunkId[] = []
     this.patchKeys.forEach(patchKey => {
       const patchId = parsePatchKey(patchKey) as PatchId
@@ -164,7 +164,7 @@ export class BoardCacheProvider {
     const bounds = new Box2().setFromCenterAndSize(center.clone().floor(), dims)
     const patchRange = patchRangeFromBounds(
       bounds,
-      this.worldEnv.getPatchDimensions(),
+      this.worldLocalEnv.getPatchDimensions(),
     )
     const changed = !patchRange.equals(this.patchRange)
     if (changed) {
@@ -246,16 +246,16 @@ export class BoardProvider {
 
   finalBounds = new Box2()
   boardData!: BoardPatch
-  worldEnv: WorldEnv
+  worldLocalEnv: WorldLocals
   constructor(
     boardCenter: Vector3,
     cacheProvider: BoardCacheProvider,
     externalDataEncoder: any,
-    worldEnv: WorldEnv,
+    worldLocalEnv: WorldLocals,
     // dedicatedWorkerPool: WorkerPool,// = WorkerPool.default,
   ) {
-    const { radius, thickness } = worldEnv.rawSettings.boards
-    this.worldEnv = worldEnv
+    const { radius, thickness } = worldLocalEnv.rawSettings.boards
+    this.worldLocalEnv = worldLocalEnv
     this.boardCenter = boardCenter.clone().floor()
 
     // const holesLayer = new ProcLayer('holesMap')
@@ -269,22 +269,22 @@ export class BoardProvider {
   }
 
   get boardThickness() {
-    return this.worldEnv.rawSettings.boards.thickness
+    return this.worldLocalEnv.rawSettings.boards.thickness
   }
 
   get boardRadius() {
-    return this.worldEnv.rawSettings.boards.radius
+    return this.worldLocalEnv.rawSettings.boards.radius
   }
 
   get centerPatchId() {
     return getPatchId(
       asVect2(this.boardCenter),
-      this.worldEnv.getPatchDimensions(),
+      this.worldLocalEnv.getPatchDimensions(),
     )
   }
 
   get patchRange() {
-    return getUpperScalarId(this.boardRadius, this.worldEnv.getPatchSize())
+    return getUpperScalarId(this.boardRadius, this.worldLocalEnv.getPatchSize())
   }
 
   get initialDims() {
@@ -477,13 +477,14 @@ export class BoardProvider {
 
   *overrideOriginalChunksContent(boardChunk: ChunkContainer) {
     const { nonOverlappingItemsChunks } = this
+    const chunkDim = this.worldLocalEnv.getChunkDimensions()
     // iter processed original chunks
     for (const originalChunk of this.cacheProvider.chunks) {
       // board_chunk.rawData.fill(113)
       const targetChunk = new ChunkContainer(
-        originalChunk.chunkKey,
+        undefined,
         originalChunk.margin,
-      )
+      ).fromKey(originalChunk.chunkKey, chunkDim)
       originalChunk.rawData.forEach((val, i) => (targetChunk.rawData[i] = val))
       // copy items individually
       nonOverlappingItemsChunks.forEach(itemChunk =>
@@ -499,13 +500,14 @@ export class BoardProvider {
   }
 
   *restoreOriginalChunksContent() {
+    const chunkDim = this.worldLocalEnv.getChunkDimensions()
     // iter processed original chunks
     for (const originalChunk of this.cacheProvider.chunks) {
       // board_chunk.rawData.fill(113)
       const targetChunk = new ChunkContainer(
-        originalChunk.chunkKey,
+        undefined,
         originalChunk.margin,
-      )
+      ).fromKey(originalChunk.chunkKey, chunkDim)
       originalChunk.rawData.forEach((val, i) => (targetChunk.rawData[i] = val))
       // copy items individually
       this.cacheProvider.items.forEach(itemChunk => {
