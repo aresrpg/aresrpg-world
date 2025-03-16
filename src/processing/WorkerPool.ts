@@ -23,23 +23,22 @@ export class WorkerPool {
   processedCount = 0
   ready = false
 
-  init(poolSize: number) {
-    console.log(`create worker pool size: ${poolSize} `)
+  // eslint-disable-next-line no-undef
+  init(poolSize: number, worker: Worker) {
     for (let workerId = 0; workerId < poolSize; workerId++) {
       const workerProxy = new WorkerProxy(workerId)
-      workerProxy.init()
+      workerProxy.init(worker)
       this.workerPool.push(workerProxy)
     }
   }
 
   async loadWorldEnv(worldEnv: WorldEnvSettings) {
-    const allLoaded = Promise.all(
+    return Promise.all(
       this.workerPool.map(workerProxy => workerProxy.forwardEnv(worldEnv)),
     ).then(() => {
       this.ready = true
       this.processQueue()
     })
-    return await allLoaded
   }
 
   get availableUnit() {
