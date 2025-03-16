@@ -22,12 +22,12 @@ export class WorkerPool {
   processedCount = 0
   ready = false
 
-  async initPoolEnv(poolSize: number, worldLocalEnv: WorldLocals) {
+  async initPoolEnv(poolSize: number, worldLocalEnv: WorldLocals, workerUrl?: string | URL) {
     console.log(`create worker pool size: ${poolSize} `)
     const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
       const workerProxy = new WorkerProxy(workerId)
-      const pendingInit = workerProxy.init(worldLocalEnv)
+      const pendingInit = workerProxy.init(worldLocalEnv, workerUrl)
       pendingInits.push(pendingInit)
       this.workerPool.push(workerProxy)
     }

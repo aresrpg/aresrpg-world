@@ -20,9 +20,14 @@ export class WorkerProxy {
     this.id = workerId
   }
 
-  // browser env default impl
-  init(worldLocalEnv: WorldLocals) {
-    const workerUrl = new URL('./world_compute_worker', import.meta.url)
+  /**
+   * 
+   * @param worldLocalEnv 
+   * @param workerUrl workaround for vite not supporting built-in worker URL
+   * @returns 
+   */
+  init(worldLocalEnv: WorldLocals, workerUrl?: string | URL) {
+    workerUrl = workerUrl || new URL('./world_compute_worker', import.meta.url)
     // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module' })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
