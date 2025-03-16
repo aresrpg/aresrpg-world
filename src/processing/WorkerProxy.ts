@@ -27,10 +27,8 @@ export class WorkerProxy {
   }
 
   // browser env default impl
-  init() {
-    const workerUrl = new URL('./world_compute_worker.js', import.meta.url)
-    // eslint-disable-next-line no-undef
-    const worker = new Worker(workerUrl, { type: 'module' })
+  // eslint-disable-next-line no-undef
+  init(worker: Worker) {
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
     worker.onerror = error => {
       console.error('WorldComputeProxy worker error', error)
@@ -72,7 +70,6 @@ export class WorkerProxy {
       await pendingReply
       return true
     }
-    console.warn(`unexpected worker not running`)
     return false
   }
 
