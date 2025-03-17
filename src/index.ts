@@ -1,7 +1,6 @@
 export { WorldModules } from './WorldModules.js'
 // Env
 export { WorldLocals, WorldGlobals } from './config/WorldEnv.js'
-export { getWorldDemoEnv } from './tests/configs/world_demo_setup.js'
 // Utils
 // export * as WorldUtils from './utils/index'
 export {
@@ -49,4 +48,3 @@ export {
 } from './tools/ProceduralGenerators.js'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
 // Services
-export { chunksWsClient } from './remote-services/chunks_over_ws_client.js'
