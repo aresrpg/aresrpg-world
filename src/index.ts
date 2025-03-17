@@ -29,7 +29,6 @@ export {
   DistributionProfile,
 } from './processing/RandomDistributionMap.js'
 export { ProcessingState } from './processing/TaskProcessing.js'
-export { WorkerPool } from './processing/WorkerPool.js'
 // Procgen
 export { Biome, BiomeType } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
