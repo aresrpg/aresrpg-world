@@ -40,6 +40,12 @@ export type ChunksProcessingParams = {
   fakeEmpty?: boolean
 }
 
+type TaskOptions = ChunksProcessingParams & {
+  onStarted?: (...a: any) => any
+  onCompleted?: (...a: any) => any
+  onRejected?: (error: string) => any
+}
+
 // constructor
 const ChunksProcessingTaskConstructor = ProcessingTask<
   ChunksProcessingInput,
@@ -48,12 +54,22 @@ const ChunksProcessingTaskConstructor = ProcessingTask<
 >
 
 const getChunksTask =
-  (chunksRange: ChunksProcessingRange) => (patchKey: PatchKey) => {
+  (chunksRange: ChunksProcessingRange) =>
+  (patchKey: PatchKey, processingOptions: TaskOptions = {}) => {
     const task = new ChunksProcessingTaskConstructor()
     task.handlerId = chunksProcessingHandlerName
     task.processingInput = { patchKey }
     task.processingParams = { chunksRange }
     task.postProcess = postProcess
+
+    const { onStarted, onCompleted, onRejected, ...processingParams } =
+      processingOptions
+
+    Object.assign(task.processingParams, processingParams)
+    if (onStarted) task.onStarted = onStarted
+    if (onCompleted) task.onCompleted = onCompleted
+    if (onRejected) task.onRejected = onRejected
+
     return task
   }
 
