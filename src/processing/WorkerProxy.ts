@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { WorldLocals } from '../config/WorldEnv.js'
 
 import { TaskId, GenericTask } from './TaskProcessing.js'
@@ -22,7 +23,8 @@ export class WorkerProxy {
 
   // browser env default impl
   // eslint-disable-next-line no-undef
-  init(worldLocalEnv: WorldLocals, worker: Worker) {
+  init(worldLocalEnv: WorldLocals, workerUrl: string) {
+    const worker = new Worker(workerUrl, { type: 'module' })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
     worker.onerror = error => {
       console.error('WorldComputeProxy worker error', error)
@@ -47,7 +49,7 @@ export class WorkerProxy {
       msgResolver(content.data)
       delete this.resolvers[timestamp]
     } else {
-      console.warn(
+      console.error(
         `[WorkerProxy]: no resolver found for timestamp: ${timestamp}`,
       )
     }
@@ -64,7 +66,7 @@ export class WorkerProxy {
 
   async forwardTask(task: GenericTask) {
     if (this.worker && this.isReady) {
-      const timestamp = Date.now()
+      const timestamp = randomUUID()
       // task?.onProcessingStart()
       const content = task.toStub()
       this.worker.postMessage({ timestamp, content })

@@ -41,8 +41,9 @@
     "isolatedModules": true,
 
     /* Language and Environment */
-    "target": "ESNext"
+    "target": "ESNext",
+    "rootDir": "src"
   },
-  "include": ["src/**/*", "test/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

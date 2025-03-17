@@ -5,8 +5,6 @@
 - distributed computing on remote device (for monitoring, local dev purposes)
 */
 
-import { Worker } from 'worker_threads'
-
 import { WebSocketServer, WebSocket } from 'ws'
 
 import { WorkerPool } from '../node/NodeWorkerPool.js'
@@ -19,13 +17,10 @@ const POOL_SIZE = 4
 const initWsServer = async () => {
   const world_demo_env = getWorldDemoEnv()
   const chunks_node_worker_pool = new WorkerPool()
-  const nodeWorker = new Worker(
-    new URL('./world_compute_node_worker.js', import.meta.url),
-  )
   await chunks_node_worker_pool.initPoolEnv(
     POOL_SIZE,
     world_demo_env,
-    nodeWorker,
+    './dist/src/node/world_compute_node_worker.js',
   )
   const chunks_scheduler = new ChunksPolling(
     world_demo_env.rawSettings.patchViewRanges,
