@@ -1,6 +1,7 @@
+import { Worker } from 'worker_threads'
+
 import { WorkerProxy } from '../processing/WorkerProxy.js'
 import { WorldLocals } from '../config/WorldEnv.js'
-import { Worker } from 'worker_threads'
 
 export class NodeWorkerProxy extends WorkerProxy {
   override init(worldLocalEnv: WorldLocals, workerUrl: string): Promise<any> {

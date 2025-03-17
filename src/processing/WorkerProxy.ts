@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto'
+
 import { WorldLocals } from '../config/WorldEnv.js'
 
 import { TaskId, GenericTask } from './TaskProcessing.js'
@@ -22,8 +23,8 @@ export class WorkerProxy {
   }
 
   // browser env default impl
-  // eslint-disable-next-line no-undef
   init(worldLocalEnv: WorldLocals, workerUrl: string) {
+    // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module' })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
     worker.onerror = error => {
