@@ -19,7 +19,14 @@ const POOL_SIZE = 4
 const initWsServer = async () => {
   const world_demo_env = getWorldDemoEnv()
   const chunks_node_worker_pool = new WorkerPool()
-  await chunks_node_worker_pool.initPoolEnv(POOL_SIZE, world_demo_env)
+  const nodeWorker = new Worker(
+    new URL('./world_compute_node_worker.js', import.meta.url),
+  )
+  await chunks_node_worker_pool.initPoolEnv(
+    POOL_SIZE,
+    world_demo_env,
+    nodeWorker,
+  )
   const chunks_scheduler = new ChunksPolling(
     world_demo_env.rawSettings.patchViewRanges,
     world_demo_env.getChunksVerticalRange(),

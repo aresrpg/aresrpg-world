@@ -1,10 +1,4 @@
 {
-  "files": [
-    "src/index.ts",
-    "src/processing/world_compute_worker.ts",
-    "src/node/world_compute_node_worker.ts",
-    "src/node-tools/chunks_over_ws_server.ts"
-  ],
   "compilerOptions": {
     /* Type Checking */
     "allowUnreachableCode": false,
@@ -49,6 +43,6 @@
     /* Language and Environment */
     "target": "ESNext"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "test/**/*"],
   "exclude": ["node_modules", "dist"]
 }
