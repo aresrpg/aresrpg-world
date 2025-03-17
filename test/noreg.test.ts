@@ -4,18 +4,18 @@
 
 import { Vector2 } from 'three'
 
-import { WorkerPool } from '../node/NodeWorkerPool.js'
-import { ChunksPolling } from '../processing/ChunksPolling.js'
-import { getPatchId } from '../utils/patch_chunk.js'
-import { WorldLocals } from '../config/WorldEnv.js'
-import { ChunkStub } from '../datacontainers/ChunkContainer.js'
-import { hashContent } from '../node/utils/chunk_node_utils.js'
+import { WorkerPool } from '../src/node/NodeWorkerPool.js'
+import { ChunksPolling } from '../src/processing/ChunksPolling.js'
+import { getPatchId } from '../src/utils/patch_chunk.js'
+import { WorldLocals } from '../src/config/WorldEnv.js'
+import { ChunkStub } from '../src/datacontainers/ChunkContainer.js'
+import { hashContent } from '../src/node/utils/chunk_node_utils.js'
 import {
   ChunksProcessing,
   ChunksProcessingOutput,
-} from '../processing/ChunksProcessing.js'
-import { PatchKey } from '../utils/common_types.js'
-import { WorldModules } from '../WorldModules.js'
+} from '../src/processing/ChunksProcessing.js'
+import { PatchKey } from '../src/utils/common_types.js'
+import { WorldModules } from '../src/WorldModules.js'
 
 import { getWorldDemoEnv } from './configs/world_demo_setup.js'
 
@@ -42,7 +42,7 @@ const extract_blob_info = async (compressedBlob: Blob) => {
 }
 
 const on_chunk_task_completed = async (taskRes: ChunksProcessingOutput) => {
-  const report = []
+  const report: any[] = []
   for await (const chunk of taskRes) {
     const info = await get_chunk_info(chunk)
     report.push(info)
@@ -53,45 +53,42 @@ const on_chunk_task_completed = async (taskRes: ChunksProcessingOutput) => {
 }
 
 export const create_chunks_tasks = (patchKey: PatchKey) => {
-  const test_tasks = []
-  let task
-  task = ChunksProcessing.lowerChunks(patchKey)
-  task.processingParams.skipBlobCompression = true
-  task.onStarted = () => console.log(`TEST: lower chunks`)
-  task.onCompleted = on_chunk_task_completed
-  test_tasks.push(task)
-  // res = await task.delegate(localSource)
+  const base_options = {
+    skipBlobCompression: true,
+    onCompleted: on_chunk_task_completed,
+  }
+
+  const lower_task = ChunksProcessing.lowerChunks(patchKey, {
+    ...base_options,
+    onStarted: () => console.log(`TEST: lower chunks`),
+  })
+
+  // res = await lower_task.delegate(localSource)
   // res.map(chunk => console.log(`${chunk.metadata.chunkKey}, size: ${chunk.rawdata.length}`))
 
-  task = ChunksProcessing.upperChunks(patchKey)
-  task.processingParams.skipBlobCompression = true
-  task.onStarted = () => console.log(`TEST: upper chunks`)
-  task.onCompleted = on_chunk_task_completed
-  test_tasks.push(task)
+  const upper_task = ChunksProcessing.upperChunks(patchKey, {
+    ...base_options,
+    onStarted: () => console.log(`TEST: upper chunks`),
+  })
 
-  task = ChunksProcessing.fullChunks(patchKey)
-  task.processingParams.skipBlobCompression = true
-  task.onStarted = () => console.log(`TEST: full chunks`)
-  task.onCompleted = on_chunk_task_completed
-  test_tasks.push(task)
+  const full_task = ChunksProcessing.fullChunks(patchKey, {
+    ...base_options,
+    onStarted: () => console.log(`TEST: full chunks`),
+  })
 
-  task = ChunksProcessing.lowerChunks(patchKey)
-  task.processingParams.skipBlobCompression = true
-  task.processingParams.fakeEmpty = true
-  task.onStarted = () =>
-    console.log(`TEST: lower chunks with fake empty chunks`)
-  task.onCompleted = on_chunk_task_completed
-  test_tasks.push(task)
+  const lower_full_task = ChunksProcessing.lowerChunks(patchKey, {
+    ...base_options,
+    fakeEmpty: true,
+    onStarted: () => console.log(`TEST: lower chunks with fake empty chunks`),
+  })
 
-  task = ChunksProcessing.upperChunks(patchKey)
-  task.processingParams.skipBlobCompression = true
-  task.processingParams.fakeEmpty = true
-  task.onStarted = () =>
-    console.log(`TEST: upper chunks with fake empty chunks`)
-  task.onCompleted = on_chunk_task_completed
-  test_tasks.push(task)
+  const upper_full_task = ChunksProcessing.upperChunks(patchKey, {
+    ...base_options,
+    fakeEmpty: true,
+    onStarted: () => console.log(`TEST: upper chunks with fake empty chunks`),
+  })
 
-  return test_tasks
+  return [lower_task, upper_task, full_task, lower_full_task, upper_full_task]
 }
 
 // Tasks delegated to workerpool
