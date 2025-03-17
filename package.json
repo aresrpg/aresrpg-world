@@ -14,6 +14,11 @@
       "browser": "./dist/processing/WorkerPool.js",
       "node": "./dist/node/NodeWorkerPool.js",
       "types": "./dist/processing/WorkerPool.d.ts"
+    },
+    "./worker": {
+      "browser": "./dist/processing/world_compute_worker.js",
+      "node": "./dist/node/world_compute_node_worker.js",
+      "types": "./dist/processing/world_compute_worker.d.ts"
     }
   },
   "scripts": {
