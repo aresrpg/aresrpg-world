@@ -20,16 +20,9 @@ export class WorkerProxy {
     this.id = workerId
   }
 
-  /**
-   * 
-   * @param worldLocalEnv 
-   * @param workerUrl workaround for vite not supporting built-in worker URL
-   * @returns 
-   */
-  init(worldLocalEnv: WorldLocals, workerUrl?: string | URL) {
-    workerUrl = workerUrl || new URL('./world_compute_worker', import.meta.url)
-    // eslint-disable-next-line no-undef
-    const worker = new Worker(workerUrl, { type: 'module' })
+  // browser env default impl
+  // eslint-disable-next-line no-undef
+  init(worldLocalEnv: WorldLocals, worker: Worker) {
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
     worker.onerror = error => {
       console.error('WorldComputeProxy worker error', error)
@@ -49,10 +42,14 @@ export class WorkerProxy {
 
   handleWorkerReply = (reply: MessageData<any>) => {
     const { timestamp, content } = reply
-    if (timestamp !== undefined) {
-      const msgResolver = this.resolvers[timestamp]
+    const msgResolver = this.resolvers[timestamp]
+    if (msgResolver) {
       msgResolver(content.data)
       delete this.resolvers[timestamp]
+    } else {
+      console.warn(
+        `[WorkerProxy]: no resolver found for timestamp: ${timestamp}`,
+      )
     }
   }
 
