@@ -158,7 +158,7 @@ const test_env_workerpool_setup = async (world_local_env: WorldLocals) => {
   await workerpool.initPoolEnv(
     4,
     world_local_env,
-    './dist/src/node/world_compute_node_worker.js',
+    './dist/node/world_compute_node_worker.js',
   )
   console.log(`test env ready!!`)
   return workerpool
