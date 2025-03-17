@@ -1,4 +1,4 @@
-import { BiomeType, BlockType } from '../../index.js'
+import { BiomeType, BlockType } from '../../src/index.js'
 // import { ExtBlock } from './blocks_mappings.js'
 
 import { SCHEMATICS_COLLECTIONS } from './schematics_collections.js'

@@ -1,6 +1,10 @@
 // import { SCHEMATICS_FILES_INDEX } from '../assets/schematics/index'
 // import { initWorldDevTools } from '../../tools/DevTools'
-import { WorldLocals, WorldSeed, WorldSeeds } from '../../config/WorldEnv.js'
+import {
+  WorldLocals,
+  WorldSeed,
+  WorldSeeds,
+} from '../../src/config/WorldEnv.js'
 
 import { BIOMES_LANDSCAPES_CONFIG } from './biome_landscapes.js'
 // import { PROC_ITEMS_CONFIG } from './settings/procedural_items'
