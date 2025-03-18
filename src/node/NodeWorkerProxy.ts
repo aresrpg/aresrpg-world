@@ -13,7 +13,7 @@ export class NodeWorkerProxy extends WorkerProxy {
       resolve => (this.resolvers[timestamp] = resolve),
     )
     this.worker.postMessage({ timestamp, content: worldLocalEnv.toStub() })
-    pendingInit.then(() => console.log(`worker is ready`))
+    // pendingInit.then(() => console.log(`worker is ready`))
     return pendingInit
   }
 }

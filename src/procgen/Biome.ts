@@ -214,6 +214,7 @@ export class Biome {
     )
     this.posRandomizer.periodicity = 6
     this.parseBiomesConfig(biomeEnv.rawConf)
+
     this.steps = getTransitionSteps(biomeEnv.repartition)
     this.biomeEnv = biomeEnv
   }

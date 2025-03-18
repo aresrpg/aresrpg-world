@@ -27,6 +27,6 @@ export class WorldModules {
     )
     this.densityVolume = new DensityVolume(worldSeeds)
     this.itemsInventory = new ItemsInventory(this.worldLocalEnv.getItemsEnv())
-    console.log('world modules initialized')
+    // console.log('world modules initialized')
   }
 }
