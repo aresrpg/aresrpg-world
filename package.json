@@ -28,7 +28,7 @@
     "typecheck": "tsc --build",
     "format": "prettier . --write && eslint . --fix --ext .ts",
     "postversion": "git push --follow-tags",
-    "chunks-over-ws-local-server": "node dist/node-tools/chunks_over_ws_server.js",
+    "chunks-over-ws-local-server": "tsx test/chunks_over_ws_server.js",
     "test": "node --test --import tsx ./test/**/*.test.ts"
   },
   "repository": {

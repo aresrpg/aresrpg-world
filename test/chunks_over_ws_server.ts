@@ -8,7 +8,7 @@
 import { WebSocketServer, WebSocket } from 'ws'
 
 import { ChunksPolling, parseThreeStub } from '../src/index.js'
-import { WorkerPool } from '../src/processing/WorkerPool.js'
+import { WorkerPool } from '../src/node/NodeWorkerPool.js'
 
 import { getWorldDemoEnv } from './configs/world_demo_setup.js'
 
@@ -21,7 +21,7 @@ const initWsServer = async () => {
   await chunks_node_worker_pool.initPoolEnv(
     POOL_SIZE,
     world_demo_env,
-    './dist/src/node/world_compute_node_worker.js',
+    './dist/node/world_compute_node_worker.js',
   )
   const chunks_scheduler = new ChunksPolling(
     world_demo_env.rawSettings.patchViewRanges,

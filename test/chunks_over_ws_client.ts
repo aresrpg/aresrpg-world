@@ -1,5 +1,5 @@
-import { ChunkStub } from '../datacontainers/ChunkContainer.js'
-import { chunksFromCompressedBlob } from '../utils/chunk_utils.js'
+import { ChunkStub } from '../src/datacontainers/ChunkContainer.ts'
+import { chunksFromCompressedBlob } from '../src/index.ts'
 
 /**
  * WS client side
