@@ -1,5 +1,3 @@
-import { randomUUID } from 'crypto'
-
 import { WorldLocals } from '../config/WorldEnv.js'
 
 import { TaskId, GenericTask } from './TaskProcessing.js'
@@ -39,7 +37,7 @@ export class WorkerProxy {
       resolve => (this.resolvers[timestamp] = resolve),
     )
     this.worker.postMessage({ timestamp, content: worldLocalEnv.toStub() })
-    pendingInit.then(() => console.log(`worker is ready`))
+    // pendingInit.then(() => console.log(`worker is ready`))
     return pendingInit
   }
 
@@ -67,7 +65,7 @@ export class WorkerProxy {
 
   async forwardTask(task: GenericTask) {
     if (this.worker && this.isReady) {
-      const timestamp = randomUUID()
+      const timestamp = performance.now()
       // task?.onProcessingStart()
       const content = task.toStub()
       this.worker.postMessage({ timestamp, content })

@@ -1,6 +1,6 @@
 export { WorldModules } from './WorldModules.js'
 // Env
-export { WorldLocals, WorldGlobals } from './config/WorldEnv.js'
+export { WorldLocals, WorldGlobals, WorldSeed } from './config/WorldEnv.js'
 // Utils
 // export * as WorldUtils from './utils/index'
 export {
@@ -29,6 +29,7 @@ export {
   DistributionProfile,
 } from './processing/RandomDistributionMap.js'
 export { ProcessingState } from './processing/TaskProcessing.js'
+export { ChunksProcessing } from './processing/ChunksProcessing.js'
 // Procgen
 export { Biome, BiomeType } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
