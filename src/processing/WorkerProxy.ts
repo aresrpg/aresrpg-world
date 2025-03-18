@@ -49,8 +49,8 @@ export class WorkerProxy {
 
   handleWorkerReply = (reply: MessageData<any>) => {
     const { timestamp, content } = reply
-    const msgResolver = this.resolvers[timestamp]
-    if (msgResolver) {
+    if (timestamp !== undefined) {
+      const msgResolver = this.resolvers[timestamp]
       msgResolver(content.data)
       delete this.resolvers[timestamp]
     } else {
