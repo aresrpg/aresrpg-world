@@ -21,6 +21,12 @@ export class WorkerProxy {
   }
 
   // browser env default impl
+  /**
+   *
+   * @param worldLocalEnv
+   * @param workerUrl workaround for vite not supporting built-in worker URL
+   * @returns
+   */
   init(worldLocalEnv: WorldLocals, workerUrl: string) {
     // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module' })
