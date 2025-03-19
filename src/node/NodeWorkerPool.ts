@@ -8,12 +8,13 @@ export class WorkerPool extends BaseWorkerPool {
     poolSize: number,
     worldLocalEnv: WorldLocals,
     workerUrl: string,
+    workerName?: string,
   ) {
     console.log(`create worker pool size: ${poolSize} `)
     const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
       const workerProxy = new NodeWorkerProxy(workerId)
-      const pendingInit = workerProxy.init(worldLocalEnv, workerUrl)
+      const pendingInit = workerProxy.init(worldLocalEnv, workerUrl, workerName)
       pendingInits.push(pendingInit)
       this.workerPool.push(workerProxy)
     }

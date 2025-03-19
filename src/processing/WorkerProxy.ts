@@ -27,9 +27,13 @@ export class WorkerProxy {
    * @param workerUrl workaround for vite not supporting built-in worker URL
    * @returns
    */
-  init(worldLocalEnv: WorldLocals, workerUrl: string) {
+  init(
+    worldLocalEnv: WorldLocals,
+    workerUrl: string,
+    workerName: string = 'world-worker',
+  ) {
     // eslint-disable-next-line no-undef
-    const worker = new Worker(workerUrl, { type: 'module' })
+    const worker = new Worker(workerUrl, { type: 'module', name: workerName })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
     worker.onerror = error => {
       console.error('WorldComputeProxy worker error', error)
