@@ -34,7 +34,7 @@ import {
 } from '../utils/spatial_utils.js'
 import { bilinearInterpolation } from '../utils/math_utils.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
-import { WorldModules } from '../WorldModules.js'
+import { WorldModules, WorldProcessingEnvironment } from '../WorldModules.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
@@ -317,13 +317,14 @@ export class GroundPatch
    * whole patch by default
    * if genBounds specified, only sub rows/cols will be generated
    */
-  bake(worldModules: WorldModules, regionBounds?: Box2) {
+  bake(worldProcEnv: WorldProcessingEnvironment, regionBounds?: Box2) {
+    const {worldLocalEnv, worldModules} = worldProcEnv
     /**
      * required for transition patches to insure interpolated patch corners
      * used to compute blocks are the same as near patch
      */
     const fillMarginsFromNearPatches = () => {
-      const patchDim = worldModules.worldLocalEnv.getPatchDimensions()
+      const patchDim = worldLocalEnv.getPatchDimensions()
       // copy four edges margins
       const sidePatches = getPatchNeighbours(this.patchId as PatchId).map(
         patchId => GroundPatch.fromKey(serializePatchId(patchId), patchDim, 0),
@@ -331,7 +332,7 @@ export class GroundPatch
       sidePatches.forEach(sidePatch => {
         const marginOverlap = this.extendedBounds.intersect(sidePatch.bounds)
         // for each side patches only gen overlapping margins with current patch
-        sidePatch.bake(worldModules, marginOverlap)
+        sidePatch.bake(worldProcEnv, marginOverlap)
         // copy side patch to current patch on overlapping margin zone
         // const count = this.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
         // const count2 = sidePatch.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)

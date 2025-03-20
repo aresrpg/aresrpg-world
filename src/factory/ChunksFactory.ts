@@ -11,7 +11,7 @@ import {
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
 import { Biome, BiomeType } from '../procgen/Biome.js'
-import { WorldModules } from '../WorldModules.js'
+import { WorldProcessingEnvironment } from '../WorldModules.js'
 import { WorldGlobals } from '../config/WorldEnv.js'
 
 const highlightPatchBorders = (localPos: Vector3, blockType: BlockType) => {
@@ -31,7 +31,7 @@ export class EmptyChunk extends ChunkContainer {
     this.fromKey(chunkKey, chunkDim)
   }
 
-  async bake() {}
+  async bake() { }
 }
 
 export class GroundChunk extends ChunkContainer {
@@ -80,15 +80,16 @@ export class GroundChunk extends ChunkContainer {
   }
 
   async bake(
-    worldModules: WorldModules,
+    worldProcEnv: WorldProcessingEnvironment,
     groundLayer?: GroundPatch,
     cavesMask?: ChunkMask,
   ) {
-    const patchDim = worldModules.worldLocalEnv.getPatchDimensions()
+    const { worldModules, worldLocalEnv } = worldProcEnv
+    const patchDim = worldLocalEnv.getPatchDimensions()
     const patchId = asVect2(this.chunkId as Vector3)
     const patchKey = serializePatchId(patchId)
     groundLayer = groundLayer || GroundPatch.fromKey(patchKey, patchDim)
-    groundLayer.isEmpty && (await groundLayer.bake(worldModules))
+    groundLayer.isEmpty && (await groundLayer.bake(worldProcEnv))
 
     const ymin = this.extendedBounds.min.y
     const ymax = this.extendedBounds.max.y
@@ -119,9 +120,10 @@ export class GroundChunk extends ChunkContainer {
  */
 
 export class CavesMask extends ChunkMask {
-  bake(worldModules: WorldModules) {
+  bake(worldProcEnv: WorldProcessingEnvironment) {
+    const { worldModules } = worldProcEnv
     const groundLayer = new GroundPatch(asBox2(this.bounds))
-    groundLayer.bake(worldModules)
+    groundLayer.bake(worldProcEnv)
     // const bounds = asBox3(groundLayer.bounds)
     // bounds.max.y = groundLayer.valueRange.max
     // const chunkContainer = new ChunkContainer(bounds, 1)

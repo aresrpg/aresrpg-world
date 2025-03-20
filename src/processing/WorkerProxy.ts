@@ -51,7 +51,7 @@ export class WorkerProxy {
       resolve => (this.resolvers[timestamp] = resolve),
     )
     this.worker.postMessage({ timestamp, content: worldLocalEnv.toStub() })
-    // pendingInit.then(() => console.log(`worker is ready`))
+    pendingInit.then(() => console.log(`worker #${this.id} is ready`))
     return pendingInit
   }
 
@@ -59,12 +59,12 @@ export class WorkerProxy {
     const { timestamp, content } = reply
     if (timestamp !== undefined) {
       const msgResolver = this.resolvers[timestamp]
-      msgResolver(content.data)
-      delete this.resolvers[timestamp]
-    } else {
-      console.error(
-        `[WorkerProxy]: no resolver found for timestamp: ${timestamp}`,
-      )
+      if (msgResolver) {
+        msgResolver(content.data)
+        delete this.resolvers[timestamp]
+      } else {
+        console.warn(`missing message resolver ${timestamp} for worker #${this.id}`)
+      }
     }
   }
 
@@ -82,8 +82,8 @@ export class WorkerProxy {
       const timestamp = performance.now()
       // task?.onProcessingStart()
       const content = task.toStub()
-      this.worker.postMessage({ timestamp, content })
       this.resolvers[timestamp] = task.resolve
+      this.worker.postMessage({ timestamp, content })
       return true
     }
     return false

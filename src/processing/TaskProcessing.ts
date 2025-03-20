@@ -1,5 +1,4 @@
 import { parseThreeStub } from '../utils/patch_chunk.js'
-import { WorldModules } from '../WorldModules.js'
 
 import { WorkerPool } from './WorkerPool.js'
 
@@ -38,27 +37,7 @@ export enum ProcessingContext {
   Worker,
 }
 export type TaskId = string | number
-export type ProcessingTaskStub<ProcessingInput, ProcessingParams> = {
-  taskId: TaskId
-  processingInput: ProcessingInput
-  processingParams: ProcessingParams
-  handlerId: ProcessingTaskHandlerId
-}
 
-//
-export type ProcessingTaskHandler<
-  ProcessingInput,
-  ProcessingParams,
-  ProcessingOutput,
-> = (
-  taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
-  worldModules: WorldModules,
-  procContext?: ProcessingContext,
-) => Promise<ProcessingOutput> | ProcessingOutput
-type ProcessingTasksHandlers = Record<
-  ProcessingTaskHandlerId,
-  ProcessingTaskHandler<any, any, any>
->
 
 /**
  * Tasks can be processed locally on main thread, worker thread
@@ -69,7 +48,6 @@ export class ProcessingTask<
   ProcessingParams,
   ProcessingOutput,
 > {
-  static taskHandlers: ProcessingTasksHandlers = {}
   static globalTasksCount = 0
   processingInput: ProcessingInput = [] as ProcessingInput
   processingParams: ProcessingParams = {} as ProcessingParams
@@ -84,29 +62,6 @@ export class ProcessingTask<
   // deferredPromise
   // resolveDeferredPromise: any
   scheduled = false
-
-  static handleTask<T, U>(
-    taskStub: ProcessingTaskStub<T, U> | ProcessingTask<T, any, U>,
-    worldModules: WorldModules,
-    procContext?: ProcessingContext,
-  ) {
-    // const [delegatedTask, processingArgs, processingParams] = taskStub
-    const { handlerId } = taskStub
-    // const args = parseArgs(...processingArgs)
-    const taskHandler = ProcessingTask.taskHandlers[
-      handlerId
-    ] as ProcessingTaskHandler<T, any, U>
-    if (taskHandler) {
-      // const task = new Task(...args)
-      const taskRes = taskHandler(taskStub, worldModules, procContext)
-      // const res = await task.preProcess(processingArgs, processingParams)
-      // const stubs = toStubs(res)
-      return taskRes // targetObj.toStub()
-    } else {
-      console.warn(`no task handler found for ${handlerId}`)
-    }
-    return null
-  }
 
   constructor(taskId?: TaskId) {
     ProcessingTask.globalTasksCount++
@@ -144,22 +99,19 @@ export class ProcessingTask<
   /**
    * Depending on task being run, result will be either sync or async
    */
-  process(worldInstance: WorldModules) {
-    const res = ProcessingTask.handleTask<ProcessingInput, ProcessingOutput>(
-      this,
-      worldInstance,
-    ) as ProcessingOutput
-    this.onCompleted(res)
-    return res
+  process(taskHandler: ProcessingTaskHandler<ProcessingInput, ProcessingParams, ProcessingOutput>) {
+    // const task = new Task(...args)
+    const taskRes = taskHandler(this.toStub())
+    // const res = await task.preProcess(processingArgs, processingParams)
+    // const stubs = toStubs(res)
+    // this.onCompleted(taskRes)
+    return taskRes // targetObj.toStub()
   }
 
-  async asyncProcess(worldInstance: WorldModules) {
+  async asyncProcess(taskHandler: ProcessingTaskHandler<ProcessingInput, ProcessingParams, ProcessingOutput>) {
     this.onStarted()
-    const res = (await ProcessingTask.handleTask<
-      ProcessingInput,
-      ProcessingOutput
-    >(this, worldInstance)) as ProcessingOutput
-    return this.onCompleted(res)
+    const taskRes = await this.process(taskHandler)
+    return this.onCompleted(taskRes)
   }
 
   /**
@@ -219,7 +171,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() {}
+  request() { }
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -263,7 +215,7 @@ export class ProcessingTask<
     return rawOutputData
   }
 
-  onStarted = () => {}
+  onStarted = () => { }
 
   /**
    * additional callback where post process actions can be performed
@@ -297,7 +249,27 @@ export class ProcessingTask<
 }
 
 export type GenericTask = ProcessingTask<any, any, any>
+
+export type ProcessingTaskStub<ProcessingInput, ProcessingParams> = {
+  taskId: TaskId
+  processingInput: ProcessingInput
+  processingParams: ProcessingParams
+  handlerId: ProcessingTaskHandlerId
+}
 export type GenericTaskStub = ProcessingTaskStub<any, any>
+
+
+//
+export type ProcessingTaskHandler<
+  ProcessingInput,
+  ProcessingParams,
+  ProcessingOutput,
+> = (
+  taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
+  procContext?: ProcessingContext,
+) => Promise<ProcessingOutput> | ProcessingOutput
+export type GenericTaskHandler = ProcessingTaskHandler<any, any, any>
+
 
 // export class ProcessingTaskHandler {
 //   handleTask(task: ProcessingTask<any, any, any>) {

@@ -1,9 +1,4 @@
 import { parentPort } from 'worker_threads'
-
-import '../processing/BlocksProcessing.js'
-import '../processing/ChunksProcessing.js'
-import '../processing/ItemsProcessing.js'
-
 import { onMessage } from '../processing/WorldWorker.js'
 
 const initNodeWorker = () => {

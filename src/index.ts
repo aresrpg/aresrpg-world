@@ -1,4 +1,5 @@
-export { WorldModules } from './WorldModules.js'
+
+
 // Env
 export { WorldLocals, WorldGlobals, WorldSeed } from './config/WorldEnv.js'
 // Utils
