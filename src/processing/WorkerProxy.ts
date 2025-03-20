@@ -22,10 +22,10 @@ export class WorkerProxy {
 
   // browser env default impl
   /**
-   *
-   * @param worldLocalEnv
-   * @param workerUrl workaround for vite not supporting built-in worker URL
-   * @returns
+   * 
+   * @param worldLocalEnv 
+   * @param worker allow for passing worker externally to workaround issue with some bundlers
+   * @returns 
    */
   init(
     worldLocalEnv: WorldLocals,

@@ -8,7 +8,6 @@ import {
   // parseThreeStub,
 } from '../utils/patch_chunk.js'
 import { PatchKey, Block, BlockData, BlockType } from '../utils/common_types.js'
-import { WorldProcessingEnvironment } from '../WorldModules.js'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch.js'
 import { ItemsProcessing, itemsProcessingHandlerName } from './ItemsProcessing.js'
@@ -19,6 +18,7 @@ import {
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing.js'
+import { WorldModules } from '../WorldModules.js'
 
 /**
  * Calling side
@@ -101,8 +101,8 @@ type BlocksProcessingTaskHandler = ProcessingTaskHandler<
 //   floorPositionsHandler
 // }
 
-export const createBlocksTaskHandler = (worldProcEnv: WorldProcessingEnvironment) => {
-  const {worldLocalEnv, worldModules, taskHandlers} = worldProcEnv
+export const createBlocksTaskHandler = (worldModules: WorldModules) => {
+  const {worldLocalEnv, taskHandlers} = worldModules
   const blocksTaskHandler: BlocksProcessingTaskHandler = (
     taskStub: BlocksProcessingTask | BlocksProcessingTaskStub,
     processingContext = ProcessingContext.None,

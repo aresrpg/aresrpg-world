@@ -39,7 +39,10 @@ const initWsServer = async () => {
     chunks_tasks?.forEach(chunks_task =>
       chunks_task
         .delegate(chunks_node_worker_pool)
-        .then(chunk_blob => clientWs.send(chunk_blob)),
+        .then(chunk_blob => {
+          console.log(`sending `, chunk_blob)
+          clientWs.send(chunk_blob)
+        }),
     )
     // const clientTask = wsRequest.task
     // this.enqueueTasks(clientTask)
