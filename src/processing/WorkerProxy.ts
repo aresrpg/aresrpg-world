@@ -27,11 +27,9 @@ export class WorkerProxy {
    * @param workerUrl workaround for vite not supporting built-in worker URL
    * @returns
    */
-  init(
-    worldLocalEnv: WorldLocals,
-    workerUrl: string,
-    workerName: string = 'world-worker',
-  ) {
+  init(worldLocalEnv: WorldLocals, workerUrl?: string | URL) {
+    workerUrl && console.warn(`externally provided worker URL`)
+    workerUrl = workerUrl || new URL('./world_compute_worker', import.meta.url)
     // eslint-disable-next-line no-undef
     const worker = new Worker(workerUrl, { type: 'module', name: workerName })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
@@ -47,7 +45,7 @@ export class WorkerProxy {
       resolve => (this.resolvers[timestamp] = resolve),
     )
     this.worker.postMessage({ timestamp, content: worldLocalEnv.toStub() })
-    // pendingInit.then(() => console.log(`worker is ready`))
+    pendingInit.then(() => console.log(`worker #${this.id} is ready`))
     return pendingInit
   }
 
@@ -55,12 +53,12 @@ export class WorkerProxy {
     const { timestamp, content } = reply
     if (timestamp !== undefined) {
       const msgResolver = this.resolvers[timestamp]
-      msgResolver(content.data)
-      delete this.resolvers[timestamp]
-    } else {
-      console.error(
-        `[WorkerProxy]: no resolver found for timestamp: ${timestamp}`,
-      )
+      if (msgResolver) {
+        msgResolver(content.data)
+        delete this.resolvers[timestamp]
+      } else {
+        console.warn(`missing message resolver ${timestamp} for worker #${this.id}`)
+      }
     }
   }
 
@@ -78,8 +76,8 @@ export class WorkerProxy {
       const timestamp = performance.now()
       // task?.onProcessingStart()
       const content = task.toStub()
-      this.worker.postMessage({ timestamp, content })
       this.resolvers[timestamp] = task.resolve
+      this.worker.postMessage({ timestamp, content })
       return true
     }
     return false

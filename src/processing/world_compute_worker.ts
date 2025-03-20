@@ -1,10 +1,6 @@
 /**
  * Task processing worker
  */
-
-import './BlocksProcessing.js'
-import './ChunksProcessing.js'
-import './ItemsProcessing.js'
 import { onMessage } from './WorldWorker.js'
 
 // import {
@@ -12,7 +8,7 @@ import { onMessage } from './WorldWorker.js'
 // } from './TaskProcessing'
 // import { MessageData, workerRequestHandler } from './WorkerProxy'
 
-const initWebWorker = () => {
+export const initWebWorker = () => {
   // eslint-disable-next-line no-undef
   globalThis.addEventListener('message', async (e: MessageEvent<any>) => {
     const replyData = await onMessage(e.data)
