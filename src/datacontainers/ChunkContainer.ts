@@ -346,13 +346,12 @@ export class ChunkContainer {
   }
 
   fromStub(chunkStub: ChunkStub) {
-    const { chunkKey } = chunkStub.metadata
+    const { chunkKey, margin } = chunkStub.metadata
     const bounds = parseThreeStub(chunkStub.metadata.bounds) as Box3
+    this.chunkKey = chunkKey || this.chunkKey
+    this.chunkId = parseChunkKey(this.chunkKey)
+    this.margin = margin || this.margin
     this.adjustChunkBounds(bounds)
-    this.chunkId =
-      chunkKey?.length && chunkKey?.length > 0
-        ? parseChunkKey(chunkKey)
-        : this.chunkId
     this.rawData.set(chunkStub.rawdata)
     return this
   }
@@ -429,17 +428,6 @@ export class ChunkContainer {
     return this
   }
 
-  // DEPRECATED as cannot be used from child classes TODO: remove
-  static fromStub(chunkStub: ChunkStub) {
-    const { chunkKey, bounds, margin, isEmpty } = chunkStub.metadata
-    const chunk = new ChunkContainer(chunkKey || parseThreeStub(bounds), margin)
-    chunk.rawData.set(chunkStub.rawdata)
-    if (isEmpty !== undefined) chunk.isEmpty = isEmpty
-    return chunk
-  }
-
-  // abstract get chunkIds(): ChunkId[]
-  // abstract toChunks(): any
 }
 
 export class ChunkMask extends ChunkContainer {

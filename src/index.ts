@@ -30,12 +30,13 @@ export {
 } from './processing/RandomDistributionMap.js'
 export { ProcessingState } from './processing/TaskProcessing.js'
 export { ChunksProcessing } from './processing/ChunksProcessing.js'
+export { WorkerPool } from './processing/WorkerPool.js'
 // Procgen
 export { Biome, BiomeType } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
 export { DensityVolume } from './procgen/DensityVolume.js'
 // Data structures
-export { ChunkContainer } from './datacontainers/ChunkContainer.js'
+export { ChunkContainer, type ChunkStub } from './datacontainers/ChunkContainer.js'
 // Factory
 // export { ItemsInventory } from './factory/ItemsFactory.js'
 export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory.js'
