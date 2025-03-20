@@ -30,9 +30,14 @@ export class WorkerProxy {
   init(
     worldLocalEnv: WorldLocals,
     // eslint-disable-next-line no-undef
-    createWorker: () => Worker,
+    createWorker?: () => Worker,
   ) {
-    const worker = createWorker()
+    const worker =
+      createWorker?.() ??
+      // eslint-disable-next-line no-undef
+      new Worker('./dist/processing/world_compute_worker.js', {
+        type: 'module',
+      })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
     worker.onerror = error => {
       console.error('WorldComputeProxy worker error', error)

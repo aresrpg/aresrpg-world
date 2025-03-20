@@ -2,8 +2,6 @@
  * Tests running on workers local environment (browser or node)
  */
 
-import { Worker } from 'worker_threads'
-
 import { Vector2 } from 'three'
 
 import { WorkerPool } from '../src/node/NodeWorkerPool.js'
@@ -157,14 +155,7 @@ const test_env_main_setup = (world_local_env: WorldLocals) => {
 const test_env_workerpool_setup = async (world_local_env: WorldLocals) => {
   // create workerpool to run locally
   const workerpool = new WorkerPool()
-  await workerpool.initPoolEnv(
-    4,
-    world_local_env,
-    () =>
-      new Worker('./dist/node/world_compute_node_worker.js', {
-        name: 'world_compute_node_worker',
-      }),
-  )
+  await workerpool.initPoolEnv(4, world_local_env)
   console.log(`test env ready!!`)
   return workerpool
 }
