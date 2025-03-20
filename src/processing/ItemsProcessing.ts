@@ -15,7 +15,7 @@ import {
   SpawnedItems,
   VoidItemType,
 } from '../utils/common_types.js'
-import { WorldModules, WorldProcessingEnvironment } from '../WorldModules.js'
+import { WorldModules } from '../WorldModules.js'
 import { BlueNoiseParams } from '../procgen/BlueNoisePattern.js'
 
 import { GroundPatch } from './GroundPatch.js'
@@ -134,9 +134,8 @@ const getItemsProcessingDefaults = (dimensions: Vector2) => {
   return res
 }
 
-export const createItemsTaskHandler = (worldProcEnv: WorldProcessingEnvironment) => {
-  const { worldModules, worldLocalEnv, taskHandlers } = worldProcEnv
-  const { itemsInventory } = worldModules
+export const createItemsTaskHandler = (worldModules: WorldModules) => {
+  const { worldLocalEnv, taskHandlers, itemsInventory } = worldModules
   const defaults = getItemsProcessingDefaults(
     worldLocalEnv.getDistributionMapDimensions(),
   )

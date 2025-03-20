@@ -13,10 +13,12 @@ import { Heightmap } from './procgen/Heightmap.js'
  */
 
 export type WorldModules = {
+  worldLocalEnv: WorldLocals
   biome: Biome
   heightmap: Heightmap
   densityVolume: DensityVolume
   itemsInventory: ItemsInventory
+  taskHandlers: TaskHandlers
 }
 
 type ProcessingTaskHandlerId = string
@@ -26,13 +28,8 @@ export type TaskHandlers = Record<
   GenericTaskHandler
 >
 
-export type WorldProcessingEnvironment = {
-  worldLocalEnv: WorldLocals,
-  worldModules: WorldModules,
-  taskHandlers: TaskHandlers
-}
-
-export const createWorldModules = (worldLocalEnv: WorldLocals) => {
+export const createWorldModules = (worldLocalSettings: WorldLocalSettings) => {
+  const worldLocalEnv = new WorldLocals().fromStub(worldLocalSettings)
   const worldSeeds = worldLocalEnv.rawSettings.seeds
   const biome = new Biome(worldLocalEnv.getBiomeEnv(), worldSeeds)
   const heightmap = new Heightmap(
@@ -42,23 +39,27 @@ export const createWorldModules = (worldLocalEnv: WorldLocals) => {
   )
   const densityVolume = new DensityVolume(worldSeeds)
   const itemsInventory = new ItemsInventory(worldLocalEnv.getItemsEnv())
-  console.log('world modules initialized')
+  // console.log('world modules initialized')
   const worldModules: WorldModules = {
     heightmap,
     biome,
     densityVolume,
-    itemsInventory
+    itemsInventory,
+    worldLocalEnv: new WorldLocals,
+    taskHandlers: {}
   }
+  populateTaskHandlers(worldModules)
   return worldModules
 }
 
 // export type TaskHandlerResolver = (handlerId: ProcessingTaskHandlerId) => GenericTaskHandler | undefined
 
-const initTaskHandlers = (worldProcEnv: WorldProcessingEnvironment) => {
-  const { taskHandlers } = worldProcEnv
-  taskHandlers[chunksProcessingHandlerName] = createChunksTaskHandler(worldProcEnv)
-  taskHandlers[itemsProcessingHandlerName] = createItemsTaskHandler(worldProcEnv)
-  taskHandlers[blocksProcessingHandlerName] = createBlocksTaskHandler(worldProcEnv)
+const populateTaskHandlers = (worldModules: WorldModules) => {
+  const {taskHandlers}=worldModules
+
+  taskHandlers[chunksProcessingHandlerName] = createChunksTaskHandler(worldModules)
+  taskHandlers[itemsProcessingHandlerName] = createItemsTaskHandler(worldModules)
+  taskHandlers[blocksProcessingHandlerName] = createBlocksTaskHandler(worldModules)
 
   // const getTaskHandler = (handlerId: ProcessingTaskHandlerId) => {
   //   const taskHandler = taskHandlers[handlerId]
@@ -69,18 +70,4 @@ const initTaskHandlers = (worldProcEnv: WorldProcessingEnvironment) => {
   // }
 
   // return getTaskHandler as TaskHandlerResolver
-  return taskHandlers
-}
-
-export const createWorldProcessingEnv = (worldLocalSettings: WorldLocalSettings) => {
-  const worldLocalEnv = new WorldLocals().fromStub(worldLocalSettings)
-  const worldModules = createWorldModules(worldLocalEnv)
-  const taskHandlers = {}
-  const worldProcEnv: WorldProcessingEnvironment = {
-    worldLocalEnv,
-    worldModules,
-    taskHandlers
-  }
-  initTaskHandlers(worldProcEnv)
-  return worldProcEnv
 }

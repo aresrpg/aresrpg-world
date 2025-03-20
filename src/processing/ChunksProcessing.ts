@@ -7,7 +7,6 @@ import { PatchId, PatchKey } from '../utils/common_types.js'
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory.js'
 import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
-import { WorldProcessingEnvironment } from '../WorldModules.js'
 
 import { GroundPatch } from './GroundPatch.js'
 import {
@@ -17,6 +16,7 @@ import {
   ProcessingTaskStub,
 } from './TaskProcessing.js'
 import { ItemsProcessing, itemsProcessingHandlerName } from './ItemsProcessing.js'
+import { WorldModules } from '../WorldModules.js'
 /**
  * Calling side
  */
@@ -84,8 +84,8 @@ type ChunksProcessingTaskHandler = ProcessingTaskHandler<
   ChunkStub[] | Blob
 >
 
-export const createChunksTaskHandler = (worldProcEnv: WorldProcessingEnvironment) => {
-  const { worldLocalEnv, taskHandlers } = worldProcEnv
+export const createChunksTaskHandler = (worldModules: WorldModules) => {
+  const { worldLocalEnv, taskHandlers } = worldModules
   const chunksTaskHandler: ChunksProcessingTaskHandler =
     async (taskStub: ChunksProcessingTaskStub) => {
       /**
@@ -101,7 +101,7 @@ export const createChunksTaskHandler = (worldProcEnv: WorldProcessingEnvironment
         const chunksVerticalRange = worldLocalEnv.getChunksVerticalRange()
         const { skipEntities } = params
         const groundLayer = GroundPatch.fromKey(patchKey, patchDim)
-        groundLayer.bake(worldProcEnv)
+        groundLayer.bake(worldModules)
         const patchId = groundLayer.patchId as PatchId
         const upperChunks: ChunkContainer[] = []
         // compute chunk id range
@@ -148,8 +148,8 @@ export const createChunksTaskHandler = (worldProcEnv: WorldProcessingEnvironment
               chunkKey,
               chunkDim,
             )
-            cavesMask.bake(worldProcEnv)
-            await groundSurfaceChunk.bake(worldProcEnv, groundLayer, cavesMask)
+            cavesMask.bake(worldModules)
+            await groundSurfaceChunk.bake(worldModules, groundLayer, cavesMask)
             // copy ground over items at last
             ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
           }
@@ -175,7 +175,7 @@ export const createChunksTaskHandler = (worldProcEnv: WorldProcessingEnvironment
         const chunksVerticalRange = worldLocalEnv.getChunksVerticalRange()
         // find upper chunkId
         const groundLayer = GroundPatch.fromKey(patchKey, patchDim)
-        groundLayer.bake(worldProcEnv)
+        groundLayer.bake(worldModules)
         const patchId = groundLayer.patchId as PatchId
         const upperId = Math.floor(groundLayer.valueRange.min / patchDim.y) - 1
         const lowerChunks = []
@@ -192,8 +192,8 @@ export const createChunksTaskHandler = (worldProcEnv: WorldProcessingEnvironment
             chunkDim,
           )
           const cavesMask = new CavesMask(undefined, 1).fromKey(chunkKey, chunkDim)
-          cavesMask.bake(worldProcEnv)
-          await groundSurfaceChunk.bake(worldProcEnv, groundLayer, cavesMask)
+          cavesMask.bake(worldModules)
+          await groundSurfaceChunk.bake(worldModules, groundLayer, cavesMask)
           // copy ground over items at last
           ChunkContainer.copySourceToTarget(groundSurfaceChunk, currentChunk)
           lowerChunks.push(currentChunk)

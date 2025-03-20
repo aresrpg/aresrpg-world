@@ -24,6 +24,7 @@ export class WorkerPool {
 
   async initPoolEnv(poolSize: number, worldLocalEnv: WorldLocals, externalWorker?: Worker) {
     console.log(`create worker pool size: ${poolSize} `)
+    externalWorker && console.warn(`externally provided worker`)
     const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
       const workerProxy = new WorkerProxy(workerId)
