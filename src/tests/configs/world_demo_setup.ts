@@ -33,7 +33,7 @@ export const getWorldDemoEnv = () => {
   //   ...worldEnv.schematics.globalBlocksMapping,
   //   ...SCHEMATICS_BLOCKS_MAPPING,
   // }
-  // world_env.schematics.filesIndex = SCHEMATICS_FILES
+  // rawSettings.items.schematics.filesIndex = SCHEMATICS_FILES_INDEX
 
   // WORKER POOL
   // world_env.workerPool.url = WORLD_WORKER_URL
@@ -46,6 +46,7 @@ export const getWorldDemoEnv = () => {
   // BIOME tuning
   rawSettings.biomes.periodicity = 8 // biome size
   rawSettings.biomes.repartition.centralHalfSegment = 0.15
+  rawSettings.biomes.seaLevel = 76
   // rawSettings.biomes.repartition.transitionHalfRange = 0.05
   rawSettings.chunks.verticalRange.topId = 6
   return worldLocalEnv

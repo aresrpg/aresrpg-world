@@ -1,6 +1,8 @@
-import { BiomeType, BlockType } from '../../index.js'
+
 // import { ExtBlock } from './blocks_mappings.js'
 
+import { BiomeType } from '../../procgen/Biome.js'
+import { BlockType } from '../../utils/common_types.js'
 import { SCHEMATICS_COLLECTIONS } from './schematics_collections.js'
 
 const { alpine, temperate_forest, siberian } = SCHEMATICS_COLLECTIONS

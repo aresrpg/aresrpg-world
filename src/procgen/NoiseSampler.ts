@@ -65,7 +65,7 @@ export class NoiseSampler {
     this.params.dimensions = noiseDimension
     this.init()
     NoiseSampler.instances.push(this)
-    console.log(`noise sampler ${name}: ${this.params.seed}`)
+    // console.log(`noise sampler ${name}: ${this.params.seed}`)
   }
 
   init() {

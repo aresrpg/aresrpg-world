@@ -1,4 +1,5 @@
-export { WorldModules } from './WorldModules.js'
+
+
 // Env
 export { WorldLocals, WorldGlobals } from './config/WorldEnv.js'
 export { getWorldDemoEnv } from './tests/configs/world_demo_setup.js'
@@ -50,3 +51,6 @@ export {
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
 // Services
 export { chunksWsClient } from './remote-services/chunks_over_ws_client.js'
+// export { initWebWorker } from './processing/world_compute_worker.js'
+export { createWorldProcessingEnv, type WorldModules } from './WorldModules.js'
+
