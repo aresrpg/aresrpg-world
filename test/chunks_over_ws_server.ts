@@ -5,6 +5,8 @@
 - distributed computing on remote device (for monitoring, local dev purposes)
 */
 
+import { Worker } from 'worker_threads'
+
 import { WebSocketServer, WebSocket } from 'ws'
 
 import { ChunksPolling, parseThreeStub } from '../src/index.js'
@@ -21,7 +23,10 @@ const initWsServer = async () => {
   await chunks_node_worker_pool.initPoolEnv(
     POOL_SIZE,
     world_demo_env,
-    './dist/node/world_compute_node_worker.js',
+    () =>
+      new Worker('./dist/node/world_compute_node_worker.js', {
+        name: 'world_compute_node_worker',
+      }),
   )
   const chunks_scheduler = new ChunksPolling(
     world_demo_env.rawSettings.patchViewRanges,
