@@ -7,7 +7,7 @@ export class WorkerPool extends BaseWorkerPool {
   override async initPoolEnv(
     poolSize: number,
     worldLocalEnv: WorldLocals,
-    createWorker: () => any,
+    createWorker?: () => any,
   ) {
     console.log(`create worker pool size: ${poolSize} `)
     const pendingInits = []

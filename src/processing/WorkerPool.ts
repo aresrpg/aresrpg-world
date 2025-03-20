@@ -26,7 +26,7 @@ export class WorkerPool {
     poolSize: number,
     worldLocalEnv: WorldLocals,
     // eslint-disable-next-line no-undef
-    createWorker: () => Worker,
+    createWorker?: () => Worker,
   ) {
     const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
