@@ -16,10 +16,8 @@ import {
   ChunksProcessingOutput,
 } from '../src/processing/ChunksProcessing.js'
 import { PatchKey } from '../src/utils/common_types.js'
-import { createWorldProcessingEnv, WorldProcessingEnvironment } from '../src/WorldModules.js'
-
-
 import { getWorldDemoEnv } from './configs/world_demo_setup.js'
+import { createWorldModules, WorldModules } from '../src/WorldModules.js'
 
 /**
  * Tests utils
@@ -104,11 +102,11 @@ const testChunksDelegate = async (localSource: WorkerPool) => {
 }
 
 // Tasks runnning within main thread
-const testChunksProcessing = async (world_proc_env: WorldProcessingEnvironment) => {
+const testChunksProcessing = async (world_modules: WorldModules) => {
   console.log(`[TESTENV: MAINTHREAD]: chunks processing`)
   const patch_key = `-1:-1`
   const chunks_tasks = create_chunks_tasks(patch_key)
-  const taskHandler = world_proc_env.taskHandlers[chunksProcessingHandlerName]
+  const taskHandler = world_modules.taskHandlers[chunksProcessingHandlerName]
   for await (const task of chunks_tasks) {
     await task.asyncProcess(taskHandler)
   }
@@ -149,18 +147,17 @@ const testChunksPolling = async (
   }
 }
 
-const main_test_env_setup = (world_local_env: WorldLocals) => {
-  const world_proc_env = createWorldProcessingEnv(world_local_env.toStub())
-  return world_proc_env
+const setup_test_env = (world_local_env: WorldLocals) => {
+  const world_modules = createWorldModules(world_local_env.toStub())
+  return world_modules
 }
 
-const workerpool_test_env_setup = async (world_local_env: WorldLocals) => {
+const setup_workerpool_test_env = async (world_local_env: WorldLocals) => {
   // create workerpool to run locally
   const workerpool = new WorkerPool()
   await workerpool.initPoolEnv(
     4,
-    world_local_env,
-    './dist/node/world_compute_node_worker.js',
+    world_local_env
   )
   console.log(`test env ready!!`)
   return workerpool
@@ -169,11 +166,10 @@ const workerpool_test_env_setup = async (world_local_env: WorldLocals) => {
 const run_tests = async () => {
   // Main thread
   const world_test_config = getWorldDemoEnv() // get_world_env_settings()
-  const main_test_env = main_test_env_setup(world_test_config)
-  console.log(main_test_env)
+  const main_test_env = setup_test_env(world_test_config)
   await testChunksProcessing(main_test_env)
   // Workerpool
-  workerpool_test_env_setup(world_test_config).then(async workerpool => {
+  setup_workerpool_test_env(world_test_config).then(async workerpool => {
     await testChunksDelegate(workerpool)
     testChunksPolling(workerpool, world_test_config)
   })
