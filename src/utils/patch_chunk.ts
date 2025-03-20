@@ -75,10 +75,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-        parseVect3Stub(stub) ||
-        parseBox2Stub(stub) ||
-        parseVect2Stub(stub) ||
-        stub
+    parseVect3Stub(stub) ||
+    parseBox2Stub(stub) ||
+    parseVect2Stub(stub) ||
+    stub
     : stub
 }
 
@@ -185,17 +185,25 @@ const getRoundedBox = (bounds: Box2, patchDims: Vector2) => {
   return extBbox
 }
 
-const parseChunkKey = (chunkKey: ChunkKey) => {
-  const chunkId = new Vector3(
-    parseInt(chunkKey.split('_')[1] as string),
-    parseInt(chunkKey.split('_')[2] as string),
-    parseInt(chunkKey.split('_')[3] as string),
-  )
-  return chunkId
-}
+const parseChunkKey = (chunkKey: ChunkKey): Vector3 | undefined => {
+  const [x_str, y_str, z_str] = chunkKey.split('_');
+
+  const x = Number(x_str);
+  const y = Number(y_str);
+  const z = Number(z_str);
+
+  if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+    return new Vector3(x, y, z);
+  }
+
+  return undefined;
+};
+
+
+
 
 const serializeChunkId = (chunkId: Vector3) => {
-  return `chunk_${chunkId.x}_${chunkId.y}_${chunkId.z}`
+  return `${chunkId.x}_${chunkId.y}_${chunkId.z}`
 }
 
 const asChunkBounds = (chunkKey: string, chunkDims: Vector3) => {
