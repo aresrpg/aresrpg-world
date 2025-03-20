@@ -25,13 +25,13 @@ export class WorkerPool {
   async initPoolEnv(
     poolSize: number,
     worldLocalEnv: WorldLocals,
-    workerUrl: string,
-    workerName?: string,
+    // eslint-disable-next-line no-undef
+    createWorker: () => Worker,
   ) {
     const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
       const workerProxy = new WorkerProxy(workerId)
-      const pendingInit = workerProxy.init(worldLocalEnv, workerUrl, workerName)
+      const pendingInit = workerProxy.init(worldLocalEnv, createWorker)
       pendingInits.push(pendingInit)
       this.workerPool.push(workerProxy)
     }

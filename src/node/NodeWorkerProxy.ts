@@ -1,15 +1,12 @@
-import { Worker } from 'worker_threads'
-
 import { WorkerProxy } from '../processing/WorkerProxy.js'
 import { WorldLocals } from '../config/WorldEnv.js'
 
 export class NodeWorkerProxy extends WorkerProxy {
   override init(
     worldLocalEnv: WorldLocals,
-    workerUrl: string,
-    workerName: string = 'world-node-worker',
+    createWorker: () => any,
   ): Promise<any> {
-    const nodeWorker = new Worker(workerUrl, { name: workerName })
+    const nodeWorker = createWorker()
     nodeWorker.on('message', this.handleWorkerReply)
     this.worker = nodeWorker
     const timestamp = Date.now()
