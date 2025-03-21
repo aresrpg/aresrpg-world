@@ -183,7 +183,9 @@ export class BoardCacheProvider {
           // once done put result in cache
           pendingChunkTask.then(taskRes => {
             // reconstruct objects from stubs
-            const chunks = taskRes.map((chunkStub: ChunkStub) => new ChunkContainer().fromStub(chunkStub))
+            const chunks = taskRes.map((chunkStub: ChunkStub) =>
+              new ChunkContainer().fromStub(chunkStub),
+            )
             this.localCache.chunks.push(...chunks)
           })
           return pendingChunkTask

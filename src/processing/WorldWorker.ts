@@ -1,10 +1,7 @@
 import { WorldLocalSettings } from '../config/WorldEnv.js'
 import { createWorldModules, WorldModules } from '../WorldModules.js'
 
-import {
-  GenericTaskStub,
-  ProcessingContext,
-} from './TaskProcessing.js'
+import { GenericTaskStub, ProcessingContext } from './TaskProcessing.js'
 import { MessageData } from './WorkerProxy.js'
 
 let worldModules: WorldModules
@@ -29,10 +26,7 @@ const onTask = async (taskStub: GenericTaskStub) => {
   const taskHandler = worldModules.taskHandlers[taskStub.handlerId]
 
   if (taskHandler) {
-    const taskOutput = await taskHandler(
-      taskStub,
-      ProcessingContext.Worker,
-    )
+    const taskOutput = await taskHandler(taskStub, ProcessingContext.Worker)
     reply.data = taskOutput
   }
   return reply

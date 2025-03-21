@@ -24,12 +24,13 @@
   "scripts": {
     "watch": "tsc --watch",
     "build": "tsc",
+    "build:test": "tsc -p tsconfig.test.json",
     "lint": "eslint . --ext .ts && prettier . --check && npm run typecheck",
     "typecheck": "tsc --build",
     "format": "prettier . --write && eslint . --fix --ext .ts",
     "postversion": "git push --follow-tags",
     "chunks-over-ws-local-server": "tsx test/chunks_over_ws_server.js",
-    "test": "node --test --import tsx ./test/**/*.test.ts"
+    "test": "node dist/test/noreg.test.js"
   },
   "repository": {
     "type": "git",

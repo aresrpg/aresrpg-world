@@ -31,13 +31,34 @@ export enum ProcessingState {
 }
 
 // eslint-disable-next-line no-use-before-define
-type ProcessingTaskHandlerId = string
+export type ProcessingTaskHandlerId = string
 export enum ProcessingContext {
   None,
   Worker,
 }
 export type TaskId = string | number
 
+// eslint-disable-next-line no-use-before-define
+export type GenericTask = ProcessingTask<any, any, any>
+
+export type ProcessingTaskStub<ProcessingInput, ProcessingParams> = {
+  taskId: TaskId
+  processingInput: ProcessingInput
+  processingParams: ProcessingParams
+  handlerId: ProcessingTaskHandlerId
+}
+export type GenericTaskStub = ProcessingTaskStub<any, any>
+
+//
+export type ProcessingTaskHandler<
+  ProcessingInput,
+  ProcessingParams,
+  ProcessingOutput,
+> = (
+  taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
+  procContext?: ProcessingContext,
+) => Promise<ProcessingOutput> | ProcessingOutput
+export type GenericTaskHandler = ProcessingTaskHandler<any, any, any>
 
 /**
  * Tasks can be processed locally on main thread, worker thread
@@ -99,7 +120,13 @@ export class ProcessingTask<
   /**
    * Depending on task being run, result will be either sync or async
    */
-  process(taskHandler: ProcessingTaskHandler<ProcessingInput, ProcessingParams, ProcessingOutput>) {
+  process(
+    taskHandler: ProcessingTaskHandler<
+      ProcessingInput,
+      ProcessingParams,
+      ProcessingOutput
+    >,
+  ) {
     // const task = new Task(...args)
     const taskRes = taskHandler(this.toStub())
     // const res = await task.preProcess(processingArgs, processingParams)
@@ -108,7 +135,13 @@ export class ProcessingTask<
     return taskRes // targetObj.toStub()
   }
 
-  async asyncProcess(taskHandler: ProcessingTaskHandler<ProcessingInput, ProcessingParams, ProcessingOutput>) {
+  async asyncProcess(
+    taskHandler: ProcessingTaskHandler<
+      ProcessingInput,
+      ProcessingParams,
+      ProcessingOutput
+    >,
+  ) {
     this.onStarted()
     const taskRes = await this.process(taskHandler)
     return this.onCompleted(taskRes)
@@ -171,7 +204,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() { }
+  request() {}
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -215,7 +248,7 @@ export class ProcessingTask<
     return rawOutputData
   }
 
-  onStarted = () => { }
+  onStarted = () => {}
 
   /**
    * additional callback where post process actions can be performed
@@ -247,29 +280,6 @@ export class ProcessingTask<
     return processingTaskStub
   }
 }
-
-export type GenericTask = ProcessingTask<any, any, any>
-
-export type ProcessingTaskStub<ProcessingInput, ProcessingParams> = {
-  taskId: TaskId
-  processingInput: ProcessingInput
-  processingParams: ProcessingParams
-  handlerId: ProcessingTaskHandlerId
-}
-export type GenericTaskStub = ProcessingTaskStub<any, any>
-
-
-//
-export type ProcessingTaskHandler<
-  ProcessingInput,
-  ProcessingParams,
-  ProcessingOutput,
-> = (
-  taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
-  procContext?: ProcessingContext,
-) => Promise<ProcessingOutput> | ProcessingOutput
-export type GenericTaskHandler = ProcessingTaskHandler<any, any, any>
-
 
 // export class ProcessingTaskHandler {
 //   handleTask(task: ProcessingTask<any, any, any>) {

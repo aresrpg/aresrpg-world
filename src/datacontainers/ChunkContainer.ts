@@ -427,7 +427,6 @@ export class ChunkContainer {
     this.id = parseChunkKey(chunkKey)
     return this
   }
-
 }
 
 export class ChunkMask extends ChunkContainer {

@@ -8,9 +8,13 @@ import {
   // parseThreeStub,
 } from '../utils/patch_chunk.js'
 import { PatchKey, Block, BlockData, BlockType } from '../utils/common_types.js'
+import { WorldModules } from '../WorldModules.js'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch.js'
-import { ItemsProcessing, itemsProcessingHandlerName } from './ItemsProcessing.js'
+import {
+  ItemsProcessing,
+  itemsProcessingHandlerName,
+} from './ItemsProcessing.js'
 import {
   parseTaskInputStubs,
   ProcessingContext,
@@ -18,7 +22,6 @@ import {
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing.js'
-import { WorldModules } from '../WorldModules.js'
 
 /**
  * Calling side
@@ -102,7 +105,7 @@ type BlocksProcessingTaskHandler = ProcessingTaskHandler<
 // }
 
 export const createBlocksTaskHandler = (worldModules: WorldModules) => {
-  const {worldLocalEnv, taskHandlers} = worldModules
+  const { worldLocalEnv, taskHandlers } = worldModules
   const blocksTaskHandler: BlocksProcessingTaskHandler = (
     taskStub: BlocksProcessingTask | BlocksProcessingTaskStub,
     processingContext = ProcessingContext.None,
@@ -201,7 +204,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
       const itemsTaskHandler = taskHandlers[itemsProcessingHandlerName]
       const peakBlock = (await ItemsProcessing.pointPeakBlock(
         asVect2(groundBlock.pos),
-      ).process(itemsTaskHandler)) as any
+      ).process(itemsTaskHandler as any)) as any
       if (peakBlock.type !== BlockType.NONE) {
         groundBlock.data.level = peakBlock.level
         groundBlock.data.type = peakBlock.type

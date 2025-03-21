@@ -1,0 +1,50 @@
+// tsconfig.test.json
+{
+  "compilerOptions": {
+    /* Type Checking */
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "alwaysStrict": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "strict": true,
+    "strictBindCallApply": true,
+    "strictFunctionTypes": true,
+    "strictNullChecks": true,
+    "strictPropertyInitialization": true,
+    "useUnknownInCatchVariables": true,
+
+    /* Modules */
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "typeRoots": ["src/@types", "./node_modules/@types"],
+
+    /* Emit */
+    "declaration": true,
+    "declarationMap": false,
+    "outDir": "dist",
+    "sourceMap": false,
+
+    /* JavaScript Support */
+    "allowJs": false,
+
+    /* Interop Constraints */
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+
+    /* Language and Environment */
+    "target": "ESNext"
+    // "rootDir": "test"
+  },
+  "include": ["test/**/*.ts", "src/node/world_compute_node_worker.ts"], // Include your test files
+  "exclude": ["node_modules", "dist", "src"] // Exclude directories you don't want to include
+}

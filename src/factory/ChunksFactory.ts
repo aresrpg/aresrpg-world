@@ -31,7 +31,7 @@ export class EmptyChunk extends ChunkContainer {
     this.fromKey(chunkKey, chunkDim)
   }
 
-  async bake() { }
+  async bake() {}
 }
 
 export class GroundChunk extends ChunkContainer {

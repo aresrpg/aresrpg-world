@@ -318,7 +318,7 @@ export class GroundPatch
    * if genBounds specified, only sub rows/cols will be generated
    */
   bake(worldModules: WorldModules, regionBounds?: Box2) {
-    const {worldLocalEnv} = worldModules
+    const { worldLocalEnv } = worldModules
     /**
      * required for transition patches to insure interpolated patch corners
      * used to compute blocks are the same as near patch
