@@ -1,9 +1,21 @@
 import { WorldLocals, WorldLocalSettings } from './config/WorldEnv.js'
 import { ItemsInventory } from './factory/ItemsFactory.js'
-import { blocksProcessingHandlerName, createBlocksTaskHandler } from './processing/BlocksProcessing.js'
-import { chunksProcessingHandlerName, createChunksTaskHandler } from './processing/ChunksProcessing.js'
-import { createItemsTaskHandler, itemsProcessingHandlerName } from './processing/ItemsProcessing.js'
-import { GenericTaskHandler } from './processing/TaskProcessing.js'
+import {
+  blocksProcessingHandlerName,
+  createBlocksTaskHandler,
+} from './processing/BlocksProcessing.js'
+import {
+  chunksProcessingHandlerName,
+  createChunksTaskHandler,
+} from './processing/ChunksProcessing.js'
+import {
+  createItemsTaskHandler,
+  itemsProcessingHandlerName,
+} from './processing/ItemsProcessing.js'
+import {
+  GenericTaskHandler,
+  ProcessingTaskHandlerId,
+} from './processing/TaskProcessing.js'
 import { Biome } from './procgen/Biome.js'
 import { DensityVolume } from './procgen/DensityVolume.js'
 import { Heightmap } from './procgen/Heightmap.js'
@@ -11,6 +23,8 @@ import { Heightmap } from './procgen/Heightmap.js'
 /**
  * All world modules required to compute world objects
  */
+
+export type TaskHandlers = Record<ProcessingTaskHandlerId, GenericTaskHandler>
 
 export type WorldModules = {
   worldLocalEnv: WorldLocals
@@ -20,13 +34,6 @@ export type WorldModules = {
   itemsInventory: ItemsInventory
   taskHandlers: TaskHandlers
 }
-
-type ProcessingTaskHandlerId = string
-
-export type TaskHandlers = Record<
-  ProcessingTaskHandlerId,
-  GenericTaskHandler
->
 
 export const createWorldModules = (worldLocalSettings: WorldLocalSettings) => {
   const worldLocalEnv = new WorldLocals().fromStub(worldLocalSettings)
@@ -45,8 +52,8 @@ export const createWorldModules = (worldLocalSettings: WorldLocalSettings) => {
     biome,
     densityVolume,
     itemsInventory,
-    worldLocalEnv: new WorldLocals,
-    taskHandlers: {}
+    worldLocalEnv: new WorldLocals(),
+    taskHandlers: {},
   }
   populateTaskHandlers(worldModules)
   return worldModules
@@ -55,11 +62,14 @@ export const createWorldModules = (worldLocalSettings: WorldLocalSettings) => {
 // export type TaskHandlerResolver = (handlerId: ProcessingTaskHandlerId) => GenericTaskHandler | undefined
 
 const populateTaskHandlers = (worldModules: WorldModules) => {
-  const {taskHandlers}=worldModules
+  const { taskHandlers } = worldModules
 
-  taskHandlers[chunksProcessingHandlerName] = createChunksTaskHandler(worldModules)
-  taskHandlers[itemsProcessingHandlerName] = createItemsTaskHandler(worldModules)
-  taskHandlers[blocksProcessingHandlerName] = createBlocksTaskHandler(worldModules)
+  taskHandlers[chunksProcessingHandlerName] =
+    createChunksTaskHandler(worldModules)
+  taskHandlers[itemsProcessingHandlerName] =
+    createItemsTaskHandler(worldModules)
+  taskHandlers[blocksProcessingHandlerName] =
+    createBlocksTaskHandler(worldModules)
 
   // const getTaskHandler = (handlerId: ProcessingTaskHandlerId) => {
   //   const taskHandler = taskHandlers[handlerId]

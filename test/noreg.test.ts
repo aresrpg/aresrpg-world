@@ -16,8 +16,11 @@ import {
   ChunksProcessingOutput,
 } from '../src/processing/ChunksProcessing.js'
 import { PatchKey } from '../src/utils/common_types.js'
-import { getWorldDemoEnv } from './configs/world_demo_setup.js'
 import { createWorldModules, WorldModules } from '../src/WorldModules.js'
+
+import { getWorldDemoEnv } from './configs/world_demo_setup.js'
+
+import '../src/node/world_compute_node_worker.js'
 
 /**
  * Tests utils
@@ -108,7 +111,7 @@ const testChunksProcessing = async (world_modules: WorldModules) => {
   const chunks_tasks = create_chunks_tasks(patch_key)
   const taskHandler = world_modules.taskHandlers[chunksProcessingHandlerName]
   for await (const task of chunks_tasks) {
-    await task.asyncProcess(taskHandler)
+    await task.asyncProcess(taskHandler as any)
   }
 }
 

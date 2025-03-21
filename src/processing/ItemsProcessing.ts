@@ -140,7 +140,9 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
     worldLocalEnv.getDistributionMapDimensions(),
   )
 
-  const itemsTaskHandler: ItemsProcessingTaskHandler = async (taskStub: ItemsProcessingTaskStub) => {
+  const itemsTaskHandler: ItemsProcessingTaskHandler = async (
+    taskStub: ItemsProcessingTaskStub,
+  ) => {
     // Misc utils
 
     const getPatchBounds = (input: Vector2 | PatchKey) => {
@@ -163,11 +165,12 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
       const blocksTaskHandler = taskHandlers[blocksProcessingHandlerName]
       // iter slice blocks
       for (const heightBuff of itemChunk.iterChunkSlice()) {
-        if (heightBuff.data[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
+        if (heightBuff.data[0])
+          chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
       }
       const blocksTask = BlocksProcessing.getGroundPositions(chunkBottomBlocks)
       blocksTask.processingParams.densityEval = true
-      const blocksBatch = await blocksTask.process(blocksTaskHandler)
+      const blocksBatch = await blocksTask.process(blocksTaskHandler as any)
       // console.log(testBlock)
       return blocksBatch
     }
@@ -210,7 +213,9 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
       const individualChunks: ChunkContainer[] = []
       let ymin = NaN
       let ymax = NaN // compute y range
-      for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
+      for await (const [itemType, spawnPlaces] of Object.entries(
+        spawnedItems,
+      )) {
         for await (const spawnOrigin of spawnPlaces) {
           const itemChunk = await itemsInventory.getInstancedChunk(
             itemType,
@@ -259,7 +264,9 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
         level: 0,
         type: BlockType.NONE,
       }
-      for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
+      for await (const [itemType, spawnPlaces] of Object.entries(
+        spawnedItems,
+      )) {
         for await (const spawnOrigin of spawnPlaces) {
           const templateChunk = await itemsInventory.getTemplateChunk(itemType)
           const shallowInstance = await itemsInventory.getInstancedChunk(
@@ -298,7 +305,9 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
       requestedPos: Vector3,
     ) => {
       const mergeBuffer: number[] = []
-      for await (const [itemType, spawnPlaces] of Object.entries(spawnedItems)) {
+      for await (const [itemType, spawnPlaces] of Object.entries(
+        spawnedItems,
+      )) {
         for await (const spawnOrigin of spawnPlaces) {
           const templateChunk = await itemsInventory.getTemplateChunk(itemType)
           const shallowInstance = await itemsInventory.getInstancedChunk(
@@ -399,5 +408,3 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
   }
   return itemsTaskHandler
 }
-
-

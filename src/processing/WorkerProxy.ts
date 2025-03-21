@@ -22,20 +22,17 @@ export class WorkerProxy {
 
   // browser env default impl
   /**
-   * 
-   * @param worldLocalEnv 
-   * @param worker allow for passing worker externally to workaround issue with some bundlers
-   * @returns 
+   *
+   * @param worldLocalEnv
+   * @param worker allow passing external worker to workaround issue with some bundlers
+   * @returns
    */
-  init(
-    worldLocalEnv: WorldLocals,
-    // eslint-disable-next-line no-undef
-    createWorker?: () => Worker,
-  ) {
+  // eslint-disable-next-line no-undef
+  init(worldLocalEnv: WorldLocals, workerExternalBuilder?: () => Worker) {
     const worker =
-      createWorker?.() ??
+      workerExternalBuilder?.() ??
       // eslint-disable-next-line no-undef
-      new Worker('./dist/processing/world_compute_worker.js', {
+      new Worker(new URL('./world_compute_worker', import.meta.url), {
         type: 'module',
       })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
@@ -63,7 +60,9 @@ export class WorkerProxy {
         msgResolver(content.data)
         delete this.resolvers[timestamp]
       } else {
-        console.warn(`missing message resolver ${timestamp} for worker #${this.id}`)
+        console.warn(
+          `missing message resolver ${timestamp} for worker #${this.id}`,
+        )
       }
     }
   }

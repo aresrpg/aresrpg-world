@@ -1,5 +1,3 @@
-
-
 // Env
 export { WorldLocals, WorldGlobals, WorldSeed } from './config/WorldEnv.js'
 // Utils
@@ -37,7 +35,10 @@ export { Biome, BiomeType } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
 export { DensityVolume } from './procgen/DensityVolume.js'
 // Data structures
-export { ChunkContainer, type ChunkStub } from './datacontainers/ChunkContainer.js'
+export {
+  ChunkContainer,
+  type ChunkStub,
+} from './datacontainers/ChunkContainer.js'
 // Factory
 // export { ItemsInventory } from './factory/ItemsFactory.js'
 export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory.js'
@@ -50,3 +51,4 @@ export {
 } from './tools/ProceduralGenerators.js'
 // export * as ProceduralGenerators from './tools/ProceduralGenerators'
 // Services
+export { createWorldModules, type WorldModules } from './WorldModules.js'

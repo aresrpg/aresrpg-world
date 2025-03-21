@@ -1,4 +1,5 @@
 import { parentPort } from 'worker_threads'
+
 import { onMessage } from '../processing/WorldWorker.js'
 
 const initNodeWorker = () => {
