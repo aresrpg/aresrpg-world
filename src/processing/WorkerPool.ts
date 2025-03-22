@@ -21,6 +21,11 @@ export class WorkerPool {
   // pendingRequests = []
   processedCount = 0
   ready = false
+  workerName: string
+
+  constructor(workerName = 'world_compute_worker') {
+    this.workerName = workerName
+  }
 
   async initPoolEnv(
     poolSize: number,
@@ -28,11 +33,10 @@ export class WorkerPool {
     // eslint-disable-next-line no-undef
     workerExternalBuilder?: () => Worker,
   ) {
-    console.log(`create worker pool size: ${poolSize} `)
-    workerExternalBuilder && console.warn(`externally provided worker`)
+    console.log(`create worker pool ${this.workerName} size: ${poolSize} (${workerExternalBuilder ? 'external' : 'built in'} worker being used)`)
     const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
-      const workerProxy = new WorkerProxy(workerId)
+      const workerProxy = new WorkerProxy(this.workerName + '#' + workerId)
       const pendingInit = workerProxy.init(worldLocalEnv, workerExternalBuilder)
       pendingInits.push(pendingInit)
       this.workerPool.push(workerProxy)

@@ -11,13 +11,13 @@ export type MessageData<T> = {
  * Interface to interact and proxy requests to worker
  */
 export class WorkerProxy {
-  id
+  workerName
   worker: any // will be available when worker is ready
   resolvers: Record<TaskId, any> = {}
 
   // abstract initWorker(workerUrl: string | URL): WorkerType
-  constructor(workerId = 0) {
-    this.id = workerId
+  constructor(workerName = '') {
+    this.workerName = workerName
   }
 
   // browser env default impl
@@ -32,9 +32,7 @@ export class WorkerProxy {
     const worker =
       workerExternalBuilder?.() ??
       // eslint-disable-next-line no-undef
-      new Worker(new URL('./world_compute_worker', import.meta.url), {
-        type: 'module',
-      })
+      new Worker(new URL('./world_compute_worker', import.meta.url), { type: 'module', name: this.workerName })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
     worker.onerror = error => {
       console.error('WorldComputeProxy worker error', error)
@@ -48,7 +46,7 @@ export class WorkerProxy {
       resolve => (this.resolvers[timestamp] = resolve),
     )
     this.worker.postMessage({ timestamp, content: worldLocalEnv.toStub() })
-    pendingInit.then(() => console.log(`worker #${this.id} is ready`))
+    pendingInit.then(() => console.log(`worker ${this.workerName} is ready`))
     return pendingInit
   }
 
@@ -61,7 +59,7 @@ export class WorkerProxy {
         delete this.resolvers[timestamp]
       } else {
         console.warn(
-          `missing message resolver ${timestamp} for worker #${this.id}`,
+          `missing message resolver ${timestamp} for worker ${this.workerName}`,
         )
       }
     }
