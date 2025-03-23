@@ -169,7 +169,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
           chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
       }
       const blocksTask = BlocksProcessing.getGroundPositions(chunkBottomBlocks)
-      blocksTask.processingParams.densityEval = true
+      blocksTask.processingParams.includeDensity = true
       const blocksBatch = await blocksTask.process(blocksTaskHandler as any)
       // console.log(testBlock)
       return blocksBatch

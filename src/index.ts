@@ -16,6 +16,7 @@ export { ProcessingTask } from './processing/TaskProcessing.js'
 export {
   BlocksProcessing,
   BlocksProcessingRecipe,
+  BlocksDataFormat
 } from './processing/BlocksProcessing.js'
 export {
   BoardProvider,
