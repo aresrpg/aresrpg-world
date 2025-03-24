@@ -5,7 +5,6 @@ import {
   BiomeLands,
   PatchBlock,
   PatchBoundId,
-  PatchKey,
   PatchId,
   BlockType,
 } from '../utils/common_types.js'
@@ -13,7 +12,6 @@ import {
   asVect3,
   asVect2,
   serializePatchId,
-  asPatchBounds,
 } from '../utils/patch_chunk.js'
 import { BlockMode } from '../index.js'
 import {
@@ -327,7 +325,7 @@ export class GroundPatch
       const patchDim = worldLocalEnv.getPatchDimensions()
       // copy four edges margins
       const sidePatches = getPatchNeighbours(this.patchId as PatchId).map(
-        patchId => GroundPatch.fromKey(serializePatchId(patchId), patchDim, 0),
+        patchId => new GroundPatch().fromKey(serializePatchId(patchId), patchDim, 0),
       )
       sidePatches.forEach(sidePatch => {
         const marginOverlap = this.extendedBounds.intersect(sidePatch.bounds)
@@ -386,17 +384,6 @@ export class GroundPatch
     this.valueRange.min = patchStub.valueRange?.min || this.valueRange.min
     this.valueRange.max = patchStub.valueRange?.max || this.valueRange.max
     return this
-  }
-
-  static override fromKey(
-    patchKey: PatchKey,
-    patchDim: Vector2,
-    patchMargin = 1,
-  ) {
-    const bounds = asPatchBounds(patchKey, patchDim)
-    const groundPatch = new GroundPatch(bounds, patchMargin)
-    groundPatch.patchKey = patchKey
-    return groundPatch
   }
 
   // getBlocksRow(zRowIndex: number) {

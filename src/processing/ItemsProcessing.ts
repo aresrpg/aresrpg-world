@@ -21,15 +21,12 @@ import { BlueNoiseParams } from '../procgen/BlueNoisePattern.js'
 import { GroundPatch } from './GroundPatch.js'
 import { DistributionProfiles } from './RandomDistributionMap.js'
 import { ProcessingTaskHandler, ProcessingTaskStub } from './TaskProcessing.js'
-import { blocksProcessingHandlerName } from './BlocksProcessing.js'
 
 /**
  * Calling side
  */
 
-export const itemsProcessingHandlerName = `ItemsProcessing`
-
-export enum ItemsProcessingRecipe {
+export enum ItemsTaskRecipe {
   SpawnedItems = 'SpawnedItems',
   IndividualChunks = 'IndividualChunks',
   MergeIndividualChunks = 'MergeIndividualChunks',
@@ -37,56 +34,96 @@ export enum ItemsProcessingRecipe {
   PointPeakBlock = 'PointPeakBlock',
 }
 
-type ItemsProcessingInput = Vector2 | Box2 | PatchKey
-type ItemsProcessingParams = {
-  recipe: ItemsProcessingRecipe
-}
-type ItemsProcessingOutput = ChunkContainer | ChunkContainer[]
-
-const noParser = (stubs: any) => stubs
-const chunkStubParser = (chunkStub: ChunkStub) =>
-  new ChunkContainer().fromStub(chunkStub)
-const chunkStubsParser = (stubs: ChunkStub[]) => stubs.map(chunkStubParser)
-
-const stubsParsers: Partial<
-  Record<ItemsProcessingRecipe, (stubs: any) => any>
-> = {
-  [ItemsProcessingRecipe.IndividualChunks]: chunkStubsParser,
-  [ItemsProcessingRecipe.MergeIndividualChunks]: chunkStubParser,
+export type ItemsTaskInput = Vector2 | Box2 | PatchKey
+export type ItemsTaskOutput = ChunkContainer | ChunkContainer[]
+export type ItemsTaskParams = {
+  recipe: ItemsTaskRecipe
 }
 
-// constructor
-const ItemsProcessingTaskConstructor = ProcessingTask<
-  ItemsProcessingInput,
-  ItemsProcessingParams,
-  ItemsProcessingOutput
->
+export class ItemsTask extends ProcessingTask<ItemsTaskInput, ItemsTaskParams, ItemsTaskOutput> {
 
-const createItemsProcessingTask =
-  (recipe: ItemsProcessingRecipe) => (input: ItemsProcessingInput) => {
-    const task = new ItemsProcessingTaskConstructor()
-    task.handlerId = itemsProcessingHandlerName
-    task.processingInput = input
-    task.processingParams = { recipe }
-    task.postProcess = stubsParsers[recipe] || noParser
-    return task
+  static handlerId = 'ItemsProcessing'
+
+  override postProcess(rawTaskOutput: any) {
+    const { recipe } = this.processingParams
+    console.log(`${this.processingInput}`)
+    console.log(rawTaskOutput)
+    switch (recipe) {
+      case ItemsTaskRecipe.IndividualChunks:
+        return (rawTaskOutput as ChunkStub[])
+          .map(stub => new ChunkContainer().fromStub(stub))
+      case ItemsTaskRecipe.MergeIndividualChunks:
+        return new ChunkContainer().fromStub(rawTaskOutput as ChunkStub)
+      default:
+        return rawTaskOutput
+    }
   }
 
-// Exposed API
+  init(recipe: ItemsTaskRecipe) {
+    this.handlerId = ItemsTask.handlerId
+    this.processingParams = { recipe }
+  }
 
-export const ItemsProcessing = {
-  bakeIndividualChunks: createItemsProcessingTask(
-    ItemsProcessingRecipe.IndividualChunks,
-  ),
-  mergeIndividualChunks: createItemsProcessingTask(
-    ItemsProcessingRecipe.MergeIndividualChunks,
-  ),
-  isolatedPointBlocks: createItemsProcessingTask(
-    ItemsProcessingRecipe.IsolatedPointBlocks,
-  ),
-  pointPeakBlock: createItemsProcessingTask(
-    ItemsProcessingRecipe.PointPeakBlock,
-  ),
+/**
+ * Direct access to most common tasks, for further customization, adjust processing params
+ */
+
+  get bakeIndividualChunks() {
+    this.init(ItemsTaskRecipe.IndividualChunks)
+    return (input: ItemsTaskInput) => {
+      this.processingInput = input
+      return this
+    }
+  }
+
+  get mergeIndividualChunks() {
+    this.init(ItemsTaskRecipe.MergeIndividualChunks)
+    return (input: ItemsTaskInput) => {
+      this.processingInput = input
+      return this
+    }
+  }
+
+  get isolatedPointBlocks() {
+    this.init(ItemsTaskRecipe.IsolatedPointBlocks)
+    return (input: ItemsTaskInput) => {
+      this.processingInput = input
+      return this
+    }
+  }
+
+  get pointPeakBlock() {
+    this.init(ItemsTaskRecipe.PointPeakBlock)
+    return (input: ItemsTaskInput) => {
+      this.processingInput = input
+      return this
+    }
+  }
+
+  /**
+   * Static methods are only kept for backward compat with previous API 
+   * but could be removed
+   */
+
+  static factory = (recipe: ItemsTaskRecipe) => (input: ItemsTaskInput) => {
+    const task = new ItemsTask()
+    task.handlerId = this.handlerId
+    task.processingInput = input
+    task.processingParams = { recipe }
+    return task
+  }
+  static get bakeIndividualChunks() {
+    return this.factory(ItemsTaskRecipe.IndividualChunks)
+  }
+  static get mergeIndividualChunks() {
+    return this.factory(ItemsTaskRecipe.MergeIndividualChunks)
+  }
+  static get isolatedPointBlocks() {
+    return this.factory(ItemsTaskRecipe.IsolatedPointBlocks)
+  }
+  static get pointPeakBlock() {
+    return this.factory(ItemsTaskRecipe.PointPeakBlock)
+  }
 }
 
 /**
@@ -99,18 +136,18 @@ export const ItemsProcessing = {
 //   mergedChunk?: ChunkContainer
 //   isolatedPointBlocks?: number[]
 // }
-// const defaultProcessingParams: ItemsProcessingParams = {
-//   recipe: ItemsProcessingRecipe.IndividualChunks,
+// const defaultProcessingParams: ItemsTaskParams = {
+//   recipe: ItemsTaskRecipe.IndividualChunks,
 // }
 
-// type ItemsProcessingTask = ProcessingTask<ItemsProcessingInput, ItemsProcessingParams, ItemsProcessingOutput>
+// type ItemsProcessingTask = ProcessingTask<ItemsTaskInput, ItemsTaskParams, ItemsTaskOutput>
 type ItemsProcessingTaskStub = ProcessingTaskStub<
-  ItemsProcessingInput,
-  ItemsProcessingParams
+  ItemsTaskInput,
+  ItemsTaskParams
 >
 type ItemsProcessingTaskHandler = ProcessingTaskHandler<
-  ItemsProcessingInput,
-  ItemsProcessingParams,
+  ItemsTaskInput,
+  ItemsTaskParams,
   any
 >
 
@@ -156,19 +193,19 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
         : asPatchBounds(input, worldLocalEnv.getPatchDimensions())
     }
 
-    const parseInput = (input: ItemsProcessingInput) => {
+    const parseInput = (input: ItemsTaskInput) => {
       return input instanceof Box2 ? input.clone() : getPatchBounds(input)
     }
 
     const retrieveItemBottomBlocks = async (itemChunk: ChunkContainer) => {
       const chunkBottomBlocks: Vector3[] = []
-      const blocksTaskHandler = taskHandlers[blocksProcessingHandlerName]
+      const blocksTaskHandler = taskHandlers[BlocksProcessing.handlerId]
       // iter slice blocks
       for (const heightBuff of itemChunk.iterChunkSlice()) {
         if (heightBuff.data[0])
           chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
       }
-      const blocksTask = BlocksProcessing.getGroundPositions(chunkBottomBlocks)
+      const blocksTask = BlocksProcessing.groundPositions(chunkBottomBlocks)
       blocksTask.processingParams.includeDensity = true
       const blocksBatch = await blocksTask.process(blocksTaskHandler as any)
       // console.log(testBlock)
@@ -378,9 +415,9 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
     const patchBounds = parseInput(processingInput)
     const spawnedItems = retrieveOvergroundItems(patchBounds, worldModules)
 
-    if (recipe === ItemsProcessingRecipe.SpawnedItems) {
+    if (recipe === ItemsTaskRecipe.SpawnedItems) {
       return spawnedItems
-    } else if (recipe === ItemsProcessingRecipe.IsolatedPointBlocks) {
+    } else if (recipe === ItemsTaskRecipe.IsolatedPointBlocks) {
       if (processingInput instanceof Vector3) {
         return await queryPointBlocks(spawnedItems, processingInput)
       } else {
@@ -388,7 +425,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
         const emptyOutput: number[] = []
         return emptyOutput
       }
-    } else if (recipe === ItemsProcessingRecipe.PointPeakBlock) {
+    } else if (recipe === ItemsTaskRecipe.PointPeakBlock) {
       if (processingInput instanceof Vector2) {
         return await queryPointPeakBlock(spawnedItems, processingInput)
       } else {
@@ -398,7 +435,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
       }
     } else {
       const individualChunks = await bakeIndividualChunks(spawnedItems)
-      if (recipe === ItemsProcessingRecipe.IndividualChunks) {
+      if (recipe === ItemsTaskRecipe.IndividualChunks) {
         return individualChunks.map(chunk => chunk.toStub())
       } else {
         const mergedItems = await mergeIndividualChunks(individualChunks)

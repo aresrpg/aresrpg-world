@@ -9,11 +9,11 @@ import {
 import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
 import { ChunksVerticalRange } from '../config/WorldEnv.js'
 
-import { ChunksProcessing, ChunksProcessingTask } from './ChunksProcessing.js'
+import { ChunksProcessing, ChunksTask } from './ChunksProcessing.js'
 import { ProcessingState } from './TaskProcessing.js'
 
-const getTaskPatchId = (task: ChunksProcessingTask) =>
-  parsePatchKey(task.processingInput.patchKey) as PatchId
+const getTaskPatchId = (task: ChunksTask) =>
+  parsePatchKey(task.processingInput) as PatchId
 
 export type PatchViewRanges = {
   near: number
@@ -56,8 +56,8 @@ export class ChunksPolling {
   patchIndex: Record<PatchKey, any> = {}
   // processedChunksQueue = []
   onChunkAvailable: any
-  postponedTasks: ChunksProcessingTask[] = []
-  pendingTasks: ChunksProcessingTask[] = []
+  postponedTasks: ChunksTask[] = []
+  pendingTasks: ChunksTask[] = []
   skipBlobCompression = false
   chunksVerticalRange: ChunksVerticalRange
 
@@ -103,7 +103,7 @@ export class ChunksPolling {
     )
   }
 
-  isBeyondNearDist = (task: ChunksProcessingTask) =>
+  isBeyondNearDist = (task: ChunksTask) =>
     getTaskPatchId(task).distanceTo(this.viewState.viewPos) >
     this.viewState.viewRanges.near
 
@@ -123,7 +123,7 @@ export class ChunksPolling {
     )
     // cancel out of range tasks in the queue
     const removedTasks = this.pendingTasks.filter(
-      task => !patchIndex[task.processingInput.patchKey],
+      task => !patchIndex[task.processingInput],
     )
     removedTasks.forEach(task => task.cancel())
     removedTasks.length &&
@@ -139,7 +139,7 @@ export class ChunksPolling {
     const postponedTasks = this.postponedTasks.filter(task =>
       this.isBeyondNearDist(task),
     )
-    const newTasks: ChunksProcessingTask[] = this.postponedTasks.filter(
+    const newTasks: ChunksTask[] = this.postponedTasks.filter(
       task => !this.isBeyondNearDist(task),
     )
     Object.keys(patchIndex)

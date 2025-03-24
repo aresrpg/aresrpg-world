@@ -31,13 +31,13 @@ export class WorkerPool {
     poolSize: number,
     worldLocalEnv: WorldLocals,
     // eslint-disable-next-line no-undef
-    workerExternalBuilder?: () => Worker,
+    externalWorkerProvider?: () => Worker,
   ) {
-    console.log(`create worker pool ${this.workerName} size: ${poolSize} (${workerExternalBuilder ? 'external' : 'built in'} worker being used)`)
+    console.log(`create worker pool ${this.workerName} size: ${poolSize} (${externalWorkerProvider ? 'external' : 'built-in'} worker)`)
     const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
       const workerProxy = new WorkerProxy(this.workerName + '#' + workerId)
-      const pendingInit = workerProxy.init(worldLocalEnv, workerExternalBuilder)
+      const pendingInit = workerProxy.init(worldLocalEnv, externalWorkerProvider)
       pendingInits.push(pendingInit)
       this.workerPool.push(workerProxy)
     }
@@ -94,7 +94,7 @@ export class WorkerPool {
       const nextTask = this.processingQueue.shift()
       if (nextTask) {
         if (nextTask.isWaiting()) {
-          const pending = this.availableUnit.forwardTask(nextTask)
+          const pending = this.availableUnit.submitTask(nextTask)
           if (!pending) {
             // this should not happen
             console.warn(
@@ -109,6 +109,8 @@ export class WorkerPool {
               this.processQueue()
             })
           }
+        } else {
+          console.log(`skipped task`)
         }
       } else {
         // this should not happen

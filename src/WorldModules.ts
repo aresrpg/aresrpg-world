@@ -1,16 +1,16 @@
 import { WorldLocals, WorldLocalSettings } from './config/WorldEnv.js'
 import { ItemsInventory } from './factory/ItemsFactory.js'
 import {
-  blocksProcessingHandlerName,
+  BlocksTask,
   createBlocksTaskHandler,
 } from './processing/BlocksProcessing.js'
 import {
-  chunksProcessingHandlerName,
+  ChunksTask,
   createChunksTaskHandler,
 } from './processing/ChunksProcessing.js'
 import {
   createItemsTaskHandler,
-  itemsProcessingHandlerName,
+  ItemsTask,
 } from './processing/ItemsProcessing.js'
 import {
   GenericTaskHandler,
@@ -65,11 +65,11 @@ export const createWorldModules = (worldLocalSettings: WorldLocalSettings, proce
 const populateTaskHandlers = (worldModules: WorldModules, processingContext: ProcessingContext) => {
   const { taskHandlers } = worldModules
 
-  taskHandlers[chunksProcessingHandlerName] =
+  taskHandlers[ChunksTask.handlerId] =
     createChunksTaskHandler(worldModules)
-  taskHandlers[itemsProcessingHandlerName] =
+  taskHandlers[ItemsTask.handlerId] =
     createItemsTaskHandler(worldModules)
-  taskHandlers[blocksProcessingHandlerName] =
+  taskHandlers[BlocksTask.handlerId] =
     createBlocksTaskHandler(worldModules, processingContext)
 
   // const getTaskHandler = (handlerId: ProcessingTaskHandlerId) => {

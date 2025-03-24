@@ -12,24 +12,19 @@ import { WorldModules } from '../WorldModules.js'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch.js'
 import {
-  ItemsProcessing,
-  itemsProcessingHandlerName,
-} from './ItemsProcessing.js'
-import {
   parseTaskInputStubs,
   ProcessingContext,
   ProcessingTask,
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing.js'
+import { ItemsTask } from './ItemsProcessing.js'
 
 /**
  * Calling side
  */
 
-export const blocksProcessingHandlerName = `BlocksProcessing`
-
-export enum BlocksProcessingRecipe {
+export enum BlocksTaskRecipe {
   Ground,
   Overground,
   Underground,
@@ -44,15 +39,15 @@ export enum BlocksDataFormat {
   XZ_FloatArray
 }
 
-export type BlocksProcessingInput = Vector3[] | Float32Array
-export type BlocksProcessingOutput = Block<BlockData>[]
-export type BlocksProcessingParams = {
-  recipe: BlocksProcessingRecipe
+export type BlocksTaskInput = Vector3[] | Float32Array
+export type BlocksTaskOutput = Block<BlockData>[]
+export type BlocksTaskParams = {
+  recipe: BlocksTaskRecipe
   includeDensity?: boolean
   dataFormat?: BlocksDataFormat
 }
 
-// const postProcessTaskResults = (rawOutputData: BlocksProcessingOutput) => {
+// const postProcessTaskResults = (rawOutputData: BlocksTaskOutput) => {
 //   return rawOutputData.map(blockStub => {
 //     blockStub.pos = parseThreeStub(blockStub.pos)
 //     // return WorldUtils.convert.parseThreeStub(pos)
@@ -60,45 +55,95 @@ export type BlocksProcessingParams = {
 //   }) //as GroundBlock[]
 // }
 
-// constructor
-const BlocksProcessingTaskConstructor = ProcessingTask<
-  BlocksProcessingInput,
-  BlocksProcessingParams,
-  BlocksProcessingOutput
->
+export class BlocksTask extends ProcessingTask<BlocksTaskInput, BlocksTaskParams, BlocksTaskOutput> {
+  static handlerId = 'BlocksProcessing'
 
-const getBlocksProcessingTask =
-  (recipe: BlocksProcessingRecipe) => (input: Vector3[]) => {
-    const task = new BlocksProcessingTaskConstructor()
-    task.handlerId = blocksProcessingHandlerName
+  init(recipe: BlocksTaskRecipe) {
+    this.handlerId = BlocksTask.handlerId
+    this.processingParams = { recipe }
+  }
+
+  /**
+   * Direct access to most common tasks, for further customization, adjust processing params
+   */
+
+  get groundPositions() {
+    this.init(BlocksTaskRecipe.Ground)
+    return (input: BlocksTaskInput) => {
+      this.processingInput = input
+      return this
+    }
+  }
+
+  get peakPositions() {
+    this.init(BlocksTaskRecipe.Peak)
+    return (input: BlocksTaskInput) => {
+      this.processingInput = input
+      return this
+    }
+  }
+
+  get floorPositions() {
+    this.init(BlocksTaskRecipe.Floor)
+    return (input: BlocksTaskInput) => {
+      this.processingInput = input
+      return this
+    }
+  }
+
+  get ceilPositions() {
+    this.init(BlocksTaskRecipe.Ceiling)
+    return (input: BlocksTaskInput) => {
+      this.processingInput = input
+      return this
+    }
+  }
+
+  /**
+   * Static methods are only kept for backward compat with previous API 
+   * but could be removed
+   */
+
+  static factory = (recipe: BlocksTaskRecipe) => (input: BlocksTaskInput) => {
+    const task = new BlocksTask()
+    task.handlerId = BlocksTask.handlerId
     task.processingInput = input
     task.processingParams = { recipe }
     return task
   }
 
-export const BlocksProcessing = {
-  getGroundPositions: getBlocksProcessingTask(BlocksProcessingRecipe.Ground),
-  getPeakPositions: getBlocksProcessingTask(BlocksProcessingRecipe.Peak),
-  getFloorPositions: getBlocksProcessingTask(BlocksProcessingRecipe.Floor),
-  getCeilingPositions: getBlocksProcessingTask(BlocksProcessingRecipe.Ceiling),
+  static get groundPositions() {
+    return this.factory(BlocksTaskRecipe.Ground)
+  }
+
+  static get peakPositions() {
+    return this.factory(BlocksTaskRecipe.Peak)
+  }
+
+  static get floorPositions() {
+    return this.factory(BlocksTaskRecipe.Floor)
+  }
+
+  static get ceilPositions() {
+    return this.factory(BlocksTaskRecipe.Ceiling)
+  }
 }
+
+// kept for backward compatibility with previous API (TODO: remove)
+export const BlocksProcessing = BlocksTask
 
 /**
  * Handling side
  */
 
-type BlocksProcessingTask = ProcessingTask<
-  BlocksProcessingInput,
-  BlocksProcessingParams,
-  BlocksProcessingOutput
->
-type BlocksProcessingTaskStub = ProcessingTaskStub<
-  BlocksProcessingInput,
-  BlocksProcessingParams
+
+type BlocksTaskStub = ProcessingTaskStub<
+  BlocksTaskInput,
+  BlocksTaskParams
 >
 type BlocksProcessingTaskHandler = ProcessingTaskHandler<
-  BlocksProcessingInput,
-  BlocksProcessingParams,
+  BlocksTaskInput,
+  BlocksTaskParams,
   any
 >
 
@@ -113,14 +158,14 @@ type BlocksProcessingTaskHandler = ProcessingTaskHandler<
 export const createBlocksTaskHandler = (worldModules: WorldModules, processingContext = ProcessingContext.None) => {
   const { worldLocalEnv, taskHandlers } = worldModules
   const blocksTaskHandler: BlocksProcessingTaskHandler = (
-    taskStub: BlocksProcessingTask | BlocksProcessingTaskStub
+    taskStub: BlocksTask | BlocksTaskStub
   ) => {
     const patchDim = worldLocalEnv.getPatchDimensions()
     const { processingInput, processingParams } = taskStub
     const { recipe, includeDensity, dataFormat } = processingParams
     const buildCache: Record<PatchKey, GroundPatch> = {}
 
-    const isAsync = recipe === BlocksProcessingRecipe.Peak
+    const isAsync = recipe === BlocksTaskRecipe.Peak
 
     const getPatchKey = (inputPos: Vector2) => {
       const patchId = getPatchId(inputPos, patchDim)
@@ -129,7 +174,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
     }
 
     const createGroundPatch = (patchKey: PatchKey) => {
-      const groundLayer = GroundPatch.fromKey(patchKey, patchDim)
+      const groundLayer = new GroundPatch().fromKey(patchKey, patchDim, 1)
       groundLayer.prepare(worldModules.biome)
       return groundLayer
     }
@@ -142,7 +187,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
       return groundPatch || createGroundPatch(patchKey)
     }
 
-    const parseBlocksInput = (blocksInput: BlocksProcessingInput) => {
+    const parseBlocksInput = (blocksInput: BlocksTaskInput) => {
       if (dataFormat && dataFormat === BlocksDataFormat.XZ_FloatArray) {
         const count = blocksInput.length / 2
         const parsed = []
@@ -155,7 +200,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
         return parsed
       } else {
         const parsedInput = processingContext === ProcessingContext.Worker
-          ? (parseTaskInputStubs(...processingInput) as BlocksProcessingInput)
+          ? (parseTaskInputStubs(...processingInput) as BlocksTaskInput)
           : processingInput
         return parsedInput as Vector3[]
       }
@@ -184,22 +229,21 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
         groundPatch,
         includeDensity,
       )
-      if (recipe === BlocksProcessingRecipe.Ground) return groundBlock
-      else if (recipe === BlocksProcessingRecipe.Peak) {
+      if (recipe === BlocksTaskRecipe.Peak) {
         // build deps
         const peakBlock = bakePeakBlock(groundBlock)
         return peakBlock
-      } else if (recipe === BlocksProcessingRecipe.Floor) {
+      } else if (recipe === BlocksTaskRecipe.Floor) {
         const initialBlockLevel = blockPos.y // Math.round(groundBlock.pos.y / 2)  // groundBlock.data.level + 1
         const floorBlock = bakeFloorBlock(groundBlock, initialBlockLevel)
         return floorBlock
-      } else if (recipe === BlocksProcessingRecipe.Ceiling) {
+      } else if (recipe === BlocksTaskRecipe.Ceiling) {
         const ceilingBlock = bakeCeilingBlock(
           groundBlock,
           groundBlock.data.level + 1,
         )
         return ceilingBlock
-      }
+      } else return groundBlock
       // return block as Block<BlockData>
     }
 
@@ -238,13 +282,14 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
      * usage: LOD
      */
     const bakePeakBlock = async (groundBlock: Block<BlockData>) => {
-      const itemsTaskHandler = taskHandlers[itemsProcessingHandlerName]
-      const peakBlock = (await ItemsProcessing.pointPeakBlock(
-        asVect2(groundBlock.pos),
-      ).process(itemsTaskHandler as any)) as any
-      if (peakBlock.type !== BlockType.NONE) {
-        groundBlock.data.level = peakBlock.level
-        groundBlock.data.type = peakBlock.type
+      const itemsTaskHandler = taskHandlers[ItemsTask.handlerId]
+      const itemPeakTask = new ItemsTask().pointPeakBlock(asVect2(groundBlock.pos))
+      if (itemsTaskHandler) {
+        const itemPeakBlock = (await itemPeakTask.process(itemsTaskHandler)) as any
+        if (itemPeakBlock.type !== BlockType.NONE) {
+          groundBlock.data.level = itemPeakBlock.level
+          groundBlock.data.type = itemPeakBlock.type
+        }
       }
       return groundBlock
     }
@@ -300,8 +345,8 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
       groundBlock: Block<BlockData>,
       requestedBlockLevel: number,
     ) => {
-      console.log(groundBlock)
       console.log(requestedBlockLevel)
+      return groundBlock
     }
 
     const parsedInput = parseBlocksInput(processingInput)
@@ -317,7 +362,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
 
     return isAsync && blocksData ?
       Promise.all(blocksData).then(blocksData => formatOutputData(blocksData))
-      : formatOutputData(blocksData)
+      : formatOutputData(blocksData as Block<BlockData>[])
   }
   return blocksTaskHandler
 }

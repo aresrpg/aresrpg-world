@@ -28,9 +28,9 @@ export class WorkerProxy {
    * @returns
    */
   // eslint-disable-next-line no-undef
-  init(worldLocalEnv: WorldLocals, workerExternalBuilder?: () => Worker) {
+  init(worldLocalEnv: WorldLocals, externalWorkerProvider?: () => Worker) {
     const worker =
-      workerExternalBuilder?.() ??
+      externalWorkerProvider?.() ??
       // eslint-disable-next-line no-undef
       new Worker(new URL('./world_compute_worker', import.meta.url), { type: 'module', name: this.workerName })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
@@ -74,7 +74,7 @@ export class WorkerProxy {
     return Object.keys(this.resolvers)
   }
 
-  async forwardTask(task: GenericTask) {
+  async submitTask(task: GenericTask) {
     if (this.worker && this.isReady) {
       const timestamp = performance.now()
       // task?.onProcessingStart()

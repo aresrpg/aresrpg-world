@@ -7,10 +7,10 @@
 
 import { WebSocketServer, WebSocket } from 'ws'
 
-import { ChunksPolling, parseThreeStub } from '../src/index.js'
-import { WorkerPool } from '../src/node/NodeWorkerPool.js'
+import { ChunksPolling, parseThreeStub } from '../../src/index.js'
+import { WorkerPool } from '../../src/node/NodeWorkerPool.js'
 
-import { getWorldDemoEnv } from './configs/world_demo_setup.js'
+import { getWorldDemoEnv } from '../configs/world_demo_setup.js'
 
 const SERVER_PORT = 3000
 const POOL_SIZE = 4

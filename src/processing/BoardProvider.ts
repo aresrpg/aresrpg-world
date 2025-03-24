@@ -30,8 +30,8 @@ import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { WorldLocals } from '../config/WorldEnv.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
-import { ItemsProcessing } from './ItemsProcessing.js'
 import { WorkerPool } from './WorkerPool.js'
+import { ItemsTask } from './ItemsProcessing.js'
 
 export enum BlockCategory {
   EMPTY = 0,
@@ -193,7 +193,7 @@ export class BoardCacheProvider {
       // enqueue items processing tasks
       const itemsPendingTasks = Object.keys(patchIndex)
         .filter(patchKey => !this.patchIndex[patchKey])
-        .map(patchKey => ItemsProcessing.bakeIndividualChunks(patchKey))
+        .map(patchKey => new ItemsTask().bakeIndividualChunks(patchKey))
         .map(itemTask => {
           const pendingItemTask = itemTask.delegate(this.workerPool)
           // once done put result in cache

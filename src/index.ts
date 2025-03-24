@@ -14,8 +14,8 @@ export { BlockType, BlockMode } from './utils/common_types.js'
 // Processing
 export { ProcessingTask } from './processing/TaskProcessing.js'
 export {
+  BlocksTask,
   BlocksProcessing,
-  BlocksProcessingRecipe,
   BlocksDataFormat
 } from './processing/BlocksProcessing.js'
 export {

@@ -31,7 +31,7 @@ export class EmptyChunk extends ChunkContainer {
     this.fromKey(chunkKey, chunkDim)
   }
 
-  async bake() {}
+  async bake() { }
 }
 
 export class GroundChunk extends ChunkContainer {
@@ -88,7 +88,7 @@ export class GroundChunk extends ChunkContainer {
     const patchDim = worldLocalEnv.getPatchDimensions()
     const patchId = asVect2(this.chunkId as Vector3)
     const patchKey = serializePatchId(patchId)
-    groundLayer = groundLayer || GroundPatch.fromKey(patchKey, patchDim)
+    groundLayer = groundLayer || new GroundPatch().fromKey(patchKey, patchDim, 1)
     groundLayer.isEmpty && (await groundLayer.bake(worldModules))
 
     const ymin = this.extendedBounds.min.y

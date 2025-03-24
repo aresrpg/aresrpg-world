@@ -216,11 +216,13 @@ export class PatchBase<T> {
     return this
   }
 
-  static fromKey(patchKey: PatchKey, patchDim: Vector2, patchMargin = 1) {
+  fromKey(patchKey: PatchKey, patchDim: Vector2, patchMargin = 0) {
     const bounds = asPatchBounds(patchKey, patchDim)
-    const patch = new PatchBase(bounds, patchMargin)
-    patch.patchKey = patchKey
-    return patch
+    this.init(bounds)
+    this.margin = patchMargin
+    this.key = patchKey
+    this.id = parsePatchKey(patchKey)
+    return this
   }
 
   // abstract get chunkIds(): ChunkId[]
