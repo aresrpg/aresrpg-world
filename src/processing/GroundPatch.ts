@@ -8,11 +8,7 @@ import {
   PatchId,
   BlockType,
 } from '../utils/common_types.js'
-import {
-  asVect3,
-  asVect2,
-  serializePatchId,
-} from '../utils/patch_chunk.js'
+import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk.js'
 import { BlockMode } from '../index.js'
 import {
   Biome,
@@ -325,7 +321,8 @@ export class GroundPatch
       const patchDim = worldLocalEnv.getPatchDimensions()
       // copy four edges margins
       const sidePatches = getPatchNeighbours(this.patchId as PatchId).map(
-        patchId => new GroundPatch().fromKey(serializePatchId(patchId), patchDim, 0),
+        patchId =>
+          new GroundPatch().fromKey(serializePatchId(patchId), patchDim, 0),
       )
       sidePatches.forEach(sidePatch => {
         const marginOverlap = this.extendedBounds.intersect(sidePatch.bounds)

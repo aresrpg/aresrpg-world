@@ -12,7 +12,10 @@ let worldModules: WorldModules
 
 const onSetup = (worldLocalSettings: WorldLocalSettings) => {
   // apply settings in worker's environment
-  worldModules = createWorldModules(worldLocalSettings, ProcessingContext.Worker)
+  worldModules = createWorldModules(
+    worldLocalSettings,
+    ProcessingContext.Worker,
+  )
   // worldRootEnv.fromStub(envSettings)
   const done = true
   return { done }

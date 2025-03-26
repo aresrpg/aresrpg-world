@@ -33,11 +33,16 @@ export class WorkerPool {
     // eslint-disable-next-line no-undef
     externalWorkerProvider?: () => Worker,
   ) {
-    console.log(`create worker pool ${this.workerName} size: ${poolSize} (${externalWorkerProvider ? 'external' : 'built-in'} worker)`)
+    console.log(
+      `create worker pool ${this.workerName} size: ${poolSize} (${externalWorkerProvider ? 'external' : 'built-in'} worker)`,
+    )
     const pendingInits = []
     for (let workerId = 0; workerId < poolSize; workerId++) {
       const workerProxy = new WorkerProxy(this.workerName + '#' + workerId)
-      const pendingInit = workerProxy.init(worldLocalEnv, externalWorkerProvider)
+      const pendingInit = workerProxy.init(
+        worldLocalEnv,
+        externalWorkerProvider,
+      )
       pendingInits.push(pendingInit)
       this.workerPool.push(workerProxy)
     }

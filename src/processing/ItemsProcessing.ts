@@ -40,8 +40,11 @@ export type ItemsTaskParams = {
   recipe: ItemsTaskRecipe
 }
 
-export class ItemsTask extends ProcessingTask<ItemsTaskInput, ItemsTaskParams, ItemsTaskOutput> {
-
+export class ItemsTask extends ProcessingTask<
+  ItemsTaskInput,
+  ItemsTaskParams,
+  ItemsTaskOutput
+> {
   static handlerId = 'ItemsProcessing'
 
   override postProcess(rawTaskOutput: any) {
@@ -50,8 +53,9 @@ export class ItemsTask extends ProcessingTask<ItemsTaskInput, ItemsTaskParams, I
     console.log(rawTaskOutput)
     switch (recipe) {
       case ItemsTaskRecipe.IndividualChunks:
-        return (rawTaskOutput as ChunkStub[])
-          .map(stub => new ChunkContainer().fromStub(stub))
+        return (rawTaskOutput as ChunkStub[]).map(stub =>
+          new ChunkContainer().fromStub(stub),
+        )
       case ItemsTaskRecipe.MergeIndividualChunks:
         return new ChunkContainer().fromStub(rawTaskOutput as ChunkStub)
       default:
@@ -64,9 +68,9 @@ export class ItemsTask extends ProcessingTask<ItemsTaskInput, ItemsTaskParams, I
     this.processingParams = { recipe }
   }
 
-/**
- * Direct access to most common tasks, for further customization, adjust processing params
- */
+  /**
+   * Direct access to most common tasks, for further customization, adjust processing params
+   */
 
   get bakeIndividualChunks() {
     this.init(ItemsTaskRecipe.IndividualChunks)
@@ -101,7 +105,7 @@ export class ItemsTask extends ProcessingTask<ItemsTaskInput, ItemsTaskParams, I
   }
 
   /**
-   * Static methods are only kept for backward compat with previous API 
+   * Static methods are only kept for backward compat with previous API
    * but could be removed
    */
 
@@ -112,15 +116,19 @@ export class ItemsTask extends ProcessingTask<ItemsTaskInput, ItemsTaskParams, I
     task.processingParams = { recipe }
     return task
   }
+
   static get bakeIndividualChunks() {
     return this.factory(ItemsTaskRecipe.IndividualChunks)
   }
+
   static get mergeIndividualChunks() {
     return this.factory(ItemsTaskRecipe.MergeIndividualChunks)
   }
+
   static get isolatedPointBlocks() {
     return this.factory(ItemsTaskRecipe.IsolatedPointBlocks)
   }
+
   static get pointPeakBlock() {
     return this.factory(ItemsTaskRecipe.PointPeakBlock)
   }

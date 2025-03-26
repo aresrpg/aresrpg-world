@@ -32,7 +32,10 @@ export class WorkerProxy {
     const worker =
       externalWorkerProvider?.() ??
       // eslint-disable-next-line no-undef
-      new Worker(new URL('./world_compute_worker', import.meta.url), { type: 'module', name: this.workerName })
+      new Worker(new URL('./world_compute_worker', import.meta.url), {
+        type: 'module',
+        name: this.workerName,
+      })
     worker.onmessage = workerReply => this.handleWorkerReply(workerReply.data)
     worker.onerror = error => {
       console.error('WorldComputeProxy worker error', error)

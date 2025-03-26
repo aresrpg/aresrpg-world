@@ -1,5 +1,4 @@
 import { parseThreeStub } from '../utils/patch_chunk.js'
-
 import { WorkerPool } from './WorkerPool.js'
 
 export const toTaskOutputStubs = (res: any) =>
@@ -48,6 +47,24 @@ export type ProcessingTaskStub<ProcessingInput, ProcessingParams> = {
   handlerId: ProcessingTaskHandlerId
 }
 export type GenericTaskStub = ProcessingTaskStub<any, any>
+
+/**
+ * Handling side
+ */
+
+export type ProcessingTaskHandler<
+  ProcessingInput,
+  ProcessingParams,
+  ProcessingOutput,
+> = (
+  taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
+  procContext?: ProcessingContext,
+) => Promise<ProcessingOutput> | ProcessingOutput
+export type GenericTaskHandler = ProcessingTaskHandler<any, any, any>
+
+/**
+ * Client side
+ */
 
 /**
  * Tasks can be processed locally on main thread, worker thread
@@ -269,21 +286,6 @@ export class ProcessingTask<
     return processingTaskStub
   }
 }
-
-/**
- * Task processing handling side
- */
-
-
-export type ProcessingTaskHandler<
-  ProcessingInput,
-  ProcessingParams,
-  ProcessingOutput,
-> = (
-  taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
-  procContext?: ProcessingContext,
-) => Promise<ProcessingOutput> | ProcessingOutput
-export type GenericTaskHandler = ProcessingTaskHandler<any, any, any>
 
 // export class ProcessingTaskHandler {
 //   handleTask(task: ProcessingTask<any, any, any>) {

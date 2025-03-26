@@ -36,7 +36,7 @@ export enum BlocksTaskRecipe {
 
 export enum BlocksDataFormat {
   XYZ_VectorArray,
-  XZ_FloatArray
+  XZ_FloatArray,
 }
 
 export type BlocksTaskInput = Vector3[] | Float32Array
@@ -55,7 +55,11 @@ export type BlocksTaskParams = {
 //   }) //as GroundBlock[]
 // }
 
-export class BlocksTask extends ProcessingTask<BlocksTaskInput, BlocksTaskParams, BlocksTaskOutput> {
+export class BlocksTask extends ProcessingTask<
+  BlocksTaskInput,
+  BlocksTaskParams,
+  BlocksTaskOutput
+> {
   static handlerId = 'BlocksProcessing'
 
   init(recipe: BlocksTaskRecipe) {
@@ -100,7 +104,7 @@ export class BlocksTask extends ProcessingTask<BlocksTaskInput, BlocksTaskParams
   }
 
   /**
-   * Static methods are only kept for backward compat with previous API 
+   * Static methods are only kept for backward compat with previous API
    * but could be removed
    */
 
@@ -136,11 +140,7 @@ export const BlocksProcessing = BlocksTask
  * Handling side
  */
 
-
-type BlocksTaskStub = ProcessingTaskStub<
-  BlocksTaskInput,
-  BlocksTaskParams
->
+type BlocksTaskStub = ProcessingTaskStub<BlocksTaskInput, BlocksTaskParams>
 type BlocksProcessingTaskHandler = ProcessingTaskHandler<
   BlocksTaskInput,
   BlocksTaskParams,
@@ -155,10 +155,13 @@ type BlocksProcessingTaskHandler = ProcessingTaskHandler<
 //   floorPositionsHandler
 // }
 
-export const createBlocksTaskHandler = (worldModules: WorldModules, processingContext = ProcessingContext.None) => {
+export const createBlocksTaskHandler = (
+  worldModules: WorldModules,
+  processingContext = ProcessingContext.None,
+) => {
   const { worldLocalEnv, taskHandlers } = worldModules
   const blocksTaskHandler: BlocksProcessingTaskHandler = (
-    taskStub: BlocksTask | BlocksTaskStub
+    taskStub: BlocksTask | BlocksTaskStub,
   ) => {
     const patchDim = worldLocalEnv.getPatchDimensions()
     const { processingInput, processingParams } = taskStub
@@ -199,20 +202,25 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
         }
         return parsed
       } else {
-        const parsedInput = processingContext === ProcessingContext.Worker
-          ? (parseTaskInputStubs(...processingInput) as BlocksTaskInput)
-          : processingInput
+        const parsedInput =
+          processingContext === ProcessingContext.Worker
+            ? (parseTaskInputStubs(...processingInput) as BlocksTaskInput)
+            : processingInput
         return parsedInput as Vector3[]
       }
     }
 
     const formatOutputData = (blocksData: Block<BlockData>[]) => {
       if (dataFormat && dataFormat === BlocksDataFormat.XZ_FloatArray) {
-        const elevation = new Float32Array(blocksData.map(blockData => blockData.data.level))
-        const type = new Float32Array(blocksData.map(blockData => blockData.data.type))
+        const elevation = new Float32Array(
+          blocksData.map(blockData => blockData.data.level),
+        )
+        const type = new Float32Array(
+          blocksData.map(blockData => blockData.data.type),
+        )
         const outputData = {
           elevation,
-          type
+          type,
         }
         return outputData
       }
@@ -268,7 +276,8 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
         worldModules.densityVolume.getBlockDensity(pos, level + 20)
       const blockData: BlockData = {
         level,
-        type: includeDensity && isEmptyBlock() ? BlockType.HOLE : groundConf.type,
+        type:
+          includeDensity && isEmptyBlock() ? BlockType.HOLE : groundConf.type,
       }
       const block: Block<BlockData> = {
         pos,
@@ -283,9 +292,13 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
      */
     const bakePeakBlock = async (groundBlock: Block<BlockData>) => {
       const itemsTaskHandler = taskHandlers[ItemsTask.handlerId]
-      const itemPeakTask = new ItemsTask().pointPeakBlock(asVect2(groundBlock.pos))
+      const itemPeakTask = new ItemsTask().pointPeakBlock(
+        asVect2(groundBlock.pos),
+      )
       if (itemsTaskHandler) {
-        const itemPeakBlock = (await itemPeakTask.process(itemsTaskHandler)) as any
+        const itemPeakBlock = (await itemPeakTask.process(
+          itemsTaskHandler,
+        )) as any
         if (itemPeakBlock.type !== BlockType.NONE) {
           groundBlock.data.level = itemPeakBlock.level
           groundBlock.data.type = itemPeakBlock.type
@@ -360,8 +373,8 @@ export const createBlocksTaskHandler = (worldModules: WorldModules, processingCo
     // }
     // const blocksProcessing = parsedInput?.map(requestedPos => blockData)
 
-    return isAsync && blocksData ?
-      Promise.all(blocksData).then(blocksData => formatOutputData(blocksData))
+    return isAsync && blocksData
+      ? Promise.all(blocksData).then(blocksData => formatOutputData(blocksData))
       : formatOutputData(blocksData as Block<BlockData>[])
   }
   return blocksTaskHandler

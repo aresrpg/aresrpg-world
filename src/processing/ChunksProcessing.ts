@@ -41,7 +41,11 @@ type TaskOptions = ChunksProcessingParams & {
   onCompleted?: (...a: any) => any
   onRejected?: (error: string) => any
 }
-export class ChunksTask extends ProcessingTask<ChunksProcessingInput, ChunksProcessingParams, ChunksProcessingOutput> {
+export class ChunksTask extends ProcessingTask<
+  ChunksProcessingInput,
+  ChunksProcessingParams,
+  ChunksProcessingOutput
+> {
   static handlerId = 'ChunksProcessing'
 
   init(chunksRange: ChunksProcessingRange) {
@@ -49,7 +53,7 @@ export class ChunksTask extends ProcessingTask<ChunksProcessingInput, ChunksProc
     this.processingParams.chunksRange = chunksRange
   }
 
-   /**
+  /**
    * Direct access to most common tasks, for further customization, adjust processing params
    */
 
@@ -78,26 +82,28 @@ export class ChunksTask extends ProcessingTask<ChunksProcessingInput, ChunksProc
   }
 
   /**
-   * Static methods are only kept for backward compat with previous API 
+   * Static methods are only kept for backward compat with previous API
    * but could be removed
    */
 
-  static factory = (chunksRange: ChunksProcessingRange) => (patchKey: PatchKey, processingOptions: TaskOptions = {}) => {
-    const task = new ChunksTask()
-    task.handlerId = this.handlerId
-    task.processingInput = patchKey
-    task.processingParams = { chunksRange }
+  static factory =
+    (chunksRange: ChunksProcessingRange) =>
+    (patchKey: PatchKey, processingOptions: TaskOptions = {}) => {
+      const task = new ChunksTask()
+      task.handlerId = this.handlerId
+      task.processingInput = patchKey
+      task.processingParams = { chunksRange }
 
-    const { onStarted, onCompleted, onRejected, ...processingParams } =
-      processingOptions
+      const { onStarted, onCompleted, onRejected, ...processingParams } =
+        processingOptions
 
-    Object.assign(task.processingParams, processingParams)
-    if (onStarted) task.onStarted = onStarted
-    if (onCompleted) task.onCompleted = onCompleted
-    if (onRejected) task.onRejected = onRejected
+      Object.assign(task.processingParams, processingParams)
+      if (onStarted) task.onStarted = onStarted
+      if (onCompleted) task.onCompleted = onCompleted
+      if (onRejected) task.onRejected = onRejected
 
-    return task
-  }
+      return task
+    }
 
   static get lowerChunks() {
     return this.factory(ChunksProcessingRange.LowerRange)

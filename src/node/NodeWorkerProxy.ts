@@ -6,7 +6,10 @@ import { WorldLocals } from '../config/WorldEnv.js'
 export class NodeWorkerProxy extends WorkerProxy {
   override init(worldLocalEnv: WorldLocals): Promise<any> {
     // node env
-    const nodeWorker = new Worker(new URL('./world_compute_node_worker.js', import.meta.url), { name: this.workerName })
+    const nodeWorker = new Worker(
+      new URL('./world_compute_node_worker.js', import.meta.url),
+      { name: this.workerName },
+    )
     // const nodeWorker = new Worker('./world_compute_node_worker.js')
     nodeWorker.on('message', this.handleWorkerReply)
     this.worker = nodeWorker
