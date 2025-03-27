@@ -1,5 +1,5 @@
 // Env
-export { WorldLocals, WorldGlobals, WorldSeed } from './config/WorldEnv.js'
+export { WorldLocals, WorldSeed } from './config/WorldEnv.js'
 // Utils
 // export * as WorldUtils from './utils/index'
 export {

@@ -2,7 +2,6 @@ import { Box3, Vector3 } from 'three'
 
 import { NBTReader } from '../third-party/nbt_custom.js'
 import { ChunkContainer } from '../datacontainers/ChunkContainer.js'
-import { WorldGlobals } from '../config/WorldEnv.js'
 import { BlockType } from '../utils/common_types.js'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
@@ -92,7 +91,7 @@ export class SchematicLoader {
             localBlocksMapping?.[rawType] || globalBlocksMapping[rawType]
           if (blockType === undefined) {
             console.warn(`missing schematic block type ${rawType}`)
-            blockType = WorldGlobals.debug.schematics.missingBlockType
+            // blockType = WorldGlobals.debug.schematics.missingBlockType
           }
           // worldObj.rawData[index++] = blockType
           const localPos = new Vector3(x, y, z)

@@ -95,6 +95,8 @@ export type WorldLocalSettings = {
     radius: number
     thickness: number
   }
+
+  debug: DebugEnvSettings
 }
 
 export class WorldLocals {
@@ -150,13 +152,28 @@ export class WorldLocals {
       radius: 16,
       thickness: 3,
     },
+
+    debug: {
+      patch: {
+        borderHighlightColor: BlockType.NONE,
+      },
+      board: {
+        startPosHighlightColor: BlockType.NONE,
+        splitSidesColoring: false,
+      },
+      schematics: {
+        missingBlockType: BlockType.NONE,
+      },
+    }
   }
+  // Shortcuts for modules' environment access
+  get biomeEnv() { return this.rawSettings.biomes }
+  get heightmapEnv() { return this.rawSettings.heightmap }
+  get boardEnv() { return this.rawSettings.boards }
+  get itemsEnv() { return this.rawSettings.items }
+  get debugEnv() { return this.rawSettings.debug }
 
-  getBiomeEnv = () => this.rawSettings.biomes
-  getHeightmapEnv = () => this.rawSettings.heightmap
-  getBoardEnv = () => this.rawSettings.boards
-  getItemsEnv = () => this.rawSettings.items
-
+  // Helpers/utils
   getPatchSize = () => Math.pow(2, this.rawSettings.patchPowSize)
   getCacheLimit = () => Math.pow(2, this.rawSettings.cachePowLimit)
   getPatchDimensions = () =>
@@ -185,6 +202,7 @@ export class WorldLocals {
   getSeed = (seedName: WorldSeed) =>
     getWorldSeed(this.rawSettings.seeds, seedName)
 
+  // Export/import
   fromStub = (envStub: Partial<WorldLocalSettings>) => {
     Object.assign(this.rawSettings, envStub)
     return this
@@ -215,19 +233,4 @@ export class WorldLocals {
   //   getDistributionMapPeriod,
   //   fromStub
   // }
-}
-
-export class WorldGlobals {
-  static debug: DebugEnvSettings = {
-    patch: {
-      borderHighlightColor: BlockType.NONE,
-    },
-    board: {
-      startPosHighlightColor: BlockType.NONE,
-      splitSidesColoring: false,
-    },
-    schematics: {
-      missingBlockType: BlockType.NONE,
-    },
-  }
 }
