@@ -50,9 +50,9 @@ const probabilityThreshold = Math.pow(2, 8)
  * Pseudo infinite random distribution from patch repetition
  * with independant and deterministic behavior
  */
-export class PseudoDistributionMap {
-  patchDim: Vector2
-  repeatedPattern: BlueNoisePattern
+export class RandomDistributionMap {
+  patternDimension: Vector2
+  repeatablePattern: BlueNoisePattern
   densityMap: NoiseSampler
 
   constructor(
@@ -61,9 +61,9 @@ export class PseudoDistributionMap {
       DistributionProfile.MEDIUM
     ],
   ) {
-    this.patchDim = dimensions
+    this.patternDimension = dimensions
     const bounds = new Box2(new Vector2(), dimensions)
-    this.repeatedPattern = new BlueNoisePattern(bounds, bNoiseParams)
+    this.repeatablePattern = new BlueNoisePattern(bounds, bNoiseParams)
     this.densityMap = new NoiseSampler(bNoiseParams.aleaSeed || '')
   }
 
@@ -77,43 +77,27 @@ export class PseudoDistributionMap {
   }
 
   /**
-   * querying/iterating randomly distributed items at block level or from custom bounds
-   * @param entityShaper
-   * @param inputPointOrArea either test point or bounds
-   * @param spawnProbabilityOverride
-   * @returns all entities locations overlapping with input point or bounds
+   * Based on provided items' dimensions, will find all surrounding items overlapping with given point
+   * @param searchedArea tested point
+   * @param itemDimension max dimensions of items likely to overlap tested point
    */
-  querySpawnLocations(
-    queryBoxOrLoc: Vector2 | Box2,
-    itemDims: Vector2,
-    // entityMask = (_entity: EntityData) => false
-  ) {
-    const queryBox =
-      queryBoxOrLoc instanceof Box2
-        ? queryBoxOrLoc
-        : new Box2().setFromPoints([queryBoxOrLoc])
-    // const offset = testBox.min.clone().divide(this.patchDimensions).floor().multiply(this.patchDimensions)
-    // const localTestBox = testBox.clone().translate(offset.clone().negate())
-    // const overlappingEntities = this.repeatedPattern.elements
-    //   .filter(entityPos => overlapsTest(localTestBox, entityPos))
-    //   .map(relativePos => relativePos.clone().add(offset))
+  querySpawnLocations(searchedArea: Box2) {
+    // get all patterns that can have spawn position within queriedArea
+    const patternIds = getPatchIds(searchedArea, this.patternDimension)
     const spawnLocations: Vector2[] = []
-    const patchIds = getPatchIds(queryBox, this.patchDim)
-    for (const patchId of patchIds) {
-      const offset = patchId.clone().multiply(this.patchDim)
-      const localRegionQuery = queryBox
+    for (const patternId of patternIds) {
+      // instead of translatting each base elements into pattern's coordinates,
+      // reverse translate queried region in base referential then for each point match,
+      // translate back into target frame
+      const patternOrigin = patternId.clone().multiply(this.patternDimension)
+      const localQueriedArea = searchedArea
         .clone()
-        .translate(offset.clone().negate())
-      // look for entities overlapping with input point or area
-      for (const spawnLocalPos of this.repeatedPattern.elements) {
-        // eval spawn probability at entity center
-        const spawnBox = new Box2().setFromCenterAndSize(
-          spawnLocalPos,
-          itemDims,
-        )
-        if (spawnBox.intersectsBox(localRegionQuery)) {
-          const itemPos = spawnLocalPos.clone().add(offset)
-          spawnLocations.push(itemPos)
+        .translate(patternOrigin.clone().negate())
+      // look for entities overlapping with searched area
+      for (const spawnLocalPos of this.repeatablePattern.elements) {
+        if (localQueriedArea.containsPoint(spawnLocalPos)) {
+          const spawnPos = spawnLocalPos.clone().add(patternOrigin)
+          spawnLocations.push(spawnPos)
         }
       }
     }

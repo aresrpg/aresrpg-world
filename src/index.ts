@@ -24,10 +24,6 @@ export {
   BlockCategory,
 } from './processing/BoardProvider.js'
 export { ChunksPolling } from './processing/ChunksPolling.js'
-export {
-  PseudoDistributionMap,
-  DistributionProfile,
-} from './processing/RandomDistributionMap.js'
 export { ProcessingState } from './processing/TaskProcessing.js'
 export { ChunksProcessing } from './processing/ChunksProcessing.js'
 export { WorkerPool } from './processing/WorkerPool.js'
