@@ -124,14 +124,14 @@ export class PatchBase<T> {
     return new Vector2(x, y)
   }
 
-  toLocalPos(pos: Vector2) {
+  toLocalPos(globalPos: Vector2) {
     const origin = this.bounds.min.clone()
-    return pos.clone().sub(origin)
+    return globalPos.clone().sub(origin)
   }
 
-  toWorldPos(pos: Vector2) {
+  toWorldPos(localPos: Vector2) {
     const origin = this.bounds.min.clone()
-    return origin.add(pos)
+    return origin.add(localPos)
   }
 
   isOverlapping(bounds: Box2) {

@@ -14,7 +14,10 @@ import { Biome, BiomeType } from '../procgen/Biome.js'
 import { WorldModules } from '../WorldModules.js'
 import { DebugEnvSettings } from '../config/WorldEnv.js'
 
-const highlightPatchBorders = (localPos: Vector3, borderHighlightColor?: BlockType) => {
+const highlightPatchBorders = (
+  localPos: Vector3,
+  borderHighlightColor?: BlockType,
+) => {
   return borderHighlightColor && (localPos.x === 1 || localPos.z === 1)
     ? borderHighlightColor
     : null
@@ -30,7 +33,7 @@ export class EmptyChunk extends ChunkContainer {
     this.fromKey(chunkKey, chunkDim)
   }
 
-  async bake() { }
+  async bake() {}
 }
 
 export class GroundChunk extends ChunkContainer {
@@ -39,7 +42,7 @@ export class GroundChunk extends ChunkContainer {
     ymin: number,
     ymax: number,
     biome: Biome,
-    debugEnvSettings?: DebugEnvSettings
+    debugEnvSettings?: DebugEnvSettings,
   ) {
     //, isTransition = false) {
     const undegroundDepth = 4
@@ -48,7 +51,10 @@ export class GroundChunk extends ChunkContainer {
     const biomeLand = biome.mappings[biomeType].nth(landIndex)
     const landConf = biomeLand.data
     const blockType = // isTransition ? BlockType.SAND :
-      highlightPatchBorders(blockLocalPos, debugEnvSettings?.patch.borderHighlightColor) || landConf.type
+      highlightPatchBorders(
+        blockLocalPos,
+        debugEnvSettings?.patch.borderHighlightColor,
+      ) || landConf.type
     // const groundFlags = parseGroundFlags(flags)
     // const blockMode = groundFlags.boardMode
     //   ? BlockMode.CHECKERBOARD
@@ -104,7 +110,7 @@ export class GroundChunk extends ChunkContainer {
         ymin,
         ymax,
         worldModules.biome,
-        worldLocalEnv.debugEnv
+        worldLocalEnv.debugEnv,
       )
       if (groundBuff) {
         const chunk_buffer = this.readBuffer(groundBuff.pos)

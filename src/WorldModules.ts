@@ -43,11 +43,7 @@ export const createWorldModules = (
   const worldLocalEnv = new WorldLocals().fromStub(worldLocalSettings)
   const worldSeeds = worldLocalEnv.rawSettings.seeds
   const biome = new Biome(worldLocalEnv.biomeEnv, worldSeeds)
-  const heightmap = new Heightmap(
-    biome,
-    worldLocalEnv.heightmapEnv,
-    worldSeeds,
-  )
+  const heightmap = new Heightmap(biome, worldLocalEnv.heightmapEnv, worldSeeds)
   const densityVolume = new DensityVolume(worldSeeds)
   const itemsInventory = new ItemsInventory(worldLocalEnv.itemsEnv)
   // console.log('world modules initialized')

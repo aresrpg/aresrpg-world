@@ -45,7 +45,7 @@ export class BlueNoisePattern {
     this.elements = p
       .fill()
       .map(point => new Vector2(point[0] as number, point[1] as number).round())
-    this.makeSeamless()
+    // this.makeSeamless()
   }
 
   // make seamless repeatable pattern

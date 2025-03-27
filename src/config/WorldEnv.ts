@@ -76,7 +76,7 @@ export type WorldLocalSettings = {
   patchPowSize: number // as a power of two
   // max cache radius as a power of two
   cachePowLimit: number // 4 => 16 patches radius
-  distributionMapPeriod: number
+  distributionMapPatchRange: number
 
   // in patch unit
   patchViewRanges: PatchViewRanges
@@ -109,7 +109,7 @@ export class WorldLocals {
     patchPowSize: 6, // as a power of two
     // max cache radius as a power of two
     cachePowLimit: 2, // 4 => 16 patches radius
-    distributionMapPeriod: 4,
+    distributionMapPatchRange: 4, // in number of patches
 
     // in patch unit
     patchViewRanges: {
@@ -164,14 +164,24 @@ export class WorldLocals {
       schematics: {
         missingBlockType: BlockType.NONE,
       },
-    }
+    },
   }
   // Shortcuts for modules' environment access
-  get biomeEnv() { return this.rawSettings.biomes }
-  get heightmapEnv() { return this.rawSettings.heightmap }
-  get boardEnv() { return this.rawSettings.boards }
-  get itemsEnv() { return this.rawSettings.items }
-  get debugEnv() { return this.rawSettings.debug }
+  get biomeEnv() {
+    return this.rawSettings.biomes
+  }
+  get heightmapEnv() {
+    return this.rawSettings.heightmap
+  }
+  get boardEnv() {
+    return this.rawSettings.boards
+  }
+  get itemsEnv() {
+    return this.rawSettings.items
+  }
+  get debugEnv() {
+    return this.rawSettings.debug
+  }
 
   // Helpers/utils
   getPatchSize = () => Math.pow(2, this.rawSettings.patchPowSize)
@@ -196,7 +206,7 @@ export class WorldLocals {
 
   getDistributionMapDimensions = () =>
     new Vector2(1, 1).multiplyScalar(
-      this.rawSettings.distributionMapPeriod * this.getPatchSize(),
+      this.rawSettings.distributionMapPatchRange * this.getPatchSize(),
     )
 
   getSeed = (seedName: WorldSeed) =>

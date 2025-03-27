@@ -1,12 +1,5 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
-
 import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
-import {
-  BlocksProcessing,
-  DistributionProfile,
-  ProcessingTask,
-  PseudoDistributionMap,
-} from '../index.js'
 import { asPatchBounds, asVect2, asVect3 } from '../utils/patch_chunk.js'
 import {
   BlockType,
@@ -19,8 +12,17 @@ import { WorldModules } from '../WorldModules.js'
 import { BlueNoiseParams } from '../procgen/BlueNoisePattern.js'
 
 import { GroundPatch } from './GroundPatch.js'
-import { DistributionProfiles } from './RandomDistributionMap.js'
-import { ProcessingTaskHandler, ProcessingTaskStub } from './TaskProcessing.js'
+import {
+  DistributionProfile,
+  DistributionProfiles,
+  RandomDistributionMap,
+} from './RandomDistributionMap.js'
+import {
+  ProcessingTask,
+  ProcessingTaskHandler,
+  ProcessingTaskStub,
+} from './TaskProcessing.js'
+import { BlocksProcessing } from './BlocksProcessing.js'
 
 /**
  * Calling side
@@ -162,19 +164,19 @@ type ItemsProcessingTaskHandler = ProcessingTaskHandler<
 // Defaults
 
 type ItemsProcessingDefaults = {
-  spawnMap: PseudoDistributionMap
-  itemDims: Vector3
+  spawnMap: RandomDistributionMap
+  itemsRadius: number
 }
 
 const defaultDistribution: BlueNoiseParams = {
   ...DistributionProfiles[DistributionProfile.MEDIUM],
-  minDistance: 10,
+  minDistance: 15,
 }
 
 const getItemsProcessingDefaults = (dimensions: Vector2) => {
   const res: ItemsProcessingDefaults = {
-    spawnMap: new PseudoDistributionMap(dimensions, defaultDistribution),
-    itemDims: new Vector3(10, 13, 10),
+    spawnMap: new RandomDistributionMap(dimensions, defaultDistribution),
+    itemsRadius: 10,
   }
   return res
 }
@@ -189,20 +191,28 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
     taskStub: ItemsProcessingTaskStub,
   ) => {
     // Misc utils
+    const { itemsRadius } = defaults
 
-    const getPatchBounds = (input: Vector2 | PatchKey) => {
-      const asPointBounds = (point: Vector2) => {
-        const pointBounds = new Box2(point.clone(), point.clone())
-        pointBounds.expandByScalar(1)
-        return pointBounds
+    /**
+     * @param input point, patch or bounds
+     * @returns area to query items' spawn positions
+     */
+    const getSpawnSearchArea = (input: ItemsTaskInput) => {
+      if (input instanceof Box2) {
+        return input.clone()
+      } else if (input instanceof Vector2) {
+        // build a box around local point to include neighboor patterns that could also have items overlapping with that point
+        const queriedArea = new Box2().setFromCenterAndSize(
+          input,
+          new Vector2(itemsRadius, itemsRadius).multiplyScalar(2),
+        )
+        return queriedArea
+      } else {
+        return asPatchBounds(
+          input,
+          worldLocalEnv.getPatchDimensions(),
+        ).expandByScalar(itemsRadius)
       }
-      return input instanceof Vector2
-        ? asPointBounds(input)
-        : asPatchBounds(input, worldLocalEnv.getPatchDimensions())
-    }
-
-    const parseInput = (input: ItemsTaskInput) => {
-      return input instanceof Box2 ? input.clone() : getPatchBounds(input)
     }
 
     const retrieveItemBottomBlocks = async (itemChunk: ChunkContainer) => {
@@ -390,10 +400,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
 
       // take approximative item dimension until item type is known
       const spawnedItems: Record<ItemType, Vector3[]> = {}
-      const spawnPlaces = defaults.spawnMap.querySpawnLocations(
-        patchBounds,
-        asVect2(defaults.itemDims),
-      )
+      const spawnPlaces = defaults.spawnMap.querySpawnLocations(patchBounds)
       for (const pos of spawnPlaces) {
         // console.log(pos)
         const { level, biome, landId } = groundPatch.computeGroundBlock(
@@ -420,8 +427,8 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
 
     const { processingInput, processingParams } = taskStub
     const { recipe } = processingParams
-    const patchBounds = parseInput(processingInput)
-    const spawnedItems = retrieveOvergroundItems(patchBounds, worldModules)
+    const searchedArea = getSpawnSearchArea(processingInput)
+    const spawnedItems = retrieveOvergroundItems(searchedArea, worldModules)
 
     if (recipe === ItemsTaskRecipe.SpawnedItems) {
       return spawnedItems
