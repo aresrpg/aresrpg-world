@@ -1,13 +1,18 @@
 import { Box2, Vector2 } from 'three'
-
-import {
-  BlueNoiseParams,
-  BlueNoisePattern,
-} from '../procgen/BlueNoisePattern.js'
+import PoissonDiskSampling from 'poisson-disk-sampling'
 import { asVect3, getPatchIds } from '../utils/patch_chunk.js'
 import { ItemType } from '../utils/common_types.js'
 import Alea from '../third-party/alea.js'
-import { NoiseSampler } from '../procgen/NoiseSampler.js'
+import { NoiseSampler } from './NoiseSampler.js'
+
+export type BlueNoiseParams = {
+  minDistance: number
+  maxDistance?: number
+  tries?: number
+  distanceFunction?: (point: any) => number
+  bias?: number
+  aleaSeed?: string
+}
 
 const distDefaults = {
   aleaSeed: 'treeMap',
@@ -50,10 +55,12 @@ const probabilityThreshold = Math.pow(2, 8)
  * Pseudo infinite random distribution from patch repetition
  * with independant and deterministic behavior
  */
-export class RandomDistributionMap {
+export class DistributionMap {
   patternDimension: Vector2
-  repeatablePattern: BlueNoisePattern
   densityMap: NoiseSampler
+  bounds: Box2
+  params: BlueNoiseParams
+  elements: Vector2[] = []
 
   constructor(
     dimensions: Vector2,
@@ -62,9 +69,32 @@ export class RandomDistributionMap {
     ],
   ) {
     this.patternDimension = dimensions
-    const bounds = new Box2(new Vector2(), dimensions)
-    this.repeatablePattern = new BlueNoisePattern(bounds, bNoiseParams)
+    this.bounds = new Box2(new Vector2(), dimensions)
+    this.params = bNoiseParams
     this.densityMap = new NoiseSampler(bNoiseParams.aleaSeed || '')
+    this.populateElements()
+  }
+
+  get dimensions() {
+    return this.bounds.getSize(new Vector2())
+  }
+
+  // populate with discrete elements using relative pos
+  populateElements() {
+    const { dimensions, params } = this
+    const { aleaSeed } = this.params
+    const prng = Alea(aleaSeed || '')
+    const p = new PoissonDiskSampling(
+      {
+        shape: [dimensions.x, dimensions.y],
+        ...params,
+      },
+      prng,
+    )
+    this.elements = p
+      .fill()
+      .map(point => new Vector2(point[0] as number, point[1] as number).round())
+    // this.makeSeamless()
   }
 
   spawnProbabilityEval = (pos: Vector2) => {
@@ -94,7 +124,7 @@ export class RandomDistributionMap {
         .clone()
         .translate(patternOrigin.clone().negate())
       // look for entities overlapping with searched area
-      for (const spawnLocalPos of this.repeatablePattern.elements) {
+      for (const spawnLocalPos of this.elements) {
         if (localQueriedArea.containsPoint(spawnLocalPos)) {
           const spawnPos = spawnLocalPos.clone().add(patternOrigin)
           spawnLocations.push(spawnPos)
@@ -130,6 +160,18 @@ export class RandomDistributionMap {
     return null
   }
 
+  getPatchOrigin(patchId: Vector2) {
+    return patchId.clone().multiply(this.dimensions)
+  }
+
+  toPatchLocalPos(pos: Vector2, patchId: Vector2) {
+    return pos.clone().sub(this.getPatchOrigin(patchId))
+  }
+
+  toPatchWorldPos(relativePos: Vector2, patchId: Vector2) {
+    return relativePos.clone().add(this.getPatchOrigin(patchId))
+  }
+
   // /**
   //  * Randomly spawn entites according to custom distribution
   //  */
@@ -138,6 +180,41 @@ export class RandomDistributionMap {
   //   const offset = 10
   //   return pos.x % 20 === offset && pos.y % 20 === offset
   // }
+
+  /**
+   * make seamless repeatable pattern
+   * DISABLED
+   */
+  makeSeamless() {
+    const { dimensions, params } = this
+    const radius = params.minDistance / 2
+    const edgePoints = this.elements
+      .map(point => {
+        const pointCopy = point.clone()
+        if (point.x - radius < 0) {
+          pointCopy.x += dimensions.x
+        } else if (point.x + radius > dimensions.x) {
+          pointCopy.x -= dimensions.x
+        }
+        if (point.y - radius < 0) {
+          pointCopy.y += dimensions.y
+        } else if (point.y + radius > dimensions.y) {
+          pointCopy.y -= dimensions.y
+        }
+        return pointCopy.round().equals(point) ? null : pointCopy
+      })
+      .filter(pointCopy => pointCopy)
+    edgePoints.forEach(edgePoint => edgePoint && this.elements.push(edgePoint))
+  }
+
+  // DO NOT USE SLOW
+  *iterPatchElements(patchOffset: Vector2) {
+    // relative to global pos conv
+    for (const relativePos of this.elements) {
+      const pos = this.toPatchWorldPos(relativePos, patchOffset)
+      yield pos
+    }
+  }
 }
 
 /**
