@@ -9,14 +9,14 @@ import {
   VoidItemType,
 } from '../utils/common_types.js'
 import { WorldModules } from '../WorldModules.js'
-import { BlueNoiseParams } from '../procgen/BlueNoisePattern.js'
 
 import { GroundPatch } from './GroundPatch.js'
 import {
+  BlueNoiseParams,
   DistributionProfile,
   DistributionProfiles,
-  RandomDistributionMap,
-} from './RandomDistributionMap.js'
+  DistributionMap,
+} from '../procgen/DistributionMap.js'
 import {
   ProcessingTask,
   ProcessingTaskHandler,
@@ -164,7 +164,7 @@ type ItemsProcessingTaskHandler = ProcessingTaskHandler<
 // Defaults
 
 type ItemsProcessingDefaults = {
-  spawnMap: RandomDistributionMap
+  spawnMap: DistributionMap
   itemsRadius: number
 }
 
@@ -175,7 +175,7 @@ const defaultDistribution: BlueNoiseParams = {
 
 const getItemsProcessingDefaults = (dimensions: Vector2) => {
   const res: ItemsProcessingDefaults = {
-    spawnMap: new RandomDistributionMap(dimensions, defaultDistribution),
+    spawnMap: new DistributionMap(dimensions, defaultDistribution),
     itemsRadius: 10,
   }
   return res
