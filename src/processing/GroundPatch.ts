@@ -9,7 +9,7 @@ import {
   BlockType,
 } from '../utils/common_types.js'
 import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk.js'
-import { BlockMode } from '../index.js'
+import { BlockMode, Heightmap } from '../index.js'
 import {
   Biome,
   BiomeInfluence,
@@ -73,8 +73,7 @@ export const parseGroundFlags = (rawFlags: number) => {
  */
 export class GroundPatch
   extends PatchBase<number>
-  implements PatchDataContainer
-{
+  implements PatchDataContainer {
   biomeInfluence: BiomeInfluence | PatchBoundingBiomes | undefined
   rawData: Uint32Array
   valueRange = { min: 512, max: 0 } // here elevation
@@ -102,13 +101,13 @@ export class GroundPatch
       }
       const boundsPoints = getPatchBoundingPoints(this.bounds)
       const boundsInfluences = {} as PatchBoundingBiomes
-      ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-        const boundPos = boundsPoints[key] as Vector2
-        const biomeInfluence = biome.getBiomeInfluence(asVect3(boundPos))
-        boundsInfluences[key] = biomeInfluence
-        // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-        return biomeInfluence
-      })
+        ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+          const boundPos = boundsPoints[key] as Vector2
+          const biomeInfluence = biome.getBiomeInfluence(asVect3(boundPos))
+          boundsInfluences[key] = biomeInfluence
+          // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+          return biomeInfluence
+        })
       const allEquals =
         equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
         equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
@@ -249,18 +248,18 @@ export class GroundPatch
     return this.biomeInfluence as BiomeInfluence
   }
 
-  computeGroundBlock = (blockPos: Vector3, worldInstance: WorldModules) => {
+  computeGroundBlock = (blockPos: Vector3, { heightmap, biomes }: { heightmap: Heightmap, biomes: Biome }) => {
     const biomeInfluence = this.getBlockBiome(asVect2(blockPos))
     // const biomeInfluenceBis = Biome.instance.getBiomeInfluence(blockPos)
-    const biomeType = worldInstance.biome.getBiomeType(biomeInfluence)
-    const rawVal = worldInstance.heightmap.getRawVal(blockPos)
-    const nominalConf = worldInstance.biome.getBiomeConf(
+    const biomeType = biomes.getBiomeType(biomeInfluence)
+    const rawVal = heightmap.getRawVal(blockPos)
+    const nominalConf = biomes.getBiomeConf(
       rawVal,
       biomeType,
     ) as BiomeLands
     // const confIndex = Biome.instance.getConfIndex(currLevelConf.key)
     // const confData = Biome.instance.indexedConf.get(confIndex)
-    const level = worldInstance.heightmap.getGroundLevel(
+    const level = heightmap.getGroundLevel(
       blockPos,
       rawVal,
       biomeInfluence,
@@ -274,7 +273,7 @@ export class GroundPatch
     // }
     // const pos = new Vector3(blockPos.x, level, blockPos.z)
     if (!isCavern && nominalConf.next?.data) {
-      const variation = worldInstance.biome.posRandomizer.eval(
+      const variation = biomes.posRandomizer.eval(
         blockPos.clone().multiplyScalar(50),
       ) // Math.cos(0.1 * blockPos.length()) / 100
       const min = new Vector2(nominalConf.data.x, nominalConf.data.y)
@@ -336,7 +335,7 @@ export class GroundPatch
       })
     }
 
-    this.prepare(worldModules.biome)
+    this.prepare(worldModules.biomes)
     const { valueRange } = this
     // omit margin blocks to bake them separately
     const doMarginsApart =

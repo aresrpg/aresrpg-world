@@ -13,7 +13,7 @@ import { ChunksProcessing, ChunksTask } from './ChunksProcessing.js'
 import { ProcessingState } from './TaskProcessing.js'
 
 const getTaskPatchId = (task: ChunksTask) =>
-  parsePatchKey(task.processingInput) as PatchId
+  parsePatchKey(task.processingInput) as Vector2
 
 export type PatchViewRanges = {
   near: number

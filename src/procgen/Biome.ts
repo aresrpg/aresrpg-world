@@ -4,12 +4,10 @@ import { Vector2, Vector3, Vector3Like } from 'three'
 // import {  smoothstep as smoothStep } from 'three/src/math/MathUtils'
 import { LinkedList } from '../datacontainers/LinkedList.js'
 import {
-  BiomeLandKey,
   BiomesConf,
   BiomesRawConf,
   LandConfigFields,
   BiomeLands,
-  ItemType,
 } from '../utils/common_types.js'
 import { clamp, roundToDec, smoothStep } from '../utils/math_utils.js'
 import {
@@ -124,29 +122,6 @@ const BiomesMapping: Record<HeatLevel, Record<RainLevel, BiomeType>> = {
 }
 
 /**
- * weightedFloraTypes: weighted item types which are supposed to spawn
- * at given location
- */
-const expandWeightedFloraTypes = (
-  weightedFloraTypes: Record<ItemType, number>,
-) => {
-  const floraTypes: ItemType[] = []
-  if (weightedFloraTypes) {
-    Object.entries(weightedFloraTypes).forEach(([itemType, typeWeight]) => {
-      while (typeWeight > 0) {
-        floraTypes.push(itemType)
-        typeWeight--
-      }
-    })
-  }
-  return floraTypes
-}
-
-type PreprocessedLandConf = {
-  floraItems: ItemType[]
-}
-
-/**
  *  FIRST SEGMENT | TRANSIT | CENTRAL SEGMENT | TRANSIT | LAST SEGMENT
  * 0             0.3
  * @returns
@@ -189,7 +164,6 @@ export class Biome {
    * val > hight => HIGH = 1
    */
   steps
-  preprocessed = new Map<BiomeLandKey, PreprocessedLandConf>()
   biomeEnv: BiomesEnvSettings
 
   constructor(biomeEnv: BiomesEnvSettings, worldSeeds: WorldSeeds) {
@@ -325,25 +299,6 @@ export class Biome {
     return biomeContribs
   }
 
-  preprocessLandConfig(
-    biomeType: BiomeType,
-    biomeConfig: LinkedList<LandConfigFields>,
-  ) {
-    const configs = biomeConfig.first().forwardIter()
-    for (const conf of configs) {
-      const landConf = conf.data
-      const confKey = biomeType + '_' + landConf.key
-      // console.log(confKey)
-      const floraItems = landConf.flora
-        ? expandWeightedFloraTypes(landConf.flora)
-        : []
-      this.preprocessed.set(confKey, {
-        floraItems,
-      })
-      // this.indexedConf.set(conf.data.key, conf)
-    }
-  }
-
   parseBiomesConfig(biomesRawConf: BiomesRawConf) {
     // complete missing data
     for (const [biomeType, biomeLands] of Object.entries(biomesRawConf)) {
@@ -356,7 +311,6 @@ export class Biome {
         MappingRangeSorter,
       )
       this.mappings[biomeType as BiomeType] = mappingRanges
-      this.preprocessLandConfig(biomeType as BiomeType, mappingRanges)
     }
   }
 
@@ -433,12 +387,6 @@ export class Biome {
       0,
     )
     return blockLevel
-  }
-
-  getBiomeLandConf = (biomeType: BiomeType, landId: string) => {
-    const confKey = biomeType + '_' + landId
-    const biomeConf = this.preprocessed.get(confKey)
-    return biomeConf
   }
 
   getBiomeConf = (rawVal: number, biomeType: BiomeType) => {

@@ -2,12 +2,20 @@ import { Box2, Box3, Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 
 import { ChunkKey, PatchId, PatchKey } from './common_types.js'
 
-const asVect2 = (v3: Vector3) => {
+const asVect2 = (v3: Vector3Like) => {
   return new Vector2(v3.x, v3.z)
 }
 
-const asVect3 = (v2: Vector2, yVal = 0) => {
+const asVect3 = (v2: Vector2Like, yVal = 0) => {
   return new Vector3(v2.x, yVal, v2.y)
+}
+
+const asVect2Like = ({ x, z }: Vector3Like) => {
+  return { x, y: z }
+}
+
+const asVect3Like = ({ x, y }: Vector2Like, yVal = 0) => {
+  return { x, y: yVal, z: y }
 }
 
 const asBox2 = (box3: Box3) => {
@@ -75,10 +83,10 @@ const parseBox3Stub = (stub: Box3) => {
 const parseThreeStub = (stub: any) => {
   return stub
     ? parseBox3Stub(stub) ||
-        parseVect3Stub(stub) ||
-        parseBox2Stub(stub) ||
-        parseVect2Stub(stub) ||
-        stub
+    parseVect3Stub(stub) ||
+    parseBox2Stub(stub) ||
+    parseVect2Stub(stub) ||
+    stub
     : stub
 }
 
@@ -127,16 +135,11 @@ const getUpperScalarId = (scalarValue: number, size: number) => {
   return scalarId
 }
 
-const getPatchId = (position: Vector2, patchSize: Vector2) => {
-  const patchId = position.clone().divide(patchSize).floor()
+const getPatchId = (position: Vector2 | Vector2Like, patchSize: Vector2) => {
+  const patchId = position instanceof Vector2 ?
+    position.clone().divide(patchSize).floor() :
+    { x: getScalarId(position.x, patchSize.x), y: getScalarId(position.y, patchSize.y) }
   return patchId
-}
-
-const patchRangeFromBounds = (bounds: Box2, patchDims: Vector2) => {
-  const rangeMin = getPatchId(bounds.min, patchDims)
-  const rangeMax = getPatchId(bounds.max, patchDims) // patchUpperId(bounds.max, patchDims) // .addScalar(1)
-  const patchRange = new Box2(rangeMin, rangeMax)
-  return patchRange
 }
 
 const patchRangeFromMapCenterRad = (
@@ -162,6 +165,13 @@ const patchIndexFromMapRange = (mapRange: Box2) => {
     }
   }
   return patchIndex
+}
+
+const patchRangeFromBounds = (bounds: Box2, patchDims: Vector2) => {
+  const rangeMin = getPatchId(bounds.min, patchDims)
+  const rangeMax = getPatchId(bounds.max, patchDims) // patchUpperId(bounds.max, patchDims) // .addScalar(1)
+  const patchRange = new Box2(rangeMin, rangeMax)
+  return patchRange
 }
 
 const getPatchIds = (bounds: Box2, patchDims: Vector2) => {
@@ -199,11 +209,11 @@ const parseChunkKey = (chunkKey: ChunkKey): Vector3 | undefined => {
   return undefined
 }
 
-const serializeChunkId = (chunkId: Vector3) => {
+const serializeChunkId = (chunkId: Vector3Like) => {
   return `${chunkId.x}_${chunkId.y}_${chunkId.z}`
 }
 
-const asChunkBounds = (chunkKey: string, chunkDims: Vector3) => {
+const asChunkBounds = (chunkKey: string, chunkDims: Vector3Like) => {
   const chunkId = parseChunkKey(chunkKey)
   const bbox = new Box3()
   if (chunkId) {
@@ -229,6 +239,8 @@ export {
   parseThreeStub,
   asVect2,
   asVect3,
+  asVect2Like,
+  asVect3Like,
   asBox2,
   asBox3,
   parsePatchKey,

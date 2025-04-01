@@ -1,4 +1,4 @@
-import { WorldLocals, WorldLocalSettings } from './config/WorldEnv.js'
+import { WorldLocals, WorldLocalSettings, WorldSeed } from './config/WorldEnv.js'
 import { ItemsInventory } from './factory/ItemsFactory.js'
 import {
   BlocksTask,
@@ -19,7 +19,10 @@ import {
 } from './processing/TaskProcessing.js'
 import { Biome } from './procgen/Biome.js'
 import { DensityVolume } from './procgen/DensityVolume.js'
+// import { DistributionLayers } from './procgen/DistributionLayers.js'
 import { Heightmap } from './procgen/Heightmap.js'
+import { NoiseSampler } from './procgen/NoiseSampler.js'
+import { ItemsDistribution } from './procgen/ItemsDistribution.js'
 
 /**
  * All world modules required to compute world objects
@@ -29,10 +32,12 @@ export type TaskHandlers = Record<ProcessingTaskHandlerId, GenericTaskHandler>
 
 export type WorldModules = {
   worldLocalEnv: WorldLocals
-  biome: Biome
+  // distributionLayers: DistributionLayers
+  biomes: Biome
   heightmap: Heightmap
   densityVolume: DensityVolume
   itemsInventory: ItemsInventory
+  itemsDistribution: ItemsDistribution
   taskHandlers: TaskHandlers
 }
 
@@ -42,17 +47,26 @@ export const createWorldModules = (
 ) => {
   const worldLocalEnv = new WorldLocals().fromStub(worldLocalSettings)
   const worldSeeds = worldLocalEnv.rawSettings.seeds
-  const biome = new Biome(worldLocalEnv.biomeEnv, worldSeeds)
-  const heightmap = new Heightmap(biome, worldLocalEnv.heightmapEnv, worldSeeds)
+
+  const biomes = new Biome(worldLocalEnv.biomeEnv, worldSeeds)
+  const heightmap = new Heightmap(biomes, worldLocalEnv.heightmapEnv, worldSeeds)
   const densityVolume = new DensityVolume(worldSeeds)
   const itemsInventory = new ItemsInventory(worldLocalEnv.itemsEnv)
+  // const distributionLayers = new DistributionLayers(worldLocalEnv)
+  const itemsDistribution = new ItemsDistribution(worldLocalEnv, heightmap, biomes)
+  const spriteDistribution = new NoiseSampler(
+    worldLocalEnv.getSeed(WorldSeed.Sprite),
+    'sprite_distribution',
+  )
   // console.log('world modules initialized')
   const worldModules: WorldModules = {
+    worldLocalEnv,
+    // distributionLayers,
     heightmap,
-    biome,
+    biomes,
     densityVolume,
     itemsInventory,
-    worldLocalEnv: worldLocalEnv,
+    itemsDistribution,
     taskHandlers: {},
   }
   populateTaskHandlers(worldModules, processingContext)

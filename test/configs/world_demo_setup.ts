@@ -19,6 +19,7 @@ const restoreOriginalSeeds = (worldSeeds: WorldSeeds) => {
   worldSeeds[WorldSeed.Heatmap] = 'heatmap'
   worldSeeds[WorldSeed.Rainmap] = 'rainmap'
   worldSeeds[WorldSeed.Density] = 'Caverns'
+  worldSeeds[WorldSeed.Spawn] = 'treemap'
 }
 
 export const getWorldDemoEnv = () => {
