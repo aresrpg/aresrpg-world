@@ -1,77 +1,42 @@
 import { Box2, Vector2 } from 'three'
 import PoissonDiskSampling from 'poisson-disk-sampling'
-import { asVect3, getPatchIds } from '../utils/patch_chunk.js'
-import { ItemType } from '../utils/common_types.js'
+import { getPatchIds } from '../utils/patch_chunk.js'
 import Alea from '../third-party/alea.js'
-import { NoiseSampler } from './NoiseSampler.js'
+import { ItemSize } from '../factory/ItemsFactory.js'
 
-export type BlueNoiseParams = {
+
+export type DistributionParams = {
   minDistance: number
   maxDistance?: number
   tries?: number
   distanceFunction?: (point: any) => number
   bias?: number
-  aleaSeed?: string
 }
 
-const distDefaults = {
-  aleaSeed: 'treeMap',
-  maxDistance: 100,
-  tries: 20,
+export type DistributionMapElement = {
+  pos: Vector2,
+  spawnableSizes: ItemSize[]
 }
 
-export enum DistributionProfile {
-  SMALL,
-  MEDIUM,
-  LARGE,
-}
-
-// export type DistributionParams = {
-//   noise: BlueNoiseParams,
-//   period: number
-// }
-
-export const DistributionProfiles: Record<
-  DistributionProfile,
-  BlueNoiseParams
-> = {
-  [DistributionProfile.SMALL]: {
-    ...distDefaults,
-    minDistance: 4,
-  },
-  [DistributionProfile.MEDIUM]: {
-    ...distDefaults,
-    minDistance: 8,
-  },
-  [DistributionProfile.LARGE]: {
-    ...distDefaults,
-    minDistance: 16,
-  },
-}
-
-const probabilityThreshold = Math.pow(2, 8)
 
 /**
  * Pseudo infinite random distribution from patch repetition
  * with independant and deterministic behavior
  */
-export class DistributionMap {
+export class DiscreteDistributionMap {
   patternDimension: Vector2
-  densityMap: NoiseSampler
+  // densityMap: NoiseSampler
   bounds: Box2
-  params: BlueNoiseParams
-  elements: Vector2[] = []
+  params: DistributionParams
+  elements: DistributionMapElement[] = []
+  seed
 
-  constructor(
-    dimensions: Vector2,
-    bNoiseParams: BlueNoiseParams = DistributionProfiles[
-      DistributionProfile.MEDIUM
-    ],
-  ) {
+  constructor(dimensions: Vector2, params: DistributionParams, seed: string) {
     this.patternDimension = dimensions
     this.bounds = new Box2(new Vector2(), dimensions)
-    this.params = bNoiseParams
-    this.densityMap = new NoiseSampler(bNoiseParams.aleaSeed || '')
+    this.params = params
+    this.seed = seed
+    // this.densityMap = new NoiseSampler(params.seed || '')
     this.populateElements()
   }
 
@@ -81,9 +46,8 @@ export class DistributionMap {
 
   // populate with discrete elements using relative pos
   populateElements() {
-    const { dimensions, params } = this
-    const { aleaSeed } = this.params
-    const prng = Alea(aleaSeed || '')
+    const { dimensions, params, seed } = this
+    const prng = Alea(seed || '')
     const p = new PoissonDiskSampling(
       {
         shape: [dimensions.x, dimensions.y],
@@ -93,17 +57,16 @@ export class DistributionMap {
     )
     this.elements = p
       .fill()
-      .map(point => new Vector2(point[0] as number, point[1] as number).round())
+      .map(point => {
+        const pos = new Vector2(point[0] as number, point[1] as number).round()
+        const spawnableSizes = [ItemSize.MEDIUM]
+        const mapElement: DistributionMapElement = {
+          pos,
+          spawnableSizes
+        }
+        return mapElement
+      })
     // this.makeSeamless()
-  }
-
-  spawnProbabilityEval = (pos: Vector2) => {
-    const maxCount = 1 // 16 * Math.round(Math.exp(10))
-    const val = this.densityMap?.eval(asVect3(pos))
-    const adjustedVal = val
-      ? (16 * Math.round(Math.exp((1 - val) * 10))) / maxCount
-      : 0
-    return adjustedVal
   }
 
   /**
@@ -111,10 +74,10 @@ export class DistributionMap {
    * @param searchedArea tested point
    * @param itemDimension max dimensions of items likely to overlap tested point
    */
-  querySpawnLocations(searchedArea: Box2) {
+  queryMapElements(searchedArea: Box2) {
     // get all patterns that can have spawn position within queriedArea
     const patternIds = getPatchIds(searchedArea, this.patternDimension)
-    const spawnLocations: Vector2[] = []
+    const mapElements: DistributionMapElement[] = []
     for (const patternId of patternIds) {
       // instead of translatting each base elements into pattern's coordinates,
       // reverse translate queried region in base referential then for each point match,
@@ -124,51 +87,29 @@ export class DistributionMap {
         .clone()
         .translate(patternOrigin.clone().negate())
       // look for entities overlapping with searched area
-      for (const spawnLocalPos of this.elements) {
-        if (localQueriedArea.containsPoint(spawnLocalPos)) {
-          const spawnPos = spawnLocalPos.clone().add(patternOrigin)
-          spawnLocations.push(spawnPos)
+      for (const localElement of this.elements) {
+        if (localQueriedArea.containsPoint(localElement.pos)) {
+          const { } = localElement
+          const spawnElement: DistributionMapElement = {
+            pos: localElement.pos.clone().add(patternOrigin),
+            spawnableSizes: [...localElement.spawnableSizes]
+          }
+          mapElements.push(spawnElement)
         }
       }
     }
-    return spawnLocations
-  }
-
-  getSpawnedItem(
-    itemPos: Vector2,
-    spawnableItems: ItemType[],
-    spawnProbabilityEval = this.spawnProbabilityEval,
-  ) {
-    // const spawnedItems: Record<ItemType, Vector2[]> = {}
-    const itemsCount = spawnableItems.length
-    // spawnablePlaces.forEach(itemPos => {
-    const itemId = itemPos.x + ':' + itemPos.y
-    const prng = Alea(itemId)
-    const rand = prng()
-    const hasSpawned =
-      rand * spawnProbabilityEval(itemPos) < probabilityThreshold
-    if (hasSpawned) {
-      const itemIndex = Math.round(rand * itemsCount * 10)
-      const itemKey = spawnableItems[itemIndex % itemsCount] as ItemType
-      // if (itemKey !== undefined) {
-      //   spawnedItems[itemKey] = spawnedItems[itemKey] || [];
-      //   (spawnedItems[itemKey] as Vector2[]).push(itemPos)
-      // }
-      return itemKey
-    }
-    // })
-    return null
+    return mapElements
   }
 
   getPatchOrigin(patchId: Vector2) {
     return patchId.clone().multiply(this.dimensions)
   }
 
-  toPatchLocalPos(pos: Vector2, patchId: Vector2) {
+  toLocalPos(pos: Vector2, patchId: Vector2) {
     return pos.clone().sub(this.getPatchOrigin(patchId))
   }
 
-  toPatchWorldPos(relativePos: Vector2, patchId: Vector2) {
+  toWorldPos(relativePos: Vector2, patchId: Vector2) {
     return relativePos.clone().add(this.getPatchOrigin(patchId))
   }
 
@@ -189,7 +130,8 @@ export class DistributionMap {
     const { dimensions, params } = this
     const radius = params.minDistance / 2
     const edgePoints = this.elements
-      .map(point => {
+      .map(element => {
+        const point = element.pos
         const pointCopy = point.clone()
         if (point.x - radius < 0) {
           pointCopy.x += dimensions.x
@@ -201,7 +143,7 @@ export class DistributionMap {
         } else if (point.y + radius > dimensions.y) {
           pointCopy.y -= dimensions.y
         }
-        return pointCopy.round().equals(point) ? null : pointCopy
+        return pointCopy.round().equals(point) ? null : { ...element, pos: pointCopy }
       })
       .filter(pointCopy => pointCopy)
     edgePoints.forEach(edgePoint => edgePoint && this.elements.push(edgePoint))
@@ -210,9 +152,10 @@ export class DistributionMap {
   // DO NOT USE SLOW
   *iterPatchElements(patchOffset: Vector2) {
     // relative to global pos conv
-    for (const relativePos of this.elements) {
-      const pos = this.toPatchWorldPos(relativePos, patchOffset)
-      yield pos
+    for (const element of this.elements) {
+      const localPos = element.pos
+      const worldPos = this.toWorldPos(localPos, patchOffset)
+      yield worldPos
     }
   }
 }

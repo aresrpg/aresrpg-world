@@ -23,8 +23,8 @@ export type ChunkMetadata = {
   isEmpty?: boolean
 }
 
-export type ChunkStub = {
-  metadata: ChunkMetadata
+export type ChunkStub<T> = {
+  metadata: T
   rawdata: Uint16Array
 }
 
@@ -64,7 +64,7 @@ export class ChunkContainer {
     return this.chunkId
   }
 
-  set id(chunkId: Vector3 | undefined) {
+  set id(chunkId: ChunkId | undefined) {
     this.chunkId = chunkId
     this.chunkKey = chunkId ? serializeChunkId(chunkId) : ''
   }
@@ -345,7 +345,7 @@ export class ChunkContainer {
     this.rawData.set(buffer, buffIndex)
   }
 
-  fromStub(chunkStub: ChunkStub) {
+  fromStub(chunkStub: ChunkStub<ChunkMetadata>) {
     const { chunkKey, margin } = chunkStub.metadata
     const bounds = parseThreeStub(chunkStub.metadata.bounds) as Box3
     this.chunkKey = chunkKey || this.chunkKey
@@ -360,7 +360,7 @@ export class ChunkContainer {
     const isEmpty = this.isEmptySafe()
     const { chunkKey, bounds, margin, rawData } = this
     const metadata = { chunkKey, bounds, margin, isEmpty }
-    const chunkStub: ChunkStub = { metadata, rawdata: rawData }
+    const chunkStub: ChunkStub<ChunkMetadata> = { metadata, rawdata: rawData }
     // const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
     return chunkStub
   }
@@ -378,7 +378,7 @@ export class ChunkContainer {
     if (metadataContent && rawdataContent) {
       const metadata = JSON.parse(new TextDecoder().decode(metadataContent))
       const rawdata = new Uint16Array(rawdataContent?.buffer || [])
-      const stub: ChunkStub = { metadata, rawdata }
+      const stub: ChunkStub<ChunkMetadata> = { metadata, rawdata }
       return this.fromStub(stub)
     }
     return null
@@ -412,7 +412,7 @@ export class ChunkContainer {
           ? new Uint16Array(rawdataContent.buffer)
           : new Uint16Array(0) // Ensure empty rawdata if not provided
       // repopulate object
-      const stub: ChunkStub = { metadata, rawdata }
+      const stub: ChunkStub<ChunkMetadata> = { metadata, rawdata }
       return this.fromStub(stub)
     } catch (error) {
       console.error('Error occured during blob decompression:', error)

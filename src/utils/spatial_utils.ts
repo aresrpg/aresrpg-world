@@ -8,7 +8,9 @@ import {
   CubeOffsetId,
   PatchBoundingPoints,
   CubeSides,
+  PatchId,
 } from './common_types.js'
+import { parseThreeStub } from './patch_chunk.js'
 
 const patchSidesMapping: Record<PatchSideId, PatchOffsetId> = {
   [PatchSideId.LEFT_EDGE]: PatchOffsetId.XmY0,
@@ -60,14 +62,14 @@ const getPatchSidesOffsetIds = (patchSides = PatchSides.ALL) =>
   getPatchSides(patchSides).map(patchSideId => patchSidesMapping[patchSideId])
 
 export const getPatchNeighbours = (
-  patchId: Vector2,
+  patchId: PatchId,
   patchSides = PatchSides.ALL,
 ): Vector2[] => {
   const offsetIds = getPatchSidesOffsetIds(patchSides)
   const neighboursOffsets = offsetIds.map(
     offsetId => patchOffsetsMapping[offsetId],
   )
-  return neighboursOffsets.map(offset => patchId.clone().add(offset))
+  return neighboursOffsets.map(offset => parseThreeStub(patchId).add(offset))
 }
 
 // rename as getPatchCorners?

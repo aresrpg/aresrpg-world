@@ -1,4 +1,4 @@
-import { ChunkStub } from '../../src/datacontainers/ChunkContainer.js'
+import { ChunkMetadata, ChunkStub } from '../../src/datacontainers/ChunkContainer.js'
 import { chunksFromCompressedBlob } from '../../src/index.js'
 
 /**
@@ -6,7 +6,7 @@ import { chunksFromCompressedBlob } from '../../src/index.js'
  */
 export const chunksWsClient = (
   wsUrl: string,
-  onChunkReceived: (chunkStub: ChunkStub) => any,
+  onChunkReceived: (chunkStub: ChunkStub<ChunkMetadata>) => any,
 ) => {
   // to replace onChunkReceived arg
   // const onChunkReceivedRef = {

@@ -33,7 +33,7 @@ export class EmptyChunk extends ChunkContainer {
     this.fromKey(chunkKey, chunkDim)
   }
 
-  async bake() {}
+  async bake() { }
 }
 
 export class GroundChunk extends ChunkContainer {
@@ -61,10 +61,11 @@ export class GroundChunk extends ChunkContainer {
     //   : BlockMode.REGULAR
     const groundSurface = blockType // this.dataEncoder(blockType, blockMode)
     const undergroundLayer = landConf.subtype || BlockType.BEDROCK // this.dataEncoder(landConf.subtype || BlockType.BEDROCK)
+    const topLevel = block.data.level + 1
     // generate ground buffer
-    const buffSize = clamp(block.data.level - ymin, 0, ymax - ymin)
+    const buffSize = clamp(topLevel - ymin, 0, ymax - ymin)
     if (buffSize > 0) {
-      const groundBuffer = new Uint16Array(block.data.level - ymin)
+      const groundBuffer = new Uint16Array(topLevel - ymin)
       // fill with bedrock first
       groundBuffer.fill(
         biomeType === BiomeType.Arctic ? BlockType.ICE : BlockType.BEDROCK,
@@ -74,8 +75,10 @@ export class GroundChunk extends ChunkContainer {
         undergroundLayer,
         groundBuffer.length - (undegroundDepth + 1),
       )
-      // finish with ground surface block
-      groundBuffer[groundBuffer.length - 1] = groundSurface
+      // ground surface block
+      groundBuffer[groundBuffer.length - 2] = groundSurface
+      // finish with sprite block 
+      groundBuffer[groundBuffer.length - 1] = (block.pos.x % 4 === 0 && block.pos.z % 4 === 0) ? BlockType.ICE : BlockType.NONE
       const chunkBuffer: ChunkBuffer = {
         pos: asVect2(blockLocalPos),
         content: groundBuffer.slice(0, buffSize),
@@ -109,7 +112,7 @@ export class GroundChunk extends ChunkContainer {
         block,
         ymin,
         ymax,
-        worldModules.biome,
+        worldModules.biomes,
         worldLocalEnv.debugEnv,
       )
       if (groundBuff) {

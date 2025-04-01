@@ -97,7 +97,7 @@ export class Heightmap {
       initialVal,
       MODULATION_THRESHOLD,
     )
-    blockPos.y = Math.floor(finalVal * 255)
-    return blockPos.y
+    // blockPos.y = Math.floor(finalVal * 255)
+    return Math.floor(finalVal * 255)
   }
 }

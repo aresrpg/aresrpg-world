@@ -3,6 +3,8 @@ import { Vector2, Vector3 } from 'three'
 import { ProcItemConf } from '../tools/ProceduralGenerators.js'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader.js'
 import { BiomesRawConf, BlockType, ItemType } from '../utils/common_types.js'
+import { DistributionParams } from '../procgen/DiscreteDistributionMap.js'
+import { ItemSize } from '../factory/ItemsFactory.js'
 
 export enum WorldSeed {
   Global = 'global',
@@ -13,7 +15,11 @@ export enum WorldSeed {
   RandomPos = 'random_pos',
   Spawn = 'spawn',
   Density = 'density',
+  Sprite = 'sprite',
 }
+
+const WORLD_FALLBACK_SEED = 'world_seed'
+// const WORLD_DEFAULT_SEED = 'world_seed'
 
 export type WorldSeeds = Partial<Record<WorldSeed, string>>
 
@@ -65,23 +71,52 @@ export type ItemsEnv = {
   proceduralConfigs: Record<ItemType, ProcItemConf>
 }
 
+type DistributionProfileParams = DistributionParams & {
+  maxElementSize: number
+}
+
+type DistributionProfiles = Record<ItemSize, DistributionProfileParams>
+
+const populateDistributionProfiles = () => {
+  const distributionProfiles: DistributionProfiles = {
+    [ItemSize.SMALL]: {
+      maxDistance: 100,
+      tries: 20,
+      minDistance: 4,
+      maxElementSize: 8
+    },
+    [ItemSize.MEDIUM]: {
+      maxDistance: 100,
+      tries: 20,
+      minDistance: 8,
+      maxElementSize: 16
+    },
+    [ItemSize.LARGE]: {
+      maxDistance: 100,
+      tries: 20,
+      minDistance: 16,
+      maxElementSize: 32
+    }
+  }
+  return distributionProfiles
+}
+
+
 export const getWorldSeed = (worldSeeds: WorldSeeds, seedName: WorldSeed) => {
-  const seed = worldSeeds[seedName] || worldSeeds[WorldSeed.Global]
+  const seed = worldSeeds[seedName] || worldSeeds[WorldSeed.Global] || WORLD_FALLBACK_SEED
   // console.log(`${seedName}: ${seed}`)
   return seed
 }
 export type WorldLocalSettings = {
   seeds: WorldSeeds
 
-  patchPowSize: number // as a power of two
-  // max cache radius as a power of two
-  cachePowLimit: number // 4 => 16 patches radius
-  distributionMapPatchRange: number
-
-  // in patch unit
-  patchViewRanges: PatchViewRanges
+  distribution: {
+    mapPatchRange: number
+    profiles: DistributionProfiles
+  }
 
   chunks: {
+    powSize: number // as a power of two
     verticalRange: ChunksVerticalRange
   }
 
@@ -96,6 +131,10 @@ export type WorldLocalSettings = {
     thickness: number
   }
 
+  // cache: {
+  //   patchCountRadius: number, // max cache radius in patch units, 
+  // },
+
   debug: DebugEnvSettings
 }
 
@@ -103,21 +142,17 @@ export class WorldLocals {
   // export const getWorldEnv = () => {
   rawSettings: WorldLocalSettings = {
     seeds: {
-      [WorldSeed.Global]: 'world',
+      [WorldSeed.Global]: WORLD_FALLBACK_SEED,
     },
 
-    patchPowSize: 6, // as a power of two
-    // max cache radius as a power of two
-    cachePowLimit: 2, // 4 => 16 patches radius
-    distributionMapPatchRange: 4, // in number of patches
-
-    // in patch unit
-    patchViewRanges: {
-      near: 4, // undeground view dist
-      far: 8, // ground surface view dist
+    distribution: {
+      mapPatchRange: 4, // extent of distribution map repeated pattern in patch units
+      profiles: populateDistributionProfiles()
     },
 
     chunks: {
+      powSize: 6,
+      // idRange
       verticalRange: {
         bottomId: 0,
         topId: 5,
@@ -153,6 +188,10 @@ export class WorldLocals {
       thickness: 3,
     },
 
+    // cache: {
+    //   patchCountRadius: 16, // 4 => 16 patches radius
+    // },
+
     debug: {
       patch: {
         borderHighlightColor: BlockType.NONE,
@@ -184,8 +223,7 @@ export class WorldLocals {
   }
 
   // Helpers/utils
-  getPatchSize = () => Math.pow(2, this.rawSettings.patchPowSize)
-  getCacheLimit = () => Math.pow(2, this.rawSettings.cachePowLimit)
+  getPatchSize = () => Math.pow(2, this.rawSettings.chunks.powSize)
   getPatchDimensions = () =>
     new Vector2(this.getPatchSize(), this.getPatchSize())
 
@@ -194,20 +232,18 @@ export class WorldLocals {
 
   getChunksVerticalRange = () => this.rawSettings.chunks.verticalRange
 
-  getNearViewDist = () =>
-    this.rawSettings.patchViewRanges.near * this.getPatchSize()
-
-  getFarViewDist = () =>
-    this.rawSettings.patchViewRanges.far * this.getPatchSize()
-
   getSeaLevel = () => this.rawSettings.biomes.seaLevel
   setSeaLevel = (seaLevel: number) =>
     (this.rawSettings.biomes.seaLevel = seaLevel)
 
   getDistributionMapDimensions = () =>
     new Vector2(1, 1).multiplyScalar(
-      this.rawSettings.distributionMapPatchRange * this.getPatchSize(),
+      this.rawSettings.distribution.mapPatchRange * this.getPatchSize(),
     )
+
+  getDistributionProfile = (type: ItemSize) => {
+    return this.rawSettings.distribution.profiles[type]
+  }
 
   getSeed = (seedName: WorldSeed) =>
     getWorldSeed(this.rawSettings.seeds, seedName)

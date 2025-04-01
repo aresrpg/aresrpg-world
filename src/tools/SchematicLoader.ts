@@ -1,8 +1,8 @@
 import { Box3, Vector3 } from 'three'
 
 import { NBTReader } from '../third-party/nbt_custom.js'
-import { ChunkContainer } from '../datacontainers/ChunkContainer.js'
 import { BlockType } from '../utils/common_types.js'
+import { ItemChunk } from '../factory/ItemsFactory.js'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
 
@@ -81,7 +81,7 @@ export class SchematicLoader {
     const orig = new Vector3(0, 0, 0)
     const end = orig.clone().add(dims)
     const bbox = new Box3(orig, end)
-    const chunkContainer = new ChunkContainer(bbox)
+    const chunkContainer = new ItemChunk(bbox)
 
     for (let y = 0; y < schemBlocks.length; y++) {
       for (let x = 0; x < schemBlocks[y].length; x++) {

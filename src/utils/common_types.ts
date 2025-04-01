@@ -1,4 +1,4 @@
-import { Vector2, Vector3 } from 'three'
+import { Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 
 import { GroundBlockData } from '../processing/GroundPatch.js'
 import { BiomeType } from '../procgen/Biome.js'
@@ -36,6 +36,12 @@ export type BlockData = {
   level: number
   type: BlockType
   mode?: BlockMode
+}
+
+export type BlockRawData = {
+  biome: BiomeType,
+  landIndex: number,
+  level: number
 }
 
 export type ItemType = string
@@ -253,9 +259,9 @@ export type ProcLayerExtCfg = {
 }
 
 export type PatchKey = string
-export type PatchId = Vector2
+export type PatchId = Vector2Like
 export type ChunkKey = string
-export type ChunkId = Vector3
+export type ChunkId = Vector3Like
 
 export type PatchIndex<T> = Record<PatchKey, T>
 export type ChunkIndex<T> = Record<ChunkKey, T>

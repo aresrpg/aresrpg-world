@@ -4,7 +4,7 @@ import {
   serializeChunkId,
 } from '../utils/patch_chunk.js'
 import { PatchId, PatchKey } from '../utils/common_types.js'
-import { ChunkContainer, ChunkStub } from '../datacontainers/ChunkContainer.js'
+import { ChunkContainer, ChunkMetadata, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory.js'
 import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
 import { WorldModules } from '../WorldModules.js'
@@ -28,7 +28,7 @@ export enum ChunksProcessingRange {
 }
 
 export type ChunksProcessingInput = PatchKey
-export type ChunksProcessingOutput = ChunkStub[]
+export type ChunksProcessingOutput = ChunkStub<ChunkMetadata>[]
 export type ChunksProcessingParams = {
   skipEntities?: boolean
   chunksRange?: ChunksProcessingRange
@@ -133,7 +133,7 @@ type ChunksTaskStub = ProcessingTaskStub<
 type ChunksTaskHandler = ProcessingTaskHandler<
   ChunksProcessingInput,
   ChunksProcessingParams,
-  ChunkStub[] | Blob
+  ChunkStub<ChunkMetadata>[] | Blob
 >
 
 export const createChunksTaskHandler = (worldModules: WorldModules) => {
