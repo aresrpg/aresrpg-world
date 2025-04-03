@@ -24,14 +24,15 @@ import { SpawnedElement } from '../procgen/ItemsDistribution.js'
  */
 
 export enum ItemsTaskRecipe {
-  SpawnedElements = 'SpawnedElements',
-  SpawnedChunks = 'SpawnedChunks',
-  MergedChunk = 'MergedChunk',
-  // IsolatedPointBlocks = 'IsolatedPointBlocks',
-  // PointPeakBlock = 'PointPeakBlock',
+  PatchSpawnedElements = 'PatchSpawnedElements',
+  PatchIndividualChunks = 'PatchIndividualChunks',
+  PatchMergedChunk = 'PatchMergedChunk',
+  PointsMergedChunk = 'PatchMergedChunk',
+  // PointAllBlocks = 'PointAllBlocks',
+  // PointHighestBlock = 'PointHighestBlock',
 }
 
-export type ItemsTaskInput = Vector2 | Box2 | PatchKey
+export type ItemsTaskInput = Box2 | PatchKey | Vector2[]
 export type ItemsTaskOutput = ChunkContainer | ChunkContainer[]
 export type ItemsTaskParams = {
   recipe: ItemsTaskRecipe,
@@ -50,11 +51,11 @@ export class ItemsTask extends ProcessingTask<
     console.log(`${this.processingInput}`)
     console.log(rawTaskOutput)
     switch (recipe) {
-      case ItemsTaskRecipe.SpawnedChunks:
+      case ItemsTaskRecipe.PatchIndividualChunks:
         return (rawTaskOutput as ChunkStub<ChunkMetadata>[]).map(stub =>
           new ChunkContainer().fromStub(stub),
         )
-      case ItemsTaskRecipe.MergedChunk:
+      case ItemsTaskRecipe.PatchMergedChunk:
         return new ChunkContainer().fromStub(rawTaskOutput as ChunkStub<ChunkMetadata>)
       default:
         return rawTaskOutput
@@ -74,12 +75,16 @@ export class ItemsTask extends ProcessingTask<
    * Direct access to most common tasks, for further customization, adjust processing params
    */
 
-  get bakeIndividualChunks() {
-    return this.factory(ItemsTaskRecipe.SpawnedChunks)
+  get patchIndividualChunks() {
+    return this.factory(ItemsTaskRecipe.PatchIndividualChunks)
   }
 
-  get mergeIndividualChunks() {
-    return this.factory(ItemsTaskRecipe.MergedChunk)
+  get patchMergedChunk() {
+    return this.factory(ItemsTaskRecipe.PatchMergedChunk)
+  }
+
+  get pointsMergedChunk() {
+    return this.factory(ItemsTaskRecipe.PointsMergedChunk)
   }
 
   // get isolatedPointBlocks() {
@@ -102,12 +107,16 @@ export class ItemsTask extends ProcessingTask<
     return task
   }
 
-  static get bakeIndividualChunks() {
-    return this.factory(ItemsTaskRecipe.SpawnedChunks)
+  static get patchIndividualChunks() {
+    return this.factory(ItemsTaskRecipe.PatchIndividualChunks)
   }
 
-  static get mergeIndividualChunks() {
-    return this.factory(ItemsTaskRecipe.MergedChunk)
+  static get patchMergedChunk() {
+    return this.factory(ItemsTaskRecipe.PatchMergedChunk)
+  }
+
+  static get pointsMergedChunk() {
+    return this.factory(ItemsTaskRecipe.PointsMergedChunk)
   }
 
   // static get isolatedPointBlocks() {
@@ -192,7 +201,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
         itemChunk.bounds.translate(new Vector3(0, -heightOffset, 0))
         isItemDiscarded = false
       }
-      if(isItemDiscarded) console.log('discarded item: ', itemChunk)
+      if (isItemDiscarded) console.log('discarded item: ', itemChunk)
       return isItemDiscarded
     }
 
@@ -359,7 +368,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
     const spawnableElements = itemsDistribution.queryMapArea(inputQuery)
     const pickedElements = await pickSpawnedItems(spawnableElements)
 
-    if (recipe === ItemsTaskRecipe.SpawnedElements) {
+    if (recipe === ItemsTaskRecipe.PatchSpawnedElements) {
       return pickedElements
     }
     // else if (recipe === ItemsTaskRecipe.IsolatedPointBlocks) {
@@ -382,7 +391,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
     // } 
     else {
       const spawnedChunks = await buildSpawnedChunks(pickedElements)
-      if (recipe === ItemsTaskRecipe.SpawnedChunks) {
+      if (recipe === ItemsTaskRecipe.PatchIndividualChunks) {
         return spawnedChunks.map(chunk => chunk.toStub())
       } else {
         const mergedChunk = await mergeSpawnedChunks(spawnedChunks)

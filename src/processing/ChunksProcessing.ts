@@ -164,7 +164,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
       let mergedItemsChunk
       if (!skipEntities) {
         const itemsMerging = await new ItemsTask()
-          .mergeIndividualChunks(patchKey)
+          .patchMergedChunk(patchKey)
           .process(itemsTaskHandler as any)
         mergedItemsChunk = itemsMerging as ChunkContainer // .mergedChunk
         if (mergedItemsChunk) {
