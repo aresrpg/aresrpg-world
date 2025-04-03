@@ -19,7 +19,6 @@ import {
   ProcessingTaskStub,
 } from './TaskProcessing.js'
 import { ItemsTask } from './ItemsProcessing.js'
-import { BiomeType } from '../procgen/Biome.js'
 
 /**
  * Calling side
@@ -53,10 +52,6 @@ export type BlocksTaskParams = {
   includeDensity?: boolean
   dataFormat?: BlocksDataFormat
   peaksAccuracy?: number
-}
-
-const initTask = (recipe: BlocksTaskRecipe) => {
-
 }
 
 // const postProcessTaskResults = (rawOutputData: BlocksTaskOutput) => {
@@ -210,15 +205,15 @@ type IteratedBlock<T> = {
   index: number;
 }
 
-class VectorArrayIOAdapter extends BlocksDataIOAdapter<Block<BlockData>[]> {
+class VectorArrayIOAdapter extends BlocksDataIOAdapter<Record<number, Block<BlockData>>> {
   inputData: Vector3[]
-  outputData: Block<BlockData>[]
+  outputData: Record<number, Block<BlockData>>
   isStubData: boolean
   constructor(patchDimensions: Vector2, rawInputData: Vector3[], isStubData = false) {
     super(patchDimensions)
     this.inputData = isStubData ? parseTaskInputStubs(...rawInputData) : rawInputData
     this.isStubData = isStubData
-    this.outputData = []
+    this.outputData = {}
     this.splitIntoIndexBatches()
   }
 
@@ -232,8 +227,8 @@ class VectorArrayIOAdapter extends BlocksDataIOAdapter<Block<BlockData>[]> {
   //   return data
   // }
 
-  writeData(batchIndex: number, blockData: Block<BlockData>) {
-    this.outputData.push(blockData)
+  writeData(inputIndex: number, blockData: Block<BlockData>) {
+    this.outputData[inputIndex] = blockData
   }
 
 }
@@ -281,9 +276,9 @@ class FloatArrayIOAdapter extends BlocksDataIOAdapter<FloatArrayOut> {
   //   return v
   // }
 
-  writeData(batchIndex: number, block: Block<BlockData>) {
-    this.outputData.elevation[batchIndex] = block.data.level
-    this.outputData.type[batchIndex] = block.data.type
+  writeData(inputIndex: number, block: Block<BlockData>) {
+    this.outputData.elevation[inputIndex] = block.data.level
+    this.outputData.type[inputIndex] = block.data.type
   }
 
 }
@@ -333,14 +328,18 @@ export const createBlocksTaskHandler = (
         // }).filter(val => val) as GroundBlockData[]
         // const batchOutput = groundBlocksData.map(groundData => {
         const { biome, landIndex, level } = groundData as GroundBlockData
-        const data: BlockRawData = {
+        const blockData: BlockRawData = {
           biome,
           landIndex,
           level
         }
+        const data = {
+          pos,
+          data: blockData
+        }
         const block: IteratedBlock<Block<BlockRawData>> = {
           // pos,
-          data: { pos, data },
+          data,
           index
         }
         batchCount++
@@ -378,8 +377,8 @@ export const createBlocksTaskHandler = (
     }
 
     async function* iterPeakBlocks(batchIterator: BatchIterator, patchKey: PatchKey) {
-      // const itemsTaskHandler = taskHandlers[ItemsTask.handlerId]
-
+      const itemsTaskHandler = taskHandlers[ItemsTask.handlerId]
+      // console.log(itemsTaskHandler)
       for await (const groundBlock of iterGroundBlocks(batchIterator, patchKey)) {
         // const itemPeakTask = new ItemsTask()
         // itemPeakTask.pointPeakBlock(asVect2(groundBlock.pos))
@@ -457,12 +456,9 @@ export const createBlocksTaskHandler = (
       new FloatArrayIOAdapter(patchDim, processingInput as Float32Array)
       : new VectorArrayIOAdapter(patchDim, processingInput as Vector3[], isStubData)
 
-    const batchesRes = ioDataAdapter.batchKeys.map(async patchKey => {
-      const batchProcess = batchProcessingIterator(ioDataAdapter, patchKey)
-      if (batchProcess) {
-        for await (const block of batchProcess) {
-          ioDataAdapter.writeData(block.index, block.data)
-        }
+    const batchesRes = ioDataAdapter.batchKeys.map(async batchKey => {
+      for await (const block of batchProcessingIterator(ioDataAdapter, batchKey)) {
+        ioDataAdapter.writeData(block.index, block.data)
       }
     })
 
@@ -475,7 +471,7 @@ export const createBlocksTaskHandler = (
     // }
     // const blocksProcessing = parsedInput?.map(requestedPos => blockData)
 
-    return isAsync
+    return isAsync || true
       ? Promise.all(batchesRes).then(() => ioDataAdapter.outputData)
       : ioDataAdapter.outputData
   }

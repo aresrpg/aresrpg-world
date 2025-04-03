@@ -4,6 +4,7 @@ export { WorldLocals, WorldSeed } from './config/WorldEnv.js'
 // export * as WorldUtils from './utils/index'
 export {
   getPatchId,
+  getChunkId,
   asVect2,
   asVect3,
   parseChunkKey,

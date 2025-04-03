@@ -135,7 +135,7 @@ const getUpperScalarId = (scalarValue: number, size: number) => {
   return scalarId
 }
 
-const getPatchId = (position: Vector2 | Vector2Like, patchSize: Vector2) => {
+const getPatchId = (position: Vector2Like, patchSize: Vector2Like) => {
   const patchId = position instanceof Vector2 ?
     position.clone().divide(patchSize).floor() :
     { x: getScalarId(position.x, patchSize.x), y: getScalarId(position.y, patchSize.y) }
@@ -193,6 +193,13 @@ const getRoundedBox = (bounds: Box2, patchDims: Vector2) => {
   max.multiply(patchDims)
   const extBbox = new Box2(min, max)
   return extBbox
+}
+
+const getChunkId = (position: Vector3Like, chunkSize: Vector3Like) => {
+  const chunkId = position instanceof Vector3 ?
+    position.clone().divide(chunkSize).floor() :
+    { x: getScalarId(position.x, chunkSize.x), y: getScalarId(position.y, chunkSize.y), z: getScalarId(position.z, chunkSize.z) }
+  return chunkId
 }
 
 const parseChunkKey = (chunkKey: ChunkKey): Vector3 | undefined => {
@@ -256,6 +263,7 @@ export {
   getPatchIds,
   getRoundedBox,
   asPatchBounds,
+  getChunkId,
   parseChunkKey,
   serializeChunkId,
   asChunkBounds,
