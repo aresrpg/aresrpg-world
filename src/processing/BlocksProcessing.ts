@@ -18,7 +18,6 @@ import {
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing.js'
-import { ItemsTask } from './ItemsProcessing.js'
 
 /**
  * Calling side
@@ -139,7 +138,7 @@ export const BlocksProcessing = BlocksTask
  */
 
 type BlocksTaskStub = ProcessingTaskStub<BlocksTaskInput, BlocksTaskParams>
-type BlocksProcessingTaskHandler = ProcessingTaskHandler<
+export type BlocksProcessingHandler = ProcessingTaskHandler<
   BlocksTaskInput,
   BlocksTaskParams,
   any
@@ -287,8 +286,8 @@ export const createBlocksTaskHandler = (
   worldModules: WorldModules,
   processingContext = ProcessingContext.None,
 ) => {
-  const { worldLocalEnv, taskHandlers } = worldModules
-  const blocksTaskHandler: BlocksProcessingTaskHandler = (
+  const { worldLocalEnv } = worldModules
+  const blocksTaskHandler: BlocksProcessingHandler = (
     taskStub: BlocksTask | BlocksTaskStub,
   ) => {
     const patchDim = worldLocalEnv.getPatchDimensions()
@@ -377,10 +376,10 @@ export const createBlocksTaskHandler = (
     }
 
     async function* iterPeakBlocks(batchIterator: BatchIterator, patchKey: PatchKey) {
-      const itemsTaskHandler = taskHandlers[ItemsTask.handlerId]
+      // const itemsTaskHandler = taskHandlers[ItemsTask.handlerId]
       // console.log(itemsTaskHandler)
       for await (const groundBlock of iterGroundBlocks(batchIterator, patchKey)) {
-        // const itemPeakTask = new ItemsTask()
+        // const mergedChunkTask = new ItemsTask()
         // itemPeakTask.pointPeakBlock(asVect2(groundBlock.pos))
         // if (itemsTaskHandler) {
         //   const itemPeakBlock: any = await itemPeakTask.process(itemsTaskHandler)

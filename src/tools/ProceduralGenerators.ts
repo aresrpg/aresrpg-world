@@ -2,7 +2,7 @@ import { Vector3, Vector2, Box3 } from 'three'
 
 import { asVect2 } from '../utils/patch_chunk.js'
 import { BlockType } from '../utils/common_types.js'
-import { ItemChunk } from '../factory/ItemsFactory.js'
+import { ChunkDataContainer } from '../datacontainers/ChunkContainer.js'
 
 export enum ProcItemCategory {
   Tree,
@@ -61,7 +61,7 @@ export class ProceduralItemGenerator {
       new Vector3(),
       new Vector3(2 * treeRadius, treeSize + 2 * treeRadius, 2 * treeRadius),
     )
-    const treeChunk = new ItemChunk(treeBounds)
+    const treeChunk = new ChunkDataContainer(treeBounds)
     const entityPos = treeBounds.getCenter(new Vector3())
     let index = 0
     const chunkIter = treeChunk.iterateContent()
@@ -86,6 +86,6 @@ export class ProceduralItemGenerator {
         treeChunk.writeBlockData(index++, BlockType.TRUNK)
       }
     }
-    return treeChunk
+    return treeChunk.toStub()
   }
 }

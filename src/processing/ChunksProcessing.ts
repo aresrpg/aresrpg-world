@@ -4,8 +4,7 @@ import {
   serializeChunkId,
 } from '../utils/patch_chunk.js'
 import { PatchId, PatchKey } from '../utils/common_types.js'
-import { ChunkContainer, ChunkMetadata, ChunkStub } from '../datacontainers/ChunkContainer.js'
-import { CavesMask, EmptyChunk, GroundChunk } from '../factory/ChunksFactory.js'
+import { CavesMask, GroundChunk } from '../factory/ChunksFactory.js'
 import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
 import { WorldModules } from '../WorldModules.js'
 
@@ -16,6 +15,7 @@ import {
   ProcessingTaskStub,
 } from './TaskProcessing.js'
 import { ItemsTask } from './ItemsProcessing.js'
+import { ChunkContainer, ChunkDataContainer, ChunkDataStub, ChunkMetadata } from '../datacontainers/ChunkContainer.js'
 
 /**
  * Calling side
@@ -28,11 +28,12 @@ export enum ChunksProcessingRange {
 }
 
 export type ChunksProcessingInput = PatchKey
-export type ChunksProcessingOutput = ChunkStub<ChunkMetadata>[]
+export type ChunksProcessingOutput = ChunkDataStub<ChunkMetadata>[]
 export type ChunksProcessingParams = {
-  skipEntities?: boolean
   chunksRange?: ChunksProcessingRange
+  skipEntities?: boolean
   skipBlobCompression?: boolean
+  skipEmpty?: boolean
   fakeEmpty?: boolean
 }
 
@@ -48,9 +49,13 @@ export class ChunksTask extends ProcessingTask<
 > {
   static handlerId = 'ChunksProcessing'
 
-  init(chunksRange: ChunksProcessingRange) {
+  factory(chunksRange: ChunksProcessingRange) {
     this.handlerId = ChunksTask.handlerId
     this.processingParams.chunksRange = chunksRange
+    return (input: ChunksProcessingInput) => {
+      this.processingInput = input
+      return this
+    }
   }
 
   /**
@@ -58,27 +63,15 @@ export class ChunksTask extends ProcessingTask<
    */
 
   get lowerChunks() {
-    this.init(ChunksProcessingRange.LowerRange)
-    return (input: ChunksProcessingInput) => {
-      this.processingInput = input
-      return this
-    }
+    return this.factory(ChunksProcessingRange.LowerRange)
   }
 
   get upperChunks() {
-    this.init(ChunksProcessingRange.UpperRange)
-    return (input: ChunksProcessingInput) => {
-      this.processingInput = input
-      return this
-    }
+    return this.factory(ChunksProcessingRange.UpperRange)
   }
 
   get fullChunks() {
-    this.init(ChunksProcessingRange.FullRange)
-    return (input: ChunksProcessingInput) => {
-      this.processingInput = input
-      return this
-    }
+    return this.factory(ChunksProcessingRange.FullRange)
   }
 
   /**
@@ -88,22 +81,22 @@ export class ChunksTask extends ProcessingTask<
 
   static factory =
     (chunksRange: ChunksProcessingRange) =>
-    (patchKey: PatchKey, processingOptions: TaskOptions = {}) => {
-      const task = new ChunksTask()
-      task.handlerId = this.handlerId
-      task.processingInput = patchKey
-      task.processingParams = { chunksRange }
+      (patchKey: PatchKey, processingOptions: TaskOptions = {}) => {
+        const task = new ChunksTask()
+        task.handlerId = this.handlerId
+        task.processingInput = patchKey
+        task.processingParams = { chunksRange }
 
-      const { onStarted, onCompleted, onRejected, ...processingParams } =
-        processingOptions
+        const { onStarted, onCompleted, onRejected, ...processingParams } =
+          processingOptions
 
-      Object.assign(task.processingParams, processingParams)
-      if (onStarted) task.onStarted = onStarted
-      if (onCompleted) task.onCompleted = onCompleted
-      if (onRejected) task.onRejected = onRejected
+        Object.assign(task.processingParams, processingParams)
+        if (onStarted) task.onStarted = onStarted
+        if (onCompleted) task.onCompleted = onCompleted
+        if (onRejected) task.onRejected = onRejected
 
-      return task
-    }
+        return task
+      }
 
   static get lowerChunks() {
     return this.factory(ChunksProcessingRange.LowerRange)
@@ -130,15 +123,15 @@ type ChunksTaskStub = ProcessingTaskStub<
   ChunksProcessingParams
 >
 
-type ChunksTaskHandler = ProcessingTaskHandler<
+type ChunksProcessingHandler = ProcessingTaskHandler<
   ChunksProcessingInput,
   ChunksProcessingParams,
-  ChunkStub<ChunkMetadata>[] | Blob
+  ChunkDataStub<ChunkMetadata>[] | Blob
 >
 
 export const createChunksTaskHandler = (worldModules: WorldModules) => {
   const { worldLocalEnv, taskHandlers } = worldModules
-  const chunksTaskHandler: ChunksTaskHandler = async (
+  const chunksTaskHandler: ChunksProcessingHandler = async (
     taskStub: ChunksTaskStub,
   ) => {
     /**
@@ -152,11 +145,11 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
       const patchDim = worldLocalEnv.getPatchDimensions()
       const chunkDim = worldLocalEnv.getChunkDimensions()
       const chunksVerticalRange = worldLocalEnv.getChunksVerticalRange()
-      const { skipEntities } = params
+      const { skipEntities, skipEmpty } = params
       const groundLayer = new GroundPatch().fromKey(patchKey, patchDim, 1)
       groundLayer.bake(worldModules)
       const patchId = groundLayer.patchId as PatchId
-      const upperChunks: ChunkContainer[] = []
+      const upperChunks: ChunkDataContainer[] = []
       // compute chunk id range
       let yMin = groundLayer.valueRange.min
       let yMax = groundLayer.valueRange.max
@@ -164,9 +157,9 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
       let mergedItemsChunk
       if (!skipEntities) {
         const itemsMerging = await new ItemsTask()
-          .patchMergedChunk(patchKey)
+          .mergedChunk(patchKey)
           .process(itemsTaskHandler as any)
-        mergedItemsChunk = itemsMerging as ChunkContainer // .mergedChunk
+        mergedItemsChunk = itemsMerging as ChunkDataContainer // .mergedChunk
         if (mergedItemsChunk) {
           // adjust chunks range accordingly
           yMin = Math.min(mergedItemsChunk.bounds.min.y, yMin)
@@ -183,13 +176,13 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
       for (let yId = surfaceIds.yMinId; yId <= surfaceIds.yMaxId; yId++) {
         const chunkId = asVect3(patchId, yId)
         const chunkKey = serializeChunkId(chunkId)
-        const worldChunk = new ChunkContainer(undefined, 1).fromKey(
+        const worldChunk = new ChunkDataContainer(undefined, 1).fromKey(
           chunkKey,
           chunkDim,
         )
         // copy items layer first to prevent overriding ground
         mergedItemsChunk &&
-          ChunkContainer.copySourceToTarget(mergedItemsChunk, worldChunk)
+          ChunkDataContainer.copySourceToTarget(mergedItemsChunk, worldChunk)
         if (worldChunk.bounds.min.y < groundLayer.valueRange.max) {
           // bake ground and undeground separately
           const groundSurfaceChunk = new GroundChunk(undefined, 1).fromKey(
@@ -203,17 +196,19 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
           cavesMask.bake(worldModules)
           await groundSurfaceChunk.bake(worldModules, groundLayer, cavesMask)
           // copy ground over items at last
-          ChunkContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
+          ChunkDataContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
         }
         upperChunks.push(worldChunk)
       }
 
       // remaining chunks: empty chunks start 1 chunk above ground surface
-      for (let y = surfaceIds.yMaxId + 1; y <= chunksVerticalRange.topId; y++) {
-        const chunkId = asVect3(patchId, y)
-        const chunkKey = serializeChunkId(chunkId)
-        const emptyChunk = new EmptyChunk(chunkKey, chunkDim)
-        upperChunks.push(emptyChunk)
+      if (!skipEmpty) {
+        for (let y = surfaceIds.yMaxId + 1; y <= chunksVerticalRange.topId; y++) {
+          const chunkId = asVect3(patchId, y)
+          const chunkKey = serializeChunkId(chunkId)
+          const emptyChunk = new ChunkContainer(undefined, 1).fromKey(chunkKey, chunkDim)
+          upperChunks.push(emptyChunk as ChunkDataContainer)
+        }
       }
       return upperChunks
     }
@@ -235,7 +230,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
       for (let yId = upperId; yId >= chunksVerticalRange.bottomId; yId--) {
         const chunkId = asVect3(patchId, yId)
         const chunkKey = serializeChunkId(chunkId)
-        const currentChunk = new ChunkContainer(undefined, 1).fromKey(
+        const currentChunk = new ChunkDataContainer(undefined, 1).fromKey(
           chunkKey,
           chunkDim,
         )
@@ -250,7 +245,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
         cavesMask.bake(worldModules)
         await groundSurfaceChunk.bake(worldModules, groundLayer, cavesMask)
         // copy ground over items at last
-        ChunkContainer.copySourceToTarget(groundSurfaceChunk, currentChunk)
+        ChunkDataContainer.copySourceToTarget(groundSurfaceChunk, currentChunk)
         lowerChunks.push(currentChunk)
       }
       // console.log(
@@ -272,7 +267,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
         const chunkKey = serializeChunkId(chunkId)
         const found = chunks.find(chunk => chunk.chunkKey === chunkKey)
         if (!found) {
-          const emptyChunk = new EmptyChunk(chunkKey, chunkDim)
+          const emptyChunk = new ChunkContainer(undefined, 1).fromKey(chunkKey, chunkDim)
           chunks.push(emptyChunk)
         }
       }

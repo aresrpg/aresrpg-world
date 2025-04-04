@@ -1,5 +1,4 @@
-import { ChunkContainer } from '../datacontainers/ChunkContainer.js'
-
+import { ChunkDataContainer } from '../datacontainers/ChunkContainer.js'
 import { parseThreeStub } from './patch_chunk.js'
 
 export const concatData = (data: Uint8Array[]) => {
@@ -61,7 +60,7 @@ export const concatBlobs = (blobs: Blob[]) => {
   return concat
 }
 
-export const chunksToCompressedBlob = async (chunks: ChunkContainer[]) => {
+export const chunksToCompressedBlob = async (chunks: ChunkDataContainer[]) => {
   const allStubsConcat = chunks.map(chunk => chunk.toStubConcat())
   const total = allStubsConcat.reduce((sum, arr) => sum + arr.length, 0)
 

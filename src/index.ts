@@ -39,7 +39,7 @@ export {
 } from './datacontainers/ChunkContainer.js'
 // Factory
 // export { ItemsInventory } from './factory/ItemsFactory.js'
-export { GroundChunk, EmptyChunk, CavesMask } from './factory/ChunksFactory.js'
+export { GroundChunk, CavesMask } from './factory/ChunksFactory.js'
 // Tools
 export { SchematicLoader } from './tools/SchematicLoader.js'
 export {

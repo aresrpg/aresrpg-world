@@ -20,15 +20,19 @@ export type ChunkMetadata = {
   chunkKey?: string
   bounds: Box3
   margin?: number
-  isEmpty?: boolean
+  // isEmpty?: boolean
 }
 
 export type ChunkStub<T> = {
   metadata: T
+}
+
+export type ChunkDataStub<T> = {
+  metadata: T
   rawdata: Uint16Array
 }
 
-export type ChunkBuffer = {
+export type ChunkHeightBuffer = {
   pos: Vector2
   content: Uint16Array
 }
@@ -38,8 +42,20 @@ export const defaultDataEncoder = (
   // _blockMode?: BlockMode,
 ) => blockType || BlockType.NONE
 
+type ChunkIteration<T> = {
+  pos: T,
+  localPos: T,
+  index: number,
+}
+
+type ChunkDataIteration<T> = ChunkIteration<T> & {
+  rawData: number
+}
+
+type ChunkHeightBufferIteration = ChunkIteration<Vector2> & ChunkHeightBuffer
+
 /**
- * Low level multi-purpose data container
+ * Or EmptyChunk
  */
 export class ChunkContainer {
   bounds = new Box3()
@@ -49,14 +65,12 @@ export class ChunkContainer {
   margin: number
   chunkKey = '' // needed for chunk export
   chunkId: ChunkId | undefined
-  rawData = new Uint16Array()
   axisOrder: ChunkAxisOrder
-  isEmpty?: boolean
 
   constructor(bounds?: Box3, margin = 0, axisOrder = ChunkAxisOrder.ZXY) {
     this.margin = margin
     this.axisOrder = axisOrder
-    bounds && this.adjustChunkBounds(bounds)
+    bounds && this.adjustBounds(bounds)
     // this.rawData = getArrayConstructor(bitLength)
   }
 
@@ -78,14 +92,11 @@ export class ChunkContainer {
     return this.localBox.expandByScalar(this.margin)
   }
 
-  adjustChunkBounds(bounds: Box3) {
+  adjustBounds(bounds: Box3) {
     this.bounds = bounds
     this.extendedBounds = bounds.clone().expandByScalar(this.margin)
     this.dimensions = bounds.getSize(new Vector3())
     this.extendedDims = this.extendedBounds.getSize(new Vector3())
-    this.rawData = new Uint16Array(
-      this.extendedDims.x * this.extendedDims.y * this.extendedDims.z,
-    )
   }
 
   // copy occurs only on the overlapping region of both containers
@@ -125,21 +136,6 @@ export class ChunkContainer {
     }
   }
 
-  static copySourceToTarget(
-    sourceChunk: ChunkContainer,
-    targetChunk: ChunkContainer,
-    skipEmpty = true,
-  ) {
-    const overlapIter = this.iterOverlap(sourceChunk, targetChunk)
-    for (const { sourceIndex, targetIndex } of overlapIter) {
-      const sourceVal = sourceChunk.rawData[sourceIndex]
-      const skipped =
-        sourceVal === undefined || (skipEmpty && sourceVal === BlockType.NONE)
-      if (!skipped) {
-        targetChunk.rawData[targetIndex] = sourceVal
-      }
-    }
-  }
 
   /**
    *
@@ -200,14 +196,6 @@ export class ChunkContainer {
     return !nonOverlapping
   }
 
-  isEmptySafe() {
-    if (this.isEmpty !== undefined) return this.isEmpty
-    // console.warn(
-    //   `caution: isEmpty flag unset, fallback to compute intensive chunk emptyness check`,
-    // )
-    return this.rawData.reduce((sum, val) => sum + val, 0) === 0
-  }
-
   containsPoint(pos: Vector3) {
     // return this.bounds.containsPoint(pos)
     return (
@@ -266,12 +254,12 @@ export class ChunkContainer {
           const localPos = new Vector3(x, y, z)
           if (!skipMargin || !isMarginBlock(localPos)) {
             index = iteratedBounds ? this.getIndex(localPos) : index
-            const rawData = this.rawData[index]
-            const res = {
+            // const rawData = this.rawData[index]
+            const res: ChunkIteration<Vector3> = {
               pos: this.toWorldPos(localPos),
               localPos,
               index,
-              rawData,
+              // rawData,
             }
             yield res
           }
@@ -286,7 +274,7 @@ export class ChunkContainer {
    * @param rangeBox iteration range as global coords
    * @param skipMargin
    */
-  *iterChunkSlice(iteratedBounds?: Box3 | Vector3) {
+  *iterHeightBuffers(iteratedBounds?: Box3 | Vector3) {
     // convert to local coords to speed up iteration
     const localBounds = iteratedBounds
       ? this.adjustInputBounds(iteratedBounds)
@@ -296,22 +284,57 @@ export class ChunkContainer {
       for (let { x } = localBounds.min; x < localBounds.max.x; x++) {
         const buffLocPos = new Vector2(x, z)
         const buffIndex = this.getIndex(buffLocPos)
-        const buffData = this.readBuffer(buffLocPos)
-        const res = {
+        const res: ChunkIteration<Vector2> = {
           pos: asVect2(this.toWorldPos(asVect3(buffLocPos))),
           localPos: buffLocPos,
           index: buffIndex,
-          data: buffData,
         }
         yield res
       }
     }
   }
 
-  encodeSectorData(sectorData: number) {
-    return sectorData
+  fromStub(chunkStub: ChunkStub<ChunkMetadata>) {
+    const { chunkKey, margin } = chunkStub.metadata
+    const bounds = parseThreeStub(chunkStub.metadata.bounds) as Box3
+    this.chunkKey = chunkKey || this.chunkKey
+    this.chunkId = parseChunkKey(this.chunkKey)
+    this.margin = margin || this.margin
+    this.adjustBounds(bounds)
+    return this
   }
 
+  toStub() {
+    const { chunkKey, bounds, margin } = this
+    const metadata = { chunkKey, bounds, margin }
+    const chunkStub: ChunkStub<ChunkMetadata> = { metadata }
+    // const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
+    return chunkStub
+  }
+
+  fromKey(chunkKey: ChunkKey, chunkDim: Vector3) {
+    const chunkBounds = asChunkBounds(chunkKey, chunkDim)
+    this.adjustBounds(chunkBounds)
+    this.chunkKey = chunkKey
+    this.id = parseChunkKey(chunkKey)
+    return this
+  }
+}
+
+/**
+ * Container using read only shared data
+ */
+export abstract class ChunkSharedContainer extends ChunkContainer {
+  protected abstract readonly rawData: Uint16Array<ArrayBufferLike>
+  isEmpty?: boolean
+
+  isEmptySafe() {
+    if (this.isEmpty !== undefined) return this.isEmpty
+    // console.warn(
+    //   `caution: isEmpty flag unset, fallback to compute intensive chunk emptyness check`,
+    // )
+    return this.rawData.reduce((sum, val) => sum + val, 0) === 0
+  }
   decodeSectorData(sectorData: number) {
     return sectorData
   }
@@ -320,15 +343,6 @@ export class ChunkContainer {
     // const sectorIndex = this.getIndex(this.toLocalPos(pos))
     const rawData = this.rawData[sectorIndex] as number
     return this.decodeSectorData(rawData)
-  }
-
-  writeBlockData(
-    sectorIndex: number,
-    blockType: BlockType,
-    // blockMode = BlockMode.REGULAR,
-  ) {
-    // const sectorIndex = this.getIndex(this.toLocalPos(pos))
-    this.rawData[sectorIndex] = blockType
   }
 
   readBuffer(localPos: Vector2) {
@@ -340,29 +354,112 @@ export class ChunkContainer {
     return rawBuffer
   }
 
+  override *iterateContent(iteratedBounds?: Box3 | Vector3, skipMargin?: boolean) {
+    for (const { index, pos, localPos } of super.iterateContent(iteratedBounds, skipMargin)) {
+      const rawData = this.rawData[index]
+      if (rawData !== undefined) {
+        const res: ChunkDataIteration<Vector3> = {
+          pos,
+          localPos,
+          index,
+          rawData,
+        }
+        yield res
+      }
+    }
+  }
+
+  override *iterHeightBuffers(iteratedBounds?: Box3 | Vector3) {
+    for (const { index, pos, localPos } of super.iterHeightBuffers(iteratedBounds)) {
+      const buffData = this.readBuffer(localPos)
+
+      const res: ChunkHeightBufferIteration = {
+        pos,
+        localPos,
+        index,
+        content: buffData,
+      }
+      yield res
+    }
+  }
+
+  copyContentToTarget(targetChunk: ChunkDataContainer, skipEmpty = true) {
+    const overlapIter = ChunkContainer.iterOverlap(this, targetChunk)
+    for (const { sourceIndex, targetIndex } of overlapIter) {
+      const sourceVal = this.rawData[sourceIndex]
+      const skipped =
+        sourceVal === undefined || (skipEmpty && sourceVal === BlockType.NONE)
+      if (!skipped) {
+        targetChunk.rawData[targetIndex] = sourceVal
+      }
+    }
+  }
+
+  override toStub() {
+    const { metadata } = super.toStub()
+    const stub: ChunkDataStub<ChunkMetadata> = { metadata, rawdata: this.rawData }
+    return stub
+  }
+
+}
+
+/**
+ * Container with its own writeable data
+ */
+export class ChunkDataContainer extends ChunkSharedContainer {
+  override rawData: Uint16Array<ArrayBufferLike> = new Uint16Array(this.dataSize)
+
+  get dataSize() {
+    return this.extendedDims.x * this.extendedDims.y * this.extendedDims.z
+  }
+
+  encodeSectorData(sectorData: number) {
+    return sectorData
+  }
+
+  writeBlockData(
+    sectorIndex: number,
+    blockType: BlockType,
+    // blockMode = BlockMode.REGULAR,
+  ) {
+    // const sectorIndex = this.getIndex(this.toLocalPos(pos))
+    this.rawData[sectorIndex] = blockType
+  }
+
   writeBuffer(localPos: Vector2, buffer: Uint16Array) {
     const buffIndex = this.getIndex(localPos)
     this.rawData.set(buffer, buffIndex)
   }
 
-  fromStub(chunkStub: ChunkStub<ChunkMetadata>) {
-    const { chunkKey, margin } = chunkStub.metadata
-    const bounds = parseThreeStub(chunkStub.metadata.bounds) as Box3
-    this.chunkKey = chunkKey || this.chunkKey
-    this.chunkId = parseChunkKey(this.chunkKey)
-    this.margin = margin || this.margin
-    this.adjustChunkBounds(bounds)
-    this.rawData.set(chunkStub.rawdata)
+  override fromKey(chunkKey: ChunkKey, chunkDim: Vector3) {
+    super.fromKey(chunkKey, chunkDim)
+    this.rawData = new Uint16Array(this.extendedDims.x * this.extendedDims.y * this.extendedDims.z)
     return this
   }
 
-  toStub() {
+  override toStub() {
     const isEmpty = this.isEmptySafe()
     const { chunkKey, bounds, margin, rawData } = this
     const metadata = { chunkKey, bounds, margin, isEmpty }
-    const chunkStub: ChunkStub<ChunkMetadata> = { metadata, rawdata: rawData }
+    const chunkStub: ChunkDataStub<ChunkMetadata> = { metadata, rawdata: rawData }
     // const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
     return chunkStub
+  }
+
+  override fromStub({ metadata, rawdata }: ChunkDataStub<ChunkMetadata>) {
+    const { chunkKey, margin } = metadata
+    const bounds = parseThreeStub(metadata.bounds) as Box3
+    this.chunkKey = chunkKey || this.chunkKey
+    this.chunkId = parseChunkKey(this.chunkKey)
+    this.margin = margin || this.margin
+    this.adjustBounds(bounds)
+    if (rawdata) {
+      this.rawData = new Uint16Array(this.dataSize)
+      this.rawData.set(rawdata)
+    } else {
+      console.warn("could not initialize ChunkDataContainer properly: raw data missing. If this is an empty chunk, use ChunkContainer instead")
+    }
+    return this
   }
 
   toStubConcat() {
@@ -378,7 +475,7 @@ export class ChunkContainer {
     if (metadataContent && rawdataContent) {
       const metadata = JSON.parse(new TextDecoder().decode(metadataContent))
       const rawdata = new Uint16Array(rawdataContent?.buffer || [])
-      const stub: ChunkStub<ChunkMetadata> = { metadata, rawdata }
+      const stub: ChunkDataStub<ChunkMetadata> = { metadata, rawdata }
       return this.fromStub(stub)
     }
     return null
@@ -412,7 +509,7 @@ export class ChunkContainer {
           ? new Uint16Array(rawdataContent.buffer)
           : new Uint16Array(0) // Ensure empty rawdata if not provided
       // repopulate object
-      const stub: ChunkStub<ChunkMetadata> = { metadata, rawdata }
+      const stub: ChunkDataStub<ChunkMetadata> = { metadata, rawdata }
       return this.fromStub(stub)
     } catch (error) {
       console.error('Error occured during blob decompression:', error)
@@ -420,22 +517,33 @@ export class ChunkContainer {
     }
   }
 
-  fromKey(chunkKey: ChunkKey, chunkDim: Vector3) {
-    const chunkBounds = asChunkBounds(chunkKey, chunkDim)
-    this.adjustChunkBounds(chunkBounds)
-    this.chunkKey = chunkKey
-    this.id = parseChunkKey(chunkKey)
-    return this
+  // Could be deprecated in favor of copyContentToTarget?
+  static copySourceToTarget(
+    sourceChunk: ChunkDataContainer,
+    targetChunk: ChunkDataContainer,
+    skipEmpty = true,
+  ) {
+    const overlapIter = this.iterOverlap(sourceChunk, targetChunk)
+    for (const { sourceIndex, targetIndex } of overlapIter) {
+      const sourceVal = sourceChunk.rawData[sourceIndex]
+      const skipped =
+        sourceVal === undefined || (skipEmpty && sourceVal === BlockType.NONE)
+      if (!skipped) {
+        targetChunk.rawData[targetIndex] = sourceVal
+      }
+    }
   }
 }
 
-export class ChunkMask extends ChunkContainer {
-  applyMaskOnTargetChunk(targetChunk: ChunkContainer) {
-    const overlapIter = ChunkContainer.iterOverlap(this, targetChunk)
+export class ChunkMask extends ChunkDataContainer {
+
+  applyMaskOnTargetChunk(targetChunk: ChunkDataContainer) {
+    const overlapIter = ChunkDataContainer.iterOverlap(this, targetChunk)
     for (const { sourceIndex, targetIndex } of overlapIter) {
       const sourceVal = this.rawData[sourceIndex]
       if (targetChunk.rawData[targetIndex])
         targetChunk.rawData[targetIndex] *= sourceVal || 0
     }
   }
+
 }

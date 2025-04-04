@@ -1,73 +1,17 @@
-import { Box3, Vector3 } from 'three'
-
-import { ChunkContainer, ChunkMetadata, ChunkStub } from '../datacontainers/ChunkContainer.js'
+import { Vector2 } from 'three'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators.js'
 import { SchematicLoader } from '../tools/SchematicLoader.js'
 import { ItemType, VoidItemType } from '../utils/common_types.js'
 import { ItemsEnv } from '../config/WorldEnv.js'
+import { asBox2 } from '../utils/patch_chunk.js'
+import { ItemFullStub, ItemMetadata } from './ChunksFactory.js'
 // import { asVect2 } from '../utils/patch_chunk'
 
-export enum ItemSize {
+export enum SizeProfile {
   SMALL,
   MEDIUM,
   LARGE,
 }
-
-type ItemChunkMetada = ChunkMetadata & {
-  itemSize: ItemSize
-}
-
-type ItemChunkStub = ChunkStub<ItemChunkMetada>
-
-export class ItemChunk extends ChunkContainer {
-  // override readonly rawData = new Uint16Array()
-
-  centerBounds(origin: Vector3) {
-    const centeredBounds = new Box3().setFromCenterAndSize(origin, this.dimensions.clone())
-    centeredBounds.min.y = origin.y
-    centeredBounds.max.y = origin.y + this.dimensions.y
-    centeredBounds.min.floor()
-    centeredBounds.max.floor()
-    return centeredBounds
-  }
-
-  offsetBounds(origin: Vector3) {
-    const bmin = origin.clone()
-    const bmax = origin.clone().add(this.dimensions.clone())
-    const offsetBounds = new Box3(bmin, bmax)
-    return offsetBounds
-  }
-
-  toInstancedChunk(instancePos: Vector3, isOriginCentered = true) {
-    const instanceStub = this.toStub()
-    const instanceBounds = isOriginCentered
-      ? this.centerBounds(instancePos)
-      : this.offsetBounds(instancePos)
-    instanceStub.metadata.bounds = instanceBounds
-    const instancedChunk = new ChunkContainer().fromStub(instanceStub)
-    // itemChunk = new ChunkContainer(entityBounds, 0)
-    return instancedChunk
-  }
-
-  override toStub(): ItemChunkStub {
-    const { metadata, rawdata } = super.toStub()
-    const itemSize = ItemSize.MEDIUM
-    const itemMetada: ItemChunkMetada = { ...metadata, itemSize }
-    const itemStub: ItemChunkStub = { metadata: itemMetada, rawdata }
-    return itemStub
-  }
-
-  override fromStub(templateStub: ItemChunkStub) {
-    super.fromStub(templateStub)
-    // this.itemSize = templateStub.metadata.itemSize
-    return this
-  }
-}
-
-export class ItemChunkInstance extends ChunkContainer {
-
-}
-
 
 /**
  * Referencing all items either coming from schematic definitions or procedurally generated
@@ -75,7 +19,7 @@ export class ItemChunkInstance extends ChunkContainer {
 // ItemsFactory, ItemsCatalog
 export class ItemsInventory {
   // TODO rename catalog as inventory
-  catalog: Record<ItemType, ItemChunk> = {}
+  catalog: Record<ItemType, ItemFullStub> = {}
   itemsEnv: ItemsEnv
   constructor(itemsEnv: ItemsEnv) {
     this.itemsEnv = itemsEnv
@@ -95,36 +39,43 @@ export class ItemsInventory {
    * @param schematicFileUrls
    * @param optionalDataEncoder
    */
-  async importSchematic(id: ItemType) {
-    const fileUrl = this.schematicFilesIndex[id]
+  async importSchematic(itemType: ItemType) {
+    const fileUrl = this.schematicFilesIndex[itemType]
     if (fileUrl) {
       const customBlocksMapping =
-        this.itemsEnv.schematics.localBlocksMapping[id]
+        this.itemsEnv.schematics.localBlocksMapping[itemType]
       const { globalBlocksMapping } = this.itemsEnv.schematics
-      const chunk = await SchematicLoader.createChunkContainer(
+      const { metadata, rawdata } = await SchematicLoader.createChunkContainer(
         fileUrl,
         globalBlocksMapping,
         customBlocksMapping,
       )
+      const itemRadius = Math.ceil(asBox2(metadata.bounds).getSize(new Vector2).length() / 2)
+      const templateMetadata: ItemMetadata = { ...metadata, itemRadius, itemType }
+      const templateStub: ItemFullStub = { metadata: templateMetadata, rawdata }
       // const spawner = new PseudoDistributionMap()
-      this.catalog[id] = chunk//.toStub()
+      this.catalog[itemType] = templateStub
     }
-    return this.catalog[id]
+    return this.catalog[itemType]
   }
 
-  importProcItem(id: ItemType) {
-    const procConf = this.getProceduralConfig(id)
+  importProcItem(itemType: ItemType) {
+    const procConf = this.getProceduralConfig(itemType)
     if (procConf) {
-      const chunk = ProceduralItemGenerator.voxelizeItem(
+      const chunkStub = ProceduralItemGenerator.voxelizeItem(
         procConf.category,
         procConf.params,
       )
       // const spawner = new PseudoDistributionMap()
-      if (chunk) {
-        this.catalog[id] = chunk//.toStub()
+      if (chunkStub) {
+        const { metadata, rawdata } = chunkStub
+        const itemRadius = Math.ceil(asBox2(metadata.bounds).getSize(new Vector2).length() / 2)
+        const templateMetadata: ItemMetadata = { ...metadata, itemRadius, itemType }
+        const templateStub: ItemFullStub = { metadata: templateMetadata, rawdata }
+        this.catalog[itemType] = templateStub
       }
     }
-    return this.catalog[id]
+    return this.catalog[itemType]
   }
 
   async getTemplate(itemType: string) {
@@ -140,7 +91,7 @@ export class ItemsInventory {
     //   .map(async itemType => await this.getTemplate(itemType))
     // const templates = await Promise.all(pendingTemplates)
     // return templates.filter(item => item)
-    const templateIndex: Record<ItemType, ItemChunk> = {}
+    const templateIndex: Record<ItemType, ItemFullStub> = {}
     const pendingTemplates = itemTypes.filter(itemType => itemType !== VoidItemType)
       .map(async itemType => {
         const template = await this.getTemplate(itemType)

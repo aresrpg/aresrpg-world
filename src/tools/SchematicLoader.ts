@@ -2,7 +2,7 @@ import { Box3, Vector3 } from 'three'
 
 import { NBTReader } from '../third-party/nbt_custom.js'
 import { BlockType } from '../utils/common_types.js'
-import { ItemChunk } from '../factory/ItemsFactory.js'
+import { ChunkDataContainer } from '../datacontainers/ChunkContainer.js'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
 
@@ -81,7 +81,7 @@ export class SchematicLoader {
     const orig = new Vector3(0, 0, 0)
     const end = orig.clone().add(dims)
     const bbox = new Box3(orig, end)
-    const templateChunk = new ItemChunk(bbox)
+    const templateChunk = new ChunkDataContainer(bbox)
 
     for (let y = 0; y < schemBlocks.length; y++) {
       for (let x = 0; x < schemBlocks[y].length; x++) {
@@ -101,8 +101,8 @@ export class SchematicLoader {
         }
       }
     }
-    // profile schematic based on its size and profiles user settings
-    return templateChunk
+    // profile schematic based on its size and user profiles
+    return templateChunk.toStub()
   }
 
   static getBlocks(schemData: any) {
