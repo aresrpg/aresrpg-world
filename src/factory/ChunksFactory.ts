@@ -1,12 +1,15 @@
 // import { MathUtils, Vector3 } from 'three'
-import { Vector3 } from 'three'
+import { Box3, Vector3 } from 'three'
 
-import { asVect2, serializePatchId, asBox2 } from '../utils/patch_chunk.js'
-import { BlockType, ChunkKey, PatchBlock } from '../utils/common_types.js'
+import { asVect2, serializePatchId, asBox2, asVect3, parseThreeStub } from '../utils/patch_chunk.js'
+import { Block, BlockData, BlockType, ItemType, PatchBlock } from '../utils/common_types.js'
 import {
-  ChunkBuffer,
-  ChunkContainer,
+  ChunkHeightBuffer,
+  ChunkDataContainer,
   ChunkMask,
+  ChunkDataStub,
+  ChunkMetadata,
+  ChunkSharedContainer,
 } from '../datacontainers/ChunkContainer.js'
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
@@ -27,17 +30,8 @@ const highlightPatchBorders = (
 //   borderHighlightColor
 // }
 
-export class EmptyChunk extends ChunkContainer {
-  constructor(chunkKey: ChunkKey, chunkDim: Vector3) {
-    super(undefined, 1)
-    this.fromKey(chunkKey, chunkDim)
-  }
-
-  async bake() { }
-}
-
-export class GroundChunk extends ChunkContainer {
-  generateGroundBuffer(
+export class GroundChunk extends ChunkDataContainer {
+  generateHeightBuffer(
     block: PatchBlock,
     ymin: number,
     ymax: number,
@@ -79,7 +73,7 @@ export class GroundChunk extends ChunkContainer {
       groundBuffer[groundBuffer.length - 2] = groundSurface
       // finish with sprite block 
       groundBuffer[groundBuffer.length - 1] = (block.pos.x % 4 === 0 && block.pos.z % 4 === 0) ? BlockType.ICE : BlockType.NONE
-      const chunkBuffer: ChunkBuffer = {
+      const chunkBuffer: ChunkHeightBuffer = {
         pos: asVect2(blockLocalPos),
         content: groundBuffer.slice(0, buffSize),
       }
@@ -108,7 +102,7 @@ export class GroundChunk extends ChunkContainer {
 
     const blocks = groundLayer.iterBlocksQuery()
     for (const block of blocks) {
-      const groundBuff = this.generateGroundBuffer(
+      const groundBuff = this.generateHeightBuffer(
         block,
         ymin,
         ymax,
@@ -158,4 +152,83 @@ export class CavesMask extends ChunkMask {
       // chunkContainer.writeBuffer(buffPos, chunkBuff)
     }
   }
+}
+
+
+export type ItemMetadata = ChunkMetadata & {
+  itemRadius: number
+  itemType: ItemType
+}
+// type ItemLiteStub = ChunkStub<ItemMetadata>
+export type ItemFullStub = ChunkDataStub<ItemMetadata>
+
+const adjustItemBounds = (initialBounds: Box3, origin?: Vector3, isOriginCentered = true) => {
+  initialBounds = parseThreeStub(initialBounds)
+  if (origin) {
+    const dimensions = initialBounds.getSize(new Vector3)
+    if (isOriginCentered) {
+      const centeredBounds = new Box3().setFromCenterAndSize(origin, dimensions)
+      centeredBounds.min.y = origin.y
+      centeredBounds.max.y = origin.y + dimensions.y
+      centeredBounds.min.floor()
+      centeredBounds.max.floor()
+      return centeredBounds
+    } else {
+      const bmin = origin.clone()
+      const bmax = origin.clone().add(dimensions.clone())
+      const offsetBounds = new Box3(bmin, bmax)
+      return offsetBounds
+    }
+  } else return initialBounds
+}
+
+export class ItemChunk extends ChunkSharedContainer {
+  protected override rawData: Uint16Array<ArrayBufferLike>
+
+  constructor({ metadata, rawdata: externalData }: ItemFullStub, origin?: Vector3) {
+    super(adjustItemBounds(metadata.bounds, origin), metadata.margin)
+    this.rawData = externalData
+  }
+
+  /**
+  *  adjust chunk elevation or discard schematics if above terrain hole
+  * @param itemChunk
+  * @returns
+  */
+  async adjustToGround(blocksProvider: (input: Vector3[]) => Promise<Block<BlockData>[]>) {
+    const retrieveBottomBlocks = async () => {
+
+      const chunkBottomBlocks: Vector3[] = []
+      // iter slice blocks
+      for (const heightBuff of this.iterHeightBuffers()) {
+        if (heightBuff.content[0])
+          chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
+      }
+      const blocksBatch = await blocksProvider(chunkBottomBlocks)
+      // console.log(testBlock)
+      return blocksBatch
+    }
+
+    let isDiscarded = true
+    const blocksResult = await retrieveBottomBlocks()
+    const itemBottomBlocks = Object.values(blocksResult)
+    const hasHoleBlock = itemBottomBlocks.find(
+      block => block.data.type === BlockType.HOLE,
+    )
+    // any schematics having at least one hole block below is considered discarded
+    if (!hasHoleBlock) {
+      // adjust item's final height
+      const [lowestBlock] = itemBottomBlocks.sort(
+        (b1, b2) => b1.data.level - b2.data.level,
+      )
+      const lowestHeight = lowestBlock?.data.level || 0
+      const heightOffset = this.bounds.min.y - lowestHeight
+      // adjust chunk elevation according to lowest block
+      this.bounds.translate(new Vector3(0, -heightOffset, 0))
+      isDiscarded = false
+    }
+    if (isDiscarded) console.log('discarded item: ', this)
+    return isDiscarded
+  }
+
 }

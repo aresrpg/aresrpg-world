@@ -26,12 +26,13 @@ import {
   PatchElement,
 } from '../datacontainers/PatchBase.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
-import { ChunkContainer, ChunkMetadata, ChunkStub } from '../datacontainers/ChunkContainer.js'
+import { ChunkContainer, ChunkDataContainer, ChunkMetadata, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { WorldLocals } from '../config/WorldEnv.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { WorkerPool } from './WorkerPool.js'
 import { ItemsTask } from './ItemsProcessing.js'
+import { ItemChunk } from '../factory/ChunksFactory.js'
 
 export enum BlockCategory {
   EMPTY = 0,
@@ -58,8 +59,8 @@ export type BoardStub = {
 }
 
 export type BoardCacheData = {
-  chunks: ChunkContainer[]
-  items: ChunkContainer[]
+  chunks: ChunkDataContainer[]
+  items: ItemChunk[]
 }
 
 class BoardPatch extends PatchBase<number> implements DataContainer {
@@ -193,12 +194,12 @@ export class BoardCacheProvider {
       // enqueue items processing tasks
       const itemsPendingTasks = Object.keys(patchIndex)
         .filter(patchKey => !this.patchIndex[patchKey])
-        .map(patchKey => new ItemsTask().patchIndividualChunks(patchKey))
+        .map(patchKey => new ItemsTask().individualChunks(patchKey))
         .map(itemTask => {
           const pendingItemTask = itemTask.delegate(this.workerPool)
           // once done put result in cache
           pendingItemTask.then(taskRes => {
-            this.localCache.items.push(...(taskRes as ChunkContainer[]))
+            this.localCache.items.push(...(taskRes as ItemChunk[]))
           })
           return pendingItemTask
         })
@@ -212,10 +213,8 @@ export class BoardCacheProvider {
   /**
    * fills target chunk from cache
    */
-  fillTargetChunk(targetChunk: ChunkContainer) {
-    this.localCache.chunks.forEach(sourceChunk => {
-      ChunkContainer.copySourceToTarget(sourceChunk, targetChunk)
-    })
+  fillTargetChunk(targetChunk: ChunkDataContainer) {
+    this.localCache.chunks.forEach(sourceChunk => sourceChunk.copyContentToTarget(targetChunk))
     // itemsChunks.forEach(itemSource =>
     //   ChunkContainer.copySourceToTarget(itemSource, boardTarget),
     // )
@@ -230,7 +229,7 @@ export class BoardCacheProvider {
 }
 
 type BoardContent = {
-  chunk: ChunkContainer
+  chunk: ChunkDataContainer
   patch: BoardPatch
 }
 
@@ -375,7 +374,7 @@ export class BoardProvider {
     this.finalBounds.setFromPoints([this.groundCenter])
     const initialPatchBounds = asBox2(this.initialBounds)
     const boardPatch = new BoardPatch(initialPatchBounds)
-    const boardChunk = new ChunkContainer(this.initialBounds, 1)
+    const boardChunk = new ChunkDataContainer(this.initialBounds, 1)
     // fill chunk from cache
     this.cacheProvider.fillTargetChunk(boardChunk)
     // const chunkHeightBuffers = boardChunk.iterChunkBuffers()
@@ -412,10 +411,10 @@ export class BoardProvider {
     finalChunkBounds.max.y = boardChunk.bounds.max.y
     const boardContent: BoardContent = {
       patch: new BoardPatch(this.finalBounds),
-      chunk: new ChunkContainer(finalChunkBounds, 1),
+      chunk: new ChunkDataContainer(finalChunkBounds, 1),
     }
     copySourceToTargetPatch(boardPatch, boardContent.patch)
-    ChunkContainer.copySourceToTarget(boardChunk, boardContent.chunk)
+    boardChunk.copyContentToTarget(boardContent.chunk)
 
     const boardSpawnedItems = this.cacheProvider.getSpawnedItems(
       boardChunk.bounds,
@@ -432,16 +431,16 @@ export class BoardProvider {
   // trim items spawning inside board
   addTrimmedItems(
     boardPatch: BoardPatch,
-    boardChunk: ChunkContainer,
-    boardSpawnedItems: ChunkContainer[],
+    boardChunk: ChunkDataContainer,
+    boardSpawnedItems: ItemChunk[],
   ) {
     for (const itemChunk of boardSpawnedItems) {
       const itemOffset = this.boardElevation - itemChunk.bounds.min.y
       // iter slice from item which is at same level as the board
       if (itemOffset >= 0) {
-        for (const heightBuff of itemChunk.iterChunkSlice()) {
+        for (const heightBuff of itemChunk.iterHeightBuffers()) {
           const itemBlockData = this.externalDataEncoder(
-            heightBuff.data[itemOffset],
+            heightBuff.content[itemOffset],
           )
           // if blocks belongs to board
           if (itemBlockData && boardPatch.containsPoint(heightBuff.pos)) {
@@ -475,26 +474,24 @@ export class BoardProvider {
     }
   }
 
-  *overrideOriginalChunksContent(boardChunk: ChunkContainer) {
+  *overrideOriginalChunksContent(boardChunk: ChunkDataContainer) {
     const { nonOverlappingItemsChunks } = this
     const chunkDim = this.worldLocalEnv.getChunkDimensions()
     // iter processed original chunks
     for (const originalChunk of this.cacheProvider.chunks) {
       // board_chunk.rawData.fill(113)
-      const targetChunk = new ChunkContainer(
+      const targetChunk = new ChunkDataContainer(
         undefined,
         originalChunk.margin,
       ).fromKey(originalChunk.chunkKey, chunkDim)
       originalChunk.rawData.forEach((val, i) => (targetChunk.rawData[i] = val))
       // copy items individually
-      nonOverlappingItemsChunks.forEach(itemChunk =>
-        ChunkContainer.copySourceToTarget(itemChunk, targetChunk),
-      )
+      nonOverlappingItemsChunks.forEach(itemChunk => itemChunk.copyContentToTarget(targetChunk))
       targetChunk.rawData.forEach(
         (val, i) => (targetChunk.rawData[i] = this.externalDataEncoder(val)),
       )
       // override with board_buffer
-      ChunkContainer.copySourceToTarget(boardChunk, targetChunk, false)
+      boardChunk.copyContentToTarget(targetChunk, false)
       yield targetChunk
     }
   }
@@ -504,15 +501,13 @@ export class BoardProvider {
     // iter processed original chunks
     for (const originalChunk of this.cacheProvider.chunks) {
       // board_chunk.rawData.fill(113)
-      const targetChunk = new ChunkContainer(
+      const targetChunk = new ChunkDataContainer(
         undefined,
         originalChunk.margin,
       ).fromKey(originalChunk.chunkKey, chunkDim)
       originalChunk.rawData.forEach((val, i) => (targetChunk.rawData[i] = val))
       // copy items individually
-      this.cacheProvider.items.forEach(itemChunk => {
-        ChunkContainer.copySourceToTarget(itemChunk, targetChunk)
-      })
+      this.cacheProvider.items.forEach(itemChunk => itemChunk.copyContentToTarget(targetChunk))
       targetChunk.rawData.forEach(
         (val, i) => (targetChunk.rawData[i] = this.externalDataEncoder(val)),
       )
