@@ -205,7 +205,7 @@ export class BoardCacheProvider {
       // update index
       this.patchIndex = patchIndex
       await Promise.all([...chunksPendingTasks, ...itemsPendingTasks])
-      console.log(`BoardCache: ready!`)
+      // console.log(`BoardCache: ready!`)
     }
   }
 
@@ -449,7 +449,7 @@ export class BoardProvider {
             const chunkLocalPos = boardChunk.toLocalPos(itemBlockPos)
             const chunkIndex = boardChunk.getIndex(chunkLocalPos)
             // copy block to board chunk
-            console.log(`writing item block to board`)
+            // console.log(`writing item block to board`)
             boardChunk.rawData[chunkIndex] = itemBlockData
             // and mark block as obstacle in board patch
             const patchLocalPos = boardPatch.toLocalPos(heightBuff.pos)

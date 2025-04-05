@@ -49,8 +49,8 @@ export class ItemsTask extends ProcessingTask<
 
   override postProcess(rawTaskOutput: any) {
     const { recipe } = this.processingParams
-    console.log(`${this.processingInput}`)
-    console.log(rawTaskOutput)
+    // console.log(`${this.processingInput}`)
+    // console.log(rawTaskOutput)
     switch (recipe) {
       case ItemsTaskRecipe.IndividualChunks:
         return (rawTaskOutput as ChunkStub[]).map(stub =>
