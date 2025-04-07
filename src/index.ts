@@ -1,5 +1,5 @@
 // Env
-export { WorldLocals, WorldSeed } from './config/WorldEnv.js'
+export { WorldLocals, WorldGlobals, WorldSeed } from './config/WorldEnv.js'
 // Utils
 // export * as WorldUtils from './utils/index'
 export {
@@ -27,11 +27,13 @@ export {
 export { ChunksPolling } from './processing/ChunksPolling.js'
 export { ProcessingState } from './processing/TaskProcessing.js'
 export { ChunksProcessing } from './processing/ChunksProcessing.js'
+export { ItemsTask, type MapPickedElements } from './processing/ItemsProcessing.js'
 export { WorkerPool } from './processing/WorkerPool.js'
 // Procgen
 export { Biome, BiomeType } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
 export { DensityVolume } from './procgen/DensityVolume.js'
+export { ItemsMapDistribution } from './procgen/ItemsMapDistribution.js'
 // Data structures
 export {
   ChunkContainer,

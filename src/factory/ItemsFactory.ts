@@ -2,16 +2,11 @@ import { Vector2 } from 'three'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators.js'
 import { SchematicLoader } from '../tools/SchematicLoader.js'
 import { ItemType, VoidItemType } from '../utils/common_types.js'
-import { ItemsEnv } from '../config/WorldEnv.js'
+import { ItemsEnv, WorldGlobals } from '../config/WorldEnv.js'
 import { asBox2 } from '../utils/patch_chunk.js'
 import { ItemFullStub, ItemMetadata } from './ChunksFactory.js'
+import { isNotWorkerEnv } from '../utils/misc_utils.js'
 // import { asVect2 } from '../utils/patch_chunk'
-
-export enum SizeProfile {
-  SMALL,
-  MEDIUM,
-  LARGE,
-}
 
 /**
  * Referencing all items either coming from schematic definitions or procedurally generated
@@ -51,8 +46,11 @@ export class ItemsInventory {
         customBlocksMapping,
       )
       const itemRadius = Math.ceil(asBox2(metadata.bounds).getSize(new Vector2).length() / 2)
-      const templateMetadata: ItemMetadata = { ...metadata, itemRadius, itemType }
+      const sizeTolerance = itemRadius < 32 ? itemRadius / 5 : 0 // TODO remove hardcoding
+      const templateMetadata: ItemMetadata = { ...metadata, itemRadius, itemType, sizeTolerance }
       const templateStub: ItemFullStub = { metadata: templateMetadata, rawdata }
+      WorldGlobals.instance.debug.logs && isNotWorkerEnv() &&
+        console.log(`loaded schematic ${itemType}, radius: ${itemRadius}, size tolerance: ${sizeTolerance}`)
       // const spawner = new PseudoDistributionMap()
       this.catalog[itemType] = templateStub
     }

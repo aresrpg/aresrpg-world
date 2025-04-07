@@ -3,6 +3,8 @@ import { Box3, Vector3 } from 'three'
 import { NBTReader } from '../third-party/nbt_custom.js'
 import { BlockType } from '../utils/common_types.js'
 import { ChunkDataContainer } from '../datacontainers/ChunkContainer.js'
+import { isNotWorkerEnv } from '../utils/misc_utils.js'
+import { WorldGlobals } from '../config/WorldEnv.js'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
 
@@ -82,7 +84,7 @@ export class SchematicLoader {
     const end = orig.clone().add(dims)
     const bbox = new Box3(orig, end)
     const templateChunk = new ChunkDataContainer(bbox)
-
+    const missingBlockTypes: Record<string, number> = {}
     for (let y = 0; y < schemBlocks.length; y++) {
       for (let x = 0; x < schemBlocks[y].length; x++) {
         for (let z = 0; z < schemBlocks[y][x].length; z++) {
@@ -90,8 +92,9 @@ export class SchematicLoader {
           let blockType =
             localBlocksMapping?.[rawType] || globalBlocksMapping[rawType]
           if (blockType === undefined) {
-            console.warn(`missing schematic block type ${rawType}`)
-            // blockType = WorldGlobals.debug.schematics.missingBlockType
+            missingBlockTypes[rawType] = missingBlockTypes[rawType] || 0
+            missingBlockTypes[rawType]++
+            blockType = WorldGlobals.instance.debug.schematics.missingBlockType
           }
           // worldObj.rawData[index++] = blockType
           const localPos = new Vector3(x, y, z)
@@ -101,6 +104,11 @@ export class SchematicLoader {
         }
       }
     }
+
+    WorldGlobals.instance.debug.logs && isNotWorkerEnv() &&
+      Object.entries(missingBlockTypes).forEach(([type, count]) => console.warn(`missing schematic block type ${type}: ${count}`))
+
+
     // profile schematic based on its size and user profiles
     return templateChunk.toStub()
   }

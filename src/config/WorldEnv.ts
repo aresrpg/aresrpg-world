@@ -3,8 +3,6 @@ import { Vector2, Vector3 } from 'three'
 import { ProcItemConf } from '../tools/ProceduralGenerators.js'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader.js'
 import { BiomesRawConf, BlockType, ItemType } from '../utils/common_types.js'
-import { DistributionParams } from '../procgen/DiscreteDistributionMap.js'
-import { ItemSize } from '../factory/ItemsFactory.js'
 
 export enum WorldSeed {
   Global = 'global',
@@ -50,6 +48,7 @@ export type HeightmapEnvSettings = {
 }
 
 export type DebugEnvSettings = {
+  logs: boolean
   patch: {
     borderHighlightColor: BlockType
   }
@@ -71,36 +70,6 @@ export type ItemsEnv = {
   proceduralConfigs: Record<ItemType, ProcItemConf>
 }
 
-type DistributionProfileParams = DistributionParams & {
-  maxElementSize: number
-}
-
-type DistributionProfiles = Record<ItemSize, DistributionProfileParams>
-
-const populateDistributionProfiles = () => {
-  const distributionProfiles: DistributionProfiles = {
-    [ItemSize.SMALL]: {
-      maxDistance: 100,
-      tries: 20,
-      minDistance: 4,
-      maxElementSize: 8
-    },
-    [ItemSize.MEDIUM]: {
-      maxDistance: 100,
-      tries: 20,
-      minDistance: 8,
-      maxElementSize: 16
-    },
-    [ItemSize.LARGE]: {
-      maxDistance: 100,
-      tries: 20,
-      minDistance: 16,
-      maxElementSize: 32
-    }
-  }
-  return distributionProfiles
-}
-
 
 export const getWorldSeed = (worldSeeds: WorldSeeds, seedName: WorldSeed) => {
   const seed = worldSeeds[seedName] || worldSeeds[WorldSeed.Global] || WORLD_FALLBACK_SEED
@@ -112,7 +81,6 @@ export type WorldLocalSettings = {
 
   distribution: {
     mapPatchRange: number
-    profiles: DistributionProfiles
   }
 
   chunks: {
@@ -135,7 +103,7 @@ export type WorldLocalSettings = {
   //   patchCountRadius: number, // max cache radius in patch units, 
   // },
 
-  debug: DebugEnvSettings
+  globals: WorldGlobalsStub
 }
 
 export class WorldLocals {
@@ -147,7 +115,6 @@ export class WorldLocals {
 
     distribution: {
       mapPatchRange: 4, // extent of distribution map repeated pattern in patch units
-      profiles: populateDistributionProfiles()
     },
 
     chunks: {
@@ -188,22 +155,10 @@ export class WorldLocals {
       thickness: 3,
     },
 
+    globals: {}
     // cache: {
     //   patchCountRadius: 16, // 4 => 16 patches radius
     // },
-
-    debug: {
-      patch: {
-        borderHighlightColor: BlockType.NONE,
-      },
-      board: {
-        startPosHighlightColor: BlockType.NONE,
-        splitSidesColoring: false,
-      },
-      schematics: {
-        missingBlockType: BlockType.NONE,
-      },
-    },
   }
   // Shortcuts for modules' environment access
   get biomeEnv() {
@@ -218,8 +173,8 @@ export class WorldLocals {
   get itemsEnv() {
     return this.rawSettings.items
   }
-  get debugEnv() {
-    return this.rawSettings.debug
+  get globalEnv() {
+    return this.rawSettings.globals
   }
 
   // Helpers/utils
@@ -240,10 +195,6 @@ export class WorldLocals {
     new Vector2(1, 1).multiplyScalar(
       this.rawSettings.distribution.mapPatchRange * this.getPatchSize(),
     )
-
-  getDistributionProfile = (type: ItemSize) => {
-    return this.rawSettings.distribution.profiles[type]
-  }
 
   getSeed = (seedName: WorldSeed) =>
     getWorldSeed(this.rawSettings.seeds, seedName)
@@ -279,4 +230,39 @@ export class WorldLocals {
   //   getDistributionMapPeriod,
   //   fromStub
   // }
+}
+
+type WorldGlobalsStub = {
+  debug?: DebugEnvSettings
+}
+
+export class WorldGlobals {
+  static singleton: WorldGlobals
+  static get instance() {
+    this.singleton = this.singleton || new WorldGlobals()
+    return this.singleton
+  }
+
+  debug = {
+    logs: false,
+    patch: {
+      borderHighlightColor: BlockType.NONE,
+    },
+    board: {
+      startPosHighlightColor: BlockType.NONE,
+      splitSidesColoring: false,
+    },
+    schematics: {
+      missingBlockType: BlockType.NONE,
+    },
+  }
+
+  import(worldGlobalsStub: WorldGlobalsStub) {
+    const { debug } = worldGlobalsStub
+    this.debug = debug || this.debug
+  }
+  export() {
+    const { debug } = this
+    return { debug } as WorldGlobalsStub
+  }
 }

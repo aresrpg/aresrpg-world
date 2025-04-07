@@ -1,4 +1,4 @@
-import { WorldLocals, WorldLocalSettings, WorldSeed } from './config/WorldEnv.js'
+import { WorldGlobals, WorldLocals, WorldLocalSettings, WorldSeed } from './config/WorldEnv.js'
 import { ItemsInventory } from './factory/ItemsFactory.js'
 import {
   BlocksTask,
@@ -22,7 +22,7 @@ import { DensityVolume } from './procgen/DensityVolume.js'
 // import { DistributionLayers } from './procgen/DistributionLayers.js'
 import { Heightmap } from './procgen/Heightmap.js'
 import { NoiseSampler } from './procgen/NoiseSampler.js'
-import { ItemsDistribution } from './procgen/ItemsDistribution.js'
+import { ItemsMapDistribution } from './procgen/ItemsMapDistribution.js'
 
 /**
  * All world modules required to compute world objects
@@ -37,7 +37,7 @@ export type WorldModules = {
   heightmap: Heightmap
   densityVolume: DensityVolume
   itemsInventory: ItemsInventory
-  itemsDistribution: ItemsDistribution
+  itemsMapDistribution: ItemsMapDistribution
   taskHandlers: TaskHandlers
 }
 
@@ -46,14 +46,14 @@ export const createWorldModules = (
   processingContext = ProcessingContext.None,
 ) => {
   const worldLocalEnv = new WorldLocals().fromStub(worldLocalSettings)
+  WorldGlobals.instance.import(worldLocalEnv.globalEnv)
   const worldSeeds = worldLocalEnv.rawSettings.seeds
-
+  const itemsInventory = new ItemsInventory(worldLocalEnv.itemsEnv)
   const biomes = new Biome(worldLocalEnv.biomeEnv, worldSeeds)
   const heightmap = new Heightmap(biomes, worldLocalEnv.heightmapEnv, worldSeeds)
   const densityVolume = new DensityVolume(worldSeeds)
-  const itemsInventory = new ItemsInventory(worldLocalEnv.itemsEnv)
   // const distributionLayers = new DistributionLayers(worldLocalEnv)
-  const itemsDistribution = new ItemsDistribution(worldLocalEnv, heightmap, biomes)
+  const itemsMapDistribution = new ItemsMapDistribution(worldLocalEnv, heightmap, biomes)
   const spriteDistribution = new NoiseSampler(
     worldLocalEnv.getSeed(WorldSeed.Sprite),
     'sprite_distribution',
@@ -66,7 +66,7 @@ export const createWorldModules = (
     biomes,
     densityVolume,
     itemsInventory,
-    itemsDistribution,
+    itemsMapDistribution,
     taskHandlers: {},
   }
   populateTaskHandlers(worldModules, processingContext)
