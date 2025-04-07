@@ -1,10 +1,10 @@
 import { Box2, Box3, Vector2, Vector3 } from 'three'
-import { ChunkContainer, ChunkMetadata, ChunkStub } from '../datacontainers/ChunkContainer.js'
+import { ChunkContainer, ChunkDataContainer, ChunkDataStub, ChunkMetadata, ChunkStub } from '../datacontainers/ChunkContainer.js'
 import { asPatchBounds, asVect3 } from '../utils/patch_chunk.js'
 import {
+  Block,
+  BlockData,
   BlockRawData,
-  BlockType,
-  ItemType,
   PatchKey,
   VoidItemType,
 } from '../utils/common_types.js'
@@ -12,31 +12,35 @@ import { WorldModules } from '../WorldModules.js'
 
 import {
   GenericTaskHandler,
+  ProcessingContext,
   ProcessingTask,
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing.js'
 import { BlocksProcessing } from './BlocksProcessing.js'
-import { SpawnedElement } from '../procgen/ItemsDistribution.js'
+import { MapSpawnedElement } from '../procgen/ItemsMapDistribution.js'
+import { ItemChunk } from '../factory/ChunksFactory.js'
 
 /**
  * Calling side
  */
 
 export enum ItemsTaskRecipe {
-  PatchSpawnedElements = 'PatchSpawnedElements',
-  PatchIndividualChunks = 'PatchIndividualChunks',
-  PatchMergedChunk = 'PatchMergedChunk',
-  PointsMergedChunk = 'PatchMergedChunk',
+  SpawnedElements = 'SpawnedElements',
+  IndividualChunks = 'IndividualChunks',
+  MergedChunk = 'MergedChunk',
+  // PeakBlocksFromBatch = 'PeakBlocksFromBatch'
   // PointAllBlocks = 'PointAllBlocks',
   // PointHighestBlock = 'PointHighestBlock',
 }
 
+export type MapPickedElements = Record<string, Vector3[]>
+
 export type ItemsTaskInput = Box2 | PatchKey | Vector2[]
-export type ItemsTaskOutput = ChunkContainer | ChunkContainer[]
+export type ItemsTaskOutput = ChunkContainer | ChunkContainer[] | MapPickedElements
 export type ItemsTaskParams = {
   recipe: ItemsTaskRecipe,
-  itemsSamplingRes?: number
+  useLighterProcessing?: boolean
 }
 
 export class ItemsTask extends ProcessingTask<
@@ -51,11 +55,11 @@ export class ItemsTask extends ProcessingTask<
     console.log(`${this.processingInput}`)
     console.log(rawTaskOutput)
     switch (recipe) {
-      case ItemsTaskRecipe.PatchIndividualChunks:
-        return (rawTaskOutput as ChunkStub<ChunkMetadata>[]).map(stub =>
-          new ChunkContainer().fromStub(stub),
+      case ItemsTaskRecipe.IndividualChunks:
+        return (rawTaskOutput as ChunkDataStub<ChunkMetadata>[]).map(itemStub =>
+          new ItemChunk(itemStub),
         )
-      case ItemsTaskRecipe.PatchMergedChunk:
+      case ItemsTaskRecipe.MergedChunk:
         return new ChunkContainer().fromStub(rawTaskOutput as ChunkStub<ChunkMetadata>)
       default:
         return rawTaskOutput
@@ -75,24 +79,24 @@ export class ItemsTask extends ProcessingTask<
    * Direct access to most common tasks, for further customization, adjust processing params
    */
 
-  get patchIndividualChunks() {
-    return this.factory(ItemsTaskRecipe.PatchIndividualChunks)
+  get spawnedElements() {
+    return this.factory(ItemsTaskRecipe.SpawnedElements)
   }
 
-  get patchMergedChunk() {
-    return this.factory(ItemsTaskRecipe.PatchMergedChunk)
+  get individualChunks() {
+    return this.factory(ItemsTaskRecipe.IndividualChunks)
   }
 
-  get pointsMergedChunk() {
-    return this.factory(ItemsTaskRecipe.PointsMergedChunk)
+  get mergedChunk() {
+    return this.factory(ItemsTaskRecipe.MergedChunk)
   }
 
   // get isolatedPointBlocks() {
   //   return this.factory(ItemsTaskRecipe.IsolatedPointBlocks)
   // }
 
-  // get pointPeakBlock() {
-  //   return this.factory(ItemsTaskRecipe.PointPeakBlock)
+  // get peakBlocksFromPointsBatch() {
+  //   return this.factory(ItemsTaskRecipe.PeakBlocksFromBatch)
   // }
 
   /**
@@ -107,16 +111,12 @@ export class ItemsTask extends ProcessingTask<
     return task
   }
 
-  static get patchIndividualChunks() {
-    return this.factory(ItemsTaskRecipe.PatchIndividualChunks)
+  static get individualChunks() {
+    return this.factory(ItemsTaskRecipe.IndividualChunks)
   }
 
-  static get patchMergedChunk() {
-    return this.factory(ItemsTaskRecipe.PatchMergedChunk)
-  }
-
-  static get pointsMergedChunk() {
-    return this.factory(ItemsTaskRecipe.PointsMergedChunk)
+  static get mergedChunk() {
+    return this.factory(ItemsTaskRecipe.MergedChunk)
   }
 
   // static get isolatedPointBlocks() {
@@ -147,7 +147,7 @@ type ItemsProcessingTaskStub = ProcessingTaskStub<
   ItemsTaskInput,
   ItemsTaskParams
 >
-type ItemsProcessingTaskHandler = ProcessingTaskHandler<
+type ItemsProcessingHandler = ProcessingTaskHandler<
   ItemsTaskInput,
   ItemsTaskParams,
   any
@@ -156,84 +156,48 @@ type ItemsProcessingTaskHandler = ProcessingTaskHandler<
 
 
 export const createItemsTaskHandler = (worldModules: WorldModules) => {
-  const { taskHandlers, itemsInventory, itemsDistribution, worldLocalEnv } = worldModules
+  const { taskHandlers, itemsInventory, itemsMapDistribution, worldLocalEnv } = worldModules
 
-  const itemsTaskHandler: ItemsProcessingTaskHandler = async (
+  const itemsTaskHandler: ItemsProcessingHandler = async (
     taskStub: ItemsProcessingTaskStub,
+    processingContext = ProcessingContext.None,
   ) => {
-
-    const retrieveItemBottomBlocks = async (itemChunk: ChunkContainer) => {
-      const chunkBottomBlocks: Vector3[] = []
-      const blocksTaskHandler = taskHandlers[BlocksProcessing.handlerId]
-      // iter slice blocks
-      for (const heightBuff of itemChunk.iterChunkSlice()) {
-        if (heightBuff.data[0])
-          chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
-      }
-      const blocksTask = new BlocksProcessing().groundPositions(chunkBottomBlocks)
-      blocksTask.processingParams.includeDensity = true
-      const blocksBatch = await blocksTask.process(blocksTaskHandler as any)
-      // console.log(testBlock)
-      return blocksBatch
-    }
-
-    /**
-     * discard schematics above terrain holes + adjust chunk elevation on ground
-     * @param itemChunk
-     * @returns
-     */
-    const discardOrAdjustItemChunk = async (itemChunk: ChunkContainer) => {
-      let isItemDiscarded = true
-      const blocksResult = await retrieveItemBottomBlocks(itemChunk)
-      const itemBottomBlocks = Object.values(blocksResult)
-      const hasHoleBlock = itemBottomBlocks.find(
-        block => block.data.type === BlockType.HOLE,
-      )
-      // any schematics having at least one hole block below is considered discarded
-      if (!hasHoleBlock) {
-        // adjust item's final height
-        const [lowestBlock] = itemBottomBlocks.sort(
-          (b1, b2) => b1.data.level - b2.data.level,
-        )
-        const lowestHeight = lowestBlock?.data.level || 0
-        const heightOffset = itemChunk.bounds.min.y - lowestHeight
-        // adjust chunk elevation according to lowest block
-        itemChunk.bounds.translate(new Vector3(0, -heightOffset, 0))
-        isItemDiscarded = false
-      }
-      if (isItemDiscarded) console.log('discarded item: ', itemChunk)
-      return isItemDiscarded
-    }
-
     /**
      * Determine final item type and position
      * @param spawnedElements 
      * @returns 
      */
-    const pickSpawnedItems = async (spawnedElements: SpawnedElement[]) => {
-      const pickedItems: Record<ItemType, Vector3[]> = {}
-      const blocksTaskHandler = taskHandlers[BlocksProcessing.handlerId] as GenericTaskHandler
-      const taskInput = spawnedElements.map(elt => asVect3(elt.pos))
-      const rawBlocksTask = new BlocksProcessing().rawData(taskInput)
-      const rawBlocks = await rawBlocksTask.process(blocksTaskHandler)
-      let i = 0
-      let count = 0
-      for await (const spawnedElement of spawnedElements) {
-        const { randomIndex, pos } = spawnedElement
-        const rawBlock = rawBlocks[i++]?.data as BlockRawData
-        const { level, biome, landIndex } = rawBlock
-        // const blockProcessor = new BlockProcessor(asVect3(pos), groundPatch)
-        // const floorBlock = blockProcessor.getFloorBlock()
-        const landConf = worldModules.biomes.mappings[biome].nth(landIndex).data
-        const { flora: weightedFlora } = landConf
-        if (weightedFlora) {
+    const pickSpawnedItems = async (spawnSlotsIndex: Record<number, MapSpawnedElement[]>) => {
+      const pickedItems: MapPickedElements = {}
+      for (const [spawnSize, spawnSlots] of Object.entries(spawnSlotsIndex)) {
+        // check spawn slots aren't hidden by bigger 
+
+        const maxSpawnSize = parseInt(spawnSize)
+        const blocksTaskHandler = taskHandlers[BlocksProcessing.handlerId] as GenericTaskHandler
+        const taskInput = spawnSlots.map(elt => asVect3(elt.pos))
+        const rawBlocksTask = new BlocksProcessing().rawData(taskInput)
+        const rawBlocks = await rawBlocksTask.process(blocksTaskHandler)
+        let i = 0
+        for await (const spawnedElement of spawnSlots) {
+          const { randomIndex, pos } = spawnedElement
+          const rawBlock = rawBlocks[i++]?.data as BlockRawData
+          const { level, biome, landIndex } = rawBlock
+          // const blockProcessor = new BlockProcessor(asVect3(pos), groundPatch)
+          // const floorBlock = blockProcessor.getFloorBlock()
+          const landConf = worldModules.biomes.mappings[biome].nth(landIndex).data
+          const { flora: weightedFlora } = landConf
+          if (weightedFlora) {
           const eligibleList: string[] = []
           const templateIndex = await itemsInventory.getTemplateIndex(Object.keys(weightedFlora))
           Object.entries(weightedFlora).forEach(([itemType, itemWeight]) => {
             const isMatchingTemplateSize = () => {
-              const templateStub = templateIndex[itemType]?.toStub()
-              const templateSize = templateStub?.metadata.itemSize
-              return templateSize !== undefined && spawnedElement.spawnableSizes.includes(templateSize)
+              const templateStub = templateIndex[itemType]//?.toStub()
+              const sizeTolerance = maxSpawnSize < 32 ? maxSpawnSize / 2 : 0
+              const isSizeMatching = templateStub && templateStub?.metadata.itemRadius < (maxSpawnSize + sizeTolerance)
+              if (isSizeMatching && templateStub?.metadata.itemRadius > 32) {
+                console.warn(`big sized item ${itemType} of ${templateStub?.metadata.itemRadius} spawning at ${spawnedElement}`)
+              }
+              return isSizeMatching
             }
             const isEligible = itemType === VoidItemType || isMatchingTemplateSize()
             // reject any item not matching size requirements at specific pos
@@ -244,26 +208,38 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
               }
             }
           })
-          // among items matching spawnable sizes pick one using random generated index
-          const pickedItemType = eligibleList[randomIndex % eligibleList.length] || ''
-          pickedItems[pickedItemType] = pickedItems[pickedItemType] || []
-          pickedItems[pickedItemType]?.push(asVect3(pos, level))
-          count++
+            // among items matching spawnable sizes pick one using random generated index
+          if (eligibleList.length > 0) {
+            const pickedItemType = eligibleList[randomIndex % eligibleList.length] || ''
+              pickedItems[pickedItemType] = pickedItems[pickedItemType] || []
+              pickedItems[pickedItemType]?.push(asVect3(pos, level))
+            }
+          }
         }
       }
       // console.log(`${taskInput.length} => ${count}`)
       return pickedItems
     }
 
-    const buildSpawnedChunks = async (spawnedItems: Record<ItemType, Vector3[]>) => {
+    /**
+     * create shared data containers from original template to avoid copying data
+     */
+    const buildSpawnedChunks = async (spawnedItems: MapPickedElements,) => {
       const spawnedChunks = []
+      const blocksTaskHandler = taskHandlers[BlocksProcessing.handlerId] as GenericTaskHandler
+      const groundBlocksProvider = async (input: Vector3[]) => {
+        const blocksTask = new BlocksProcessing().groundPositions(input)
+        blocksTask.processingParams.includeDensity = true
+        const blocksRes = await blocksTask.process(blocksTaskHandler)
+        return blocksRes as Block<BlockData>[]
+      }
+
       for await (const [itemType, itemsPositions] of Object.entries(spawnedItems)) {
         for (const itemPos of itemsPositions) {
           const itemTemplate = await itemsInventory.getTemplate(itemType)
           if (itemTemplate) {
-            //await itemsInventory.getTemplate(pickedItemType)
-            const instancedChunk = itemTemplate.toInstancedChunk(itemPos)
-            const isDiscarded = await discardOrAdjustItemChunk(instancedChunk)
+            const instancedChunk = new ItemChunk(itemTemplate, itemPos) //itemTemplate.toInstancedChunk(itemPos, true, skipCloning)
+            const isDiscarded = !useLighterProcessing && await instancedChunk.adjustToGround(groundBlocksProvider)
             !isDiscarded && spawnedChunks.push(instancedChunk)
           }
         }
@@ -272,51 +248,38 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
     }
 
     /**
-     * needs: individual items
-     * provides: merged items chunk
+     * merge all individual items chunks into unique container
      */
-    const mergeSpawnedChunks = (individualChunks: ChunkContainer[]) => {
+    const mergeSpawnedChunks = (individualChunks: ItemChunk[]) => {
       const mergeChunkBounds = new Box3()
       for (const itemChunk of individualChunks) {
         mergeChunkBounds.union(itemChunk?.bounds)
       }
-      const mergeChunk = new ChunkContainer(mergeChunkBounds, 1)
+      const mergeChunk = new ChunkDataContainer(mergeChunkBounds, 1)
       for (const itemChunk of individualChunks) {
-        ChunkContainer.copySourceToTarget(itemChunk, mergeChunk)
+        itemChunk.copyContentToTarget(mergeChunk)
       }
       return mergeChunk
     }
 
-    // const queryPointPeakBlock = async (
-    //   spawnedItems: SpawnedItems,
-    //   requestedPos: Vector2
-    // ) => {
+    // const queryPeakBlockAtPosition = async (requestedPos: Vector2, itemsChunks: ItemChunk[]) => {
     //   const peakBlock = {
     //     level: 0,
     //     type: BlockType.NONE,
     //   }
-    //   for await (const [itemType, spawnPlaces] of Object.entries(
-    //     spawnedItems,
-    //   )) {
-    //     for await (const spawnOrigin of spawnPlaces) {
-    //       const template = await itemsInventory.catalog[itemType]//?.toInstancedChunk(spawnOrigin)
-    //       if (template) {
-    //         // create ghost instance to avoid to temporarily copy data  from original template
-    //         const ghost = new ItemChunk(template?.bounds)
-    //         ghost.centerBounds(spawnOrigin)
-    //         const localPos = ghost.toLocalPos(asVect3(requestedPos))
-    //         const dataArray = template.readBuffer(asVect2(localPos))
-    //         dataArray.reverse()
-    //         const index = dataArray.findIndex(val => !!val)
+    //   const overlappingChunks = itemsChunks.filter(chunk => chunk)
+    //   for await (const itemChunk of overlappingChunks) {
+    //     const localPos = itemChunk.toLocalPos(asVect3(requestedPos))
+    //     const dataArray = itemChunk.readBuffer(asVect2(localPos))
+    //     dataArray.reverse()
+    //     const index = dataArray.findIndex(val => !!val)
 
-    //         if (index !== -1) {
-    //           const peakBlockLevel = ghost.bounds.max.y - index
-    //           const rawData = dataArray[index]
-    //           if (rawData && peakBlockLevel > peakBlock.level) {
-    //             peakBlock.level = peakBlockLevel
-    //             peakBlock.type = rawData || BlockType.NONE
-    //           }
-    //         }
+    //     if (index !== -1) {
+    //       const peakBlockLevel = itemChunk.bounds.max.y - index
+    //       const rawData = dataArray[index]
+    //       if (rawData && peakBlockLevel > peakBlock.level) {
+    //         peakBlock.level = peakBlockLevel
+    //         peakBlock.type = rawData || BlockType.NONE
     //       }
     //     }
     //   }
@@ -363,12 +326,12 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
     // }
 
     const { processingInput, processingParams } = taskStub
-    const { recipe } = processingParams
+    const { recipe, useLighterProcessing } = processingParams
     const inputQuery = typeof processingInput === 'string' ? asPatchBounds(processingInput, worldLocalEnv.getPatchDimensions()) : processingInput
-    const spawnableElements = itemsDistribution.queryMapArea(inputQuery)
-    const pickedElements = await pickSpawnedItems(spawnableElements)
+    const spawnSlotsIndex = itemsMapDistribution.queryMapArea(inputQuery)
+    const pickedElements = await pickSpawnedItems(spawnSlotsIndex)
 
-    if (recipe === ItemsTaskRecipe.PatchSpawnedElements) {
+    if (recipe === ItemsTaskRecipe.SpawnedElements) {
       return pickedElements
     }
     // else if (recipe === ItemsTaskRecipe.IsolatedPointBlocks) {
@@ -391,9 +354,10 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
     // } 
     else {
       const spawnedChunks = await buildSpawnedChunks(pickedElements)
-      if (recipe === ItemsTaskRecipe.PatchIndividualChunks) {
-        return spawnedChunks.map(chunk => chunk.toStub())
-      } else {
+      if (recipe === ItemsTaskRecipe.IndividualChunks) {
+        return processingContext === ProcessingContext.Worker ? spawnedChunks.map(chunk => chunk.toStub()) : spawnedChunks
+      }
+      else if (recipe === ItemsTaskRecipe.MergedChunk) {
         const mergedChunk = await mergeSpawnedChunks(spawnedChunks)
         return mergedChunk
       }

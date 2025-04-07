@@ -26,7 +26,7 @@ import {
   PatchElement,
 } from '../datacontainers/PatchBase.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
-import { ChunkContainer, ChunkDataContainer, ChunkMetadata, ChunkStub } from '../datacontainers/ChunkContainer.js'
+import { ChunkDataContainer, ChunkDataStub, ChunkMetadata } from '../datacontainers/ChunkContainer.js'
 import { WorldLocals } from '../config/WorldEnv.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
@@ -180,12 +180,13 @@ export class BoardCacheProvider {
         .map(chunkTask => {
           chunkTask.processingParams.skipEntities = true
           chunkTask.processingParams.skipBlobCompression = true
+          chunkTask.processingParams.skipEmpty = true
           const pendingChunkTask = chunkTask.delegate(this.workerPool)
           // once done put result in cache
           pendingChunkTask.then(taskRes => {
             // reconstruct objects from stubs
-            const chunks = taskRes.map((chunkStub: ChunkStub<ChunkMetadata>) =>
-              new ChunkContainer().fromStub(chunkStub),
+            const chunks = taskRes.map((chunkStub: ChunkDataStub<ChunkMetadata>) =>
+              new ChunkDataContainer().fromStub(chunkStub),
             )
             this.localCache.chunks.push(...chunks)
           })

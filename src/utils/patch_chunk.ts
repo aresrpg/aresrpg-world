@@ -135,11 +135,11 @@ const getUpperScalarId = (scalarValue: number, size: number) => {
   return scalarId
 }
 
-const getPatchId = (position: Vector2Like, patchSize: Vector2Like) => {
+const getPatchId = <T extends Vector2 | Vector2Like>(position: T, patchSize: T) => {
   const patchId = position instanceof Vector2 ?
     position.clone().divide(patchSize).floor() :
     { x: getScalarId(position.x, patchSize.x), y: getScalarId(position.y, patchSize.y) }
-  return patchId
+  return patchId as T
 }
 
 const patchRangeFromMapCenterRad = (

@@ -41,3 +41,6 @@ export function reverseMapping<
 export function isBrowserEnv() {
   return typeof window !== 'undefined' && typeof window.document !== 'undefined'
 }
+
+export const isWorkerEnv = () => typeof self !== 'undefined'
+export const isNotWorkerEnv = () => typeof window !== 'undefined'

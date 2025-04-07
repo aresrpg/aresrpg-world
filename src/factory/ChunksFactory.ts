@@ -15,12 +15,10 @@ import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
 import { Biome, BiomeType } from '../procgen/Biome.js'
 import { WorldModules } from '../WorldModules.js'
-import { DebugEnvSettings } from '../config/WorldEnv.js'
+import { WorldGlobals } from '../index.js'
 
-const highlightPatchBorders = (
-  localPos: Vector3,
-  borderHighlightColor?: BlockType,
-) => {
+const highlightPatchBorders = (localPos: Vector3) => {
+  const { borderHighlightColor } = WorldGlobals.instance.debug.patch
   return borderHighlightColor && (localPos.x === 1 || localPos.z === 1)
     ? borderHighlightColor
     : null
@@ -35,8 +33,7 @@ export class GroundChunk extends ChunkDataContainer {
     block: PatchBlock,
     ymin: number,
     ymax: number,
-    biome: Biome,
-    debugEnvSettings?: DebugEnvSettings,
+    biome: Biome
   ) {
     //, isTransition = false) {
     const undegroundDepth = 4
@@ -45,10 +42,7 @@ export class GroundChunk extends ChunkDataContainer {
     const biomeLand = biome.mappings[biomeType].nth(landIndex)
     const landConf = biomeLand.data
     const blockType = // isTransition ? BlockType.SAND :
-      highlightPatchBorders(
-        blockLocalPos,
-        debugEnvSettings?.patch.borderHighlightColor,
-      ) || landConf.type
+      highlightPatchBorders(blockLocalPos) || landConf.type
     // const groundFlags = parseGroundFlags(flags)
     // const blockMode = groundFlags.boardMode
     //   ? BlockMode.CHECKERBOARD
@@ -106,8 +100,7 @@ export class GroundChunk extends ChunkDataContainer {
         block,
         ymin,
         ymax,
-        worldModules.biomes,
-        worldLocalEnv.debugEnv,
+        worldModules.biomes
       )
       if (groundBuff) {
         const chunk_buffer = this.readBuffer(groundBuff.pos)
@@ -157,6 +150,7 @@ export class CavesMask extends ChunkMask {
 
 export type ItemMetadata = ChunkMetadata & {
   itemRadius: number
+  sizeTolerance: number
   itemType: ItemType
 }
 // type ItemLiteStub = ChunkStub<ItemMetadata>
@@ -229,6 +223,24 @@ export class ItemChunk extends ChunkSharedContainer {
     }
     if (isDiscarded) console.log('discarded item: ', this)
     return isDiscarded
+  }
+
+  getUpperBlock(worldPos: Vector3) {
+    const localPos = this.toLocalPos(worldPos)
+    const dataArray = this.readBuffer(asVect2(localPos))
+    dataArray.reverse()
+    const index = dataArray.findIndex(val => !!val)
+
+    if (index !== -1) {
+      const level = this.bounds.max.y - index
+      const type = dataArray[index]
+      // if (rawData && peakBlockLevel > peakBlock.level) {
+      //   peakBlock.level = peakBlockLevel
+      //   peakBlock.type = rawData || BlockType.NONE
+      // }
+      return { level, type }
+    }
+    return null
   }
 
 }
