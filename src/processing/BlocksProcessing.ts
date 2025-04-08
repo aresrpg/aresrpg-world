@@ -9,18 +9,15 @@ import {
 } from '../utils/patch_chunk.js'
 import { PatchKey, Block, BlockData, BlockType, BlockRawData } from '../utils/common_types.js'
 import { WorldModules } from '../WorldModules.js'
-
 import { GroundBlockData, GroundPatch } from './GroundPatch.js'
 import {
-  GenericTaskHandler,
+  BaseProcessingParams,
   parseTaskInputStubs,
-  ProcessingContext,
   ProcessingTask,
   ProcessingTaskHandler,
   ProcessingTaskStub,
 } from './TaskProcessing.js'
 import { ItemsTask } from './ItemsProcessing.js'
-import { ItemChunk } from '../factory/ChunksFactory.js'
 
 /**
  * Calling side
@@ -47,9 +44,9 @@ type FloatArrayOut = {
   type: Float32Array
 }
 
-export type BlocksTaskInput = Vector3[] | Float32Array
+export type BlocksTaskInput = Vector3[] | Vector2[] | Float32Array
 export type BlocksTaskOutput = Block<BlockData>[] | FloatArrayOut
-export type BlocksTaskParams = {
+export type BlocksTaskParams = BaseProcessingParams & {
   recipe: BlocksTaskRecipe
   includeDensity?: boolean
   dataFormat?: BlocksDataFormat
@@ -64,52 +61,63 @@ export type BlocksTaskParams = {
 //   }) //as GroundBlock[]
 // }
 
-export class BlocksTask extends ProcessingTask<
-  BlocksTaskInput,
+export class BlocksTask<ProcessingInput extends BlocksTaskInput, ProcessingOutput extends BlocksTaskOutput> extends ProcessingTask<
+  ProcessingInput,
   BlocksTaskParams,
-  BlocksTaskOutput
+  ProcessingOutput
 > {
   static handlerId = 'BlocksProcessing'
 
+  constructor() {
+    super(BlocksTask.handlerId)
+  }
+
   /**
-   * Direct access to most common tasks, for further customization, adjust processing params
+   * Build templates for most common tasks, adjust manually if needed
    */
 
-  factory(recipe: BlocksTaskRecipe) {
-    this.handlerId = BlocksTask.handlerId
+  /**
+   * Instance version (allow use from child classes)
+   * @param recipe 
+   * @returns 
+   */
+
+  getBuildTemplate(recipe: BlocksTaskRecipe) {
     this.processingParams = { recipe }
-    return (input: BlocksTaskInput) => {
+    return (input: ProcessingInput) => {
       this.processingInput = input
       return this
     }
   }
 
   get rawData() {
-    return this.factory(BlocksTaskRecipe.RawData)
+    return this.getBuildTemplate(BlocksTaskRecipe.RawData)
   }
 
   get groundPositions() {
-    return this.factory(BlocksTaskRecipe.Ground)
+    return this.getBuildTemplate(BlocksTaskRecipe.Ground)
   }
 
   get peakPositions() {
-    return this.factory(BlocksTaskRecipe.Peak)
+    return this.getBuildTemplate(BlocksTaskRecipe.Peak)
   }
 
   get floorPositions() {
-    return this.factory(BlocksTaskRecipe.Floor)
+    return this.getBuildTemplate(BlocksTaskRecipe.Floor)
   }
 
   get ceilPositions() {
-    return this.factory(BlocksTaskRecipe.Ceiling)
+    return this.getBuildTemplate(BlocksTaskRecipe.Ceiling)
   }
 
   /**
-   * Static versions kept for backward compat with previous API but could be removed
+   * Static versions (allow better types inferance)
+   * @param recipe 
+   * @returns 
    */
 
-  static factory = (recipe: BlocksTaskRecipe) => (input: BlocksTaskInput) => {
-    const task = new BlocksTask()
+  static factory = <ProcessingInput extends BlocksTaskInput, ProcessingOutput extends BlocksTaskOutput>(recipe: BlocksTaskRecipe) => (input: ProcessingInput) => {
+    const task = new BlocksTask<ProcessingInput, ProcessingOutput>()
     task.handlerId = BlocksTask.handlerId
     task.processingInput = input
     task.processingParams = { recipe }
@@ -117,19 +125,19 @@ export class BlocksTask extends ProcessingTask<
   }
 
   static get groundPositions() {
-    return this.factory(BlocksTaskRecipe.Ground)
+    return this.factory<BlocksTaskInput, Block<BlockData>[]>(BlocksTaskRecipe.Ground)
   }
 
   static get peakPositions() {
-    return this.factory(BlocksTaskRecipe.Peak)
+    return this.factory<BlocksTaskInput, Block<BlockData>[]>(BlocksTaskRecipe.Peak)
   }
 
   static get floorPositions() {
-    return this.factory(BlocksTaskRecipe.Floor)
+    return this.factory<BlocksTaskInput, Block<BlockData>[]>(BlocksTaskRecipe.Floor)
   }
 
   static get ceilPositions() {
-    return this.factory(BlocksTaskRecipe.Ceiling)
+    return this.factory<BlocksTaskInput, Block<BlockData>[]>(BlocksTaskRecipe.Ceiling)
   }
 }
 
@@ -270,19 +278,15 @@ class FloatArrayIOAdapter extends BlocksDataIOAdapter<FloatArrayOut> {
 
 }
 
-export const createBlocksTaskHandler = (
-  worldModules: WorldModules,
-  processingContext = ProcessingContext.None,
-) => {
+// For testing purpose, will be moved to processing params or removed
+const SPLIT_SPAWNED_ITEMS_REQUEST = false
+
+export const createBlocksTaskHandler = (worldModules: WorldModules) => {
   const { worldLocalEnv, taskHandlers } = worldModules
-  const blocksTaskHandler: BlocksProcessingHandler = (
-    taskStub: BlocksTask | BlocksTaskStub,
-  ) => {
+  const blocksTaskHandler: BlocksProcessingHandler = (taskStub: BlocksTaskStub) => {
     const patchDim = worldLocalEnv.getPatchDimensions()
     const { processingInput, processingParams } = taskStub
     const { recipe, includeDensity, dataFormat } = processingParams
-
-    const isAsync = recipe === BlocksTaskRecipe.Peak
 
     const batchProcessingIterator = (inputBatchIterator: InputBatchIterator, patchKey: PatchKey) => {
       const groundLayer = new GroundPatch().fromKey(patchKey, patchDim, 1)
@@ -362,9 +366,9 @@ export const createBlocksTaskHandler = (
       // console.log(`patch: ${patchKey} batch size: ${batchCount}`)
     }
 
-    async function* iterPeakBlocks(inputBatchIterator: InputBatchIterator, patchKey: PatchKey) {
+    function* iterPeakBlocks(inputBatchIterator: InputBatchIterator, patchKey: PatchKey) {
       // console.log(itemsTaskHandler)
-      for await (const groundBlock of iterGroundBlocks(inputBatchIterator, patchKey)) {
+      for (const groundBlock of iterGroundBlocks(inputBatchIterator, patchKey)) {
         // const mergedChunkTask = new ItemsTask()
         // itemPeakTask.pointPeakBlock(asVect2(groundBlock.pos))
         // if (itemsTaskHandler) {
@@ -436,55 +440,47 @@ export const createBlocksTaskHandler = (
       }
     }
 
-    const isStubData = dataFormat === BlocksDataFormat.FloatArrayXZ && processingContext === ProcessingContext.Worker
+    const isStubData = dataFormat === BlocksDataFormat.FloatArrayXZ && processingParams.isDelegated
     const ioDataAdapter = dataFormat === BlocksDataFormat.FloatArrayXZ ?
       new FloatArrayIOAdapter(patchDim, processingInput as Float32Array)
       : new VectorArrayIOAdapter(patchDim, processingInput as Vector3[], isStubData)
 
 
-    const itemsChunksProvider = async (inputBatch: Vector3[]) => {
+    const itemsChunksProvider = (inputBatch: Vector3[]) => {
       const taskInput = inputBatch.map(input => asVect2(input))
-      const itemsTaskHandler = taskHandlers[ItemsTask.handlerId]
-      const itemsTask = new ItemsTask().individualChunks(taskInput)
+      const itemsTask = ItemsTask.individualChunks(taskInput) //new ItemsTask().individualChunks(taskInput)
       itemsTask.processingParams.useLighterProcessing = true
-      const itemsRes = await itemsTask.process(itemsTaskHandler as GenericTaskHandler)
+      const itemsRes = itemsTask.process(taskHandlers)
       // console.log(`items count for : ${itemsRes.length} `)
-      return itemsRes as ItemChunk[]
+      return itemsRes || []
     }
-    const useItemsPatchRequest = false
-    const preprocess = async () => !useItemsPatchRequest && recipe === BlocksTaskRecipe.Peak ? await itemsChunksProvider(ioDataAdapter.inputData) : []
-    const pendingProcess = preprocess().then(async (itemChunks) => {
-      const inputBatches = ioDataAdapter.splitIntoBatches()
-      // const pendingBatches = Object.entries(inputBatches).map(async ([patchKey, batchIndices]) => {
-      for await (const [patchKey, batchIndices] of Object.entries(inputBatches)) {
-        if (useItemsPatchRequest && recipe === BlocksTaskRecipe.Peak) {
-          const batchInput: Vector3[] = []
-          ioDataAdapter.iterBatchData(batchIndices).forEach(({ data }) => batchInput.push(data))
-          itemChunks = await itemsChunksProvider(batchInput)
-          // console.log(`items count for ${patchKey}: ${itemsRes.length} `)
-        }
-        const inputBatchIterator: InputBatchIterator = ioDataAdapter.iterBatchData(batchIndices)
-        for await (const block of batchProcessingIterator(inputBatchIterator, patchKey)) {
-          if (block.data) {
-            const blockLevel = block.data.data.level
-            const blockPos = block.data.pos.floor()
-            blockPos.y = blockLevel + 2
-            const itemChunk = itemChunks.find(itemChunk => itemChunk.bounds.containsPoint(blockPos))
-            const upperBlock = itemChunk?.getUpperBlock(blockPos)
-            if (upperBlock) {
-              block.data.data.level = upperBlock.level
-              block.data.data.type = upperBlock.type
-            }
-            ioDataAdapter.writeData(block.index, block.data)
+
+    let spawnedChunks = !SPLIT_SPAWNED_ITEMS_REQUEST && recipe === BlocksTaskRecipe.Peak ? itemsChunksProvider(ioDataAdapter.inputData) : []
+    const inputBatches = ioDataAdapter.splitIntoBatches()
+    // const pendingBatches = Object.entries(inputBatches).map(async ([patchKey, batchIndices]) => {
+    for (const [patchKey, batchIndices] of Object.entries(inputBatches)) {
+      if (SPLIT_SPAWNED_ITEMS_REQUEST && recipe === BlocksTaskRecipe.Peak) {
+        const batchInput: Vector3[] = []
+        ioDataAdapter.iterBatchData(batchIndices).forEach(({ data }) => batchInput.push(data))
+        spawnedChunks = itemsChunksProvider(batchInput)
+        // console.log(`items count for ${patchKey}: ${itemsRes.length} `)
+      }
+      const inputBatchIterator: InputBatchIterator = ioDataAdapter.iterBatchData(batchIndices)
+      for (const block of batchProcessingIterator(inputBatchIterator, patchKey)) {
+        if (block.data) {
+          const blockLevel = block.data.data.level
+          const blockPos = block.data.pos.floor()
+          blockPos.y = blockLevel + 2
+          const itemChunk = spawnedChunks.find(chunk => chunk.bounds.containsPoint(blockPos))
+          const upperBlock = itemChunk?.getUpperBlock(blockPos)
+          if (upperBlock) {
+            block.data.data.level = upperBlock.level
+            block.data.data.type = upperBlock.type
           }
+          ioDataAdapter.writeData(block.index, block.data)
         }
       }
-      // })
-      // return await Promise.all(pendingBatches)
-    })
-
-
-
+    }
 
     // const blockData: Block<BlockData> = {
     //   pos: new Vector3,
@@ -495,9 +491,7 @@ export const createBlocksTaskHandler = (
     // }
     // const blocksProcessing = parsedInput?.map(requestedPos => blockData)
 
-    return isAsync || true
-      ? pendingProcess.then(() => ioDataAdapter.outputData)
-      : ioDataAdapter.outputData
+    return ioDataAdapter.outputData
   }
   return blocksTaskHandler
 }

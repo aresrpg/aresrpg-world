@@ -195,7 +195,7 @@ export class BoardCacheProvider {
       // enqueue items processing tasks
       const itemsPendingTasks = Object.keys(patchIndex)
         .filter(patchKey => !this.patchIndex[patchKey])
-        .map(patchKey => new ItemsTask().individualChunks(patchKey))
+        .map(patchKey => ItemsTask.individualChunks(patchKey)) //new ItemsTask().individualChunks(patchKey))
         .map(itemTask => {
           const pendingItemTask = itemTask.delegate(this.workerPool)
           // once done put result in cache

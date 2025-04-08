@@ -14,8 +14,7 @@ import {
 } from './processing/ItemsProcessing.js'
 import {
   GenericTaskHandler,
-  ProcessingContext,
-  ProcessingTaskHandlerId,
+  TaskHandlerId,
 } from './processing/TaskProcessing.js'
 import { Biome } from './procgen/Biome.js'
 import { DensityVolume } from './procgen/DensityVolume.js'
@@ -28,7 +27,7 @@ import { ItemsMapDistribution } from './procgen/ItemsMapDistribution.js'
  * All world modules required to compute world objects
  */
 
-export type TaskHandlers = Record<ProcessingTaskHandlerId, GenericTaskHandler>
+export type TaskHandlers = Record<TaskHandlerId, GenericTaskHandler>
 
 export type WorldModules = {
   worldLocalEnv: WorldLocals
@@ -41,15 +40,14 @@ export type WorldModules = {
   taskHandlers: TaskHandlers
 }
 
-export const createWorldModules = (
-  worldLocalSettings: WorldLocalSettings,
-  processingContext = ProcessingContext.None,
-) => {
+export const createWorldModules = async (worldLocalSettings: WorldLocalSettings) => {
   const worldLocalEnv = new WorldLocals().fromStub(worldLocalSettings)
   WorldGlobals.instance.import(worldLocalEnv.globalEnv)
   const worldSeeds = worldLocalEnv.rawSettings.seeds
   const itemsInventory = new ItemsInventory(worldLocalEnv.itemsEnv)
-  const biomes = new Biome(worldLocalEnv.biomeEnv, worldSeeds)
+  // this will trigger schematics preloading to avoid async afterwhile
+  const parsedBiomes = await Biome.parseBiomesConf(worldLocalEnv.biomeEnv.rawConf, itemsInventory)
+  const biomes = new Biome(parsedBiomes, worldLocalEnv.biomeEnv, worldSeeds)
   const heightmap = new Heightmap(biomes, worldLocalEnv.heightmapEnv, worldSeeds)
   const densityVolume = new DensityVolume(worldSeeds)
   // const distributionLayers = new DistributionLayers(worldLocalEnv)
@@ -69,24 +67,18 @@ export const createWorldModules = (
     itemsMapDistribution,
     taskHandlers: {},
   }
-  populateTaskHandlers(worldModules, processingContext)
+  populateTaskHandlers(worldModules)
   return worldModules
 }
 
 // export type TaskHandlerResolver = (handlerId: ProcessingTaskHandlerId) => GenericTaskHandler | undefined
 
-const populateTaskHandlers = (
-  worldModules: WorldModules,
-  processingContext: ProcessingContext,
-) => {
+const populateTaskHandlers = (worldModules: WorldModules) => {
   const { taskHandlers } = worldModules
 
   taskHandlers[ChunksTask.handlerId] = createChunksTaskHandler(worldModules)
   taskHandlers[ItemsTask.handlerId] = createItemsTaskHandler(worldModules)
-  taskHandlers[BlocksTask.handlerId] = createBlocksTaskHandler(
-    worldModules,
-    processingContext,
-  )
+  taskHandlers[BlocksTask.handlerId] = createBlocksTaskHandler(worldModules)
 
   // const getTaskHandler = (handlerId: ProcessingTaskHandlerId) => {
   //   const taskHandler = taskHandlers[handlerId]

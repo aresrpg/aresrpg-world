@@ -76,7 +76,7 @@ export class GroundChunk extends ChunkDataContainer {
     return undefined
   }
 
-  async bake(
+  bake(
     worldModules: WorldModules,
     groundLayer?: GroundPatch,
     cavesMask?: ChunkMask,
@@ -87,7 +87,7 @@ export class GroundChunk extends ChunkDataContainer {
     const patchKey = serializePatchId(patchId)
     groundLayer =
       groundLayer || new GroundPatch().fromKey(patchKey, patchDim, 1)
-    groundLayer.isEmpty && (await groundLayer.bake(worldModules))
+    groundLayer.isEmpty && groundLayer.bake(worldModules)
 
     const ymin = this.extendedBounds.min.y
     const ymax = this.extendedBounds.max.y
@@ -189,8 +189,8 @@ export class ItemChunk extends ChunkSharedContainer {
   * @param itemChunk
   * @returns
   */
-  async adjustToGround(blocksProvider: (input: Vector3[]) => Promise<Block<BlockData>[]>) {
-    const retrieveBottomBlocks = async () => {
+  adjustToGround(blocksProvider: (input: Vector3[]) => Block<BlockData>[]) {
+    const retrieveBottomBlocks = () => {
 
       const chunkBottomBlocks: Vector3[] = []
       // iter slice blocks
@@ -198,13 +198,13 @@ export class ItemChunk extends ChunkSharedContainer {
         if (heightBuff.content[0])
           chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
       }
-      const blocksBatch = await blocksProvider(chunkBottomBlocks)
+      const blocksBatch = blocksProvider(chunkBottomBlocks)
       // console.log(testBlock)
       return blocksBatch
     }
 
     let isDiscarded = true
-    const blocksResult = await retrieveBottomBlocks()
+    const blocksResult = retrieveBottomBlocks()
     const itemBottomBlocks = Object.values(blocksResult)
     const hasHoleBlock = itemBottomBlocks.find(
       block => block.data.type === BlockType.HOLE,

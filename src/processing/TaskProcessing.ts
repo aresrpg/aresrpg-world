@@ -31,11 +31,7 @@ export enum ProcessingState {
 }
 
 // eslint-disable-next-line no-use-before-define
-export type ProcessingTaskHandlerId = string
-export enum ProcessingContext {
-  None,
-  Worker,
-}
+export type TaskHandlerId = string
 export type TaskId = string | number
 
 // eslint-disable-next-line no-use-before-define
@@ -45,7 +41,7 @@ export type ProcessingTaskStub<ProcessingInput, ProcessingParams> = {
   taskId: TaskId
   processingInput: ProcessingInput
   processingParams: ProcessingParams
-  handlerId: ProcessingTaskHandlerId
+  handlerId: TaskHandlerId
 }
 export type GenericTaskStub = ProcessingTaskStub<any, any>
 
@@ -57,12 +53,18 @@ export type ProcessingTaskHandler<
   ProcessingInput,
   ProcessingParams,
   ProcessingOutput,
-> = (
-  taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>,
-  procContext?: ProcessingContext,
-) => Promise<ProcessingOutput> | ProcessingOutput
-export type GenericTaskHandler = ProcessingTaskHandler<any, any, any>
+> = (taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>) => ProcessingOutput
 
+export type AsyncProcessingTaskHandler<
+  ProcessingInput,
+  ProcessingParams,
+  ProcessingOutput,
+> = (taskStub: ProcessingTaskStub<ProcessingInput, ProcessingParams>) => ProcessingOutput | Promise<ProcessingOutput>
+
+export type GenericTaskHandler = ProcessingTaskHandler<any, any, any>
+export type BaseProcessingParams = {
+  isDelegated?: boolean
+}
 /**
  * Client side
  */
@@ -73,13 +75,13 @@ export type GenericTaskHandler = ProcessingTaskHandler<any, any, any>
  */
 export class ProcessingTask<
   ProcessingInput,
-  ProcessingParams,
+  ProcessingParams extends BaseProcessingParams,
   ProcessingOutput,
 > {
   static globalTasksCount = 0
   processingInput: ProcessingInput = [] as ProcessingInput
   processingParams: ProcessingParams = {} as ProcessingParams
-  handlerId: ProcessingTaskHandlerId = ''
+  handlerId: TaskHandlerId
   processingState: ProcessingState = ProcessingState.None
   taskId: TaskId
   rank = 0
@@ -91,8 +93,9 @@ export class ProcessingTask<
   // resolveDeferredPromise: any
   scheduled = false
 
-  constructor(taskId?: TaskId) {
+  constructor(handlerId: TaskHandlerId, taskId?: TaskId) {
     ProcessingTask.globalTasksCount++
+    this.handlerId = handlerId
     this.taskId = taskId || ProcessingTask.globalTasksCount
     // const deferredPromise = new Promise(resolve => {
     //   this.resolveDeferredPromise = resolve
@@ -124,18 +127,15 @@ export class ProcessingTask<
   //   return this.deferredPromise
   // }
 
-  /**
-   * Depending on task being run, result will be either sync or async
-   */
   process(
-    taskHandler: ProcessingTaskHandler<
+    taskHandlers: Record<TaskHandlerId, ProcessingTaskHandler<
       ProcessingInput,
       ProcessingParams,
       ProcessingOutput
-    >,
+    >>,
   ) {
     // const task = new Task(...args)
-    const taskRes = taskHandler(this.toStub())
+    const taskRes = taskHandlers[this.handlerId]?.(this.toStub())
     // const res = await task.preProcess(processingArgs, processingParams)
     // const stubs = toStubs(res)
     // this.onCompleted(taskRes)
@@ -143,15 +143,15 @@ export class ProcessingTask<
   }
 
   async asyncProcess(
-    taskHandler: ProcessingTaskHandler<
+    asyncTaskHandler: Record<TaskHandlerId, AsyncProcessingTaskHandler<
       ProcessingInput,
       ProcessingParams,
       ProcessingOutput
-    >,
+    >>,
   ) {
     this.onStarted()
-    const taskRes = await this.process(taskHandler)
-    return this.onCompleted(taskRes)
+    const taskRes = await asyncTaskHandler[this.handlerId]?.(this.toStub())
+    return taskRes ? this.onCompleted(taskRes) : taskRes
   }
 
   /**
@@ -166,6 +166,7 @@ export class ProcessingTask<
     // if (this.processingState !== ProcessingState.Done) {
     // this.processingState = ProcessingState.Pending
     // const taskStub = this.toStub()
+    this.processingParams.isDelegated = true
     const pendingPromise = this.getPromise()
     targetEnv.enqueueTasks(this)
     //   .exec('delegateTask', transferredData)
@@ -211,7 +212,7 @@ export class ProcessingTask<
   /**
    * run task remotely on server
    */
-  request() {}
+  request() { }
 
   cancel() {
     // this will instruct worker pool to reject task
@@ -255,7 +256,7 @@ export class ProcessingTask<
     return rawOutputData
   }
 
-  onStarted = () => {}
+  onStarted = () => { }
 
   /**
    * additional callback where post process actions can be performed

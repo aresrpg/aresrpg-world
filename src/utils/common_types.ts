@@ -280,20 +280,36 @@ export type ChunkIndex<T> = Record<ChunkKey, T>
 export type LandConfigId = string // landscape id assigned to noise level
 export type BiomeLandKey = string // combination of BiomeType and LandId
 
-export type LandConfigFields = {
-  key: BiomeLandKey
+
+type LandBaseFields = {
   x: number // noise value
   y: number // height noise mapping
+}
+
+type LandConfigFields = {
   type: BlockType // ground surface
   subtype: BlockType // below ground or mixed with ground surface
   mixratio: number // mixing ratio between type/subtype
-  flora?: Record<ItemType, number>
   fadein: any
   fadeout: any
 }
 
+export type SpawnElement = {
+  weight: number
+  type: string
+  size: number
+}
+
+type LandPreprocessedFields = {
+  key: BiomeLandKey
+  flora: SpawnElement[]
+}
+
+type LandRawFields = LandBaseFields & Partial<LandConfigFields> & { flora?: Record<ItemType, number> }
+export type LandFields = LandBaseFields & LandConfigFields & LandPreprocessedFields
+
 // Biome landscapes mappings
-export type BiomeLandsRawConf = Record<LandConfigId, Partial<LandConfigFields>>
-export type BiomesRawConf = Record<BiomeType, BiomeLandsRawConf>
-export type BiomeLands = LinkedList<LandConfigFields>
+export type BiomeLandsConf = Record<LandConfigId, LandRawFields>
+export type BiomesRawConf = Record<BiomeType, BiomeLandsConf>
+export type BiomeLands = LinkedList<LandFields>
 export type BiomesConf = Record<BiomeType, BiomeLands>
