@@ -15,22 +15,22 @@
  */
 
 const temperate_forest = {
-  small: {
-    Acer_pseudoplatanus1: 1,
-    Corylus_avellana1: 1,
-    Malus_sylvestris1: 1,
-    Quercus_robur1: 1,
-  },
-  medium: {
-    'trees_eu/Aesculus_hippocastanum1': 1,
-    'trees_eu/Fraxinus_excelsior1': 1,
-    'trees_eu/Populus_tremula1': 1, // tall tree
-    'trees_eu/Pinus_sylvestris1': 1,
-    'trees_eu/Juglans_regia1': 1,
-  },
-  tall: {
-    'trees_eu/Fagus_sylvatica1': 1,
-  },
+    small: {
+        Acer_pseudoplatanus1: 1,
+        Corylus_avellana1: 1,
+        Malus_sylvestris1: 1,
+        Quercus_robur1: 1,
+    },
+    medium: {
+        'trees_eu/Aesculus_hippocastanum1': 1,
+        'trees_eu/Fraxinus_excelsior1': 1,
+        'trees_eu/Populus_tremula1': 1, // tall tree
+        'trees_eu/Pinus_sylvestris1': 1,
+        'trees_eu/Juglans_regia1': 1,
+    },
+    tall: {
+        'trees_eu/Fagus_sylvatica1': 1,
+    },
 }
 
 /**
@@ -38,20 +38,20 @@ const temperate_forest = {
  */
 
 const alpine = {
-  small: {
-    'trees_eu/Alnus_glutinosa1': 1,
-    'trees_eu/Pinus_mugo1': 1,
-    'trees_eu/Populus_nigra1': 1,
-  },
-  medium: {
-    'trees_eu/Betula_pubescens1': 1,
-    'trees_eu/Larix_decidua1': 1,
-    'trees_eu/Picea_abies1': 1,
-    'trees_eu/Picea_omorika1': 1,
-  },
-  tall: {
-    'trees_eu/Pinus_cembra1': 1,
-  },
+    small: {
+        'trees_eu/Alnus_glutinosa1': 1,
+        'trees_eu/Pinus_mugo1': 1,
+        'trees_eu/Populus_nigra1': 1,
+    },
+    medium: {
+        'trees_eu/Betula_pubescens1': 1,
+        'trees_eu/Larix_decidua1': 1,
+        'trees_eu/Picea_abies1': 1,
+        'trees_eu/Picea_omorika1': 1,
+    },
+    tall: {
+        'trees_eu/Pinus_cembra1': 1,
+    },
 }
 
 /**
@@ -59,14 +59,14 @@ const alpine = {
  */
 
 const siberian = {
-  small: {},
-  medium: {
-    'trees_eu/Picea_omorika1': 1,
-    'trees_eu/Pinus_sylvestris1': 3,
-  },
-  tall: {
-    'trees_eu/Populus_tremula1': 1,
-  },
+    small: {},
+    medium: {
+        'trees_eu/Picea_omorika1': 1,
+        'trees_eu/Pinus_sylvestris1': 3,
+    },
+    tall: {
+        'trees_eu/Populus_tremula1': 1,
+    },
 }
 
 /**
@@ -74,21 +74,21 @@ const siberian = {
  */
 
 const mediterannean = {
-  small: {
-    'trees_eu/Laurus_nobilis1': 1,
-    'trees_eu/Olea_europaea1': 1,
-    'trees_eu/Prunus_amygdalus1': 1,
-    'trees_eu/Quercus_coccifera1': 1,
-  },
-  medium: {
-    'trees_eu/Ceratonia_siliqua1': 1,
-    'trees_eu/Cupressus_sempervirens1': 1,
-    'trees_eu/Pinus_nigra1': 1,
-    'trees_eu/Pinus_pinea1': 1,
-  },
-  tall: {
-    'trees_eu/Cedrus_libani1': 1,
-  },
+    small: {
+        'trees_eu/Laurus_nobilis1': 1,
+        'trees_eu/Olea_europaea1': 1,
+        'trees_eu/Prunus_amygdalus1': 1,
+        'trees_eu/Quercus_coccifera1': 1,
+    },
+    medium: {
+        'trees_eu/Ceratonia_siliqua1': 1,
+        'trees_eu/Cupressus_sempervirens1': 1,
+        'trees_eu/Pinus_nigra1': 1,
+        'trees_eu/Pinus_pinea1': 1,
+    },
+    tall: {
+        'trees_eu/Cedrus_libani1': 1,
+    },
 }
 
 /**
@@ -96,8 +96,8 @@ const mediterannean = {
  */
 
 export const SCHEMATICS_COLLECTIONS = {
-  temperate_forest,
-  alpine,
-  mediterannean,
-  siberian,
+    temperate_forest,
+    alpine,
+    mediterannean,
+    siberian,
 }
