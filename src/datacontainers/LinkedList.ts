@@ -1,103 +1,100 @@
 export class LinkedList<T> {
-  constructor(data: T) {
-    this.data = data
-  }
-
-  data: T
-  // eslint-disable-next-line no-use-before-define
-  prev: LinkedList<T> | undefined
-  // eslint-disable-next-line no-use-before-define
-  next: LinkedList<T> | undefined
-  // finder?: (item: T, val: any) => boolean
-
-  first() {
-    const items = this.backwardIter()
-    let first = this as LinkedList<T>
-    for (const item of items) {
-      first = item
+    constructor(data: T) {
+        this.data = data
     }
-    return first
-  }
 
-  last() {
-    const items = this.forwardIter()
-    let last = this as LinkedList<T>
-    for (const item of items) {
-      last = item
+    data: T
+    // eslint-disable-next-line no-use-before-define
+    prev: LinkedList<T> | undefined
+    // eslint-disable-next-line no-use-before-define
+    next: LinkedList<T> | undefined
+    // finder?: (item: T, val: any) => boolean
+
+    first() {
+        const items = this.backwardIter()
+        let first = this as LinkedList<T>
+        for (const item of items) {
+            first = item
+        }
+        return first
     }
-    return last
-  }
 
-  nth(n: number) {
-    let curr: LinkedList<T> | undefined = this.first()
-    let i = 1
-    while (curr.next && i < n) {
-      curr = curr.next
-      i++
+    last() {
+        const items = this.forwardIter()
+        let last = this as LinkedList<T>
+        for (const item of items) {
+            last = item
+        }
+        return last
     }
-    return curr
-  }
 
-  get index() {
-    let i = 1
-    let curr: LinkedList<T> | undefined = this
-    while (curr?.prev) {
-      curr = curr.prev
-      i++
+    nth(n: number) {
+        let curr: LinkedList<T> | undefined = this.first()
+        let i = 1
+        while (curr.next && i < n) {
+            curr = curr.next
+            i++
+        }
+        return curr
     }
-    return i
-  }
 
-  *backwardIter() {
-    let curr: LinkedList<T> | undefined = this
-    // yield curr
-    // do{
-    //   yield curr.prev
-    // }while(curr.prev)
-    while (curr) {
-      yield curr
-      curr = curr.prev
+    get index() {
+        let i = 1
+        let curr: LinkedList<T> | undefined = this
+        while (curr?.prev) {
+            curr = curr.prev
+            i++
+        }
+        return i
     }
-  }
 
-  *forwardIter() {
-    let curr: LinkedList<T> | undefined = this
-    while (curr) {
-      yield curr
-      curr = curr.next
+    *backwardIter() {
+        let curr: LinkedList<T> | undefined = this
+        // yield curr
+        // do{
+        //   yield curr.prev
+        // }while(curr.prev)
+        while (curr) {
+            yield curr
+            curr = curr.prev
+        }
     }
-  }
 
-  // find(val: any) {
-  //   let match = this.first()
-  //   while (match && !this.finder?.(match, val)) {
-  //     match = match.next
-  //   }
-  //   return match
-  // }
+    *forwardIter() {
+        let curr: LinkedList<T> | undefined = this
+        while (curr) {
+            yield curr
+            curr = curr.next
+        }
+    }
 
-  static fromArray<U>(itemsData: U[]): LinkedList<U> {
-    const items = itemsData.map(data => new LinkedList<U>(data))
-    // link items together
-    items.reduce((prev, curr) => {
-      curr.prev = prev
-      prev.next = curr
-      return curr
-    })
-    return items[0] as LinkedList<U>
-  }
+    // find(val: any) {
+    //   let match = this.first()
+    //   while (match && !this.finder?.(match, val)) {
+    //     match = match.next
+    //   }
+    //   return match
+    // }
 
-  static fromArrayAfterSorting<U>(
-    itemsData: U[],
-    compareFn: (a: U, b: U) => number,
-  ): LinkedList<U> {
-    const items = itemsData.sort(compareFn).map(data => new LinkedList<U>(data))
-    // link items together
-    items.reduce((prev, curr) => {
-      curr.prev = prev
-      prev.next = curr
-      return curr
-    })
-    return items[0] as LinkedList<U>
-  }
+    static fromArray<U>(itemsData: U[]): LinkedList<U> {
+        const items = itemsData.map(data => new LinkedList<U>(data))
+        // link items together
+        items.reduce((prev, curr) => {
+            curr.prev = prev
+            prev.next = curr
+            return curr
+        })
+        return items[0] as LinkedList<U>
+    }
+
+    static fromArrayAfterSorting<U>(itemsData: U[], compareFn: (a: U, b: U) => number): LinkedList<U> {
+        const items = itemsData.sort(compareFn).map(data => new LinkedList<U>(data))
+        // link items together
+        items.reduce((prev, curr) => {
+            curr.prev = prev
+            prev.next = curr
+            return curr
+        })
+        return items[0] as LinkedList<U>
+    }
 }
