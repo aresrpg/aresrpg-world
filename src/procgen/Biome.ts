@@ -6,8 +6,10 @@ import { LinkedList } from '../datacontainers/LinkedList.js'
 import {
   BiomesConf,
   BiomesRawConf,
-  LandConfigFields,
   BiomeLands,
+  LandFields,
+  BiomeLandsConf,
+  SpawnElement,
 } from '../utils/common_types.js'
 import { clamp, roundToDec, smoothStep } from '../utils/math_utils.js'
 import {
@@ -24,6 +26,7 @@ import {
 } from '../config/WorldEnv.js'
 
 import { NoiseSampler } from './NoiseSampler.js'
+import { ItemsInventory } from '../factory/ItemsFactory.js'
 
 enum Level {
   LOW = 'low',
@@ -154,7 +157,7 @@ export class Biome {
   // heatProfile: MappingRanges
   // rainProfile: MappingRanges
 
-  mappings = {} as BiomesConf
+  mappings: BiomesConf
   posRandomizer: NoiseSampler
   /**
    * val < lowToMid=> LOW = 1
@@ -166,7 +169,7 @@ export class Biome {
   steps
   biomeEnv: BiomesEnvSettings
 
-  constructor(biomeEnv: BiomesEnvSettings, worldSeeds: WorldSeeds) {
+  constructor(biomesParsedConf: BiomesConf, biomeEnv: BiomesEnvSettings, worldSeeds: WorldSeeds) {
     this.heatmap = new NoiseSampler(
       getWorldSeed(worldSeeds, WorldSeed.Heatmap),
       WorldSeed.Heatmap,
@@ -187,7 +190,8 @@ export class Biome {
       WorldSeed.RandomPos,
     )
     this.posRandomizer.periodicity = 6
-    this.parseBiomesConfig(biomeEnv.rawConf)
+
+    this.mappings = biomesParsedConf
 
     this.steps = getTransitionSteps(biomeEnv.repartition)
     this.biomeEnv = biomeEnv
@@ -287,31 +291,16 @@ export class Biome {
     })
     Object.keys(biomeContribs).forEach(
       k =>
-        (biomeContribs[k as BiomeType] = roundToDec(
-          biomeContribs[k as BiomeType],
-          2,
-        )),
+      (biomeContribs[k as BiomeType] = roundToDec(
+        biomeContribs[k as BiomeType],
+        2,
+      )),
     )
 
     // biomeContribs[BiomeType.Arctic] = 1
     // biomeContribs[BiomeType.Desert] = 0
     // biomeContribs[BiomeType.Temperate] = 0
     return biomeContribs
-  }
-
-  parseBiomesConfig(biomesRawConf: BiomesRawConf) {
-    // complete missing data
-    for (const [biomeType, biomeLands] of Object.entries(biomesRawConf)) {
-      for (const [landId, landConf] of Object.entries(biomeLands)) {
-        landConf.key = landId
-      }
-      const configItems = Object.values(biomeLands) as LandConfigFields[]
-      const mappingRanges = LinkedList.fromArrayAfterSorting(
-        configItems,
-        MappingRangeSorter,
-      )
-      this.mappings[biomeType as BiomeType] = mappingRanges
-    }
   }
 
   landscapeTransition = (
@@ -397,5 +386,52 @@ export class Biome {
       currentItem = currentItem.prev
     }
     return currentItem
+  }
+
+  // these are static functions to be called externally to avoid instance dependance towards itemsInventory
+
+  static async parseSpawnableElements(floraConf: Record<string, number>, itemsInventory: ItemsInventory) {
+    const pendingLoad = Object.entries(floraConf).map(async ([type, weight]) => {
+      const templateStub = await itemsInventory.loadTemplate(type)
+      if (templateStub) {
+        const { itemRadius, sizeTolerance } = templateStub.metadata
+        const adjustedSize = itemRadius - sizeTolerance
+        const spawnElement: SpawnElement = {
+          weight,
+          type,
+          size: adjustedSize
+        }
+        return spawnElement
+      }
+    })
+    const spawnElements = (await Promise.all(pendingLoad)).filter(val => val) as SpawnElement[]
+    return spawnElements
+  }
+
+  static async parseBiomeLands(landsConf: BiomeLandsConf, itemsInventory: ItemsInventory) {
+    const biomeLandsArr: LandFields[] = []
+    for (const [landKey, landRawConf] of Object.entries(landsConf)) {
+      const flora = landRawConf.flora ? await this.parseSpawnableElements(landRawConf.flora, itemsInventory) : []
+      const landConf = { ...landRawConf, key: landKey, flora } as LandFields
+      biomeLandsArr.push(landConf)
+      // landConf.flora = 
+    }
+    const biomeLands = LinkedList.fromArrayAfterSorting(
+      biomeLandsArr,
+      MappingRangeSorter,
+    )
+    return biomeLands
+  }
+
+  static async parseBiomesConf(biomesRawConf: BiomesRawConf, itemsInventory: ItemsInventory) {
+    // const biomesConf: Partial<BiomesParsedConf> = {}
+    const biomesMappings = {} as BiomesConf
+    // complete missing data
+    for (const [biomeType, landsConf] of Object.entries(biomesRawConf)) {
+      const biomeLands = await this.parseBiomeLands(landsConf, itemsInventory)
+      // biomesConf[biomeType as BiomeType] = biomeLands
+      biomesMappings[biomeType as BiomeType] = biomeLands
+    }
+    return biomesMappings
   }
 }

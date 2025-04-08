@@ -1,7 +1,7 @@
 import { Vector2 } from 'three'
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators.js'
 import { SchematicLoader } from '../tools/SchematicLoader.js'
-import { ItemType, VoidItemType } from '../utils/common_types.js'
+import { ItemType } from '../utils/common_types.js'
 import { ItemsEnv, WorldGlobals } from '../config/WorldEnv.js'
 import { asBox2 } from '../utils/patch_chunk.js'
 import { ItemFullStub, ItemMetadata } from './ChunksFactory.js'
@@ -76,27 +76,12 @@ export class ItemsInventory {
     return this.catalog[itemType]
   }
 
-  async getTemplate(itemType: string) {
+  async loadTemplate(itemType: string) {
     return (
       this.catalog[itemType] ||
       (await this.importSchematic(itemType)) ||
       this.importProcItem(itemType)
     )
-  }
-
-  async getTemplateIndex(itemTypes: string[]) {
-    // const pendingTemplates = itemTypes.filter(itemType => itemType !== VoidItemType)
-    //   .map(async itemType => await this.getTemplate(itemType))
-    // const templates = await Promise.all(pendingTemplates)
-    // return templates.filter(item => item)
-    const templateIndex: Record<ItemType, ItemFullStub> = {}
-    const pendingTemplates = itemTypes.filter(itemType => itemType !== VoidItemType)
-      .map(async itemType => {
-        const template = await this.getTemplate(itemType)
-        if (template) templateIndex[itemType] = template
-      })
-    await Promise.all(pendingTemplates)
-    return templateIndex
   }
 
   // static async getSliceSectorBlocks(

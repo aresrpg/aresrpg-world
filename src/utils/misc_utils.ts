@@ -1,9 +1,9 @@
-import { BiomeLands, LandConfigFields } from './common_types.js'
+import { BiomeLands, LandFields, SpawnElement, VoidItemType } from './common_types.js'
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
 export const MappingRangeSorter = (
-  item1: LandConfigFields,
-  item2: LandConfigFields,
+  item1: LandFields,
+  item2: LandFields,
 ) => item1.x - item2.x
 
 /**
@@ -36,6 +36,24 @@ export function reverseMapping<
     (cubeOffset, cubeSide) => (reversedMapping[cubeSide] = cubeOffset),
   )
   return reversedMapping
+}
+
+export const pickSpawnedElement = (spawnElements: SpawnElement[], randomIndex: number, maxSpawnSize: number) => {
+  const pickingList: string[] = []
+
+  // reject any item not matching size requirements at specific pos
+  spawnElements.filter(spawnElt => spawnElt.type === VoidItemType || spawnElt.size <= maxSpawnSize)
+    .forEach(spawnElt => {
+      let weight = spawnElt.weight
+      while (weight-- > 0) pickingList.push(spawnElt.type)
+    })
+  // among items matching spawnable sizes pick one using random generated index
+  const pickingListSize = pickingList.length
+  if (pickingListSize > 0) {
+    const pickedElement = pickingList[randomIndex % pickingListSize] || ''
+    return pickedElement
+  }
+  return null
 }
 
 export function isBrowserEnv() {
