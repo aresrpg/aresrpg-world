@@ -136,7 +136,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
             let yMin = groundLayer.valueRange.min
             let yMax = groundLayer.valueRange.max
 
-            const mergedChunk = skipEntities ? null : ItemsTask.mergedSpawnChunk(patchKey).process(taskHandlers)
+            const mergedChunk = skipEntities ? null : ItemsTask.mergedSpawnChunk(patchKey).process(taskHandlers) as ChunkDataContainer
             if (mergedChunk) {
                 // adjust chunks range accordingly
                 yMin = Math.min(mergedChunk.bounds.min.y, yMin)
@@ -153,7 +153,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
                 const chunkKey = serializeChunkId(chunkId)
                 const worldChunk = new ChunkDataContainer(undefined, 1).fromKey(chunkKey, chunkDim)
                 // copy items layer first to prevent overriding ground
-                mergedChunk && ChunkDataContainer.copySourceToTarget(mergedChunk, worldChunk)
+                mergedChunk && mergedChunk.copyContentToTarget(worldChunk)
 
                 if (worldChunk.bounds.min.y < groundLayer.valueRange.max) {
                     // bake ground and undeground separately
@@ -162,7 +162,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
                     cavesMask.bake(worldModules)
                     groundSurfaceChunk.bake(worldModules, groundLayer, cavesMask)
                     // copy ground over items at last
-                    ChunkDataContainer.copySourceToTarget(groundSurfaceChunk, worldChunk)
+                    groundSurfaceChunk.copyContentToTarget(worldChunk)
                 }
                 upperChunks.push(worldChunk)
             }
@@ -202,7 +202,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
                 cavesMask.bake(worldModules)
                 groundSurfaceChunk.bake(worldModules, groundLayer, cavesMask)
                 // copy ground over items at last
-                ChunkDataContainer.copySourceToTarget(groundSurfaceChunk, currentChunk)
+                groundSurfaceChunk.copyContentToTarget(currentChunk)
                 lowerChunks.push(currentChunk)
             }
             // console.log(

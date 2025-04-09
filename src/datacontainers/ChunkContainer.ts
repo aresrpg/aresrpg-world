@@ -30,25 +30,20 @@ export type ChunkHeightBuffer = {
     content: Uint16Array
 }
 
-export const defaultDataEncoder = (
-    blockType: BlockType,
-    // _blockMode?: BlockMode,
-) => blockType || BlockType.NONE
-
-type ChunkIteration<T> = {
+type ChunkEmptyIteration<T> = {
     pos: T
     localPos: T
     index: number
 }
 
-type ChunkDataIteration<T> = ChunkIteration<T> & {
+type ChunkDataIteration<T> = ChunkEmptyIteration<T> & {
     rawData: number
 }
 
-type ChunkHeightBufferIteration = ChunkIteration<Vector2> & ChunkHeightBuffer
+type ChunkHeightBufferIteration = ChunkEmptyIteration<Vector2> & ChunkHeightBuffer
 
 /**
- * Or EmptyChunk
+ * Base chunk container with no data 
  */
 export class ChunkContainer {
     bounds = new Box3()
@@ -90,40 +85,6 @@ export class ChunkContainer {
         this.extendedBounds = bounds.clone().expandByScalar(this.margin)
         this.dimensions = bounds.getSize(new Vector3())
         this.extendedDims = this.extendedBounds.getSize(new Vector3())
-    }
-
-    // copy occurs only on the overlapping region of both containers
-    static *iterOverlap(sourceChunk: ChunkContainer, targetChunk: ChunkContainer) {
-        const adjustOverlapMargins = (overlap: Box3) => {
-            const margin = Math.min(targetChunk.margin, sourceChunk.margin) || 0
-            overlap.min.x -= targetChunk.bounds.min.x === overlap.min.x ? margin : 0
-            overlap.min.y -= targetChunk.bounds.min.y === overlap.min.y ? margin : 0
-            overlap.min.z -= targetChunk.bounds.min.z === overlap.min.z ? margin : 0
-            overlap.max.x += targetChunk.bounds.max.x === overlap.max.x ? margin : 0
-            overlap.max.y += targetChunk.bounds.max.y === overlap.max.y ? margin : 0
-            overlap.max.z += targetChunk.bounds.max.z === overlap.max.z ? margin : 0
-        }
-
-        if (sourceChunk.bounds.intersectsBox(targetChunk.bounds)) {
-            const overlap = targetChunk.bounds.clone().intersect(sourceChunk.bounds)
-            adjustOverlapMargins(overlap)
-
-            for (let { z } = overlap.min; z < overlap.max.z; z++) {
-                for (let { x } = overlap.min; x < overlap.max.x; x++) {
-                    const globalStartPos = new Vector3(x, overlap.min.y, z)
-                    const targetLocalStartPos = targetChunk.toLocalPos(globalStartPos)
-                    const sourceLocalStartPos = sourceChunk.toLocalPos(globalStartPos)
-                    let targetIndex = targetChunk.getIndex(targetLocalStartPos)
-                    let sourceIndex = sourceChunk.getIndex(sourceLocalStartPos)
-
-                    for (let { y } = overlap.min; y < overlap.max.y; y++) {
-                        yield { sourceIndex, targetIndex }
-                        sourceIndex++
-                        targetIndex++
-                    }
-                }
-            }
-        }
     }
 
     /**
@@ -239,7 +200,7 @@ export class ChunkContainer {
                     if (!skipMargin || !isMarginBlock(localPos)) {
                         index = iteratedBounds ? this.getIndex(localPos) : index
                         // const rawData = this.rawData[index]
-                        const res: ChunkIteration<Vector3> = {
+                        const res: ChunkEmptyIteration<Vector3> = {
                             pos: this.toWorldPos(localPos),
                             localPos,
                             index,
@@ -266,7 +227,7 @@ export class ChunkContainer {
             for (let { x } = localBounds.min; x < localBounds.max.x; x++) {
                 const buffLocPos = new Vector2(x, z)
                 const buffIndex = this.getIndex(buffLocPos)
-                const res: ChunkIteration<Vector2> = {
+                const res: ChunkEmptyIteration<Vector2> = {
                     pos: asVect2(this.toWorldPos(asVect3(buffLocPos))),
                     localPos: buffLocPos,
                     index: buffIndex,
@@ -301,10 +262,44 @@ export class ChunkContainer {
         this.id = parseChunkKey(chunkKey)
         return this
     }
+
+    // iteration occurs only on the overlapping region of both containers
+    static *iterOverlap(sourceChunk: ChunkContainer, targetChunk: ChunkContainer) {
+        const adjustOverlapMargins = (overlap: Box3) => {
+            const margin = Math.min(targetChunk.margin, sourceChunk.margin) || 0
+            overlap.min.x -= targetChunk.bounds.min.x === overlap.min.x ? margin : 0
+            overlap.min.y -= targetChunk.bounds.min.y === overlap.min.y ? margin : 0
+            overlap.min.z -= targetChunk.bounds.min.z === overlap.min.z ? margin : 0
+            overlap.max.x += targetChunk.bounds.max.x === overlap.max.x ? margin : 0
+            overlap.max.y += targetChunk.bounds.max.y === overlap.max.y ? margin : 0
+            overlap.max.z += targetChunk.bounds.max.z === overlap.max.z ? margin : 0
+        }
+
+        if (sourceChunk.bounds.intersectsBox(targetChunk.bounds)) {
+            const overlap = targetChunk.bounds.clone().intersect(sourceChunk.bounds)
+            adjustOverlapMargins(overlap)
+
+            for (let { z } = overlap.min; z < overlap.max.z; z++) {
+                for (let { x } = overlap.min; x < overlap.max.x; x++) {
+                    const globalStartPos = new Vector3(x, overlap.min.y, z)
+                    const targetLocalStartPos = targetChunk.toLocalPos(globalStartPos)
+                    const sourceLocalStartPos = sourceChunk.toLocalPos(globalStartPos)
+                    let targetIndex = targetChunk.getIndex(targetLocalStartPos)
+                    let sourceIndex = sourceChunk.getIndex(sourceLocalStartPos)
+
+                    for (let { y } = overlap.min; y < overlap.max.y; y++) {
+                        yield { sourceIndex, targetIndex }
+                        sourceIndex++
+                        targetIndex++
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
- * Container using read only shared data
+ * Read only container sharing its data with another to avoid costly data copy operations
  */
 export abstract class ChunkSharedContainer extends ChunkContainer {
     protected abstract readonly rawData: Uint16Array<ArrayBufferLike>
@@ -385,7 +380,7 @@ export abstract class ChunkSharedContainer extends ChunkContainer {
 }
 
 /**
- * Container with its own writeable data
+ * Writeable container owning its data
  */
 export class ChunkDataContainer extends ChunkSharedContainer {
     override rawData: Uint16Array<ArrayBufferLike> = new Uint16Array(this.dataSize)
@@ -418,18 +413,6 @@ export class ChunkDataContainer extends ChunkSharedContainer {
         return this
     }
 
-    override toStub() {
-        const isEmpty = this.isEmptySafe()
-        const { chunkKey, bounds, margin, rawData } = this
-        const metadata = { chunkKey, bounds, margin, isEmpty }
-        const chunkStub: ChunkDataStub<ChunkMetadata> = {
-            metadata,
-            rawdata: rawData,
-        }
-        // const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
-        return chunkStub
-    }
-
     override fromStub({ metadata, rawdata }: ChunkDataStub<ChunkMetadata>) {
         const { chunkKey, margin } = metadata
         const bounds = parseThreeStub(metadata.bounds) as Box3
@@ -448,12 +431,16 @@ export class ChunkDataContainer extends ChunkSharedContainer {
         return this
     }
 
-    toStubConcat() {
-        const { metadata, rawdata } = this.toStub()
-        const metadataContent = new TextEncoder().encode(JSON.stringify(metadata))
-        const rawdataContent = new Uint8Array(rawdata.buffer)
-        const dataConcat = concatData([metadataContent, rawdataContent])
-        return dataConcat
+    override toStub() {
+        const isEmpty = this.isEmptySafe()
+        const { chunkKey, bounds, margin, rawData } = this
+        const metadata = { chunkKey, bounds, margin, isEmpty }
+        const chunkStub: ChunkDataStub<ChunkMetadata> = {
+            metadata,
+            rawdata: rawData,
+        }
+        // const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
+        return chunkStub
     }
 
     fromStubConcat(concatData: Uint8Array) {
@@ -467,13 +454,12 @@ export class ChunkDataContainer extends ChunkSharedContainer {
         return null
     }
 
-    async toCompressedBlob() {
-        const stubConcat: Uint8Array = this.toStubConcat()
-        // eslint-disable-next-line no-undef
-        const stubConcatBlob = new Blob([stubConcat.buffer as BlobPart])
-        const compressionStream = stubConcatBlob.stream().pipeThrough(new CompressionStream('gzip'))
-        const compressedBlob = await new Response(compressionStream).blob()
-        return compressedBlob
+    toStubConcat() {
+        const { metadata, rawdata } = this.toStub()
+        const metadataContent = new TextEncoder().encode(JSON.stringify(metadata))
+        const rawdataContent = new Uint8Array(rawdata.buffer)
+        const dataConcat = concatData([metadataContent, rawdataContent])
+        return dataConcat
     }
 
     async fromCompressedBlob(compressedBlob: Blob) {
@@ -494,16 +480,29 @@ export class ChunkDataContainer extends ChunkSharedContainer {
         }
     }
 
-    // Could be deprecated in favor of copyContentToTarget?
-    static copySourceToTarget(sourceChunk: ChunkDataContainer, targetChunk: ChunkDataContainer, skipEmpty = true) {
-        const overlapIter = this.iterOverlap(sourceChunk, targetChunk)
-        for (const { sourceIndex, targetIndex } of overlapIter) {
-            const sourceVal = sourceChunk.rawData[sourceIndex]
-            const skipped = sourceVal === undefined || (skipEmpty && sourceVal === BlockType.NONE)
-            if (!skipped) {
-                targetChunk.rawData[targetIndex] = sourceVal
-            }
+    async toCompressedBlob() {
+        const stubConcat: Uint8Array = this.toStubConcat()
+        // eslint-disable-next-line no-undef
+        const stubConcatBlob = new Blob([stubConcat.buffer as BlobPart])
+        const compressionStream = stubConcatBlob.stream().pipeThrough(new CompressionStream('gzip'))
+        const compressedBlob = await new Response(compressionStream).blob()
+        return compressedBlob
+    }
+
+    /**
+    * merge spared chunks into unique container
+    */
+    fromMergedChunks(sourceChunks: ChunkSharedContainer[]) {
+        const bounds = new Box3()
+        for (const sourceChunk of sourceChunks) {
+            bounds.union(sourceChunk.bounds)
         }
+        this.adjustBounds(bounds)
+        this.rawData = new Uint16Array(this.extendedDims.x * this.extendedDims.y * this.extendedDims.z)
+        for (const sourceChunk of sourceChunks) {
+            sourceChunk.copyContentToTarget(this)
+        }
+        return this
     }
 }
 

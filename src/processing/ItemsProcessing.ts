@@ -1,4 +1,4 @@
-import { Box2, Box3, Vector2, Vector3 } from 'three'
+import { Box2, Vector2, Vector3 } from 'three'
 
 import { ChunkContainer, ChunkDataContainer, ChunkDataStub, ChunkMetadata } from '../datacontainers/ChunkContainer.js'
 import { asPatchBounds, asVect3 } from '../utils/patch_chunk.js'
@@ -170,21 +170,6 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
                 spawnedChunks.filter(spawnChunk => spawnChunk.fitGround(groundBlocksProvider))
         }
 
-        /**
-         * merge all individual spawn chunks into unique container
-         */
-        const mergeSpawnedChunks = (individualChunks: SpawnChunk[]) => {
-            const mergeChunkBounds = new Box3()
-            for (const itemChunk of individualChunks) {
-                mergeChunkBounds.union(itemChunk?.bounds)
-            }
-            const mergeChunk = new ChunkDataContainer(mergeChunkBounds, 1)
-            for (const itemChunk of individualChunks) {
-                itemChunk.copyContentToTarget(mergeChunk)
-            }
-            return mergeChunk
-        }
-
         const { processingInput, processingParams } = taskStub
         const { recipe, skipPostprocessing } = processingParams
         const inputQuery =
@@ -204,7 +189,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
             case ItemsTaskRecipe.SpawnedChunks:
                 return processingParams.isDelegated ? spawnedChunks.map(spawnChunk => spawnChunk.toStub()) : spawnedChunks
             case ItemsTaskRecipe.MergedSpawnedChunk:
-                const mergedChunk = mergeSpawnedChunks(spawnedChunks)
+                const mergedChunk = new ChunkDataContainer(undefined,1).fromMergedChunks(spawnedChunks)
                 return processingParams.isDelegated ? mergedChunk.toStub() : mergedChunk
             default:
                 return spawnedChunks
