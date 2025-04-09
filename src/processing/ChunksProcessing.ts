@@ -2,7 +2,7 @@ import { asVect3, parsePatchKey, serializeChunkId } from '../utils/patch_chunk.j
 import { PatchId, PatchKey } from '../utils/common_types.js'
 import { CavesMask, GroundChunk } from '../factory/ChunksFactory.js'
 import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
-import { WorldModules } from '../WorldModules.js'
+import { WorldModules } from '../factory/WorldModules.js'
 import { ChunkContainer, ChunkDataContainer, ChunkDataStub, ChunkMetadata } from '../datacontainers/ChunkContainer.js'
 
 import { GroundPatch } from './GroundPatch.js'

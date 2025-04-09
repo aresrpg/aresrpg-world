@@ -1,6 +1,6 @@
 import { Box3, Vector3 } from 'three'
 
-import { NBTReader } from '../third-party/nbt_custom.js'
+import { NBTReader } from '../libs/nbt_custom.js'
 import { BlockType } from '../utils/common_types.js'
 import { ChunkDataContainer } from '../datacontainers/ChunkContainer.js'
 import { isNotWorkerEnv } from '../utils/misc_utils.js'

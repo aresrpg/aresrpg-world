@@ -7,7 +7,7 @@ import { PatchBase, PatchDataContainer, PatchStub } from '../datacontainers/Patc
 import { getPatchNeighbours, getPatchBoundingPoints } from '../utils/spatial_utils.js'
 import { bilinearInterpolation } from '../utils/math_utils.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
-import { WorldModules } from '../WorldModules.js'
+import { WorldModules } from '../factory/WorldModules.js'
 import { Heightmap } from '../procgen/Heightmap.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>

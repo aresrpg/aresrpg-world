@@ -8,7 +8,7 @@ import {
     // parseThreeStub,
 } from '../utils/patch_chunk.js'
 import { PatchKey, Block, BlockData, BlockType, BlockRawData } from '../utils/common_types.js'
-import { WorldModules } from '../WorldModules.js'
+import { WorldModules } from '../factory/WorldModules.js'
 import { SpawnChunk } from '../factory/ChunksFactory.js'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch.js'

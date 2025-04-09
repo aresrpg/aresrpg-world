@@ -1,5 +1,5 @@
 import { WorldLocalSettings } from '../config/WorldEnv.js'
-import { createWorldModules, WorldModules } from '../WorldModules.js'
+import { createWorldModules, WorldModules } from '../factory/WorldModules.js'
 
 import { GenericTaskStub } from './TaskProcessing.js'
 import { MessageData } from './WorkerProxy.js'

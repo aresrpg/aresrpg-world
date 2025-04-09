@@ -2,7 +2,7 @@ import { Box2, Vector2 } from 'three'
 
 import { WorldLocals, WorldSeed } from '../config/WorldEnv.js'
 import { asVect3 } from '../utils/patch_chunk.js'
-import Alea from '../third-party/alea.js'
+import Alea from '../libs/alea.js'
 
 import { NoiseSampler } from './NoiseSampler.js'
 import { DiscreteMapDistribution } from './DiscreteMapDistribution.js'

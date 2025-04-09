@@ -2,7 +2,7 @@ import { Box2, Vector2 } from 'three'
 import PoissonDiskSampling from 'poisson-disk-sampling'
 
 import { getPatchIds } from '../utils/patch_chunk.js'
-import Alea from '../third-party/alea.js'
+import Alea from '../libs/alea.js'
 import { isNotWorkerEnv } from '../utils/misc_utils.js'
 import { WorldGlobals } from '../config/WorldEnv.js'
 

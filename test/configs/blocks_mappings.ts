@@ -1,4 +1,4 @@
-import { BlockType } from '../../src/index.js'
+import { BlockType } from '../../src/utils/common_types.js'
 import { typesNumbering } from '../../src/utils/misc_utils.js'
 
 /**
@@ -93,4 +93,12 @@ export const SCHEMATICS_BLOCKS_MAPPING = {
     cobblestone: BlockType.ROCK,
     stone: BlockType.ROCK,
     tuff: BlockType.ROCK,
+    sandstone_stairs: BlockType.ROCK,
+    cut_sandstone: BlockType.ROCK,
+    sandstone: BlockType.ROCK,
+    sandstone_wall: BlockType.ROCK,
+    chiseled_sandstone: BlockType.ROCK,
+    cut_sandstone_slab: BlockType.ROCK,
+    sand: BlockType.SAND,
+    dirt: BlockType.MUD,
 }

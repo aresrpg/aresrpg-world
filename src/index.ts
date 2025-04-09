@@ -15,7 +15,7 @@ export { ItemsMapDistribution } from './procgen/ItemsMapDistribution.js'
 // Data structures
 export { ChunkContainer, type ChunkStub } from './datacontainers/ChunkContainer.js'
 // Factory
-export { createWorldModules, type WorldModules } from './WorldModules.js'
+export { createWorldModules, type WorldModules } from './factory/WorldModules.js'
 export { GroundChunk, CavesMask, SpawnChunk } from './factory/ChunksFactory.js'
 // Tools
 export { ChunksPolling } from './tools/ChunksPolling.js'

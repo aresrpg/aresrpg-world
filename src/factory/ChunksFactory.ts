@@ -14,7 +14,7 @@ import {
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
 import { Biome, BiomeType } from '../procgen/Biome.js'
-import { WorldModules } from '../WorldModules.js'
+import { WorldModules } from './WorldModules.js'
 import { adjustItemBounds } from '../utils/misc_utils.js'
 import { WorldGlobals } from '../config/WorldEnv.js'
 

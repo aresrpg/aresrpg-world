@@ -57,8 +57,9 @@ const temperate = {
         fadeOut: 0.2,
         flora: {
             ...temperate_forest.medium,
-            'trees/palmtree_big_1': 1,
-            'trees/palmtree_big_2': 1,
+            'structures/mce-desertpyramid': 10,
+            // 'trees/palmtree_big_1': 1,
+            // 'trees/palmtree_big_2': 1,
             // 'trees/palmtree_big_3': 1,
             // 'rocks/boulder_small_1': 1,
             // 'rocks/boulder_small_2': 1,
@@ -73,7 +74,11 @@ const temperate = {
         mixratio: 0.1,
         fadeIn: 0,
         fadeOut: 25,
-        flora: { ...alpine.medium, ...alpine.small },
+        flora: {
+            ...alpine.medium,
+            ...alpine.small,
+            'structures/mce-desertpyramid': 2,
+        },
     },
     MOUNTAINS: {
         x: 0.8,
@@ -140,7 +145,10 @@ const arctic = {
         subtype: BlockType.ICE,
         fadeIn: 1,
         fadeOut: 5,
-        flora: { ...temperate_forest.medium },
+        flora: {
+            ...temperate_forest.medium,
+            'structures/mce-desertpyramid': 10,
+        },
     },
     MOUNTAINS: {
         id: 5,
@@ -205,6 +213,7 @@ const desert = {
         y: 0.42,
         type: BlockType.SAND,
         subtype: BlockType.NONE,
+        flora: { 'structures/mce-desertpyramid': 1 },
         fadeIn: 1,
         fadeOut: 10,
     },
