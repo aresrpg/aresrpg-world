@@ -44,9 +44,14 @@ export type BlockData = Partial<BlockRawData> & {
     mode?: BlockMode
 }
 
-export type ItemType = string
-export type SpawnedItems = Record<ItemType, Vector3[]>
-export const VoidItemType = 'void'
+export type SpawnType = string
+export const VoidSpawnType = 'void'
+export enum SpawnCategory {
+    Flora,
+    Structure
+}
+
+export type SpawnedItems = Record<SpawnType, Vector3[]>
 
 export type GroundBlock = Block<GroundBlockData>
 
@@ -303,7 +308,7 @@ type LandPreprocessedFields = {
     flora: SpawnElement[]
 }
 
-type LandRawFields = LandBaseFields & Partial<LandConfigFields> & { flora?: Record<ItemType, number> }
+type LandRawFields = LandBaseFields & Partial<LandConfigFields> & { flora?: Record<SpawnType, number> }
 export type LandFields = LandBaseFields & LandConfigFields & LandPreprocessedFields
 
 // Biome landscapes mappings

@@ -3,12 +3,12 @@ import { Vector2, Vector3, Vector3Like } from 'three'
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 // import {  smoothstep as smoothStep } from 'three/src/math/MathUtils'
 import { LinkedList } from '../datacontainers/LinkedList.js'
-import { BiomesConf, BiomesRawConf, BiomeLands, LandFields, BiomeLandsConf, SpawnElement } from '../utils/common_types.js'
+import { BiomesConf, BiomesRawConf, BiomeLands, LandFields, BiomeLandsConf, SpawnElement, SpawnCategory } from '../utils/common_types.js'
 import { clamp, roundToDec, smoothStep } from '../utils/math_utils.js'
 import { findMatchingRange, MappingRangeSorter, typesNumbering } from '../utils/misc_utils.js'
 import { asVect3, isVect3Stub } from '../utils/patch_chunk.js'
 import { BiomesEnvSettings, getWorldSeed, WorldSeed, WorldSeeds } from '../config/WorldEnv.js'
-import { ItemsInventory } from '../factory/ItemsFactory.js'
+import { ItemsInventory } from '../factory/ItemsInventory.js'
 
 import { NoiseSampler } from './NoiseSampler.js'
 
@@ -332,12 +332,13 @@ export class Biome {
         const pendingLoad = Object.entries(floraConf).map(async ([type, weight]) => {
             const templateStub = await itemsInventory.loadTemplate(type)
             if (templateStub) {
-                const { itemRadius, sizeTolerance } = templateStub.metadata
-                const adjustedSize = itemRadius - sizeTolerance
+                const { spawnRadius, spawnCat } = templateStub.metadata
+                const sizeTolerance = spawnCat === SpawnCategory.Flora ? spawnRadius / 5 : 0
+                const size = spawnRadius - sizeTolerance
                 const spawnElement: SpawnElement = {
                     weight,
                     type,
-                    size: adjustedSize,
+                    size,
                 }
                 return spawnElement
             }

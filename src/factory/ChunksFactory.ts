@@ -1,8 +1,8 @@
 // import { MathUtils, Vector3 } from 'three'
-import { Box3, Vector3 } from 'three'
+import { Vector3 } from 'three'
 
-import { asVect2, serializePatchId, asBox2, asVect3, parseThreeStub } from '../utils/patch_chunk.js'
-import { Block, BlockData, BlockType, ItemType, PatchBlock } from '../utils/common_types.js'
+import { asVect2, serializePatchId, asBox2, asVect3 } from '../utils/patch_chunk.js'
+import { Block, BlockData, BlockType, SpawnType, PatchBlock, SpawnCategory } from '../utils/common_types.js'
 import {
     ChunkHeightBuffer,
     ChunkDataContainer,
@@ -15,16 +15,13 @@ import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
 import { Biome, BiomeType } from '../procgen/Biome.js'
 import { WorldModules } from '../WorldModules.js'
-import { WorldGlobals } from '../index.js'
+import { adjustItemBounds } from '../utils/misc_utils.js'
+import { WorldGlobals } from '../config/WorldEnv.js'
 
 const highlightPatchBorders = (localPos: Vector3) => {
     const { borderHighlightColor } = WorldGlobals.instance.debug.patch
     return borderHighlightColor && (localPos.x === 1 || localPos.z === 1) ? borderHighlightColor : null
 }
-
-// export type GroundGenSettings = {
-//   borderHighlightColor
-// }
 
 export class GroundChunk extends ChunkDataContainer {
     generateHeightBuffer(block: PatchBlock, ymin: number, ymax: number, biome: Biome) {
@@ -122,40 +119,36 @@ export class CavesMask extends ChunkMask {
     }
 }
 
-export type ItemMetadata = ChunkMetadata & {
-    itemRadius: number
-    sizeTolerance: number
-    itemType: ItemType
-}
-// type ItemLiteStub = ChunkStub<ItemMetadata>
-export type ItemFullStub = ChunkDataStub<ItemMetadata>
+/**
+ * Spawn chunks
+ */
 
-const adjustItemBounds = (initialBounds: Box3, origin?: Vector3, isOriginCentered = true) => {
-    initialBounds = parseThreeStub(initialBounds)
-    if (origin) {
-        const dimensions = initialBounds.getSize(new Vector3())
-        if (isOriginCentered) {
-            const centeredBounds = new Box3().setFromCenterAndSize(origin, dimensions)
-            centeredBounds.min.y = origin.y
-            centeredBounds.max.y = origin.y + dimensions.y
-            centeredBounds.min.floor()
-            centeredBounds.max.floor()
-            return centeredBounds
-        } else {
-            const bmin = origin.clone()
-            const bmax = origin.clone().add(dimensions.clone())
-            const offsetBounds = new Box3(bmin, bmax)
-            return offsetBounds
-        }
-    } else return initialBounds
+export type SpawnMetadata = {
+    spawnType: SpawnType
+    spawnCat: SpawnCategory
+    spawnRadius: number
+    spawnOrigin?: Vector3
+}
+export type SpawnChunkMetadata = ChunkMetadata & SpawnMetadata
+export type SpawnChunkStub = ChunkDataStub<SpawnChunkMetadata>
+export type SpawnData = {
+    spawnOrigin: Vector3
+    spawnType: SpawnType
 }
 
-export class ItemChunk extends ChunkSharedContainer {
+export class SpawnChunk extends ChunkSharedContainer {
+
     protected override rawData: Uint16Array<ArrayBufferLike>
+    spawnOrigin: Vector3 | undefined
+    spawnType: SpawnType
+    spawnCat: SpawnCategory
 
-    constructor({ metadata, rawdata: externalData }: ItemFullStub, origin?: Vector3) {
-        super(adjustItemBounds(metadata.bounds, origin), metadata.margin)
+    constructor({ metadata, rawdata: externalData }: SpawnChunkStub, spawnOrigin?: Vector3) {
+        super(adjustItemBounds(metadata.bounds, spawnOrigin), metadata.margin)
         this.rawData = externalData
+        this.spawnOrigin = spawnOrigin
+        this.spawnType = metadata.spawnType
+        this.spawnCat = metadata.spawnCat
     }
 
     /**
@@ -163,7 +156,7 @@ export class ItemChunk extends ChunkSharedContainer {
      * @param itemChunk
      * @returns
      */
-    adjustToGround(blocksProvider: (input: Vector3[]) => Block<BlockData>[]) {
+    fitGround(blocksProvider: (input: Vector3[]) => Block<BlockData>[]) {
         const retrieveBottomBlocks = () => {
             const chunkBottomBlocks: Vector3[] = []
             // iter slice blocks
@@ -190,7 +183,7 @@ export class ItemChunk extends ChunkSharedContainer {
             isDiscarded = false
         }
         if (isDiscarded) console.log('discarded item: ', this)
-        return isDiscarded
+        return !isDiscarded
     }
 
     getUpperBlock(worldPos: Vector3) {
@@ -209,5 +202,30 @@ export class ItemChunk extends ChunkSharedContainer {
             return { level, type }
         }
         return null
+    }
+
+    override toStub(): SpawnChunkStub {
+        const baseStub = super.toStub()
+        const { spawnCat, spawnType, spawnOrigin } = this
+        const { metadata, rawdata } = baseStub
+        const spawnMetadata: SpawnMetadata = {
+            spawnType,
+            spawnCat,
+            // spawnOrigin,
+            spawnRadius: 0
+        }
+        const spawnChunkMetadata: SpawnChunkMetadata = { ...metadata, ...spawnMetadata }
+        if (spawnOrigin) spawnMetadata.spawnOrigin = spawnOrigin
+        const spawnStub: SpawnChunkStub = { metadata: spawnChunkMetadata, rawdata }
+        return spawnStub
+    }
+
+    toLightStub() {
+        const { spawnOrigin, spawnType } = this
+        const spawnData: SpawnData = {
+            spawnOrigin,
+            spawnType
+        }
+        return spawnData
     }
 }

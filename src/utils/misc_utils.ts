@@ -1,4 +1,6 @@
-import { BiomeLands, LandFields, SpawnElement, VoidItemType } from './common_types.js'
+import { Box3, Vector3 } from 'three'
+import { BiomeLands, LandFields, SpawnElement, VoidSpawnType } from './common_types.js'
+import { parseThreeStub } from './patch_chunk.js'
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
 export const MappingRangeSorter = (item1: LandFields, item2: LandFields) => item1.x - item2.x
@@ -32,7 +34,7 @@ export const pickSpawnedElement = (spawnElements: SpawnElement[], randomIndex: n
 
     // reject any item not matching size requirements at specific pos
     spawnElements
-        .filter(spawnElt => spawnElt.type === VoidItemType || spawnElt.size <= maxSpawnSize)
+        .filter(spawnElt => spawnElt.type === VoidSpawnType || spawnElt.size <= maxSpawnSize)
         .forEach(spawnElt => {
             let { weight } = spawnElt
             while (weight-- > 0) pickingList.push(spawnElt.type)
@@ -44,6 +46,26 @@ export const pickSpawnedElement = (spawnElements: SpawnElement[], randomIndex: n
         return pickedElement
     }
     return null
+}
+
+export const adjustItemBounds = (initialBounds: Box3, origin?: Vector3, isOriginCentered = true) => {
+    initialBounds = parseThreeStub(initialBounds)
+    if (origin) {
+        const dimensions = initialBounds.getSize(new Vector3())
+        if (isOriginCentered) {
+            const centeredBounds = new Box3().setFromCenterAndSize(origin, dimensions)
+            centeredBounds.min.y = origin.y
+            centeredBounds.max.y = origin.y + dimensions.y
+            centeredBounds.min.floor()
+            centeredBounds.max.floor()
+            return centeredBounds
+        } else {
+            const bmin = origin.clone()
+            const bmax = origin.clone().add(dimensions.clone())
+            const offsetBounds = new Box3(bmin, bmax)
+            return offsetBounds
+        }
+    } else return initialBounds
 }
 
 export function isBrowserEnv() {

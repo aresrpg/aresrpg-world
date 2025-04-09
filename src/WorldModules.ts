@@ -1,5 +1,5 @@
 import { WorldGlobals, WorldLocals, WorldLocalSettings } from './config/WorldEnv.js'
-import { ItemsInventory } from './factory/ItemsFactory.js'
+import { ItemsInventory } from './factory/ItemsInventory.js'
 import { BlocksTask, createBlocksTaskHandler } from './processing/BlocksProcessing.js'
 import { ChunksTask, createChunksTaskHandler } from './processing/ChunksProcessing.js'
 import { createItemsTaskHandler, ItemsTask } from './processing/ItemsProcessing.js'

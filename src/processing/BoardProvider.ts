@@ -18,7 +18,7 @@ import { DataContainer, PatchBase, PatchElement } from '../datacontainers/PatchB
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { ChunkDataContainer, ChunkDataStub, ChunkMetadata } from '../datacontainers/ChunkContainer.js'
 import { WorldLocals } from '../config/WorldEnv.js'
-import { ItemChunk } from '../factory/ChunksFactory.js'
+import { SpawnChunk } from '../factory/ChunksFactory.js'
 
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { WorkerPool } from './WorkerPool.js'
@@ -50,7 +50,7 @@ export type BoardStub = {
 
 export type BoardCacheData = {
     chunks: ChunkDataContainer[]
-    items: ItemChunk[]
+    items: SpawnChunk[]
 }
 
 class BoardPatch extends PatchBase<number> implements DataContainer {
@@ -178,12 +178,12 @@ export class BoardCacheProvider {
             // enqueue items processing tasks
             const itemsPendingTasks = Object.keys(patchIndex)
                 .filter(patchKey => !this.patchIndex[patchKey])
-                .map(patchKey => ItemsTask.individualChunks(patchKey)) // new ItemsTask().individualChunks(patchKey))
+                .map(patchKey => ItemsTask.spawnedChunks(patchKey)) // new ItemsTask().individualChunks(patchKey))
                 .map(itemTask => {
                     const pendingItemTask = itemTask.delegate(this.workerPool)
                     // once done put result in cache
                     pendingItemTask.then(taskRes => {
-                        this.localCache.items.push(...(taskRes as ItemChunk[]))
+                        this.localCache.items.push(...(taskRes as SpawnChunk[]))
                     })
                     return pendingItemTask
                 })
@@ -386,7 +386,7 @@ export class BoardProvider {
     }
 
     // trim items spawning inside board
-    addTrimmedItems(boardPatch: BoardPatch, boardChunk: ChunkDataContainer, boardSpawnedItems: ItemChunk[]) {
+    addTrimmedItems(boardPatch: BoardPatch, boardChunk: ChunkDataContainer, boardSpawnedItems: SpawnChunk[]) {
         for (const itemChunk of boardSpawnedItems) {
             const itemOffset = this.boardElevation - itemChunk.bounds.min.y
             // iter slice from item which is at same level as the board

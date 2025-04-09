@@ -2,12 +2,12 @@ import { Vector2 } from 'three'
 
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators.js'
 import { SchematicLoader } from '../tools/SchematicLoader.js'
-import { ItemType } from '../utils/common_types.js'
 import { ItemsEnv, WorldGlobals } from '../config/WorldEnv.js'
 import { asBox2 } from '../utils/patch_chunk.js'
 import { isNotWorkerEnv } from '../utils/misc_utils.js'
 
-import { ItemFullStub, ItemMetadata } from './ChunksFactory.js'
+import { SpawnChunkStub, SpawnChunkMetadata } from './ChunksFactory.js'
+import { SpawnCategory, SpawnType } from '../utils/common_types.js'
 // import { asVect2 } from '../utils/patch_chunk'
 
 /**
@@ -16,7 +16,7 @@ import { ItemFullStub, ItemMetadata } from './ChunksFactory.js'
 // ItemsFactory, ItemsCatalog
 export class ItemsInventory {
     // TODO rename catalog as inventory
-    catalog: Record<ItemType, ItemFullStub> = {}
+    catalog: Record<SpawnType, SpawnChunkStub> = {}
     itemsEnv: ItemsEnv
     constructor(itemsEnv: ItemsEnv) {
         this.itemsEnv = itemsEnv
@@ -26,7 +26,7 @@ export class ItemsInventory {
         return this.itemsEnv.schematics.filesIndex
     }
 
-    getProceduralConfig(id: ItemType) {
+    getProceduralConfig(id: SpawnType) {
         return this.itemsEnv.proceduralConfigs[id]
     }
 
@@ -36,57 +36,59 @@ export class ItemsInventory {
      * @param schematicFileUrls
      * @param optionalDataEncoder
      */
-    async importSchematic(itemType: ItemType) {
-        const fileUrl = this.schematicFilesIndex[itemType]
+    async importSchematic(spawnType: SpawnType) {
+        const fileUrl = this.schematicFilesIndex[spawnType]
         if (fileUrl) {
-            const customBlocksMapping = this.itemsEnv.schematics.localBlocksMapping[itemType]
+            const customBlocksMapping = this.itemsEnv.schematics.localBlocksMapping[spawnType]
             const { globalBlocksMapping } = this.itemsEnv.schematics
             const { metadata, rawdata } = await SchematicLoader.createChunkContainer(fileUrl, globalBlocksMapping, customBlocksMapping)
-            const itemRadius = Math.ceil(asBox2(metadata.bounds).getSize(new Vector2()).length() / 2)
-            const sizeTolerance = itemRadius < 32 ? itemRadius / 5 : 0 // TODO remove hardcoding
-            const templateMetadata: ItemMetadata = {
+            const spawnRadius = Math.ceil(asBox2(metadata.bounds).getSize(new Vector2()).length() / 2)
+            // TODO remove hardcoded values
+            const spawnCat = spawnRadius >= 32 ? SpawnCategory.Structure : SpawnCategory.Flora
+            const templateMetadata: SpawnChunkMetadata = {
                 ...metadata,
-                itemRadius,
-                itemType,
-                sizeTolerance,
+                spawnType,
+                spawnCat,
+                spawnRadius,
             }
-            const templateStub: ItemFullStub = { metadata: templateMetadata, rawdata }
+            const templateStub: SpawnChunkStub = { metadata: templateMetadata, rawdata }
             WorldGlobals.instance.debug.logs &&
                 isNotWorkerEnv() &&
-                console.log(`loaded schematic ${itemType}, radius: ${itemRadius}, size tolerance: ${sizeTolerance}`)
+                console.log(`loaded schematic ${spawnType}, radius: ${spawnRadius}, cat: ${spawnCat}`)
             // const spawner = new PseudoDistributionMap()
-            this.catalog[itemType] = templateStub
+            this.catalog[spawnType] = templateStub
         }
-        return this.catalog[itemType]
+        return this.catalog[spawnType]
     }
 
-    importProcItem(itemType: ItemType) {
-        const procConf = this.getProceduralConfig(itemType)
+    importProcItem(spawnType: SpawnType) {
+        const procConf = this.getProceduralConfig(spawnType)
         if (procConf) {
             const chunkStub = ProceduralItemGenerator.voxelizeItem(procConf.category, procConf.params)
             // const spawner = new PseudoDistributionMap()
             if (chunkStub) {
                 const { metadata, rawdata } = chunkStub
-                const itemRadius = Math.ceil(asBox2(metadata.bounds).getSize(new Vector2()).length() / 2)
-                const sizeTolerance = itemRadius < 32 ? itemRadius / 5 : 0 // TODO remove hardcoding
-                const templateMetadata: ItemMetadata = {
+                const spawnRadius = Math.ceil(asBox2(metadata.bounds).getSize(new Vector2()).length() / 2)
+                // TODO remove hardcoded values
+                const spawnCat = spawnRadius >= 32 ? SpawnCategory.Structure : SpawnCategory.Flora
+                const templateMetadata: SpawnChunkMetadata = {
                     ...metadata,
-                    itemRadius,
-                    itemType,
-                    sizeTolerance,
+                    spawnRadius,
+                    spawnType,
+                    spawnCat
                 }
-                const templateStub: ItemFullStub = {
+                const templateStub: SpawnChunkStub = {
                     metadata: templateMetadata,
                     rawdata,
                 }
-                this.catalog[itemType] = templateStub
+                this.catalog[spawnType] = templateStub
             }
         }
-        return this.catalog[itemType]
+        return this.catalog[spawnType]
     }
 
-    async loadTemplate(itemType: string) {
-        return this.catalog[itemType] || (await this.importSchematic(itemType)) || this.importProcItem(itemType)
+    async loadTemplate(spawnType: string) {
+        return this.catalog[spawnType] || (await this.importSchematic(spawnType)) || this.importProcItem(spawnType)
     }
 
     // static async getSliceSectorBlocks(

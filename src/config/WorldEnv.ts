@@ -2,7 +2,7 @@ import { Vector2, Vector3 } from 'three'
 
 import { ProcItemConf } from '../tools/ProceduralGenerators.js'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader.js'
-import { BiomesRawConf, BlockType, ItemType } from '../utils/common_types.js'
+import { BiomesRawConf, BlockType, SpawnType } from '../utils/common_types.js'
 
 export enum WorldSeed {
     Global = 'global',
@@ -64,10 +64,10 @@ export type DebugEnvSettings = {
 export type ItemsEnv = {
     schematics: {
         globalBlocksMapping: SchematicsBlocksMapping
-        localBlocksMapping: Record<ItemType, SchematicsBlocksMapping>
-        filesIndex: Record<ItemType, string>
+        localBlocksMapping: Record<SpawnType, SchematicsBlocksMapping>
+        filesIndex: Record<SpawnType, string>
     }
-    proceduralConfigs: Record<ItemType, ProcItemConf>
+    proceduralConfigs: Record<SpawnType, ProcItemConf>
 }
 
 type WorldGlobalsStub = {
@@ -166,10 +166,10 @@ export class WorldLocals {
         items: {
             schematics: {
                 globalBlocksMapping: {} as SchematicsBlocksMapping,
-                localBlocksMapping: {} as Record<ItemType, SchematicsBlocksMapping>,
-                filesIndex: {} as Record<ItemType, string>,
+                localBlocksMapping: {} as Record<SpawnType, SchematicsBlocksMapping>,
+                filesIndex: {} as Record<SpawnType, string>,
             },
-            proceduralConfigs: {} as Record<ItemType, ProcItemConf>,
+            proceduralConfigs: {} as Record<SpawnType, ProcItemConf>,
         },
 
         heightmap: {

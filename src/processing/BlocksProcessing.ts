@@ -9,7 +9,7 @@ import {
 } from '../utils/patch_chunk.js'
 import { PatchKey, Block, BlockData, BlockType, BlockRawData } from '../utils/common_types.js'
 import { WorldModules } from '../WorldModules.js'
-import { ItemChunk } from '../factory/ChunksFactory.js'
+import { SpawnChunk } from '../factory/ChunksFactory.js'
 
 import { GroundBlockData, GroundPatch } from './GroundPatch.js'
 import { BaseProcessingParams, parseTaskInputStubs, ProcessingTask, ProcessingTaskHandler, ProcessingTaskStub } from './TaskProcessing.js'
@@ -416,11 +416,12 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
 
         const itemsChunksProvider = (inputBatch: Vector3[]) => {
             const taskInput = inputBatch.map(input => asVect2(input))
-            const itemsTask = ItemsTask.individualChunks(taskInput) // new ItemsTask().individualChunks(taskInput)
-            itemsTask.processingParams.useLighterProcessing = true
+            const itemsTask = ItemsTask.spawnedChunks(taskInput) // new ItemsTask().individualChunks(taskInput)
+            // speed up queries at the cost of lesser accuracy (acceptable for LOD requests)
+            itemsTask.processingParams.skipPostprocessing = true
             const itemsRes = itemsTask.process(taskHandlers)
             // console.log(`items count for : ${itemsRes.length} `)
-            return (itemsRes || []) as ItemChunk[]
+            return (itemsRes || []) as SpawnChunk[]
         }
 
         let spawnedChunks =

@@ -1,14 +1,14 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { GroundBlock, BiomeLands, PatchBlock, PatchBoundId, PatchId, BlockType } from '../utils/common_types.js'
+import { GroundBlock, BiomeLands, PatchBlock, PatchBoundId, PatchId, BlockType, BlockMode } from '../utils/common_types.js'
 import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk.js'
-import { BlockMode, Heightmap } from '../index.js'
 import { Biome, BiomeInfluence, BiomeNumericType, BiomeType, ReverseBiomeNumericType } from '../procgen/Biome.js'
 import { PatchBase, PatchDataContainer, PatchStub } from '../datacontainers/PatchBase.js'
 import { getPatchNeighbours, getPatchBoundingPoints } from '../utils/spatial_utils.js'
 import { bilinearInterpolation } from '../utils/math_utils.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { WorldModules } from '../WorldModules.js'
+import { Heightmap } from '../procgen/Heightmap.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 

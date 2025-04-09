@@ -4,8 +4,8 @@ import { asVect3, parsePatchKey, patchIndexFromMapRange, patchRangeFromMapCenter
 import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
 import { ChunksVerticalRange } from '../config/WorldEnv.js'
 
-import { ChunksProcessing, ChunksTask } from './ChunksProcessing.js'
-import { ProcessingState } from './TaskProcessing.js'
+import { ChunksProcessing, ChunksTask } from '../processing/ChunksProcessing.js'
+import { ProcessingState } from '../processing/TaskProcessing.js'
 
 const getTaskPatchId = (task: ChunksTask) => parsePatchKey(task.processingInput) as Vector2
 
