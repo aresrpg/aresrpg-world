@@ -151,25 +151,25 @@ export class SpawnChunk extends ChunkSharedContainer {
         this.spawnCat = metadata.spawnCat
     }
 
+    retrieveBottomBlocks(blocksProvider: (input: Vector3[]) => Block<BlockData>[]) {
+        const chunkBottomBlocks: Vector3[] = []
+        // iter slice blocks
+        for (const heightBuff of this.iterHeightBuffers()) {
+            if (heightBuff.content[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
+        }
+        const blocksBatch = blocksProvider(chunkBottomBlocks)
+        // console.log(testBlock)
+        return blocksBatch
+    }
+
     /**
      *  adjust chunk elevation or discard schematics if above terrain hole
      * @param itemChunk
      * @returns
      */
     fitGround(blocksProvider: (input: Vector3[]) => Block<BlockData>[]) {
-        const retrieveBottomBlocks = () => {
-            const chunkBottomBlocks: Vector3[] = []
-            // iter slice blocks
-            for (const heightBuff of this.iterHeightBuffers()) {
-                if (heightBuff.content[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
-            }
-            const blocksBatch = blocksProvider(chunkBottomBlocks)
-            // console.log(testBlock)
-            return blocksBatch
-        }
-
         let isDiscarded = true
-        const blocksResult = retrieveBottomBlocks()
+        const blocksResult = this.retrieveBottomBlocks(blocksProvider)
         const itemBottomBlocks = Object.values(blocksResult)
         const hasHoleBlock = itemBottomBlocks.find(block => block.data.type === BlockType.HOLE)
         // any schematics having at least one hole block below is considered discarded

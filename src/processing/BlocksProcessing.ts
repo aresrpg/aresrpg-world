@@ -318,6 +318,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
                 const landConf = worldModules.biomes.mappings[biome].nth(landIndex)
                 const groundConf = landConf.data
                 // check for block emptyness if specified
+                pos.y = level
                 const isEmptyBlock = () => worldModules.densityVolume.getBlockDensity(pos, level + 20)
 
                 const type = includeDensity && isEmptyBlock() ? BlockType.HOLE : groundConf.type
@@ -438,9 +439,9 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
             const inputBatchIterator: InputBatchIterator = ioDataAdapter.iterBatchData(batchIndices)
             for (const block of batchProcessingIterator(inputBatchIterator, patchKey)) {
                 if (block.data) {
-                    const blockLevel = block.data.level
                     const blockPos = block.pos.floor()
-                    blockPos.y = blockLevel + 2
+                    // const blockLevel = block.data.level
+                    // blockPos.y = blockLevel
                     if (recipe === BlocksTaskRecipe.Peak) {
                         const itemChunk = spawnedChunks.find(chunk => chunk.bounds.containsPoint(blockPos))
                         const upperBlock = itemChunk?.getUpperBlock(blockPos)
