@@ -11,9 +11,17 @@ import { Heightmap } from './Heightmap.js'
 
 const SPAWN_INDEX_RANGE = 100
 
-export type MapSpawnedElement = {
+export type SpawnSlot = {
     pos: Vector2
     randomIndex: number
+}
+
+export type SpawnRules = {
+    overlapTolerance: number   // how much another item can overlap with current (0: nothing, 1: all) 
+    overlapProbability: number     // how often another item can overlap with current (0: never, 1: all time)
+    // experimental/ideas
+    // nearSearchRadius?: number    // radius to look around item 
+    // nearOccurencesLimit?: number    // max number of items that can appear within nearSearchRadius (undef=>no limit, 0: unique (for village church, castle, ...), )
 }
 
 /**
@@ -62,16 +70,16 @@ export class ItemsMapDistribution {
      * @param maxSearchRadius to limit or to query only inner elements, use radius 0
      * @returns
      */
-    queryMapArea(initialInput: Vector2[] | Box2) {
+    queryMapArea(initialInput: Vector2[] | Box2, spawnInsideOnly = false) {
         const { discreteDistributionMap } = this
-        const spawnSlotsIndex = discreteDistributionMap.queryMapSpawnSlots(initialInput)
-        const confirmedSpawnSlots: Record<number, MapSpawnedElement[]> = {}
+        const spawnSlotsIndex = discreteDistributionMap.queryMapSpawnSlots(initialInput, spawnInsideOnly)
+        const confirmedSpawnSlots: Record<number, SpawnSlot[]> = {}
         for (const [spawnSize, spawnSlots] of Object.entries(spawnSlotsIndex)) {
             confirmedSpawnSlots[parseInt(spawnSize)] = spawnSlots
                 .map(pos => {
                     const randomIndex = this.evalSpawnability(pos)
                     if (randomIndex !== null) {
-                        const spawnedElement: MapSpawnedElement = {
+                        const spawnedElement: SpawnSlot = {
                             pos,
                             randomIndex,
                         }
@@ -79,7 +87,7 @@ export class ItemsMapDistribution {
                     }
                     return null
                 })
-                .filter(val => val) as MapSpawnedElement[]
+                .filter(val => val) as SpawnSlot[]
         }
 
         // consolex.log(`spawnable: ${spawnable.length} => spawned: ${spawned.length}`)

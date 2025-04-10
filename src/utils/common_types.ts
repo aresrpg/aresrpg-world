@@ -1,8 +1,8 @@
 import { Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
-
 import { GroundBlockData } from '../processing/GroundPatch.js'
 import { BiomeType } from '../procgen/Biome.js'
 import { LinkedList } from '../datacontainers/LinkedList.js'
+import { SpawnRules } from '../procgen/ItemsMapDistribution.js'
 
 // reserved native block types
 export enum BlockType {
@@ -46,6 +46,14 @@ export type BlockData = Partial<BlockRawData> & {
 
 export type SpawnType = string
 export const VoidSpawnType = 'void'
+export type SpawnProfile = string
+export type SpawnPreset = {
+    spawnProfile: SpawnProfile,
+    spawnCategory: SpawnCategory
+}
+export type SpawnProfiles = Record<SpawnProfile, SpawnRules>
+export type SpawnPresets = Record<SpawnType, SpawnPreset>
+
 export enum SpawnCategory {
     Flora,
     Structure

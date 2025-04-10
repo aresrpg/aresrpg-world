@@ -42,7 +42,7 @@ export class DiscreteMapDistribution {
         return 0
     }
 
-    genSamples(maxSpawnRadius: number, previousPoints: Vector2[]) {
+    genPassSamples(maxSpawnRadius: number, previousPoints: Vector2[]) {
         const debugLogs = WorldGlobals.instance.debug.logs
         const { dimensions, seed } = this
         const prng = Alea(seed || '')
@@ -77,11 +77,11 @@ export class DiscreteMapDistribution {
 
     // populate with discrete elements using relative pos
     populateSamplesIndex() {
-        const sampleSizes = [64, 48, 32, 24, 16, 12, 8, 4]
+        const samplingPasses = [64, 48, 32, 24, 16, 12, 8, 4]
         const points = [new Vector2(0, 0)]
-        sampleSizes
+        samplingPasses
             // .filter(sampleSize => sampleSize >= 64)
-            .forEach(sampleSize => points.push(...this.genSamples(sampleSize, points)))
+            .forEach(samplePass => points.push(...this.genPassSamples(samplePass, points)))
     }
 
     /**
@@ -89,11 +89,11 @@ export class DiscreteMapDistribution {
      * @param searchedArea tested point
      * @param itemDimension max dimensions of items likely to overlap tested point
      */
-    queryMapSpawnSlots(query: Vector2[] | Box2) {
+    queryMapSpawnSlots(query: Vector2[] | Box2, slotsInsideAreaOnly = false) {
         const spawnSlotsIndex: Record<number, Vector2[]> = {}
         for (const [spawnRadius, patternSamples] of Object.entries(this.samplesIndex)) {
             const searchedArea = query instanceof Box2 ? query.clone() : new Box2().setFromPoints(query)
-            searchedArea.expandByScalar(parseInt(spawnRadius))
+            slotsInsideAreaOnly ? searchedArea : searchedArea.expandByScalar(parseInt(spawnRadius))
             // get all patterns that can have spawn position within queriedArea
             const mapPatterns = getPatchIds(searchedArea, this.patternDimension)
             const spawnSlots: Vector2[] = []
