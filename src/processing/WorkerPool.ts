@@ -21,10 +21,10 @@ export class WorkerPool {
     // pendingRequests = []
     processedCount = 0
     ready = false
-    workerName: string
+    workerPoolName: string
 
-    constructor(workerName = 'world_compute_worker') {
-        this.workerName = workerName
+    constructor(workerPoolName = 'world-compute') {
+        this.workerPoolName = workerPoolName
     }
 
     async initPoolEnv(
@@ -33,10 +33,13 @@ export class WorkerPool {
         // eslint-disable-next-line no-undef
         externalWorkerProvider?: () => Worker,
     ) {
-        console.log(`create worker pool ${this.workerName} size: ${poolSize} (${externalWorkerProvider ? 'external' : 'built-in'} worker)`)
+        const { workerPoolName } = this
+        console.log(`create worker pool ${workerPoolName} size: ${poolSize} (${externalWorkerProvider ? 'external' : 'built-in'} worker)`)
         const pendingInits = []
         for (let workerId = 0; workerId < poolSize; workerId++) {
-            const workerProxy = new WorkerProxy(this.workerName + '#' + workerId)
+            const workerSuffix = poolSize > 1 ? `_${workerId}` : ''
+            const workerName = workerPoolName + '-worker' + workerSuffix
+            const workerProxy = new WorkerProxy(workerName)
             const pendingInit = workerProxy.init(worldLocalEnv, externalWorkerProvider)
             pendingInits.push(pendingInit)
             this.workerPool.push(workerProxy)

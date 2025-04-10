@@ -5,10 +5,13 @@ import { NodeWorkerProxy } from './NodeWorkerProxy.js'
 
 export class WorkerPool extends BaseWorkerPool {
     override async initPoolEnv(poolSize: number, worldLocalEnv: WorldLocals) {
-        console.log(`create worker pool size: ${poolSize} `)
+        const { workerPoolName } = this
+        console.log(`create worker pool ${workerPoolName} size: ${poolSize} `)
         const pendingInits = []
         for (let workerId = 0; workerId < poolSize; workerId++) {
-            const workerProxy = new NodeWorkerProxy(this.workerName + '#' + workerId)
+            const workerSuffix = poolSize > 1 ? `_${workerId}` : ''
+            const workerName = workerPoolName + '-worker' + workerSuffix
+            const workerProxy = new NodeWorkerProxy(workerName)
             const pendingInit = workerProxy.init(worldLocalEnv)
             pendingInits.push(pendingInit)
             this.workerPool.push(workerProxy)
