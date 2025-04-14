@@ -11,7 +11,7 @@ export { Biome } from './procgen/Biome.js'
 export { Heightmap } from './procgen/Heightmap.js'
 export { SpawnDistributionMap } from './procgen/SpawnDistributionMap.js'
 // Data structures
-export { ChunkContainer, type ChunkStub } from './datacontainers/ChunkContainer.js'
+export { ChunkContainer, type EmptyChunkStub, type DataChunkStub } from './datacontainers/ChunkContainer.js'
 // Factory
 export { createWorldModules, type WorldModules, type WorldTasksHandlers } from './factory/WorldModules.js'
 export { GroundChunk, CavesMask, SpawnChunk } from './factory/ChunksFactory.js'

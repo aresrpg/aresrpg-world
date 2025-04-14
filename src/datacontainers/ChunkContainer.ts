@@ -3,6 +3,7 @@ import { Vector2, Box3, Vector3 } from 'three'
 import { BlockType, ChunkId, ChunkKey } from '../utils/common_types.js'
 import { asVect3, asChunkBounds, parseChunkKey, serializeChunkId, parseThreeStub, asVect2 } from '../utils/patch_chunk.js'
 import { concatData, deconcatData } from '../utils/chunk_utils.js'
+import { BlockDataAdapter, ChunkDataAdapter, IdenticalBoolAdapter } from './BlockDataAdapter.js'
 
 enum ChunkAxisOrder {
     ZXY,
@@ -16,31 +17,43 @@ export type ChunkMetadata = {
     // isEmpty?: boolean
 }
 
-export type ChunkStub<T> = {
-    metadata: T
+export type EmptyChunkStub = {
+    metadata: ChunkMetadata
 }
 
-export type ChunkDataStub<T> = {
+export type ChunkStub<T extends ChunkMetadata> = {
     metadata: T
     rawdata: Uint16Array
 }
 
-export type ChunkHeightBuffer = {
+export type DataChunkStub = ChunkStub<ChunkMetadata>
+
+export type ChunkHeightBuffer<DataType> = {
+    pos: Vector2
+    content: DataType[]
+}
+
+export type ChunkHeightRawBuffer = {
     pos: Vector2
     content: Uint16Array
 }
 
-type ChunkEmptyIteration<T> = {
-    pos: T
-    localPos: T
+type ChunkEmptyIteration<PosFormat> = {
+    pos: PosFormat
+    localPos: PosFormat
     index: number
 }
 
-type ChunkDataIteration<T> = ChunkEmptyIteration<T> & {
+type ChunkRawDataIteration<PosFormat> = ChunkEmptyIteration<PosFormat> & {
     rawData: number
 }
 
-type ChunkHeightBufferIteration = ChunkEmptyIteration<Vector2> & ChunkHeightBuffer
+type ChunkDataIteration<PosFormat, DataType> = ChunkEmptyIteration<PosFormat> & {
+    data: DataType
+}
+
+type ChunkHeightRawBufferIteration = ChunkEmptyIteration<Vector2> & ChunkHeightRawBuffer
+type ChunkHeightBufferIteration<DataType> = ChunkEmptyIteration<Vector2> & ChunkHeightBuffer<DataType>
 
 /**
  * Base chunk container with no data 
@@ -237,7 +250,7 @@ export class ChunkContainer {
         }
     }
 
-    fromStub(chunkStub: ChunkStub<ChunkMetadata>) {
+    fromStub(chunkStub: EmptyChunkStub) {
         const { chunkKey, margin } = chunkStub.metadata
         const bounds = parseThreeStub(chunkStub.metadata.bounds) as Box3
         this.chunkKey = chunkKey || this.chunkKey
@@ -250,7 +263,7 @@ export class ChunkContainer {
     toStub() {
         const { chunkKey, bounds, margin } = this
         const metadata = { chunkKey, bounds, margin }
-        const chunkStub: ChunkStub<ChunkMetadata> = { metadata }
+        const chunkStub: EmptyChunkStub = { metadata }
         // const chunkStub: ChunkStub = { chunkKey, bounds, rawData, margin, isEmpty }
         return chunkStub
     }
@@ -301,9 +314,15 @@ export class ChunkContainer {
 /**
  * Read only container sharing its data with another to avoid costly data copy operations
  */
-export abstract class ChunkSharedContainer extends ChunkContainer {
+export abstract class ChunkSharedContainer<BlockData> extends ChunkContainer {
+    static defaultDataAdapter = new ChunkDataAdapter() as BlockDataAdapter<any>
     protected abstract readonly rawData: Uint16Array<ArrayBufferLike>
     isEmpty?: boolean
+    abstract dataAdapter: BlockDataAdapter<BlockData>
+
+    constructor(bounds?: Box3, margin = 0, axisOrder = ChunkAxisOrder.ZXY) {
+        super(bounds, margin, axisOrder)
+    }
 
     isEmptySafe() {
         if (this.isEmpty !== undefined) return this.isEmpty
@@ -313,27 +332,37 @@ export abstract class ChunkSharedContainer extends ChunkContainer {
         return this.rawData.reduce((sum, val) => sum + val, 0) === 0
     }
 
-    decodeSectorData(sectorData: number) {
-        return sectorData
-    }
-
-    readSector(sectorIndex: number) {
+    readRawSector(sectorIndex: number) {
         // const sectorIndex = this.getIndex(this.toLocalPos(pos))
         const rawData = this.rawData[sectorIndex] as number
-        return this.decodeSectorData(rawData)
+        return rawData
     }
 
-    readBuffer(localPos: Vector2) {
+    readBlockData(sectorIndex: number) {
+        // const sectorIndex = this.getIndex(this.toLocalPos(pos))
+        const rawData = this.rawData[sectorIndex] as number
+        return this.dataAdapter.decode(rawData)
+    }
+
+    readRawBuffer(localPos: Vector2) {
         const buffIndex = this.getIndex(localPos)
         const rawBuffer = this.rawData.slice(buffIndex, buffIndex + this.extendedDims.y)
         return rawBuffer
     }
 
-    override *iterateContent(iteratedBounds?: Box3 | Vector3, skipMargin?: boolean) {
+    readBlocksBuffer(localPos: Vector2) {
+        const buffIndex = this.getIndex(localPos)
+        const rawBuffer = this.rawData.slice(buffIndex, buffIndex + this.extendedDims.y)
+        const data: BlockData[] = []
+        rawBuffer.forEach(rawData => data.push(this.dataAdapter.decode(rawData)))
+        return data
+    }
+
+    *iterateRawContent(iteratedBounds?: Box3 | Vector3, skipMargin?: boolean) {
         for (const { index, pos, localPos } of super.iterateContent(iteratedBounds, skipMargin)) {
             const rawData = this.rawData[index]
             if (rawData !== undefined) {
-                const res: ChunkDataIteration<Vector3> = {
+                const res: ChunkRawDataIteration<Vector3> = {
                     pos,
                     localPos,
                     index,
@@ -344,11 +373,27 @@ export abstract class ChunkSharedContainer extends ChunkContainer {
         }
     }
 
+    override *iterateContent(iteratedBounds?: Box3 | Vector3, skipMargin?: boolean) {
+        for (const { index, pos, localPos } of super.iterateContent(iteratedBounds, skipMargin)) {
+            const rawData = this.rawData[index]
+            const data = this.dataAdapter.decode(rawData || 0)
+            if (rawData !== undefined) {
+                const res: ChunkDataIteration<Vector3, BlockData> = {
+                    pos,
+                    localPos,
+                    index,
+                    data,
+                }
+                yield res
+            }
+        }
+    }
+
     override *iterHeightBuffers(iteratedBounds?: Box3 | Vector3) {
         for (const { index, pos, localPos } of super.iterHeightBuffers(iteratedBounds)) {
-            const buffData = this.readBuffer(localPos)
+            const buffData = this.readRawBuffer(localPos)
 
-            const res: ChunkHeightBufferIteration = {
+            const res: ChunkHeightRawBufferIteration = {
                 pos,
                 localPos,
                 index,
@@ -358,7 +403,21 @@ export abstract class ChunkSharedContainer extends ChunkContainer {
         }
     }
 
-    copyContentToTarget(targetChunk: ChunkDataContainer, skipEmpty = true) {
+    *iterBlocksHeightBuffers(iteratedBounds?: Box3 | Vector3) {
+        for (const { index, pos, localPos } of super.iterHeightBuffers(iteratedBounds)) {
+            const blocksData = this.readBlocksBuffer(localPos)
+
+            const res: ChunkHeightBufferIteration<BlockData> = {
+                pos,
+                localPos,
+                index,
+                content: blocksData,
+            }
+            yield res
+        }
+    }
+
+    copyContentToTarget(targetChunk: ChunkDataContainer<BlockData>, skipEmpty = true) {
         const overlapIter = ChunkContainer.iterOverlap(this, targetChunk)
         for (const { sourceIndex, targetIndex } of overlapIter) {
             const sourceVal = this.rawData[sourceIndex]
@@ -371,7 +430,7 @@ export abstract class ChunkSharedContainer extends ChunkContainer {
 
     override toStub() {
         const { metadata } = super.toStub()
-        const stub: ChunkDataStub<ChunkMetadata> = {
+        const stub: DataChunkStub = {
             metadata,
             rawdata: this.rawData,
         }
@@ -382,29 +441,34 @@ export abstract class ChunkSharedContainer extends ChunkContainer {
 /**
  * Writeable container owning its data
  */
-export class ChunkDataContainer extends ChunkSharedContainer {
+export abstract class ChunkDataContainer<BlockData> extends ChunkSharedContainer<BlockData> {
     override rawData: Uint16Array<ArrayBufferLike> = new Uint16Array(this.dataSize)
 
     get dataSize() {
         return this.extendedDims.x * this.extendedDims.y * this.extendedDims.z
     }
 
-    encodeSectorData(sectorData: number) {
-        return sectorData
+    writeRawSector(localPos: Vector3, rawVal: number) {
+        const buffIndex = this.getIndex(localPos)
+        this.rawData[buffIndex] = rawVal
     }
 
-    writeBlockData(
-        sectorIndex: number,
-        blockType: BlockType,
-        // blockMode = BlockMode.REGULAR,
-    ) {
-        // const sectorIndex = this.getIndex(this.toLocalPos(pos))
-        this.rawData[sectorIndex] = blockType
+    writeBlockData(localPos: Vector3, blockData: BlockData) {
+        const buffIndex = this.getIndex(localPos)
+        const rawVal = this.dataAdapter.encode(blockData)
+        this.rawData[buffIndex] = rawVal
+        return rawVal
     }
 
-    writeBuffer(localPos: Vector2, buffer: Uint16Array) {
+    writeRawBuffer(localPos: Vector2, buffer: Uint16Array) {
         const buffIndex = this.getIndex(localPos)
         this.rawData.set(buffer, buffIndex)
+    }
+
+    writeBlocksBuffer(localPos: Vector2, buffer: BlockData[]) {
+        const buffIndex = this.getIndex(localPos)
+        const rawBuffer = new Uint16Array(buffer.map(data => this.dataAdapter.encode(data)))
+        this.rawData.set(rawBuffer, buffIndex)
     }
 
     override fromKey(chunkKey: ChunkKey, chunkDim: Vector3) {
@@ -413,7 +477,7 @@ export class ChunkDataContainer extends ChunkSharedContainer {
         return this
     }
 
-    override fromStub({ metadata, rawdata }: ChunkDataStub<ChunkMetadata>) {
+    override fromStub({ metadata, rawdata }: DataChunkStub) {
         const { chunkKey, margin } = metadata
         const bounds = parseThreeStub(metadata.bounds) as Box3
         this.chunkKey = chunkKey || this.chunkKey
@@ -435,7 +499,7 @@ export class ChunkDataContainer extends ChunkSharedContainer {
         const isEmpty = this.isEmptySafe()
         const { chunkKey, bounds, margin, rawData } = this
         const metadata = { chunkKey, bounds, margin, isEmpty }
-        const chunkStub: ChunkDataStub<ChunkMetadata> = {
+        const chunkStub: DataChunkStub = {
             metadata,
             rawdata: rawData,
         }
@@ -448,7 +512,7 @@ export class ChunkDataContainer extends ChunkSharedContainer {
         if (metadataContent && rawdataContent) {
             const metadata = JSON.parse(new TextDecoder().decode(metadataContent))
             const rawdata = new Uint16Array(rawdataContent?.buffer || [])
-            const stub: ChunkDataStub<ChunkMetadata> = { metadata, rawdata }
+            const stub: DataChunkStub = { metadata, rawdata }
             return this.fromStub(stub)
         }
         return null
@@ -472,7 +536,7 @@ export class ChunkDataContainer extends ChunkSharedContainer {
             const metadata = JSON.parse(new TextDecoder().decode(metadataContent))
             const rawdata = rawdataContent && rawdataContent.byteLength > 0 ? new Uint16Array(rawdataContent.buffer) : new Uint16Array(0) // Ensure empty rawdata if not provided
             // repopulate object
-            const stub: ChunkDataStub<ChunkMetadata> = { metadata, rawdata }
+            const stub: DataChunkStub = { metadata, rawdata }
             return this.fromStub(stub)
         } catch (error) {
             console.error('Error occured during blob decompression:', error)
@@ -492,7 +556,7 @@ export class ChunkDataContainer extends ChunkSharedContainer {
     /**
     * merge spared chunks into unique container
     */
-    fromMergedChunks(sourceChunks: ChunkSharedContainer[]) {
+    fromMergedChunks(sourceChunks: ChunkSharedContainer<BlockData>[]) {
         const bounds = new Box3()
         for (const sourceChunk of sourceChunks) {
             bounds.union(sourceChunk.bounds)
@@ -506,8 +570,9 @@ export class ChunkDataContainer extends ChunkSharedContainer {
     }
 }
 
-export class ChunkMask extends ChunkDataContainer {
-    applyMaskOnTargetChunk(targetChunk: ChunkDataContainer) {
+export class ChunkMask extends ChunkDataContainer<boolean> {
+    override dataAdapter = new IdenticalBoolAdapter()
+    applyMaskOnTargetChunk(targetChunk: ChunkDataContainer<any>) {
         const overlapIter = ChunkDataContainer.iterOverlap(this, targetChunk)
         for (const { sourceIndex, targetIndex } of overlapIter) {
             const sourceVal = this.rawData[sourceIndex]

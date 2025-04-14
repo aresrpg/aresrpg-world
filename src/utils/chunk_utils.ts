@@ -55,7 +55,7 @@ export const concatBlobs = (blobs: Blob[]) => {
     return concat
 }
 
-export const chunksToCompressedBlob = async (chunks: ChunkDataContainer[]) => {
+export const chunksToCompressedBlob = async (chunks: ChunkDataContainer<any>[]) => {
     const allStubsConcat = chunks.map(chunk => chunk.toStubConcat())
     const total = allStubsConcat.reduce((sum, arr) => sum + arr.length, 0)
 

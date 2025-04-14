@@ -1,6 +1,6 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { GroundBlock, BiomeLands, PatchBlock, PatchBoundId, PatchId, BlockType, BiomeType, GroundBlockData, BlockMode } from '../utils/common_types.js'
+import { GroundBlock, BiomeLands, PatchBlock, PatchBoundId, PatchId, BlockType, BiomeType, GroundBlockData } from '../utils/common_types.js'
 import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk.js'
 import { Biome, BiomeInfluence } from '../procgen/Biome.js'
 import { PatchBase, PatchDataContainer, PatchStub } from '../datacontainers/PatchBase.js'
@@ -9,21 +9,13 @@ import { bilinearInterpolation } from '../utils/math_utils.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { WorldModules } from '../factory/WorldModules.js'
 import { Heightmap } from '../procgen/Heightmap.js'
-import { BiomeNumericType, reverseBiomeNumericType } from '../utils/misc_utils.js'
+import { GroundDataAdapter } from '../datacontainers/BlockDataAdapter.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
 export type GroundPatchStub = PatchStub & {
     valueRange?: { min: number; max: number }
     rawData: Uint32Array
-}
-
-// bits allocated per data type, total 9+4+7+3 = 23 bits
-const BitAllocation = {
-    level: 9, // level values ranging from 0 to 512
-    biome: 4, // 16 biomes
-    landIndex: 7, // 128 landscapes per biome
-    flags: 3, // 8 additional flags
 }
 
 export type BlockIteratorRes = IteratorResult<GroundBlock, void>
@@ -39,12 +31,14 @@ export const parseGroundFlags = (rawFlags: number) => {
 export class GroundPatch extends PatchBase<number> implements PatchDataContainer {
     biomeInfluence: BiomeInfluence | PatchBoundingBiomes | undefined
     rawData: Uint32Array
+    dataAdapter: GroundDataAdapter
     valueRange = { min: 512, max: 0 } // here elevation
     isEmpty = true
 
     constructor(bounds = new Box2(), margin = 1) {
         super(bounds, margin)
         this.rawData = new Uint32Array(this.extendedDims.x * this.extendedDims.y)
+        this.dataAdapter = new GroundDataAdapter()
     }
 
     override init(bounds: Box2): void {
@@ -91,40 +85,14 @@ export class GroundPatch extends PatchBase<number> implements PatchDataContainer
         return !!(this.biomeInfluence as PatchBoundingBiomes)[PatchBoundId.xMyM]
     }
 
-    decodeBlockData(rawData: number) {
-        const shift = BitAllocation
-        const level = (rawData >> (shift.biome + shift.landIndex + shift.flags)) & ((1 << shift.level) - 1)
-        const biomeNum = (rawData >> (shift.landIndex + shift.flags)) & ((1 << shift.biome) - 1)
-        const biome = reverseBiomeNumericType[biomeNum] || BiomeType.Temperate
-        const landIndex = (rawData >> shift.flags) & ((1 << shift.landIndex) - 1)
-        const flags = rawData & ((1 << shift.flags) - 1)
-        const blockData: GroundBlockData = {
-            level,
-            biome,
-            landIndex,
-            flags,
-        }
-        return blockData
-    }
-
-    encodeBlockData(groundData: GroundBlockData): number {
-        const { level, biome, landIndex, flags } = groundData
-        const shift = BitAllocation
-        let blockRawVal = level
-        blockRawVal = (blockRawVal << shift.biome) | BiomeNumericType[biome]
-        blockRawVal = (blockRawVal << shift.landIndex) | landIndex
-        blockRawVal = (blockRawVal << shift.flags) | (flags || BlockMode.REGULAR)
-        return blockRawVal
-    }
-
     readBlockData(blockIndex: number): GroundBlockData {
         const blockRawData = this.rawData[blockIndex]
-        const blockData = this.decodeBlockData(blockRawData as number)
+        const blockData = this.dataAdapter.decodeBlockData(blockRawData as number)
         return blockData
     }
 
     writeBlockData(blockIndex: number, blockData: GroundBlockData) {
-        this.rawData[blockIndex] = this.encodeBlockData(blockData)
+        this.rawData[blockIndex] = this.dataAdapter.encodeBlockData(blockData)
     }
 
     getBlock(inputPos: Vector2 | Vector3, isLocalPos = false) {

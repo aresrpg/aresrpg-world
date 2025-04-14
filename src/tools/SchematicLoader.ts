@@ -1,10 +1,10 @@
 import { Box3, Vector3 } from 'three'
-
 import { NBTReader } from '../libs/nbt_custom.js'
 import { BlockType } from '../utils/common_types.js'
-import { ChunkDataContainer } from '../datacontainers/ChunkContainer.js'
 import { isNotWorkerEnv } from '../utils/misc_utils.js'
 import { WorldGlobals } from '../config/WorldEnv.js'
+import { BlockDataType, ChunkBlockData, SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
+import { ChunkBlocksContainer } from '../factory/ChunksFactory.js'
 
 export type SchematicsBlocksMapping = Record<string, BlockType>
 
@@ -78,8 +78,9 @@ export class SchematicLoader {
         const orig = new Vector3(0, 0, 0)
         const end = orig.clone().add(dims)
         const bbox = new Box3(orig, end)
-        const templateChunk = new ChunkDataContainer(bbox)
+        const templateChunk = new ChunkBlocksContainer(bbox)
         const missingBlockTypes: Record<string, number> = {}
+        const dataType = BlockDataType.SolidBlock
         for (let y = 0; y < schemBlocks.length; y++) {
             for (let x = 0; x < schemBlocks[y].length; x++) {
                 for (let z = 0; z < schemBlocks[y][x].length; z++) {
@@ -92,9 +93,16 @@ export class SchematicLoader {
                     }
                     // worldObj.rawData[index++] = blockType
                     const localPos = new Vector3(x, y, z)
-                    const blockIndex = templateChunk.getIndex(localPos)
+                    const data: SolidBlockData = {
+                        blockType
+                    }
+                    const blockData: ChunkBlockData = {
+                        empty: blockType === BlockType.NONE,
+                        data,
+                        dataType
+                    }
                     // const encodedData = ChunkFactory.defaultInstance.voxelDataEncoder(blockType || BlockType.NONE)
-                    templateChunk.writeBlockData(blockIndex, blockType || BlockType.NONE)
+                    templateChunk.writeBlockData(localPos, blockData)
                 }
             }
         }

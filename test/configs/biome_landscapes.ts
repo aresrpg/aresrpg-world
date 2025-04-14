@@ -1,7 +1,6 @@
 // import { ExtBlock } from './blocks_mappings.js'
 
-import { BiomeType } from '../../src/procgen/Biome.js'
-import { BlockType } from '../../src/utils/common_types.js'
+import { BiomeType, BlockType } from '../../src/utils/common_types.js'
 
 import { SCHEMATICS_COLLECTIONS } from './schematics_collections.js'
 

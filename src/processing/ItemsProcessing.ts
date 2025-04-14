@@ -1,10 +1,10 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { ChunkContainer, ChunkDataContainer, ChunkDataStub, ChunkMetadata } from '../datacontainers/ChunkContainer.js'
+import { ChunkContainer, DataChunkStub } from '../datacontainers/ChunkContainer.js'
 import { asBox2, asPatchBounds, asVect3, parseThreeStub } from '../utils/patch_chunk.js'
-import { Block, BlockData, BlockRawData, PatchKey, SpawnCategory, SpawnType } from '../utils/common_types.js'
+import { Block, BlockData, BlockRawData, PatchKey, SpawnCategory } from '../utils/common_types.js'
 import { WorldModules } from '../factory/WorldModules.js'
-import { SpawnChunk, SpawnChunkStub, SpawnData } from '../factory/ChunksFactory.js'
+import { ChunkBlocksContainer, SpawnChunk, SpawnChunkStub, SpawnData } from '../factory/ChunksFactory.js'
 import { pickSpawnedElement } from '../utils/misc_utils.js'
 
 import { BlocksTask } from './BlocksProcessing.js'
@@ -25,7 +25,7 @@ export enum ItemsTaskRecipe {
 }
 
 export type ItemsTaskInput = Box2 | PatchKey | Vector2[]
-export type ItemsTaskOutput = ChunkDataContainer<ChunkBlockData> | SpawnChunk[] | SpawnChunkStub[] | SpawnData[]
+export type ItemsTaskOutput = ChunkBlocksContainer | SpawnChunk[] | SpawnChunkStub[] | SpawnData[]
 export type ItemsTaskParams = BaseProcessingParams & {
     recipe: ItemsTaskRecipe
     skipPostprocessing?: boolean    // specify if ground adjustments (costlier) will be done or not
@@ -50,7 +50,7 @@ export class ItemsTask<ProcessingInput extends ItemsTaskInput, ProcessingOutput 
             case ItemsTaskRecipe.SpawnedChunks:
                 return (rawTaskOutput as SpawnChunkStub[]).map(itemStub => new SpawnChunk(itemStub))
             case ItemsTaskRecipe.MergedSpawnedChunk:
-                return new ChunkContainer().fromStub(rawTaskOutput as ChunkDataStub<ChunkMetadata>)
+                return new ChunkContainer().fromStub(rawTaskOutput as DataChunkStub)
             default:
                 return rawTaskOutput
         }
@@ -111,7 +111,7 @@ export class ItemsTask<ProcessingInput extends ItemsTaskInput, ProcessingOutput 
     }
 
     static get mergedSpawnChunk() {
-        return this.factory<ItemsTaskInput, ChunkDataContainer>(ItemsTaskRecipe.MergedSpawnedChunk)
+        return this.factory<ItemsTaskInput, ChunkBlocksContainer>(ItemsTaskRecipe.MergedSpawnedChunk)
     }
 }
 
@@ -217,7 +217,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
             case ItemsTaskRecipe.SpawnedChunks:
                 return processingParams.isDelegated ? spawnedChunks.map(spawnChunk => spawnChunk.toStub()) : spawnedChunks
             case ItemsTaskRecipe.MergedSpawnedChunk:
-                const mergedChunk = new ChunkDataContainer(undefined, 1).fromMergedChunks(spawnedChunks)
+                const mergedChunk = new ChunkBlocksContainer(undefined, 1).fromMergedChunks(spawnedChunks)
                 return processingParams.isDelegated ? mergedChunk.toStub() : mergedChunk
             default:
                 return spawnedChunks
