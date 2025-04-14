@@ -2,7 +2,7 @@
 import { Vector3 } from 'three'
 
 import { asVect2, serializePatchId, asBox2, asVect3 } from '../utils/patch_chunk.js'
-import { Block, BlockData, BlockType, SpawnType, PatchBlock, SpawnCategory } from '../utils/common_types.js'
+import { Block, BlockData, BlockType, BiomeType, SpawnType, PatchBlock, SpawnCategory } from '../utils/common_types.js'
 import {
     ChunkHeightBuffer,
     ChunkDataContainer,
@@ -13,7 +13,7 @@ import {
 } from '../datacontainers/ChunkContainer.js'
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
-import { Biome, BiomeType } from '../procgen/Biome.js'
+import { Biome } from '../procgen/Biome.js'
 import { WorldModules } from './WorldModules.js'
 import { adjustItemBounds } from '../utils/misc_utils.js'
 import { WorldGlobals } from '../config/WorldEnv.js'
@@ -111,7 +111,7 @@ export class CavesMask extends ChunkMask {
             let startIndex = this.getIndex(startLocalPos)
             for (let y = ymin; y <= ymax; y++) {
                 block.pos.y = y
-                const isEmptyBlock = worldModules.densityVolume.getBlockDensity(block.pos, groundLevel + 20)
+                const isEmptyBlock = worldModules.cavesDensity.getBlockDensity(block.pos, groundLevel + 20)
                 this.rawData[startIndex++] = isEmptyBlock ? 0 : 1
             }
             // chunkContainer.writeBuffer(buffPos, chunkBuff)

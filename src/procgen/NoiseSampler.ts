@@ -167,3 +167,58 @@ export class NoiseSampler {
         return noiseVal
     }
 }
+
+export class VolumetricDensity extends NoiseSampler {
+
+    params2 = {
+        spreading: 0,
+        scaling: 0.1,
+    }
+
+    constructor(seed: string) {
+        super(seed, 'volumetricDensity', NoiseDimension.Three)
+        this.periodicity = 7
+        this.harmonicsCount = 4
+
+    }
+
+    /**
+     *
+     * @param blockData
+     * @param includeSea
+     * @returns
+     */
+    getBlockDensity(
+        blockPos: Vector3,
+        threshold:number
+        // includeSea?: boolean,
+    ) {
+        const { scaling } = this.params2
+        const { x, y, z } = blockPos.clone().multiplyScalar(scaling)
+        const density = this.rawEval(x * scaling, y * scaling, z * scaling)
+        return density < threshold
+    }
+}
+
+export class CavernsVolumetricDensity extends VolumetricDensity {
+
+    /**
+     *
+     * @param blockData
+     * @param includeSea
+     * @returns
+     */
+    override getBlockDensity(
+        blockPos: Vector3,
+        groundLevel = 512,
+        // includeSea?: boolean,
+    ) {
+        // adaptative density threshold based on terrain height
+        const threshold = Math.sin((blockPos.y / groundLevel) * Math.PI) * 0.5
+        return super.getBlockDensity(blockPos, threshold)
+    }
+}
+
+// export class VolumetricSpriteDistribution {
+    
+// }

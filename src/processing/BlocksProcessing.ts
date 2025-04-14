@@ -319,7 +319,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
                 const groundConf = landConf.data
                 // check for block emptyness if specified
                 pos.y = level
-                const isEmptyBlock = () => worldModules.densityVolume.getBlockDensity(pos, level + 20)
+                const isEmptyBlock = () => worldModules.cavesDensity.getBlockDensity(pos, level + 20)
 
                 const type = includeDensity && isEmptyBlock() ? BlockType.HOLE : groundConf.type
                 const data: BlockData = {
@@ -383,7 +383,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
                 const groundPos = asVect2(blockPos)
 
                 const isEmptyBlock = (level: number) =>
-                    worldModules.densityVolume.getBlockDensity(asVect3(groundPos, level), groundLevel + 20)
+                    worldModules.cavesDensity.getBlockDensity(asVect3(groundPos, level), groundLevel + 20)
 
                 const isAboveSurface = initialBlockLevel > groundLevel
 

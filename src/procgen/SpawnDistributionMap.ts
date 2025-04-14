@@ -5,7 +5,7 @@ import { asVect3 } from '../utils/patch_chunk.js'
 import Alea from '../libs/alea.js'
 
 import { NoiseSampler } from './NoiseSampler.js'
-import { DiscreteMapDistribution } from './DiscreteMapDistribution.js'
+import { DiscreteDistributionMap } from './DiscreteDistributionMap.js'
 import { Biome } from './Biome.js'
 import { Heightmap } from './Heightmap.js'
 
@@ -28,9 +28,9 @@ export type SpawnRules = {
  * Support for multiple items' sizes
  */
 // SpawnDistributionMap
-export class ItemsMapDistribution {
+export class SpawnDistributionMap {
     // layers: Record<DistributionProfile, DistributionMap>
-    discreteDistributionMap: DiscreteMapDistribution
+    discreteDistributionMap: DiscreteDistributionMap
     spawnDistributionLaw: NoiseSampler
     spawnProbabilityThreshold: number
     biomes: Biome
@@ -39,7 +39,7 @@ export class ItemsMapDistribution {
     constructor(worldLocalEnv: WorldLocals, heightmap: Heightmap, biomes: Biome) {
         const spawnSeed = worldLocalEnv.getSeed(WorldSeed.Spawn)
         const patternDimension = worldLocalEnv.getDistributionMapDimensions()
-        this.discreteDistributionMap = new DiscreteMapDistribution(patternDimension, spawnSeed)
+        this.discreteDistributionMap = new DiscreteDistributionMap(patternDimension, spawnSeed)
         this.spawnDistributionLaw = new NoiseSampler(spawnSeed)
         this.spawnProbabilityThreshold = Math.pow(2, 8)
         this.biomes = biomes

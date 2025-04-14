@@ -1,25 +1,17 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { GroundBlock, BiomeLands, PatchBlock, PatchBoundId, PatchId, BlockType, BlockMode } from '../utils/common_types.js'
+import { GroundBlock, BiomeLands, PatchBlock, PatchBoundId, PatchId, BlockType, BiomeType, GroundBlockData, BlockMode } from '../utils/common_types.js'
 import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk.js'
-import { Biome, BiomeInfluence, BiomeNumericType, BiomeType, ReverseBiomeNumericType } from '../procgen/Biome.js'
+import { Biome, BiomeInfluence } from '../procgen/Biome.js'
 import { PatchBase, PatchDataContainer, PatchStub } from '../datacontainers/PatchBase.js'
 import { getPatchNeighbours, getPatchBoundingPoints } from '../utils/spatial_utils.js'
 import { bilinearInterpolation } from '../utils/math_utils.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { WorldModules } from '../factory/WorldModules.js'
 import { Heightmap } from '../procgen/Heightmap.js'
+import { BiomeNumericType, reverseBiomeNumericType } from '../utils/misc_utils.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
-
-export type GroundBlockData = {
-    // rawVal: number,
-    level: number
-    biome: BiomeType
-    landIndex: number
-    landId?: string
-    flags: number
-}
 
 export type GroundPatchStub = PatchStub & {
     valueRange?: { min: number; max: number }
@@ -43,14 +35,7 @@ export const parseGroundFlags = (rawFlags: number) => {
     }
     return groundFlags
 }
-/**
- * field | bits alloc | value range
- * -----|------------|--------------------------------
- * ground elevation |  10 | 1024
- * groundIndex#  | 6 | 64
- * overgroundIndex  | 16 | support for 65536 different configurations
- *
- */
+
 export class GroundPatch extends PatchBase<number> implements PatchDataContainer {
     biomeInfluence: BiomeInfluence | PatchBoundingBiomes | undefined
     rawData: Uint32Array
@@ -110,7 +95,7 @@ export class GroundPatch extends PatchBase<number> implements PatchDataContainer
         const shift = BitAllocation
         const level = (rawData >> (shift.biome + shift.landIndex + shift.flags)) & ((1 << shift.level) - 1)
         const biomeNum = (rawData >> (shift.landIndex + shift.flags)) & ((1 << shift.biome) - 1)
-        const biome = ReverseBiomeNumericType[biomeNum] || BiomeType.Temperate
+        const biome = reverseBiomeNumericType[biomeNum] || BiomeType.Temperate
         const landIndex = (rawData >> shift.flags) & ((1 << shift.landIndex) - 1)
         const flags = rawData & ((1 << shift.flags) - 1)
         const blockData: GroundBlockData = {

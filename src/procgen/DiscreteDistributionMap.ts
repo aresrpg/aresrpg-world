@@ -17,9 +17,9 @@ export type DistributionParams = {
 
 /**
  * Pseudo-random distribution made from infinitely repeatable patterns
- * with independant and deterministic behavior
+ * providing independant and deterministic behavior
  */
-export class DiscreteMapDistribution {
+export class DiscreteDistributionMap {
     patternDimension: Vector2
     // densityMap: NoiseSampler
     bounds: Box2

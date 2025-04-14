@@ -3,7 +3,7 @@ import { Vector2, Vector3 } from 'three'
 import { ProcItemConf } from '../tools/ProceduralGenerators.js'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader.js'
 import { BiomesRawConf, BlockType, SpawnProfiles, SpawnType } from '../utils/common_types.js'
-import { SpawnRules } from '../procgen/ItemsMapDistribution.js'
+import { SpawnRules } from '../procgen/SpawnDistributionMap.js'
 
 export enum WorldSeed {
     Global = 'global',

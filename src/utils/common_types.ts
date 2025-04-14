@@ -1,8 +1,6 @@
 import { Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
-import { GroundBlockData } from '../processing/GroundPatch.js'
-import { BiomeType } from '../procgen/Biome.js'
 import { LinkedList } from '../datacontainers/LinkedList.js'
-import { SpawnRules } from '../procgen/ItemsMapDistribution.js'
+import { SpawnRules } from '../procgen/SpawnDistributionMap.js'
 
 // reserved native block types
 export enum BlockType {
@@ -21,6 +19,20 @@ export enum BlockType {
     FOLIAGE_DARK,
     LAST_PLACEHOLDER,
 }
+
+export enum BiomeType {
+    Temperate = 'temperate',
+    Arctic = 'arctic',
+    Desert = 'desert',
+    Tropical = 'tropical',
+    Scorched = 'scorched',
+    Swamp = 'swamp',
+    Glacier = 'glacier',
+    Taiga = 'taiga',
+    Grassland = 'grassland',
+}
+
+export type SpriteBlockType = number
 
 export type Block<T> = {
     pos: Vector3
@@ -44,6 +56,22 @@ export type BlockData = Partial<BlockRawData> & {
     mode?: BlockMode
 }
 
+export type GroundBlockData = {
+    // rawVal: number,
+    level: number
+    biome: BiomeType
+    landIndex: number
+    landId?: string
+    flags: number
+}
+
+export type GroundBlock = Block<GroundBlockData>
+
+export type PatchBlock = GroundBlock & {
+    index: number
+    localPos: Vector3
+}
+
 export type SpawnType = string
 export const VoidSpawnType = 'void'
 export type SpawnProfile = string
@@ -60,13 +88,6 @@ export enum SpawnCategory {
 }
 
 export type SpawnedItems = Record<SpawnType, Vector3[]>
-
-export type GroundBlock = Block<GroundBlockData>
-
-export type PatchBlock = GroundBlock & {
-    index: number
-    localPos: Vector3
-}
 
 /**
  * CHUNK volume

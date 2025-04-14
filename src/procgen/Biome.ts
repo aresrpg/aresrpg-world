@@ -3,7 +3,7 @@ import { Vector2, Vector3, Vector3Like } from 'three'
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 // import {  smoothstep as smoothStep } from 'three/src/math/MathUtils'
 import { LinkedList } from '../datacontainers/LinkedList.js'
-import { BiomesConf, BiomesRawConf, BiomeLands, LandFields, BiomeLandsConf, SpawnElement, SpawnCategory } from '../utils/common_types.js'
+import { BiomesConf, BiomesRawConf, BiomeLands, LandFields, BiomeLandsConf, SpawnElement, SpawnCategory, BiomeType } from '../utils/common_types.js'
 import { clamp, roundToDec, smoothStep } from '../utils/math_utils.js'
 import { findMatchingRange, MappingRangeSorter, typesNumbering } from '../utils/misc_utils.js'
 import { asVect3, isVect3Stub } from '../utils/patch_chunk.js'
@@ -41,35 +41,6 @@ const rainLevelMappings: Record<Level, RainLevel> = {
     [Level.MID]: RainLevel.MODERATE,
     [Level.HIGH]: RainLevel.WET,
 }
-
-export enum BiomeType {
-    Temperate = 'temperate',
-    Arctic = 'arctic',
-    Desert = 'desert',
-    Tropical = 'tropical',
-    Scorched = 'scorched',
-    Swamp = 'swamp',
-    Glacier = 'glacier',
-    Taiga = 'taiga',
-    Grassland = 'grassland',
-}
-
-export const BiomeNumericType: Record<BiomeType, number> = {
-    [BiomeType.Temperate]: 0,
-    [BiomeType.Arctic]: 0,
-    [BiomeType.Desert]: 0,
-    [BiomeType.Tropical]: 0,
-    [BiomeType.Scorched]: 0,
-    [BiomeType.Swamp]: 0,
-    [BiomeType.Glacier]: 0,
-    [BiomeType.Taiga]: 0,
-    [BiomeType.Grassland]: 0,
-}
-
-typesNumbering(BiomeNumericType)
-
-export const ReverseBiomeNumericType: Record<number, BiomeType> = {}
-Object.keys(BiomeNumericType).forEach((type, i) => (ReverseBiomeNumericType[i] = type as BiomeType))
 
 type Contribution = Record<Level, number>
 

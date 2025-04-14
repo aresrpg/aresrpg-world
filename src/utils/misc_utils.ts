@@ -1,5 +1,5 @@
 import { Box3, Vector3 } from 'three'
-import { BiomeLands, LandFields, SpawnElement, VoidSpawnType } from './common_types.js'
+import { BiomeLands, BiomeType, LandFields, SpawnElement, VoidSpawnType } from './common_types.js'
 import { parseThreeStub } from './patch_chunk.js'
 
 // const MappingRangeFinder = (item: LinkedList<MappingData>, inputVal: number) => item.next && inputVal > (item.next.data as MappingData).x
@@ -28,6 +28,23 @@ export function reverseMapping<U extends string | number, T extends string | num
     Object.entries(mapping).forEach((cubeOffset, cubeSide) => (reversedMapping[cubeSide] = cubeOffset))
     return reversedMapping
 }
+
+export const BiomeNumericType: Record<BiomeType, number> = {
+    [BiomeType.Temperate]: 0,
+    [BiomeType.Arctic]: 0,
+    [BiomeType.Desert]: 0,
+    [BiomeType.Tropical]: 0,
+    [BiomeType.Scorched]: 0,
+    [BiomeType.Swamp]: 0,
+    [BiomeType.Glacier]: 0,
+    [BiomeType.Taiga]: 0,
+    [BiomeType.Grassland]: 0,
+}
+
+typesNumbering(BiomeNumericType)
+
+export const reverseBiomeNumericType: Record<number, BiomeType> = {}
+Object.keys(BiomeNumericType).forEach((type, i) => (reverseBiomeNumericType[i] = type as BiomeType))
 
 export const pickSpawnedElement = (spawnElements: SpawnElement[], randomIndex: number, maxSpawnSize: number) => {
     const pickingList: string[] = []

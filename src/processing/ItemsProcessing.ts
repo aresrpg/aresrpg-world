@@ -9,7 +9,7 @@ import { pickSpawnedElement } from '../utils/misc_utils.js'
 
 import { BlocksTask } from './BlocksProcessing.js'
 import { BaseProcessingParams, ProcessingTask, ProcessingTaskHandler, ProcessingTaskStub } from './TaskProcessing.js'
-import { SpawnSlot } from '../procgen/ItemsMapDistribution.js'
+import { SpawnSlot } from '../procgen/SpawnDistributionMap.js'
 
 /**
  * Calling side
@@ -25,7 +25,7 @@ export enum ItemsTaskRecipe {
 }
 
 export type ItemsTaskInput = Box2 | PatchKey | Vector2[]
-export type ItemsTaskOutput = ChunkDataContainer | SpawnChunk[] | SpawnChunkStub[] | SpawnData[]
+export type ItemsTaskOutput = ChunkDataContainer<ChunkBlockData> | SpawnChunk[] | SpawnChunkStub[] | SpawnData[]
 export type ItemsTaskParams = BaseProcessingParams & {
     recipe: ItemsTaskRecipe
     skipPostprocessing?: boolean    // specify if ground adjustments (costlier) will be done or not
@@ -131,7 +131,7 @@ export type DiscardedSlot = Partial<SpawnData> & {
 
 
 export const createItemsTaskHandler = (worldModules: WorldModules) => {
-    const { taskHandlers, itemsInventory, itemsMapDistribution, worldLocalEnv } = worldModules
+    const { taskHandlers, itemsInventory, spawnDistributionMap, worldLocalEnv } = worldModules
 
     const itemsTaskHandler: ItemsProcessingHandler = (taskStub: ItemsTaskStub) => {
         const discardedSlots: DiscardedSlot[] = []
@@ -198,7 +198,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
         const { recipe, skipPostprocessing, skipOverlapPruning, spawnInsideAreaOnly } = processingParams
         const inputQuery =
             typeof processingInput === 'string' ? asPatchBounds(processingInput, worldLocalEnv.getPatchDimensions()) : parseThreeStub(processingInput)
-        const spawnSlotsIndex = itemsMapDistribution.queryMapArea(inputQuery, spawnInsideAreaOnly)
+        const spawnSlotsIndex = spawnDistributionMap.queryMapArea(inputQuery, spawnInsideAreaOnly)
         const groundBlocksProvider = (input: Vector3[]) => {
             const blocksTask = new BlocksTask().groundPositions(input)
             blocksTask.processingParams.includeDensity = true
