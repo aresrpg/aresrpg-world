@@ -1,4 +1,5 @@
 import { Box3, Vector3 } from 'three'
+
 import { NBTReader } from '../libs/nbt_custom.js'
 import { BlockType } from '../utils/common_types.js'
 import { isNotWorkerEnv } from '../utils/misc_utils.js'
@@ -94,12 +95,12 @@ export class SchematicLoader {
                     // worldObj.rawData[index++] = blockType
                     const localPos = new Vector3(x, y, z)
                     const data: SolidBlockData = {
-                        blockType
+                        blockType,
                     }
                     const blockData: ChunkBlockData = {
                         empty: blockType === BlockType.NONE,
                         data,
-                        dataType
+                        dataType,
                     }
                     // const encodedData = ChunkFactory.defaultInstance.voxelDataEncoder(blockType || BlockType.NONE)
                     templateChunk.writeBlockData(localPos, blockData)

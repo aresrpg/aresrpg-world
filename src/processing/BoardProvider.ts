@@ -19,10 +19,11 @@ import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { DataChunkStub } from '../datacontainers/ChunkContainer.js'
 import { WorldLocals } from '../config/WorldEnv.js'
 import { ChunkBlocksContainer, SpawnChunk } from '../factory/ChunksFactory.js'
+import { SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
+
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { WorkerPool } from './WorkerPool.js'
 import { ItemsTask } from './ItemsProcessing.js'
-import { SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
 
 export enum BlockCategory {
     EMPTY = 0,
@@ -168,9 +169,7 @@ export class BoardCacheProvider {
                     // once done put result in cache
                     pendingChunkTask.then(taskRes => {
                         // reconstruct objects from stubs
-                        const chunks = taskRes.map((chunkStub: DataChunkStub) =>
-                            new ChunkBlocksContainer().fromStub(chunkStub),
-                        )
+                        const chunks = taskRes.map((chunkStub: DataChunkStub) => new ChunkBlocksContainer().fromStub(chunkStub))
                         this.localCache.chunks.push(...chunks)
                     })
                     return pendingChunkTask
@@ -318,12 +317,12 @@ export class BoardProvider {
             if (i > boardThickness) {
                 return BlockType.NONE
             } else {
-                const isCheckerBlock = i === boardThickness //? BlockMode.CHECKERBOARD : BlockMode.REGULAR
+                const isCheckerBlock = i === boardThickness // ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
                 if (isHoleBlock && i < boardThickness) return dataAdapter.encodeSolidBlock(BlockType.HOLE, isCheckerBlock)
                 else if (isHoleBlock && !rawVal) return dataAdapter.encodeSolidBlock(surfaceType || BlockType.NONE, isCheckerBlock)
                 else if (isCheckerBlock && rawVal) {
                     const decodedBlock = dataAdapter.decode(rawVal)
-                    const { blockType } = (decodedBlock.data as SolidBlockData)
+                    const { blockType } = decodedBlock.data as SolidBlockData
                     return dataAdapter.encodeSolidBlock(blockType, isCheckerBlock)
                 } else return rawVal
             }
@@ -360,9 +359,7 @@ export class BoardProvider {
                     : BlockCategory.EMPTY
             // override height buffer with board version if within board
             const finalHeightBuffer =
-                isWithinBoard && (!isHoleBlock || !skipHoleBlocks)
-                    ? this.overrideHeightBuffer(heightBuff, isHoleBlock)
-                    : heightBuff//.map(val => this.externalDataEncoder(val))
+                isWithinBoard && (!isHoleBlock || !skipHoleBlocks) ? this.overrideHeightBuffer(heightBuff, isHoleBlock) : heightBuff // .map(val => this.externalDataEncoder(val))
             boardChunk.writeRawBuffer(patchIter.localPos, finalHeightBuffer)
             // boardPatch.
         }

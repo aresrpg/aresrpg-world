@@ -1,4 +1,4 @@
-import { ProcItemCategory, ProcItemType } from "../../src/tools/ProceduralGenerators"
+import { ProcItemCategory, ProcItemType } from '../../src/tools/ProceduralGenerators.js'
 
 export const proc_items = {
     AppleTree_S: 'appletree_s',

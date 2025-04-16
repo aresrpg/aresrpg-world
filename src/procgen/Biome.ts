@@ -3,7 +3,16 @@ import { Vector2, Vector3, Vector3Like } from 'three'
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 // import {  smoothstep as smoothStep } from 'three/src/math/MathUtils'
 import { LinkedList } from '../datacontainers/LinkedList.js'
-import { BiomesConf, BiomesRawConf, BiomeLands, LandFields, BiomeLandsConf, SpawnElement, SpawnCategory, BiomeType } from '../utils/common_types.js'
+import {
+    BiomesConf,
+    BiomesRawConf,
+    BiomeLands,
+    LandFields,
+    BiomeLandsConf,
+    SpawnElement,
+    SpawnCategory,
+    BiomeType,
+} from '../utils/common_types.js'
 import { clamp, roundToDec, smoothStep } from '../utils/math_utils.js'
 import { findMatchingRange, MappingRangeSorter } from '../utils/misc_utils.js'
 import { asVect3, isVect3Stub } from '../utils/patch_chunk.js'

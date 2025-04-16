@@ -1,5 +1,4 @@
 import { getWorldSeed, WorldGlobals, WorldLocals, WorldLocalSettings, WorldSeed } from '../config/WorldEnv.js'
-import { ItemsInventory } from './ItemsInventory.js'
 import { BlocksTask, createBlocksTaskHandler } from '../processing/BlocksProcessing.js'
 import { ChunksTask, createChunksTaskHandler } from '../processing/ChunksProcessing.js'
 import { createItemsTaskHandler, ItemsTask } from '../processing/ItemsProcessing.js'
@@ -10,6 +9,8 @@ import { Heightmap } from '../procgen/Heightmap.js'
 // import { NoiseSampler } from './procgen/NoiseSampler.js'
 import { SpawnDistributionMap } from '../procgen/SpawnDistributionMap.js'
 import { CavernsVolumetricDensity, VolumetricDensity } from '../procgen/NoiseSampler.js'
+
+import { ItemsInventory } from './ItemsInventory.js'
 
 /**
  * All world modules required to compute world objects

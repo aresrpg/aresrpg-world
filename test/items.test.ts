@@ -30,9 +30,9 @@ class ItemsTaskTest extends ItemsTask<ItemsTaskInput, ItemsTaskOutput> {
 }
 
 const createItemsTests = (patchKey: PatchKey) => {
-    const individualItems = new ItemsTaskTest('individual items').individualChunks(patchKey)
-    const mergedItems = new ItemsTaskTest('merged items').mergedChunk(patchKey)
-    const spawnedElements = new ItemsTaskTest('items peak block').spawnedElements(patchKey)
+    const individualItems = new ItemsTaskTest('spawned chunks').spawnedChunks(patchKey)
+    const mergedItems = new ItemsTaskTest('merged spawn chunk').mergedSpawnChunk(patchKey)
+    const spawnedElements = new ItemsTaskTest('spawned items').spawnedElements(patchKey)
     return [individualItems, mergedItems, spawnedElements]
 }
 

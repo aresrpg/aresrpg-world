@@ -5,9 +5,9 @@ import { SchematicLoader } from '../tools/SchematicLoader.js'
 import { ItemsEnv, WorldGlobals } from '../config/WorldEnv.js'
 import { asBox2 } from '../utils/patch_chunk.js'
 import { isNotWorkerEnv } from '../utils/misc_utils.js'
+import { SpawnCategory, SpawnType } from '../utils/common_types.js'
 
 import { SpawnChunkStub, SpawnChunkMetadata } from './ChunksFactory.js'
-import { SpawnCategory, SpawnType } from '../utils/common_types.js'
 // import { asVect2 } from '../utils/patch_chunk'
 
 /**
@@ -75,7 +75,7 @@ export class ItemsInventory {
                     ...metadata,
                     spawnRadius,
                     spawnType,
-                    spawnCat
+                    spawnCat,
                 }
                 const templateStub: SpawnChunkStub = {
                     metadata: templateMetadata,

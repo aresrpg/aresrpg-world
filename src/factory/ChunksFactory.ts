@@ -14,10 +14,11 @@ import {
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
 import { Biome } from '../procgen/Biome.js'
-import { WorldModules } from './WorldModules.js'
 import { adjustItemBounds } from '../utils/misc_utils.js'
 import { WorldGlobals } from '../config/WorldEnv.js'
 import { BlockDataAdapter, BlockDataType, ChunkBlockData, ChunkDataAdapter, SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
+
+import { WorldModules } from './WorldModules.js'
 
 export class ChunkBlocksContainer extends ChunkDataContainer<ChunkBlockData> {
     static dataAdapter = new ChunkDataAdapter()
@@ -33,13 +34,13 @@ export const getSolidBlock = (blockType: BlockType, isCheckerBlock = false) => {
     const empty = false
     const data: SolidBlockData = {
         blockType,
-        isCheckerBlock
+        isCheckerBlock,
     }
     const dataType = BlockDataType.SolidBlock
     const block: ChunkBlockData = {
         empty,
         data,
-        dataType
+        dataType,
     }
     return block
 }
@@ -68,7 +69,7 @@ export class GroundChunk extends ChunkBlocksContainer {
             // fill with bedrock first
             groundBuffer.fill(bedRock)
             // add underground layer
-            groundBuffer.fill(undergroundLayer, - undegroundDepth - 1)
+            groundBuffer.fill(undergroundLayer, -undegroundDepth - 1)
             // ground surface block
             groundBuffer.fill(groundSurface, -1)
             const chunkBuffer: ChunkHeightBuffer<ChunkBlockData> = {
@@ -156,7 +157,7 @@ export type SpawnData = {
 }
 
 export class SpawnChunk extends ChunkSharedContainer<ChunkBlockData> {
-    static dataAdapter = new ChunkDataAdapter
+    static dataAdapter = new ChunkDataAdapter()
     override dataAdapter: BlockDataAdapter<ChunkBlockData> = SpawnChunk.dataAdapter
 
     protected override rawData: Uint16Array<ArrayBufferLike>
@@ -235,7 +236,7 @@ export class SpawnChunk extends ChunkSharedContainer<ChunkBlockData> {
             spawnType,
             spawnCat,
             // spawnOrigin,
-            spawnRadius: 0
+            spawnRadius: 0,
         }
         const spawnChunkMetadata: SpawnChunkMetadata = { ...metadata, ...spawnMetadata }
         if (spawnOrigin) spawnMetadata.spawnOrigin = spawnOrigin
@@ -248,7 +249,7 @@ export class SpawnChunk extends ChunkSharedContainer<ChunkBlockData> {
         const spawnOrigin = this.spawnOrigin as Vector3
         const spawnData: SpawnData = {
             spawnOrigin,
-            spawnType
+            spawnType,
         }
         return spawnData
     }

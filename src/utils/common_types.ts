@@ -1,4 +1,5 @@
 import { Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
+
 import { LinkedList } from '../datacontainers/LinkedList.js'
 import { SpawnRules } from '../procgen/SpawnDistributionMap.js'
 
@@ -72,20 +73,20 @@ export type PatchBlock = GroundBlock & {
     localPos: Vector3
 }
 
+export enum SpawnCategory {
+    Flora,
+    Structure,
+}
+
 export type SpawnType = string
 export const VoidSpawnType = 'void'
 export type SpawnProfile = string
 export type SpawnPreset = {
-    spawnProfile: SpawnProfile,
+    spawnProfile: SpawnProfile
     spawnCategory: SpawnCategory
 }
 export type SpawnProfiles = Record<SpawnProfile, SpawnRules>
 export type SpawnPresets = Record<SpawnType, SpawnPreset>
-
-export enum SpawnCategory {
-    Flora,
-    Structure
-}
 
 export type SpawnedItems = Record<SpawnType, Vector3[]>
 

@@ -6,10 +6,10 @@ import { Block, BlockData, BlockRawData, PatchKey, SpawnCategory } from '../util
 import { WorldModules } from '../factory/WorldModules.js'
 import { ChunkBlocksContainer, SpawnChunk, SpawnChunkStub, SpawnData } from '../factory/ChunksFactory.js'
 import { pickSpawnedElement } from '../utils/misc_utils.js'
+import { SpawnSlot } from '../procgen/SpawnDistributionMap.js'
 
 import { BlocksTask } from './BlocksProcessing.js'
 import { BaseProcessingParams, ProcessingTask, ProcessingTaskHandler, ProcessingTaskStub } from './TaskProcessing.js'
-import { SpawnSlot } from '../procgen/SpawnDistributionMap.js'
 
 /**
  * Calling side
@@ -28,7 +28,7 @@ export type ItemsTaskInput = Box2 | PatchKey | Vector2[]
 export type ItemsTaskOutput = ChunkBlocksContainer | SpawnChunk[] | SpawnChunkStub[] | SpawnData[]
 export type ItemsTaskParams = BaseProcessingParams & {
     recipe: ItemsTaskRecipe
-    skipPostprocessing?: boolean    // specify if ground adjustments (costlier) will be done or not
+    skipPostprocessing?: boolean // specify if ground adjustments (costlier) will be done or not
     skipOverlapPruning?: boolean
     spawnInsideAreaOnly?: boolean
 }
@@ -63,7 +63,7 @@ export class ItemsTask<ProcessingInput extends ItemsTaskInput, ProcessingOutput 
      */
 
     /**
-     * Instance versions 
+     * Instance versions
      * @param recipe
      * @returns
      */
@@ -89,18 +89,18 @@ export class ItemsTask<ProcessingInput extends ItemsTaskInput, ProcessingOutput 
     }
 
     /**
-     * Static versions 
+     * Static versions
      */
 
     static factory =
         <ProcessingInput extends ItemsTaskInput, ProcessingOutput extends ItemsTaskOutput>(recipe: ItemsTaskRecipe) =>
-            (input: ProcessingInput) => {
-                const task = new ItemsTask<ProcessingInput, ProcessingOutput>()
-                task.handlerId = this.handlerId
-                task.processingInput = input
-                task.processingParams = { recipe }
-                return task
-            }
+        (input: ProcessingInput) => {
+            const task = new ItemsTask<ProcessingInput, ProcessingOutput>()
+            task.handlerId = this.handlerId
+            task.processingInput = input
+            task.processingParams = { recipe }
+            return task
+        }
 
     // static get spawnedElements() {
     //     return this.factory<ItemsTaskInput, MapPickedElements>(ItemsTaskRecipe.IndividualChunks)
@@ -124,11 +124,10 @@ type ItemsTaskStub = ProcessingTaskStub<ItemsTaskInput, ItemsTaskParams>
 type ItemsProcessingHandler = ProcessingTaskHandler<ItemsTaskInput, ItemsTaskParams, any>
 
 export type DiscardedSlot = Partial<SpawnData> & {
-    spawnStage: number,
-    spawnPass: number,
+    spawnStage: number
+    spawnPass: number
     bounds?: Box2
 }
-
 
 export const createItemsTaskHandler = (worldModules: WorldModules) => {
     const { taskHandlers, itemsInventory, spawnDistributionMap, worldLocalEnv } = worldModules
@@ -137,7 +136,7 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
         const discardedSlots: DiscardedSlot[] = []
 
         /**
-         * Determine final item type and position and use shared data containers 
+         * Determine final item type and position and use shared data containers
          * to avoid copying data from original template
          * @param spawnedElements
          * @returns
@@ -146,21 +145,25 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
             const biomesMappings = worldModules.biomes.mappings
             const spawnedChunks: SpawnChunk[] = []
             const nonOverlappingChunks: Box2[] = []
-            const sortedKeys = Object.keys(spawnSlotsIndex).map(key => parseInt(key)).sort((a, b) => b - a)
+            const sortedKeys = Object.keys(spawnSlotsIndex)
+                .map(key => parseInt(key))
+                .sort((a, b) => b - a)
             for (const maxSpawnSize of sortedKeys) {
                 const spawnPass = maxSpawnSize
                 const spawnSlots = spawnSlotsIndex[maxSpawnSize] as SpawnSlot[]
                 // do first discarding based on spawnOrigin
-                const availableSlots = skipOverlapPruning ? spawnSlots :
-                    spawnSlots.filter((spawnSlot) => {
-                        const isDiscarded = nonOverlappingChunks.find(item => item.containsPoint(spawnSlot.pos))
-                        isDiscarded && discardedSlots.push({
-                            spawnOrigin: asVect3(spawnSlot.pos),
-                            spawnStage: 0,
-                            spawnPass
-                        })
-                        return !isDiscarded
-                    })
+                const availableSlots = skipOverlapPruning
+                    ? spawnSlots
+                    : spawnSlots.filter(spawnSlot => {
+                          const isDiscarded = nonOverlappingChunks.find(item => item.containsPoint(spawnSlot.pos))
+                          isDiscarded &&
+                              discardedSlots.push({
+                                  spawnOrigin: asVect3(spawnSlot.pos),
+                                  spawnStage: 0,
+                                  spawnPass,
+                              })
+                          return !isDiscarded
+                      })
                 const taskInput = availableSlots.map(elt => asVect3(elt.pos))
                 const rawBlocksTask = new BlocksTask().groundPositions(taskInput)
                 rawBlocksTask.processingParams.includeRawData = true
@@ -178,8 +181,11 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
                                 // using shared data containers to avoid copying data from original template
                                 const spawnChunk = new SpawnChunk(templateStub, asVect3(pos, level))
                                 // once spawn type is known do second discarding based on spawned shape
-                                const isDiscarded = !skipOverlapPruning && nonOverlappingChunks.find(item => item.intersectsBox(asBox2(spawnChunk.bounds)))
-                                isDiscarded ? discardedSlots.push({ ...spawnChunk.toLightStub(), spawnStage: 2, spawnPass }) : spawnedChunks.push(spawnChunk)
+                                const isDiscarded =
+                                    !skipOverlapPruning && nonOverlappingChunks.find(item => item.intersectsBox(asBox2(spawnChunk.bounds)))
+                                isDiscarded
+                                    ? discardedSlots.push({ ...spawnChunk.toLightStub(), spawnStage: 2, spawnPass })
+                                    : spawnedChunks.push(spawnChunk)
                                 // check if picked element is overlapable or not
                                 spawnChunk.spawnCat === SpawnCategory.Structure && nonOverlappingChunks.push(asBox2(spawnChunk.bounds))
                             }
@@ -189,15 +195,15 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
             }
 
             // nonOverlappingChunks.length > 0 && console.log(nonOverlappingChunks.map(chunk => chunk.spawnType))
-            return skipPostprocessing ?
-                spawnedChunks :
-                spawnedChunks.filter(spawnChunk => spawnChunk.fitGround(groundBlocksProvider))
+            return skipPostprocessing ? spawnedChunks : spawnedChunks.filter(spawnChunk => spawnChunk.fitGround(groundBlocksProvider))
         }
 
         const { processingInput, processingParams } = taskStub
         const { recipe, skipPostprocessing, skipOverlapPruning, spawnInsideAreaOnly } = processingParams
         const inputQuery =
-            typeof processingInput === 'string' ? asPatchBounds(processingInput, worldLocalEnv.getPatchDimensions()) : parseThreeStub(processingInput)
+            typeof processingInput === 'string'
+                ? asPatchBounds(processingInput, worldLocalEnv.getPatchDimensions())
+                : parseThreeStub(processingInput)
         const spawnSlotsIndex = spawnDistributionMap.queryMapArea(inputQuery, spawnInsideAreaOnly)
         const groundBlocksProvider = (input: Vector3[]) => {
             const blocksTask = new BlocksTask().groundPositions(input)
@@ -208,24 +214,23 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
         const spawnedChunks = buildSpawnedChunks(spawnSlotsIndex)
 
         switch (recipe) {
-            case ItemsTaskRecipe.SpawnedElements:
-                {
-                    const allStubs = () => ([...spawnedChunks.map(spawnChunk => spawnChunk.toLightStub()), ...discardedSlots])
-                    return processingParams.isDelegated ? allStubs() : spawnedChunks
-                    // return processingParams.isDelegated ? spawnedChunks.map(spawnChunk => spawnChunk.toLightStub()) : spawnedChunks
-                }
+            case ItemsTaskRecipe.SpawnedElements: {
+                const allStubs = () => [...spawnedChunks.map(spawnChunk => spawnChunk.toLightStub()), ...discardedSlots]
+                return processingParams.isDelegated ? allStubs() : spawnedChunks
+                // return processingParams.isDelegated ? spawnedChunks.map(spawnChunk => spawnChunk.toLightStub()) : spawnedChunks
+            }
             case ItemsTaskRecipe.SpawnedChunks:
                 return processingParams.isDelegated ? spawnedChunks.map(spawnChunk => spawnChunk.toStub()) : spawnedChunks
-            case ItemsTaskRecipe.MergedSpawnedChunk:
+            case ItemsTaskRecipe.MergedSpawnedChunk: {
                 const mergedChunk = new ChunkBlocksContainer(undefined, 1).fromMergedChunks(spawnedChunks)
                 return processingParams.isDelegated ? mergedChunk.toStub() : mergedChunk
+            }
             default:
                 return spawnedChunks
         }
     }
     return itemsTaskHandler
 }
-
 
 // const queryPeakBlockAtPosition = async (requestedPos: Vector2, itemsChunks: ItemChunk[]) => {
 //   const peakBlock = {

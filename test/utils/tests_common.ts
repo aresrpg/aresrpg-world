@@ -1,7 +1,8 @@
 import { WorldLocals } from '../../src/config/WorldEnv.js'
 import { WorkerPool } from '../../src/node/NodeWorkerPool.js'
 import { GenericTask } from '../../src/processing/TaskProcessing.js'
-import { createWorldModules, TaskHandlers } from '../../src/WorldModules.js'
+import { createWorldModules, WorldTasksHandlers } from '../../src/factory/WorldModules.js'
+
 // required to embed world_compute_node_worker within dist/ folder
 import '../../src/node/world_compute_node_worker.js'
 
@@ -14,7 +15,7 @@ export const setupTestEnv = async (worldLocalEnv: WorldLocals) => {
 }
 
 // Test tasks runnning within main thread
-export const testSyncProcessing = (tasks: GenericTask[], taskHandlers: TaskHandlers) => {
+export const testSyncProcessing = (tasks: GenericTask[], taskHandlers: WorldTasksHandlers) => {
     const env = 'MAIN'
     console.log(`[TESTENV: MAINTHREAD]: tasks processing`)
     const testResults: any = []
@@ -27,7 +28,7 @@ export const testSyncProcessing = (tasks: GenericTask[], taskHandlers: TaskHandl
     return testResults
 }
 
-export const testAsyncProcessing = async (tasks: GenericTask[], taskHandlers: TaskHandlers) => {
+export const testAsyncProcessing = async (tasks: GenericTask[], taskHandlers: WorldTasksHandlers) => {
     const env = 'MAIN'
     console.log(`[TESTENV: MAINTHREAD]: tasks processing`)
     const testResults: any = []

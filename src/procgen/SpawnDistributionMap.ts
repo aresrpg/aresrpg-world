@@ -17,10 +17,10 @@ export type SpawnSlot = {
 }
 
 export type SpawnRules = {
-    overlapTolerance: number   // how much another item can overlap with current (0: nothing, 1: all) 
-    overlapProbability: number     // how often another item can overlap with current (0: never, 1: all time)
+    overlapTolerance: number // how much another item can overlap with current (0: nothing, 1: all)
+    overlapProbability: number // how often another item can overlap with current (0: never, 1: all time)
     // experimental/ideas
-    // nearSearchRadius?: number    // radius to look around item 
+    // nearSearchRadius?: number    // radius to look around item
     // nearOccurencesLimit?: number    // max number of items that can appear within nearSearchRadius (undef=>no limit, 0: unique (for village church, castle, ...), )
 }
 

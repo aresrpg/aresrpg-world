@@ -3,7 +3,6 @@ import { Vector2 } from 'three'
 import { asVect3, parsePatchKey, patchIndexFromMapRange, patchRangeFromMapCenterRad } from '../utils/patch_chunk.js'
 import { ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
 import { ChunksVerticalRange } from '../config/WorldEnv.js'
-
 import { ChunksProcessing, ChunksTask } from '../processing/ChunksProcessing.js'
 import { ProcessingState } from '../processing/TaskProcessing.js'
 

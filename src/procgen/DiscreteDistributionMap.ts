@@ -93,7 +93,7 @@ export class DiscreteDistributionMap {
         const spawnSlotsIndex: Record<number, Vector2[]> = {}
         for (const [spawnRadius, patternSamples] of Object.entries(this.samplesIndex)) {
             const searchedArea = query instanceof Box2 ? query.clone() : new Box2().setFromPoints(query)
-            slotsInsideAreaOnly ? searchedArea : searchedArea.expandByScalar(parseInt(spawnRadius))
+            !slotsInsideAreaOnly && searchedArea.expandByScalar(parseInt(spawnRadius))
             // get all patterns that can have spawn position within queriedArea
             const mapPatterns = getPatchIds(searchedArea, this.patternDimension)
             const spawnSlots: Vector2[] = []

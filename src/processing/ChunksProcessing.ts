@@ -4,6 +4,7 @@ import { CavesMask, ChunkBlocksContainer, GroundChunk } from '../factory/ChunksF
 import { chunksToCompressedBlob } from '../utils/chunk_utils.js'
 import { WorldModules } from '../factory/WorldModules.js'
 import { ChunkContainer, DataChunkStub } from '../datacontainers/ChunkContainer.js'
+
 import { GroundPatch } from './GroundPatch.js'
 import { AsyncProcessingTaskHandler, BaseProcessingParams, ProcessingTask, ProcessingTaskStub } from './TaskProcessing.js'
 import { ItemsTask } from './ItemsProcessing.js'
@@ -76,21 +77,21 @@ export class ChunksTask extends ProcessingTask<PatchKey, ChunksProcessingParams,
 
     static factory =
         (chunksRange: ChunksProcessingRange) =>
-            (patchKey: PatchKey, processingOptions: TaskOptions = {}) => {
-                const task = new ChunksTask()
-                task.handlerId = this.handlerId
-                task.processingInput = patchKey
-                task.processingParams = { chunksRange }
+        (patchKey: PatchKey, processingOptions: TaskOptions = {}) => {
+            const task = new ChunksTask()
+            task.handlerId = this.handlerId
+            task.processingInput = patchKey
+            task.processingParams = { chunksRange }
 
-                const { onStarted, onCompleted, onRejected, ...processingParams } = processingOptions
+            const { onStarted, onCompleted, onRejected, ...processingParams } = processingOptions
 
-                Object.assign(task.processingParams, processingParams)
-                if (onStarted) task.onStarted = onStarted
-                if (onCompleted) task.onCompleted = onCompleted
-                if (onRejected) task.onRejected = onRejected
+            Object.assign(task.processingParams, processingParams)
+            if (onStarted) task.onStarted = onStarted
+            if (onCompleted) task.onCompleted = onCompleted
+            if (onRejected) task.onRejected = onRejected
 
-                return task
-            }
+            return task
+        }
 
     static get lowerChunks() {
         return this.factory(ChunksProcessingRange.LowerRange)
@@ -135,7 +136,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
             let yMin = groundLayer.valueRange.min
             let yMax = groundLayer.valueRange.max
 
-            const mergedChunk = skipEntities ? null : ItemsTask.mergedSpawnChunk(patchKey).process(taskHandlers) as ChunkBlocksContainer
+            const mergedChunk = skipEntities ? null : (ItemsTask.mergedSpawnChunk(patchKey).process(taskHandlers) as ChunkBlocksContainer)
             if (mergedChunk) {
                 // adjust chunks range accordingly
                 yMin = Math.min(mergedChunk.bounds.min.y, yMin)

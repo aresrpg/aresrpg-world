@@ -1,35 +1,35 @@
-import { BiomeType, BlockMode, BlockType, GroundBlockData, SpriteBlockType } from "../utils/common_types.js"
-import { BiomeNumericType, reverseBiomeNumericType } from "../utils/misc_utils.js"
+import { BiomeType, BlockMode, BlockType, GroundBlockData, SpriteBlockType } from '../utils/common_types.js'
+import { BiomeNumericType, reverseBiomeNumericType } from '../utils/misc_utils.js'
 
 /**
  * ```
  * +----------+
  * | DECODING |
  * +----------+
- * ``` 
+ * ```
  * ```
  *   1010|110|1100 (encoded data)
  *        ^^^        (read bits)
  * ```
- * 
+ *
  * - shift bits to the right to remove 4 right-most bits
  *  ```
  *      1010|110|1100 >> 4 = 1010|110
  *  ```
- * 
+ *
  * - build a mask to keep only 3 read bits
  *  ```
  *      1<<4    => 1000
  *      1<<4 - 1=> 0111
  *  ```
- * 
+ *
  * - apply mask to hide 4 left-most bits
  *  ```
  *      1010 110    (data)
  *    & 0000 111    (mask)
  *      ---------
  *      0000 110    (left bits)
- * ``` 
+ * ```
  */
 
 export interface BlockDataAdapter<BlockData> {
@@ -41,16 +41,17 @@ export class IdenticalDataAdapter implements BlockDataAdapter<number> {
     decode(rawData: number): number {
         return rawData
     }
+
     encode(blockData: number): number {
         return blockData
     }
 }
 
-
 export class IdenticalBoolAdapter implements BlockDataAdapter<boolean> {
     decode(rawData: number): boolean {
         return Boolean(rawData)
     }
+
     encode(blockData: boolean): number {
         return Number(blockData)
     }
@@ -64,7 +65,8 @@ const PatchBitAllocation = {
     flags: 3, // 8 additional flags
 }
 
-export class GroundDataAdapter {//implements BlockDataAdapter<GroundBlockData> {
+export class GroundDataAdapter {
+    // implements BlockDataAdapter<GroundBlockData> {
 
     decodeBlockData(rawData: number) {
         const shift = PatchBitAllocation
@@ -96,7 +98,7 @@ export class GroundDataAdapter {//implements BlockDataAdapter<GroundBlockData> {
 
 export enum BlockDataType {
     SolidBlock,
-    SpriteBlock
+    SpriteBlock,
 }
 
 const ChunkDataBitAllocation = {
@@ -107,34 +109,34 @@ const ChunkDataBitAllocation = {
 
 const SolidDataBitAlloc = {
     checkerMode: 1,
-    blockType: 12    // 4096 solid block types
+    blockType: 12, // 4096 solid block types
 }
 
 const SpriteDataBitAlloc = {
-    spriteType: 10,   // 1024 sprite block types
-    count: 2    // 1-4 sprite fragments 
+    spriteType: 10, // 1024 sprite block types
+    count: 2, // 1-4 sprite fragments
 }
 
 export type SolidBlockData = {
-    isCheckerBlock?: boolean,
+    isCheckerBlock?: boolean
     blockType: BlockType
 }
 
 export type SpriteBlockData = {
-    spriteType: SpriteBlockType,
+    spriteType: SpriteBlockType
     count: number
 }
 
 export type ChunkBlockData = {
-    empty: boolean,
-    data?: SolidBlockData | SpriteBlockData,
+    empty: boolean
+    data?: SolidBlockData | SpriteBlockData
     dataType?: BlockDataType
 }
 
 export class SolidDataAdapter implements BlockDataAdapter<SolidBlockData> {
     decode(rawData: number) {
         const shift = SolidDataBitAlloc
-        const isCheckerBlock = rawData & ((1 << shift.checkerMode) - 1) ? true : false
+        const isCheckerBlock = !!(rawData & ((1 << shift.checkerMode) - 1))
         const blockType = (rawData >> shift.checkerMode) & ((1 << shift.blockType) - 1)
         const data: SolidBlockData = {
             isCheckerBlock,
@@ -159,7 +161,7 @@ export class SpriteDataAdapter implements BlockDataAdapter<SpriteBlockData> {
         const count = (rawData >> shift.spriteType) & ((1 << shift.count) - 1)
         const blockData: SpriteBlockData = {
             spriteType,
-            count
+            count,
         }
         return blockData
     }
@@ -185,7 +187,6 @@ export class ChunkDataAdapter implements BlockDataAdapter<ChunkBlockData> {
         }
     }
 
-
     decode(rawData: number): ChunkBlockData {
         const shift = ChunkDataBitAllocation
         const emptyFlag = rawData & ((1 << shift.empty) - 1)
@@ -198,7 +199,7 @@ export class ChunkDataAdapter implements BlockDataAdapter<ChunkBlockData> {
             const chunkBlockData: ChunkBlockData = {
                 empty,
                 data,
-                dataType
+                dataType,
             }
             return chunkBlockData
         }
@@ -228,14 +229,16 @@ export class ChunkDataAdapter implements BlockDataAdapter<ChunkBlockData> {
 
     encode({ data, dataType }: ChunkBlockData) {
         switch (dataType) {
-            case BlockDataType.SolidBlock:
+            case BlockDataType.SolidBlock: {
                 const solidBlockData = data as SolidBlockData
                 return this.encodeSolidBlock(solidBlockData.blockType, solidBlockData.isCheckerBlock)
-            case BlockDataType.SpriteBlock:
+            }
+            case BlockDataType.SpriteBlock: {
                 const spriteBlockData = data as SpriteBlockData
                 return this.encodeSpriteBlock(spriteBlockData.spriteType, spriteBlockData.count)
-            default: return 0
+            }
+            default:
+                return 0
         }
     }
-
 }

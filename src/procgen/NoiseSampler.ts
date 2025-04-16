@@ -169,7 +169,6 @@ export class NoiseSampler {
 }
 
 export class VolumetricDensity extends NoiseSampler {
-
     params2 = {
         spreading: 0,
         scaling: 0.1,
@@ -179,7 +178,6 @@ export class VolumetricDensity extends NoiseSampler {
         super(seed, 'volumetricDensity', NoiseDimension.Three)
         this.periodicity = 7
         this.harmonicsCount = 4
-
     }
 
     /**
@@ -190,7 +188,7 @@ export class VolumetricDensity extends NoiseSampler {
      */
     getBlockDensity(
         blockPos: Vector3,
-        threshold:number
+        threshold: number,
         // includeSea?: boolean,
     ) {
         const { scaling } = this.params2
@@ -201,7 +199,6 @@ export class VolumetricDensity extends NoiseSampler {
 }
 
 export class CavernsVolumetricDensity extends VolumetricDensity {
-
     /**
      *
      * @param blockData
@@ -220,5 +217,5 @@ export class CavernsVolumetricDensity extends VolumetricDensity {
 }
 
 // export class VolumetricSpriteDistribution {
-    
+
 // }

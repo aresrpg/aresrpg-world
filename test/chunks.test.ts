@@ -5,13 +5,13 @@
 import { Vector2 } from 'three'
 
 import { WorkerPool } from '../src/node/NodeWorkerPool.js'
-import { ChunksPolling } from '../src/processing/ChunksPolling.js'
+import { ChunksPolling } from '../src/tools/ChunksPolling.js'
 import { getPatchId, parseChunkKey } from '../src/utils/patch_chunk.js'
 import { WorldLocals } from '../src/config/WorldEnv.js'
 import { hashContent } from '../src/node/utils/chunk_node_utils.js'
 import { ChunksTask } from '../src/processing/ChunksProcessing.js'
 import { ChunkId, ChunkKey, PatchKey } from '../src/utils/common_types.js'
-import { ChunkDataStub, ChunkMetadata } from '../src/datacontainers/ChunkContainer.js'
+import { DataChunkStub } from '../src/datacontainers/ChunkContainer.js'
 
 import { getWorldDemoEnv } from './configs/world_demo_setup.js'
 import { setupTestEnv, testAsyncProcessing, testTaskDelegate } from './utils/tests_common.js'
@@ -33,7 +33,7 @@ class ChunksTaskTest extends ChunksTask {
         this.processingParams.skipBlobCompression = true
     }
 
-    override async onCompleted(taskOutput: ChunkDataStub<ChunkMetadata>[]) {
+    override async onCompleted(taskOutput: DataChunkStub[]) {
         const testResults: any = []
         let chunks_keys = ''
         for await (const chunkStub of taskOutput) {

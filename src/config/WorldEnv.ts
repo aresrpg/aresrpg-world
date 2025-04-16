@@ -76,7 +76,6 @@ type WorldGlobalsStub = {
 }
 
 const getDefaultSpawnProfiles = () => {
-
     enum SpawnProfile {
         Default = 'default',
         Low = 'low',
@@ -87,20 +86,20 @@ const getDefaultSpawnProfiles = () => {
     const defaultSpawnProfiles: Record<SpawnProfile, SpawnRules> = {
         [SpawnProfile.Default]: {
             overlapTolerance: 0.5,
-            overlapProbability: 0.5
+            overlapProbability: 0.5,
         },
         [SpawnProfile.Low]: {
             overlapTolerance: 0.2,
-            overlapProbability: 0.2
+            overlapProbability: 0.2,
         },
         [SpawnProfile.High]: {
             overlapTolerance: 0.4,
-            overlapProbability: 0.8
+            overlapProbability: 0.8,
         },
         [SpawnProfile.Strict]: {
             overlapTolerance: 0,
-            overlapProbability: 0
-        }
+            overlapProbability: 0,
+        },
     }
 
     return defaultSpawnProfiles
@@ -185,7 +184,7 @@ export class WorldLocals {
 
         distribution: {
             mapPatchRange: 4, // extent of distribution map repeated pattern in patch units
-            profiles: getDefaultSpawnProfiles()
+            profiles: getDefaultSpawnProfiles(),
         },
 
         chunks: {

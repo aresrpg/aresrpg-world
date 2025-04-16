@@ -3,6 +3,7 @@ import { Vector2, Box3, Vector3 } from 'three'
 import { BlockType, ChunkId, ChunkKey } from '../utils/common_types.js'
 import { asVect3, asChunkBounds, parseChunkKey, serializeChunkId, parseThreeStub, asVect2 } from '../utils/patch_chunk.js'
 import { concatData, deconcatData } from '../utils/chunk_utils.js'
+
 import { BlockDataAdapter, ChunkDataAdapter, IdenticalBoolAdapter } from './BlockDataAdapter.js'
 
 enum ChunkAxisOrder {
@@ -56,7 +57,7 @@ type ChunkHeightRawBufferIteration = ChunkEmptyIteration<Vector2> & ChunkHeightR
 type ChunkHeightBufferIteration<DataType> = ChunkEmptyIteration<Vector2> & ChunkHeightBuffer<DataType>
 
 /**
- * Base chunk container with no data 
+ * Base chunk container with no data
  */
 export class ChunkContainer {
     bounds = new Box3()
@@ -554,8 +555,8 @@ export abstract class ChunkDataContainer<BlockData> extends ChunkSharedContainer
     }
 
     /**
-    * merge spared chunks into unique container
-    */
+     * merge spared chunks into unique container
+     */
     fromMergedChunks(sourceChunks: ChunkSharedContainer<BlockData>[]) {
         const bounds = new Box3()
         for (const sourceChunk of sourceChunks) {
