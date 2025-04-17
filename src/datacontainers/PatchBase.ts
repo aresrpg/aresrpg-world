@@ -7,11 +7,14 @@ import { parsePatchKey, asPatchBounds, asVect2, parseThreeStub } from '../utils/
 
 // }
 
-export type PatchElement<T> = {
+export type PatchEmptyIteration = {
     pos: Vector2
     index: number
     localPos: Vector2
-    data: T
+}
+
+export type PatchDataIteration<DataType> = PatchEmptyIteration & {
+    data: DataType
 }
 
 export type PatchStub = {
@@ -24,7 +27,7 @@ export type PatchStub = {
 /**
  * Generic patch struct
  */
-export class PatchBase<T> {
+export class PatchBase {
     bounds = new Box2()
     dimensions = new Vector2()
     margin = 0
@@ -139,7 +142,7 @@ export class PatchBase<T> {
      * @param globalBounds
      * @param includeMargins
      */
-    *iterDataQuery(globalBounds?: Box2, includeMargins = false) {
+    *iterData(globalBounds?: Box2, includeMargins = false) {
         const wholeBounds = includeMargins ? this.extendedBounds : this.bounds
 
         const getOverlapBounds = (inputBounds: Box2) => {
@@ -160,11 +163,10 @@ export class PatchBase<T> {
                 const localPos = new Vector2(xLocal, yLocal)
                 const globalPos = new Vector2(xGlobal, yGlobal)
                 const index = this.getIndex(localPos)
-                const patchElem: PatchElement<T | undefined> = {
+                const patchElem: PatchEmptyIteration = {
                     index,
                     pos: globalPos,
-                    localPos,
-                    data: undefined,
+                    localPos
                 }
                 yield patchElem
             }
@@ -208,4 +210,4 @@ export interface DataContainer {
     rawData: Uint8Array | Uint16Array | Uint32Array
 }
 
-export type PatchDataContainer = PatchBase<number> & DataContainer
+export type PatchDataContainer = PatchBase & DataContainer

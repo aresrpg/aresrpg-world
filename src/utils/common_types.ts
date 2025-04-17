@@ -2,6 +2,7 @@ import { Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 
 import { LinkedList } from '../datacontainers/LinkedList.js'
 import { SpawnRules } from '../procgen/SpawnDistributionMap.js'
+import { PatchDataIteration } from '../datacontainers/PatchBase.js'
 
 // reserved native block types
 export enum BlockType {
@@ -35,8 +36,8 @@ export enum BiomeType {
 
 export type SpriteBlockType = number
 
-export type Block<T> = {
-    pos: Vector3
+export type PatchDataCell<T> = {
+    pos: Vector2
     data: T
 }
 
@@ -66,12 +67,13 @@ export type GroundBlockData = {
     flags: number
 }
 
-export type GroundBlock = Block<GroundBlockData>
+export type GroundBlock = PatchDataCell<GroundBlockData>
 
-export type PatchBlock = GroundBlock & {
-    index: number
-    localPos: Vector3
-}
+// export type PatchBlock = GroundBlock & {
+//     index: number
+//     localPos: Vector3
+// }
+export type PatchGroundBlock = PatchDataIteration<GroundBlockData>
 
 export enum SpawnCategory {
     Flora,

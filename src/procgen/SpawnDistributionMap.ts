@@ -1,10 +1,8 @@
 import { Box2, Vector2 } from 'three'
-
 import { WorldLocals, WorldSeed } from '../config/WorldEnv.js'
-import { asVect3 } from '../utils/patch_chunk.js'
 import Alea from '../libs/alea.js'
 
-import { NoiseSampler } from './NoiseSampler.js'
+import { Noise2dSampler } from './NoiseSampler.js'
 import { DiscreteDistributionMap } from './DiscreteDistributionMap.js'
 import { Biome } from './Biome.js'
 import { Heightmap } from './Heightmap.js'
@@ -31,7 +29,7 @@ export type SpawnRules = {
 export class SpawnDistributionMap {
     // layers: Record<DistributionProfile, DistributionMap>
     discreteDistributionMap: DiscreteDistributionMap
-    spawnDistributionLaw: NoiseSampler
+    spawnDistributionLaw: Noise2dSampler
     spawnProbabilityThreshold: number
     biomes: Biome
     heightmap: Heightmap
@@ -40,7 +38,7 @@ export class SpawnDistributionMap {
         const spawnSeed = worldLocalEnv.getSeed(WorldSeed.Spawn)
         const patternDimension = worldLocalEnv.getDistributionMapDimensions()
         this.discreteDistributionMap = new DiscreteDistributionMap(patternDimension, spawnSeed)
-        this.spawnDistributionLaw = new NoiseSampler(spawnSeed)
+        this.spawnDistributionLaw = new Noise2dSampler(spawnSeed)
         this.spawnProbabilityThreshold = Math.pow(2, 8)
         this.biomes = biomes
         this.heightmap = heightmap
@@ -57,7 +55,7 @@ export class SpawnDistributionMap {
         const prng = Alea(posId)
         const rand = prng()
         const maxCount = 1 // 16 * Math.round(Math.exp(10))
-        const rawVal = spawnDistributionLaw?.eval(asVect3(pos))
+        const rawVal = spawnDistributionLaw?.eval(pos)
         const finalVal = rawVal ? (16 * Math.round(Math.exp((1 - rawVal) * 10))) / maxCount : 0
         const hasSpawned = rand * finalVal < spawnProbabilityThreshold
         const index = hasSpawned ? Math.round(rand * SPAWN_INDEX_RANGE * 10) : null

@@ -1,9 +1,9 @@
 import { Box2, Vector2, Vector3 } from 'three'
 
-import { GroundBlock, BiomeLands, PatchBlock, PatchBoundId, PatchId, BlockType, BiomeType, GroundBlockData } from '../utils/common_types.js'
-import { asVect3, asVect2, serializePatchId } from '../utils/patch_chunk.js'
+import { GroundBlock, BiomeLands, PatchBoundId, PatchId, BlockType, BiomeType, GroundBlockData, PatchGroundBlock } from '../utils/common_types.js'
+import { asVect2, serializePatchId } from '../utils/patch_chunk.js'
 import { Biome, BiomeInfluence } from '../procgen/Biome.js'
-import { PatchBase, PatchDataContainer, PatchStub } from '../datacontainers/PatchBase.js'
+import { PatchBase, PatchDataContainer, PatchDataIteration, PatchStub } from '../datacontainers/PatchBase.js'
 import { getPatchNeighbours, getPatchBoundingPoints } from '../utils/spatial_utils.js'
 import { bilinearInterpolation } from '../utils/math_utils.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
@@ -28,7 +28,7 @@ export const parseGroundFlags = (rawFlags: number) => {
     return groundFlags
 }
 
-export class GroundPatch extends PatchBase<number> implements PatchDataContainer {
+export class GroundPatch extends PatchBase implements PatchDataContainer {
     biomeInfluence: BiomeInfluence | PatchBoundingBiomes | undefined
     rawData: Uint32Array
     dataAdapter: GroundDataAdapter
@@ -60,7 +60,7 @@ export class GroundPatch extends PatchBase<number> implements PatchDataContainer
             const boundsInfluences = {} as PatchBoundingBiomes
             ;[xMyM, xMyP, xPyM, xPyP].map(key => {
                 const boundPos = boundsPoints[key] as Vector2
-                const biomeInfluence = biome.getBiomeInfluence(asVect3(boundPos))
+                const biomeInfluence = biome.getBiomeInfluence(boundPos)
                 boundsInfluences[key] = biomeInfluence
                 // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
                 return biomeInfluence
@@ -95,10 +95,9 @@ export class GroundPatch extends PatchBase<number> implements PatchDataContainer
         this.rawData[blockIndex] = this.dataAdapter.encodeBlockData(blockData)
     }
 
-    getBlock(inputPos: Vector2 | Vector3, isLocalPos = false) {
-        inputPos = inputPos instanceof Vector2 ? inputPos : asVect2(inputPos)
+    getBlock(inputPos: Vector2, isLocalPos = false) {
         const isWithingRange = isLocalPos ? this.inLocalRange(inputPos) : this.inWorldRange(inputPos)
-        let block: PatchBlock | undefined
+        let block: PatchGroundBlock | undefined
         if (isWithingRange) {
             const localPos = isLocalPos ? inputPos : this.toLocalPos(inputPos)
             const pos = isLocalPos ? this.toWorldPos(inputPos) : inputPos
@@ -106,8 +105,8 @@ export class GroundPatch extends PatchBase<number> implements PatchDataContainer
             const blockData = this.readBlockData(blockIndex) || BlockType.NONE
             block = {
                 index: blockIndex,
-                pos: asVect3(pos, blockData.level),
-                localPos: asVect3(localPos, blockData.level),
+                pos: pos,
+                localPos: localPos,
                 data: blockData,
             }
         }
@@ -142,15 +141,15 @@ export class GroundPatch extends PatchBase<number> implements PatchDataContainer
      * @param iterBounds
      * @param includeMargins
      */
-    *iterBlocksQuery(iterBounds?: Box2, includeMargins = true) {
-        const patchSectors = super.iterDataQuery(iterBounds, includeMargins)
+    override *iterData(iterBounds?: Box2, includeMargins = true) {
+        const patchSectors = super.iterData(iterBounds, includeMargins)
         for (const sector of patchSectors) {
             const { index, localPos } = sector
             const blockData = this.readBlockData(index) || BlockType.NONE
-            const block: PatchBlock = {
+            const block: PatchDataIteration<GroundBlockData> = {
                 index,
-                pos: asVect3(this.toWorldPos(localPos), blockData.level),
-                localPos: asVect3(localPos, blockData.level),
+                pos: this.toWorldPos(localPos),
+                localPos: localPos,
                 data: blockData,
             }
             yield block
@@ -164,8 +163,8 @@ export class GroundPatch extends PatchBase<number> implements PatchDataContainer
         return this.biomeInfluence as BiomeInfluence
     }
 
-    computeGroundBlock = (blockPos: Vector3, { heightmap, biomes }: { heightmap: Heightmap; biomes: Biome }) => {
-        const biomeInfluence = this.getBlockBiome(asVect2(blockPos))
+    computeGroundBlock = (blockPos: Vector2, { heightmap, biomes }: { heightmap: Heightmap; biomes: Biome }) => {
+        const biomeInfluence = this.getBlockBiome(blockPos)
         // const biomeInfluenceBis = Biome.instance.getBiomeInfluence(blockPos)
         const biomeType = biomes.getBiomeType(biomeInfluence)
         const rawVal = heightmap.getRawVal(blockPos)
@@ -242,7 +241,7 @@ export class GroundPatch extends PatchBase<number> implements PatchDataContainer
         const { valueRange } = this
         // omit margin blocks to bake them separately
         const doMarginsApart = !regionBounds && this.margin > 0 && this.patchKey.length > 0
-        const blocks = this.iterBlocksQuery(regionBounds, !doMarginsApart)
+        const blocks = this.iterData(regionBounds, !doMarginsApart)
         for (const block of blocks) {
             // EXPERIMENTAL: is it faster to perform bilinear interpolation rather
             // than sampling biome for each block?

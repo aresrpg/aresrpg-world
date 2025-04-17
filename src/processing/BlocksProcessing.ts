@@ -5,14 +5,16 @@ import {
     getPatchId,
     asVect3,
     asVect2,
+    asBox2,
+    parseThreeStub,
     // parseThreeStub,
 } from '../utils/patch_chunk.js'
-import { PatchKey, Block, BlockData, BlockType, BlockRawData, GroundBlockData } from '../utils/common_types.js'
+import { PatchKey, BlockData, BlockType, BlockRawData, GroundBlockData, PatchDataCell } from '../utils/common_types.js'
 import { WorldModules } from '../factory/WorldModules.js'
 import { SpawnChunk } from '../factory/ChunksFactory.js'
 
 import { GroundPatch } from './GroundPatch.js'
-import { BaseProcessingParams, parseTaskInputStubs, ProcessingTask, ProcessingTaskHandler, ProcessingTaskStub } from './TaskProcessing.js'
+import { BaseProcessingParams, ProcessingTask, ProcessingTaskHandler, ProcessingTaskStub } from './TaskProcessing.js'
 import { ItemsTask } from './ItemsProcessing.js'
 
 /**
@@ -38,7 +40,7 @@ export type FloatArrayOut = {
 }
 
 export type BlocksTaskInput = Vector3[] | Vector2[] | Float32Array
-export type BlocksTaskOutput = Block<BlockData>[] | FloatArrayOut
+export type BlocksTaskOutput = PatchDataCell<BlockData>[] | FloatArrayOut
 export type BlocksTaskParams = BaseProcessingParams & {
     recipe: BlocksTaskRecipe
     includeDensity?: boolean
@@ -107,13 +109,13 @@ export class BlocksTask<ProcessingInput extends BlocksTaskInput, ProcessingOutpu
 
     static factory =
         <ProcessingInput extends BlocksTaskInput, ProcessingOutput extends BlocksTaskOutput>(recipe: BlocksTaskRecipe) =>
-        (input: ProcessingInput) => {
-            const task = new BlocksTask<ProcessingInput, ProcessingOutput>()
-            task.handlerId = BlocksTask.handlerId
-            task.processingInput = input
-            task.processingParams = { recipe }
-            return task
-        }
+            (input: ProcessingInput) => {
+                const task = new BlocksTask<ProcessingInput, ProcessingOutput>()
+                task.handlerId = BlocksTask.handlerId
+                task.processingInput = input
+                task.processingParams = { recipe }
+                return task
+            }
 
     static get groundPositions() {
         return this.factory<BlocksTaskInput, BlocksTaskOutput>(BlocksTaskRecipe.Ground)
@@ -152,7 +154,7 @@ export type BlocksProcessingHandler = ProcessingTaskHandler<BlocksTaskInput, Blo
 
 abstract class BlocksDataIOAdapter<BlocksOutputType> {
     patchDimensions: Vector2
-    abstract inputData: Vector3[]
+    abstract inputData: PatchDataCell<any>[]
     abstract outputData: any
 
     constructor(patchDimensions: Vector2) {
@@ -164,16 +166,19 @@ abstract class BlocksDataIOAdapter<BlocksOutputType> {
 
     *iterBatchData(batchIndices: number[]) {
         for (const index of batchIndices) {
-            const pos = this.inputData[index]
-            if (pos) yield { pos, index }
+            const inputData = this.inputData[index]
+            if (inputData) {
+                const { pos, data } = inputData
+                yield { index, pos, data }
+            }
         }
     }
 
     splitIntoBatches() {
         const batches: Record<PatchKey, number[]> = {}
         // sort indices from batch into patch
-        this.inputData.forEach((pos, index) => {
-            const patchId = getPatchId(asVect2(pos), this.patchDimensions)
+        this.inputData.forEach(({ pos }, index) => {
+            const patchId = getPatchId(pos, this.patchDimensions)
             const patchKey = serializePatchId(patchId)
             batches[patchKey] = batches[patchKey] || []
             batches[patchKey].push(index)
@@ -181,21 +186,27 @@ abstract class BlocksDataIOAdapter<BlocksOutputType> {
         return batches
     }
 
+    asInputPosArray() {
+        return this.inputData.map(({ pos }) => pos)
+    }
+
     // iterInputData: ()=> Vector3
     // readData: (batchIndex: number) => Vector3
-    abstract writeData(batchIndex: number, blockData: Block<BlockData>): void
+    abstract writeData(batchIndex: number, blockData: PatchDataCell<BlockData>): void
 }
 
-type IteratedBlock<T> = T & { index: number }
-type InputBatchIterator = Generator<IteratedBlock<{ pos: Vector3 }>, void, unknown>
+type BatchDataIteration<T> = PatchDataCell<T> & { index: number }
+type BatchDataIterator<T> = Generator<BatchDataIteration<T>, void, unknown>
+type MergedBlockData<T> = BlockData & T
 
-class VectorArrayIOAdapter extends BlocksDataIOAdapter<Block<BlockData>[]> {
-    inputData: Vector3[]
-    outputData: Record<number, Block<BlockData>>
+class Vector2ArrayIOAdapter extends BlocksDataIOAdapter<PatchDataCell<BlockData>[]> {
+    inputData: PatchDataCell<any>[]
+    outputData: Record<number, PatchDataCell<BlockData>>
     isStubData: boolean
-    constructor(patchDimensions: Vector2, rawInputData: Vector3[], isStubData = false) {
+    constructor(patchDimensions: Vector2, rawInputData: Vector2[], isStubData = false) {
         super(patchDimensions)
-        this.inputData = isStubData ? parseTaskInputStubs(...rawInputData) : rawInputData
+        this.inputData = rawInputData.map(pos => isStubData ? parseThreeStub(pos) : pos)
+            .map(pos => ({ pos, data: null }))
         this.isStubData = isStubData
         this.outputData = {}
     }
@@ -214,9 +225,34 @@ class VectorArrayIOAdapter extends BlocksDataIOAdapter<Block<BlockData>[]> {
     //   return data
     // }
 
-    writeData(inputIndex: number, blockData: Block<BlockData>) {
+    writeData(inputIndex: number, blockData: PatchDataCell<BlockData>) {
         this.outputData[inputIndex] = blockData
     }
+}
+
+class Vector3ArrayIOAdapter extends BlocksDataIOAdapter<PatchDataCell<BlockData>[]> {
+    override inputData: PatchDataCell<{ elevation: number }>[]
+    override outputData: any
+    constructor(patchDimensions: Vector2, rawInputData: Vector3[]) {
+        super(patchDimensions)
+        this.inputData = rawInputData.map(blockPos => {
+            const pos = asVect2(blockPos)
+            const dataCell: PatchDataCell<{ elevation: number }> = {
+                pos,
+                data: {
+                    elevation: blockPos.y
+                }
+            }
+            return dataCell
+        })
+    }
+    override formatOutput(): PatchDataCell<BlockData>[] {
+        throw new Error('Method not implemented.')
+    }
+    override writeData(inputIndex: number, blockData: PatchDataCell<BlockData>): void {
+        this.outputData[inputIndex] = blockData
+    }
+
 }
 
 const parseFloat32Data = (inputData: Float32Array) => {
@@ -224,20 +260,20 @@ const parseFloat32Data = (inputData: Float32Array) => {
     const data = []
     for (let i = 0; i < count; i++) {
         const x = inputData[2 * i + 0] as number
-        const z = inputData[2 * i + 1] as number
-        const v = new Vector3(x, 0, z)
+        const y = inputData[2 * i + 1] as number
+        const v = new Vector2(x, y)
         data.push(v)
     }
     return data
 }
 
 class FloatArrayIOAdapter extends BlocksDataIOAdapter<FloatArrayOut> {
-    inputData: Vector3[]
+    inputData: PatchDataCell<null>[]
     outputData: FloatArrayOut
 
     constructor(patchDimensions: Vector2, rawInputData: Float32Array) {
         super(patchDimensions)
-        this.inputData = parseFloat32Data(rawInputData)
+        this.inputData = parseFloat32Data(rawInputData).map(pos => ({ pos, data: null }))
         this.outputData = {
             elevation: new Float32Array(this.inputData.length),
             type: new Float32Array(this.inputData.length),
@@ -265,7 +301,7 @@ class FloatArrayIOAdapter extends BlocksDataIOAdapter<FloatArrayOut> {
     //   return v
     // }
 
-    writeData(inputIndex: number, block: Block<BlockData>) {
+    writeData(inputIndex: number, block: PatchDataCell<BlockData>) {
         this.outputData.elevation[inputIndex] = block.data.level
         this.outputData.type[inputIndex] = block.data.type
     }
@@ -281,7 +317,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
         const { processingInput, processingParams } = taskStub
         const { recipe, includeDensity, dataFormat, includeRawData } = processingParams
 
-        const batchProcessingIterator = (inputBatchIterator: InputBatchIterator, patchKey: PatchKey) => {
+        const batchProcessingIterator = (inputBatchIterator: BatchDataIterator<any>, patchKey: PatchKey) => {
             const groundLayer = new GroundPatch().fromKey(patchKey, patchDim, 1)
             groundLayer.prepare(worldModules.biomes)
 
@@ -299,10 +335,10 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
             }
         }
 
-        function* iterGroundBlocks(inputBatchIterator: InputBatchIterator, patchKey: PatchKey) {
+        function* iterGroundBlocks(inputBatchIterator: BatchDataIterator<any>, patchKey: PatchKey) {
             const groundLayer = new GroundPatch().fromKey(patchKey, patchDim, 1)
             groundLayer.prepare(worldModules.biomes)
-            for (const { pos, index } of inputBatchIterator) {
+            for (const { pos, index, data } of inputBatchIterator) {
                 const groundData = groundLayer.computeGroundBlock(pos, worldModules)
                 // return groundData
                 // }).filter(val => val) as GroundBlockData[]
@@ -310,27 +346,27 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
                 const { biome, landIndex, level } = groundData as GroundBlockData
                 const blockRawData: Partial<BlockRawData> = includeRawData
                     ? {
-                          biome,
-                          landIndex,
-                          level,
-                      }
+                        biome,
+                        landIndex,
+                        level,
+                    }
                     : {}
                 const landConf = worldModules.biomes.mappings[biome].nth(landIndex)
                 const groundConf = landConf.data
                 // check for block emptyness if specified
-                pos.y = level
-                const isEmptyBlock = () => worldModules.cavesDensity.getBlockDensity(pos, level + 20)
+                const isEmptyBlock = () => worldModules.cavesDensity.getBlockDensity(asVect3(pos, level), level + 20)
 
                 const type = includeDensity && isEmptyBlock() ? BlockType.HOLE : groundConf.type
-                const data: BlockData = {
+                const blockData: MergedBlockData<any> = {
                     ...blockRawData,
                     level,
                     type,
+                    ...data
                 }
 
-                const groundBlock: IteratedBlock<Block<BlockData>> = {
+                const groundBlock: BatchDataIteration<MergedBlockData<any>> = {
                     pos,
-                    data,
+                    data: blockData,
                     index,
                 }
                 yield groundBlock
@@ -338,7 +374,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
             // console.log(`patch: ${patchKey} batch size: ${batchCount}`)
         }
 
-        function* iterPeakBlocks(inputBatchIterator: InputBatchIterator, patchKey: PatchKey) {
+        function* iterPeakBlocks(inputBatchIterator: BatchDataIterator<any>, patchKey: PatchKey) {
             // console.log(itemsTaskHandler)
             for (const groundBlock of iterGroundBlocks(inputBatchIterator, patchKey)) {
                 // const mergedChunkTask = new ItemsTask()
@@ -374,13 +410,13 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
          * @param initialBlockLevel
          */
 
-        function* iterFloorBlocks(inputBatchIterator: InputBatchIterator, patchKey: PatchKey) {
+        function* iterFloorBlocks(inputBatchIterator: BatchDataIterator<{ elevation: number }>, patchKey: PatchKey) {
             for (const iteratedBlock of iterGroundBlocks(inputBatchIterator, patchKey)) {
                 const blockPos = iteratedBlock.pos
                 const blockData = iteratedBlock.data
-                const initialBlockLevel = blockPos.y
+                const initialBlockLevel = blockData.elevation
                 const groundLevel = blockData.level
-                const groundPos = asVect2(blockPos)
+                const groundPos = blockPos
 
                 const isEmptyBlock = (level: number) =>
                     worldModules.cavesDensity.getBlockDensity(asVect3(groundPos, level), groundLevel + 20)
@@ -404,7 +440,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
             }
         }
 
-        function* iterCeilingBlocks(inputBatchIterator: InputBatchIterator, patchKey: PatchKey) {
+        function* iterCeilingBlocks(inputBatchIterator: BatchDataIterator<{ elevation: number }>, patchKey: PatchKey) {
             for (const groundBlock of iterGroundBlocks(inputBatchIterator, patchKey)) {
                 yield groundBlock
             }
@@ -413,11 +449,11 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
         const ioDataAdapter =
             dataFormat === BlocksDataFormat.FloatArrayXZ
                 ? new FloatArrayIOAdapter(patchDim, processingInput as Float32Array)
-                : new VectorArrayIOAdapter(patchDim, processingInput as Vector3[], processingParams.isDelegated)
+                : recipe === BlocksTaskRecipe.Floor ? new Vector3ArrayIOAdapter(patchDim, processingInput as Vector3[]) :
+                    new Vector2ArrayIOAdapter(patchDim, processingInput as Vector2[], processingParams.isDelegated)
 
-        const itemsChunksProvider = (inputBatch: Vector3[]) => {
-            const taskInput = inputBatch.map(input => asVect2(input))
-            const itemsTask = ItemsTask.spawnedChunks(taskInput) // new ItemsTask().individualChunks(taskInput)
+        const itemsChunksProvider = (inputBatch: Vector2[]) => {
+            const itemsTask = ItemsTask.spawnedChunks(inputBatch) // new ItemsTask().individualChunks(taskInput)
             // speed up queries at the cost of lesser accuracy (acceptable for LOD requests)
             itemsTask.processingParams.skipPostprocessing = true
             const itemsRes = itemsTask.process(taskHandlers)
@@ -426,24 +462,24 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
         }
 
         let spawnedChunks =
-            !SPLIT_SPAWNED_ITEMS_REQUEST && recipe === BlocksTaskRecipe.Peak ? itemsChunksProvider(ioDataAdapter.inputData) : []
+            !SPLIT_SPAWNED_ITEMS_REQUEST && recipe === BlocksTaskRecipe.Peak ? itemsChunksProvider(ioDataAdapter.asInputPosArray()) : []
         const inputBatches = ioDataAdapter.splitIntoBatches()
         // const pendingBatches = Object.entries(inputBatches).map(async ([patchKey, batchIndices]) => {
         for (const [patchKey, batchIndices] of Object.entries(inputBatches)) {
             if (SPLIT_SPAWNED_ITEMS_REQUEST && recipe === BlocksTaskRecipe.Peak) {
-                const batchInput: Vector3[] = []
+                const batchInput: Vector2[] = []
                 ioDataAdapter.iterBatchData(batchIndices).forEach(({ pos }) => batchInput.push(pos))
                 spawnedChunks = itemsChunksProvider(batchInput)
                 // console.log(`items count for ${patchKey}: ${itemsRes.length} `)
             }
-            const inputBatchIterator: InputBatchIterator = ioDataAdapter.iterBatchData(batchIndices)
+            const inputBatchIterator: BatchDataIterator<any> = ioDataAdapter.iterBatchData(batchIndices)
             for (const block of batchProcessingIterator(inputBatchIterator, patchKey)) {
                 if (block.data) {
                     const blockPos = block.pos.floor()
                     // const blockLevel = block.data.level
                     // blockPos.y = blockLevel
                     if (recipe === BlocksTaskRecipe.Peak) {
-                        const itemChunk = spawnedChunks.find(chunk => chunk.bounds.containsPoint(blockPos))
+                        const itemChunk = spawnedChunks.find(chunk => asBox2(chunk.bounds).containsPoint(blockPos))
                         const upperBlock = itemChunk?.getUpperBlock(blockPos)
                         if (upperBlock) {
                             block.data.level = upperBlock.level

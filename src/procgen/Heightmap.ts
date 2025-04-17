@@ -1,10 +1,10 @@
-import { Vector3 } from 'three'
+import { Vector2 } from 'three'
 
 import { getWorldSeed, HeightmapEnvSettings, WorldSeed, WorldSeeds } from '../config/WorldEnv.js'
 
 import { Biome, BiomeInfluence } from './Biome.js'
 import { BlendMode, getCompositor } from './NoiseComposition.js'
-import { NoiseSampler } from './NoiseSampler.js'
+import { Noise2dSampler } from './NoiseSampler.js'
 
 const MODULATION_THRESHOLD = 0.318
 
@@ -22,19 +22,19 @@ export class Heightmap {
     parent: any
     compositor = getCompositor(BlendMode.MUL)
     // maps (externally provided)
-    heightmap: NoiseSampler
-    amplitude: NoiseSampler
+    heightmap: Noise2dSampler
+    amplitude: Noise2dSampler
     biome: Biome
 
     constructor(biome: Biome, envSettings: HeightmapEnvSettings, worldSeeds: WorldSeeds) {
-        this.heightmap = new NoiseSampler(getWorldSeed(worldSeeds, WorldSeed.Heightmap), WorldSeed.Heatmap)
+        this.heightmap = new Noise2dSampler(getWorldSeed(worldSeeds, WorldSeed.Heightmap), WorldSeed.Heatmap)
         this.heightmap.params.spreading = envSettings.spreading
         this.heightmap.harmonicsCount = envSettings.harmonics
-        this.amplitude = new NoiseSampler(getWorldSeed(worldSeeds, WorldSeed.Amplitude), WorldSeed.Amplitude)
+        this.amplitude = new Noise2dSampler(getWorldSeed(worldSeeds, WorldSeed.Amplitude), WorldSeed.Amplitude)
         this.biome = biome
     }
 
-    applyModulation(input: Vector3, initialVal: number, threshold: number) {
+    applyModulation(input: Vector2, initialVal: number, threshold: number) {
         let finalVal = initialVal
         const aboveThreshold = initialVal - threshold // rawVal - threshold
         // modulates height after threshold according to amplitude layer
@@ -48,7 +48,7 @@ export class Heightmap {
         return finalVal
     }
 
-    getRawVal(blockPos: Vector3) {
+    getRawVal(blockPos: Vector2) {
         return this.heightmap.eval(blockPos)
     }
 
@@ -59,7 +59,7 @@ export class Heightmap {
      * @returns
      */
     getGroundLevel(
-        blockPos: Vector3,
+        blockPos: Vector2,
         rawVal?: number,
         biomeInfluence?: BiomeInfluence,
         // includeSea?: boolean,

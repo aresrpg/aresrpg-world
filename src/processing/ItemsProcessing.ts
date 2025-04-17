@@ -1,8 +1,8 @@
-import { Box2, Vector2, Vector3 } from 'three'
+import { Box2, Vector2 } from 'three'
 
 import { ChunkContainer, DataChunkStub } from '../datacontainers/ChunkContainer.js'
 import { asBox2, asPatchBounds, asVect3, parseThreeStub } from '../utils/patch_chunk.js'
-import { Block, BlockData, BlockRawData, PatchKey, SpawnCategory } from '../utils/common_types.js'
+import { BlockData, BlockRawData, PatchDataCell, PatchKey, SpawnCategory } from '../utils/common_types.js'
 import { WorldModules } from '../factory/WorldModules.js'
 import { ChunkBlocksContainer, SpawnChunk, SpawnChunkStub, SpawnData } from '../factory/ChunksFactory.js'
 import { pickSpawnedElement } from '../utils/misc_utils.js'
@@ -31,6 +31,7 @@ export type ItemsTaskParams = BaseProcessingParams & {
     skipPostprocessing?: boolean // specify if ground adjustments (costlier) will be done or not
     skipOverlapPruning?: boolean
     spawnInsideAreaOnly?: boolean
+    spawnInversion?: boolean
 }
 
 export class ItemsTask<ProcessingInput extends ItemsTaskInput, ProcessingOutput extends ItemsTaskOutput> extends ProcessingTask<
@@ -94,13 +95,13 @@ export class ItemsTask<ProcessingInput extends ItemsTaskInput, ProcessingOutput 
 
     static factory =
         <ProcessingInput extends ItemsTaskInput, ProcessingOutput extends ItemsTaskOutput>(recipe: ItemsTaskRecipe) =>
-        (input: ProcessingInput) => {
-            const task = new ItemsTask<ProcessingInput, ProcessingOutput>()
-            task.handlerId = this.handlerId
-            task.processingInput = input
-            task.processingParams = { recipe }
-            return task
-        }
+            (input: ProcessingInput) => {
+                const task = new ItemsTask<ProcessingInput, ProcessingOutput>()
+                task.handlerId = this.handlerId
+                task.processingInput = input
+                task.processingParams = { recipe }
+                return task
+            }
 
     // static get spawnedElements() {
     //     return this.factory<ItemsTaskInput, MapPickedElements>(ItemsTaskRecipe.IndividualChunks)
@@ -155,19 +156,24 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
                 const availableSlots = skipOverlapPruning
                     ? spawnSlots
                     : spawnSlots.filter(spawnSlot => {
-                          const isDiscarded = nonOverlappingChunks.find(item => item.containsPoint(spawnSlot.pos))
-                          isDiscarded &&
-                              discardedSlots.push({
-                                  spawnOrigin: asVect3(spawnSlot.pos),
-                                  spawnStage: 0,
-                                  spawnPass,
-                              })
-                          return !isDiscarded
-                      })
-                const taskInput = availableSlots.map(elt => asVect3(elt.pos))
-                const rawBlocksTask = new BlocksTask().groundPositions(taskInput)
-                rawBlocksTask.processingParams.includeRawData = true
-                const rawBlocks = rawBlocksTask.process(taskHandlers) as Block<BlockData>[]
+                        const isDiscarded = nonOverlappingChunks.find(item => item.containsPoint(spawnSlot.pos))
+                        isDiscarded &&
+                            discardedSlots.push({
+                                spawnOrigin: asVect3(spawnSlot.pos),
+                                spawnStage: 0,
+                                spawnPass,
+                            })
+                        return !isDiscarded
+                    })
+                const taskInput = availableSlots.map(elt => elt.pos)
+                const getRawBlocks = () => {
+                    const rawBlocksTask = new BlocksTask().groundPositions(taskInput)
+                    rawBlocksTask.processingParams.includeRawData = true
+                    const rawBlocks = rawBlocksTask.process(taskHandlers) as PatchDataCell<BlockData>[]
+                    return rawBlocks
+                }
+
+                const rawBlocks = taskInput.length > 0 ? getRawBlocks() : []
                 if (rawBlocks) {
                     availableSlots.forEach((slot, i) => {
                         const { randomIndex, pos } = slot
@@ -205,11 +211,11 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
                 ? asPatchBounds(processingInput, worldLocalEnv.getPatchDimensions())
                 : parseThreeStub(processingInput)
         const spawnSlotsIndex = spawnDistributionMap.queryMapArea(inputQuery, spawnInsideAreaOnly)
-        const groundBlocksProvider = (input: Vector3[]) => {
+        const groundBlocksProvider = (input: Vector2[]) => {
             const blocksTask = new BlocksTask().groundPositions(input)
             blocksTask.processingParams.includeDensity = true
             const blocksRes = blocksTask.process(taskHandlers)
-            return (blocksRes || []) as Block<BlockData>[]
+            return (blocksRes || []) as PatchDataCell<BlockData>[]
         }
         const spawnedChunks = buildSpawnedChunks(spawnSlotsIndex)
 

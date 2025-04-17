@@ -108,12 +108,10 @@ export class ChunkContainer {
      */
     getIndex(localPos: Vector2 | Vector3) {
         localPos = localPos instanceof Vector3 ? localPos : asVect3(localPos, -this.margin)
-        return (
-            (localPos.z + this.margin) * this.extendedDims.x * this.extendedDims.y +
+        const index = (localPos.z + this.margin) * this.extendedDims.x * this.extendedDims.y +
             (localPos.x + this.margin) * this.extendedDims.y +
-            localPos.y +
-            this.margin
-        )
+            localPos.y + this.margin
+        return index
     }
 
     toLocalPos(pos: Vector3) {
@@ -124,6 +122,11 @@ export class ChunkContainer {
     toWorldPos(pos: Vector3) {
         const origin = this.bounds.min.clone()
         return origin.add(pos)
+    }
+
+    toPatchLocalPos(pos: Vector2) {
+        const origin = asVect2(this.bounds.min)
+        return pos.clone().sub(origin)
     }
 
     inLocalRange(localPos: Vector3) {

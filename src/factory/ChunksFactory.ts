@@ -1,8 +1,8 @@
 // import { MathUtils, Vector3 } from 'three'
-import { Vector3 } from 'three'
+import { Vector2, Vector3 } from 'three'
 
 import { asVect2, serializePatchId, asBox2, asVect3 } from '../utils/patch_chunk.js'
-import { Block, BlockData, BlockType, BiomeType, SpawnType, PatchBlock, SpawnCategory } from '../utils/common_types.js'
+import { BlockData, BlockType, BiomeType, SpawnType, SpawnCategory, PatchGroundBlock, PatchDataCell } from '../utils/common_types.js'
 import {
     ChunkHeightBuffer,
     ChunkDataContainer,
@@ -25,9 +25,9 @@ export class ChunkBlocksContainer extends ChunkDataContainer<ChunkBlockData> {
     override dataAdapter: BlockDataAdapter<ChunkBlockData> = ChunkBlocksContainer.dataAdapter
 }
 
-const highlightPatchBorders = (localPos: Vector3) => {
+const highlightPatchBorders = (localPos: Vector2) => {
     const { borderHighlightColor } = WorldGlobals.instance.debug.patch
-    return borderHighlightColor && (localPos.x === 1 || localPos.z === 1) ? borderHighlightColor : null
+    return borderHighlightColor && (localPos.x === 1 || localPos.y === 1) ? borderHighlightColor : null
 }
 
 export const getSolidBlock = (blockType: BlockType, isCheckerBlock = false) => {
@@ -46,11 +46,11 @@ export const getSolidBlock = (blockType: BlockType, isCheckerBlock = false) => {
 }
 
 export class GroundChunk extends ChunkBlocksContainer {
-    generateHeightBuffer(block: PatchBlock, ymin: number, ymax: number, biome: Biome) {
+    generateHeightBuffer(block: PatchGroundBlock, ymin: number, ymax: number, biome: Biome) {
         //, isTransition = false) {
         const undegroundDepth = 4
         const { biome: biomeType, landIndex } = block.data
-        const blockLocalPos = block.localPos as Vector3
+        const blockLocalPos = block.localPos
         const biomeLand = biome.mappings[biomeType].nth(landIndex)
         const landConf = biomeLand.data
         const blockType = highlightPatchBorders(blockLocalPos) || landConf.type // isTransition ? BlockType.SAND :
@@ -73,7 +73,7 @@ export class GroundChunk extends ChunkBlocksContainer {
             // ground surface block
             groundBuffer.fill(groundSurface, -1)
             const chunkBuffer: ChunkHeightBuffer<ChunkBlockData> = {
-                pos: asVect2(blockLocalPos),
+                pos: blockLocalPos,
                 content: groundBuffer.slice(0, buffSize),
             }
             return chunkBuffer
@@ -94,7 +94,7 @@ export class GroundChunk extends ChunkBlocksContainer {
 
         // const isBiomeTransition = groundLayer.isTransitionPatch()
 
-        const blocks = groundLayer.iterBlocksQuery()
+        const blocks = groundLayer.iterData()
         for (const block of blocks) {
             const groundBlocks = this.generateHeightBuffer(block, ymin, ymax, biomes)
             if (groundBlocks) {
@@ -120,18 +120,15 @@ export class CavesMask extends ChunkMask {
         // bounds.max.y = groundLayer.valueRange.max
         // const chunkContainer = new ChunkContainer(bounds, 1)
         // chunkContainer.rawData.fill(0)
-        const patchIter = groundLayer.iterBlocksQuery()
-        for (const block of patchIter) {
+        for (const block of groundLayer.iterData()) {
             // const buffPos = asVect2(block.localPos)
             // const chunkBuff = chunkContainer.readBuffer(buffPos)
-            const groundLevel = block.pos.y
+            const groundLevel = block.data.level
             const ymin = this.extendedBounds.min.y
             const ymax = Math.min(groundLevel, this.extendedBounds.max.y)
-            const startLocalPos = new Vector3(block.localPos.x, -1, block.localPos.z)
-            let startIndex = this.getIndex(startLocalPos)
+            let startIndex = this.getIndex(block.localPos)
             for (let y = ymin; y <= ymax; y++) {
-                block.pos.y = y
-                const isEmptyBlock = worldModules.cavesDensity.getBlockDensity(block.pos, groundLevel + 20)
+                const isEmptyBlock = worldModules.cavesDensity.getBlockDensity(asVect3(block.pos, y), groundLevel + 20)
                 this.rawData[startIndex++] = isEmptyBlock ? 0 : 1
             }
             // chunkContainer.writeBuffer(buffPos, chunkBuff)
@@ -173,11 +170,11 @@ export class SpawnChunk extends ChunkSharedContainer<ChunkBlockData> {
         this.spawnCat = metadata.spawnCat
     }
 
-    retrieveBottomBlocks(blocksProvider: (input: Vector3[]) => Block<BlockData>[]) {
-        const chunkBottomBlocks: Vector3[] = []
+    retrieveBottomBlocks(blocksProvider: (input: Vector2[]) => PatchDataCell<BlockData>[]) {
+        const chunkBottomBlocks: Vector2[] = []
         // iter slice blocks
         for (const heightBuff of this.iterHeightBuffers()) {
-            if (heightBuff.content[0]) chunkBottomBlocks.push(asVect3(heightBuff.pos, 0))
+            if (heightBuff.content[0]) chunkBottomBlocks.push(heightBuff.pos)
         }
         const blocksBatch = blocksProvider(chunkBottomBlocks)
         // console.log(testBlock)
@@ -189,7 +186,7 @@ export class SpawnChunk extends ChunkSharedContainer<ChunkBlockData> {
      * @param itemChunk
      * @returns
      */
-    fitGround(blocksProvider: (input: Vector3[]) => Block<BlockData>[]) {
+    fitGround(blocksProvider: (input: Vector2[]) => PatchDataCell<BlockData>[]) {
         let isDiscarded = true
         const blocksResult = this.retrieveBottomBlocks(blocksProvider)
         const itemBottomBlocks = Object.values(blocksResult)
@@ -208,9 +205,9 @@ export class SpawnChunk extends ChunkSharedContainer<ChunkBlockData> {
         return !isDiscarded
     }
 
-    getUpperBlock(worldPos: Vector3) {
-        const localPos = this.toLocalPos(worldPos)
-        const dataArray = this.readRawBuffer(asVect2(localPos))
+    getUpperBlock(worldPos: Vector2) {
+        const patchLocalPos = this.toPatchLocalPos(worldPos)
+        const dataArray = this.readRawBuffer(patchLocalPos)
         dataArray.reverse()
         const index = dataArray.findIndex(val => !!val)
 

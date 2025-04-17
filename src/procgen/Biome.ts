@@ -1,4 +1,4 @@
-import { Vector2, Vector3, Vector3Like } from 'three'
+import { Vector2, Vector2Like } from 'three'
 
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 // import {  smoothstep as smoothStep } from 'three/src/math/MathUtils'
@@ -15,11 +15,10 @@ import {
 } from '../utils/common_types.js'
 import { clamp, roundToDec, smoothStep } from '../utils/math_utils.js'
 import { findMatchingRange, MappingRangeSorter } from '../utils/misc_utils.js'
-import { asVect3, isVect3Stub } from '../utils/patch_chunk.js'
+import { isVect2Stub } from '../utils/patch_chunk.js'
 import { BiomesEnvSettings, getWorldSeed, WorldSeed, WorldSeeds } from '../config/WorldEnv.js'
 import { ItemsInventory } from '../factory/ItemsInventory.js'
-
-import { NoiseSampler } from './NoiseSampler.js'
+import { Noise2dSampler } from './NoiseSampler.js'
 
 enum Level {
     LOW = 'low',
@@ -111,13 +110,13 @@ const getTransitionSteps = (biomesRepartition: any) => {
  * assign block types: water, sand, grass, mud, rock, snow, ..
  */
 export class Biome {
-    heatmap: NoiseSampler
-    rainmap: NoiseSampler
+    heatmap: Noise2dSampler
+    rainmap: Noise2dSampler
     // heatProfile: MappingRanges
     // rainProfile: MappingRanges
 
     mappings: BiomesConf
-    posRandomizer: NoiseSampler
+    posRandomizer: Noise2dSampler
     /**
      * val < lowToMid=> LOW = 1
      * lowToMid < val < mid => LOW decrease, MID increase
@@ -129,16 +128,16 @@ export class Biome {
     biomeEnv: BiomesEnvSettings
 
     constructor(biomesParsedConf: BiomesConf, biomeEnv: BiomesEnvSettings, worldSeeds: WorldSeeds) {
-        this.heatmap = new NoiseSampler(getWorldSeed(worldSeeds, WorldSeed.Heatmap), WorldSeed.Heatmap)
+        this.heatmap = new Noise2dSampler(getWorldSeed(worldSeeds, WorldSeed.Heatmap), WorldSeed.Heatmap)
         this.heatmap.harmonicsCount = 6
         this.heatmap.periodicity = biomeEnv.periodicity
-        this.rainmap = new NoiseSampler(getWorldSeed(worldSeeds, WorldSeed.Rainmap), WorldSeed.Rainmap)
+        this.rainmap = new Noise2dSampler(getWorldSeed(worldSeeds, WorldSeed.Rainmap), WorldSeed.Rainmap)
         this.rainmap.harmonicsCount = 6
         this.rainmap.periodicity = biomeEnv.periodicity
         // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
         // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
         // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
-        this.posRandomizer = new NoiseSampler(getWorldSeed(worldSeeds, WorldSeed.RandomPos), WorldSeed.RandomPos)
+        this.posRandomizer = new Noise2dSampler(getWorldSeed(worldSeeds, WorldSeed.RandomPos), WorldSeed.RandomPos)
         this.posRandomizer.periodicity = 6
 
         this.mappings = biomesParsedConf
@@ -156,8 +155,8 @@ export class Biome {
      * @param input either blocks position, or pre-requested biome contributions
      * @returns
      */
-    getBiomeType(input: Vector3 | BiomeInfluence) {
-        const biomeContribs = isVect3Stub(input as Vector3Like) ? this.getBiomeInfluence(input as Vector3) : input
+    getBiomeType(input: Vector2 | BiomeInfluence) {
+        const biomeContribs = isVect2Stub(input as Vector2Like) ? this.getBiomeInfluence(input as Vector2) : input
         const dominantBiome = Object.entries(biomeContribs).sort((a, b) => b[1] - a[1])[0]?.[0] as string
         return dominantBiome as BiomeType
     }
@@ -209,7 +208,7 @@ export class Biome {
         return contributions
     }
 
-    getBiomeInfluence(pos: Vector3): BiomeInfluence {
+    getBiomeInfluence(pos: Vector2): BiomeInfluence {
         const biomeContribs: BiomeInfluence = {
             [BiomeType.Temperate]: 0,
             [BiomeType.Arctic]: 0,
@@ -246,7 +245,7 @@ export class Biome {
     landscapeTransition = (groundPos: Vector2, baseHeight: number, biomeLands: BiomeLands) => {
         const period = 0.005 * Math.pow(2, 2)
         const mapCoords = groundPos.clone().multiplyScalar(period)
-        const posRandomizerVal = this.posRandomizer.eval(asVect3(mapCoords))
+        const posRandomizerVal = this.posRandomizer.eval(mapCoords)
         // add some height variations to break painting monotony
         const { amplitude }: any = biomeLands.data
         const bounds = {

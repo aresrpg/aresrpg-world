@@ -1,4 +1,4 @@
-import { createNoise2D, createNoise3D, createNoise4D } from 'simplex-noise'
+import { createNoise2D, createNoise3D } from 'simplex-noise'
 import { Vector2, Vector3 } from 'three'
 
 import Alea from '../libs/alea.js'
@@ -11,18 +11,6 @@ type Harmonic = {
     period: number
     amplitude: number
 }
-
-export enum NoiseDimension {
-    Two,
-    Three,
-    Four,
-}
-
-const noiseConstructor: Record<NoiseDimension, (prng: any) => any> = {
-    [NoiseDimension.Two]: (prng: any) => createNoise2D(prng),
-    [NoiseDimension.Three]: (prng: any) => createNoise3D(prng),
-    [NoiseDimension.Four]: (prng: any) => createNoise4D(prng),
-}
 type NoiseHarmonicsSettings = {
     count: number
     spread: number
@@ -32,14 +20,13 @@ export type NoiseSamplerParams = {
     seed: string
     periodicity: number
     harmonics: NoiseHarmonicsSettings
-    dimensions: NoiseDimension
     scaling: number
     spreading: number
 }
 
-export class NoiseSampler {
+export abstract class NoiseSampler<PosInput extends (Vector2 | Vector3)> {
     // eslint-disable-next-line no-use-before-define
-    static instances: NoiseSampler[] = []
+    static instances: NoiseSampler<any>[] = []
     harmonics: Harmonic[] = []
     harmonicsAmplitudeSum: number = 0
     noiseSource: any
@@ -51,7 +38,6 @@ export class NoiseSampler {
             spread: 2,
             gain: 0.5,
         },
-        dimensions: NoiseDimension.Two,
         spreading: 0,
         scaling: 0.001,
     }
@@ -60,18 +46,17 @@ export class NoiseSampler {
     stats = {}
     parent: any
 
-    constructor(seed?: string, name = '', noiseDimension = NoiseDimension.Two) {
+    constructor(seed?: string, name = '') {
         this.params.seed = seed || name
-        this.params.dimensions = noiseDimension
+        this.initNoiseSource()
         this.init()
         NoiseSampler.instances.push(this)
         // console.log(`noise sampler ${name}: ${this.params.seed}`)
     }
 
+    abstract initNoiseSource(): void
+
     init() {
-        // create a new random function based on the seed
-        const prng = Alea(this.seed)
-        this.noiseSource = noiseConstructor[this.params.dimensions](prng)
         const { harmonics } = this.params
         const periodicity = Math.pow(2, this.params.periodicity)
         this.harmonics = Array.from(new Array(harmonics.count)).map((_v, i) => {
@@ -158,24 +143,61 @@ export class NoiseSampler {
         return clamp(noise, 0, 1)
     }
 
-    eval(rawInput: Vector3) {
+    eval(rawInput: PosInput) {
         const { scaling } = this.params
-        const { x, z } = rawInput
-        const noiseRawVal = this.rawEval(x * scaling, z * scaling)
+        const { x, y } = rawInput
+        const noiseRawVal = this.rawEval(x * scaling, y * scaling)
         const noiseVal = (noiseRawVal - 0.5) * 2 ** this.params.spreading + 0.5
         // val = this.mapping.apply(val)
         return noiseVal
     }
 }
 
-export class VolumetricDensity extends NoiseSampler {
+export class Noise2dSampler extends NoiseSampler<Vector2> {
+    override initNoiseSource(): void {
+        // create a new random function based on the seed
+        const prng = Alea(this.seed)
+        this.noiseSource = createNoise2D(prng) //noiseConstructor[this.params.dimensions](prng)
+    }
+    override eval(rawInput: Vector2): number {
+        const { scaling } = this.params
+        const { x, y } = rawInput
+        const noiseRawVal = this.rawEval(x * scaling, y * scaling)
+        const noiseVal = (noiseRawVal - 0.5) * 2 ** this.params.spreading + 0.5
+        // val = this.mapping.apply(val)
+        return noiseVal
+    }
+}
+
+export class Noise3dSampler extends NoiseSampler<Vector3> {
+    override initNoiseSource(): void {
+        // create a new random function based on the seed
+        const prng = Alea(this.seed)
+        this.noiseSource = createNoise3D(prng)
+    }
+    override eval(rawInput: Vector3): number {
+        const { scaling } = this.params
+        const { x, y, z } = rawInput
+        const noiseRawVal = this.rawEval(x * scaling, y * scaling, z * scaling)
+        const noiseVal = (noiseRawVal - 0.5) * 2 ** this.params.spreading + 0.5
+        // val = this.mapping.apply(val)
+        return noiseVal
+    }
+}
+
+export class VolumetricDensity extends NoiseSampler<Vector3> {
+    override initNoiseSource(): void {
+        // create a new random function based on the seed
+        const prng = Alea(this.seed)
+        this.noiseSource = createNoise3D(prng)
+    }
     params2 = {
         spreading: 0,
         scaling: 0.1,
     }
 
     constructor(seed: string) {
-        super(seed, 'volumetricDensity', NoiseDimension.Three)
+        super(seed, 'volumetricDensity')
         this.periodicity = 7
         this.harmonicsCount = 4
     }

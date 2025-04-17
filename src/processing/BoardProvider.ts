@@ -14,16 +14,15 @@ import {
     serializePatchId,
 } from '../utils/patch_chunk.js'
 import { BlockType, ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
-import { DataContainer, PatchBase, PatchElement } from '../datacontainers/PatchBase.js'
+import { DataContainer, PatchBase, PatchDataIteration } from '../datacontainers/PatchBase.js'
 import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { DataChunkStub } from '../datacontainers/ChunkContainer.js'
 import { WorldLocals } from '../config/WorldEnv.js'
 import { ChunkBlocksContainer, SpawnChunk } from '../factory/ChunksFactory.js'
-import { SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
-
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { WorkerPool } from './WorkerPool.js'
 import { ItemsTask } from './ItemsProcessing.js'
+import { SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
 
 export enum BlockCategory {
     EMPTY = 0,
@@ -54,7 +53,7 @@ export type BoardCacheData = {
     items: SpawnChunk[]
 }
 
-class BoardPatch extends PatchBase<number> implements DataContainer {
+class BoardPatch extends PatchBase implements DataContainer {
     rawData: Uint8Array
 
     constructor(bounds: Box2, margin = 0) {
@@ -71,13 +70,13 @@ class BoardPatch extends PatchBase<number> implements DataContainer {
         }
     }
 
-    override *iterDataQuery(globalBounds?: Box2 | undefined, includeMargins?: boolean, skipEmpty = true) {
-        const elements = super.iterDataQuery(globalBounds, includeMargins)
+    override *iterData(globalBounds?: Box2 | undefined, includeMargins?: boolean, skipEmpty = true) {
+        const elements = super.iterData(globalBounds, includeMargins)
         for (const element of elements) {
             const { index } = element
             const data = this.rawData[index] || BlockCategory.EMPTY
             if (data || !skipEmpty) {
-                const boardElement: PatchElement<number> = {
+                const boardElement: PatchDataIteration<number> = {
                     ...element,
                     data,
                 }
@@ -343,7 +342,7 @@ export class BoardProvider {
         this.cacheProvider.fillTargetChunk(boardChunk)
         // const chunkHeightBuffers = boardChunk.iterChunkBuffers()
         // for (const heightBuff of chunkHeightBuffers) {
-        for (const patchIter of boardPatch.iterDataQuery(undefined, true, false)) {
+        for (const patchIter of boardPatch.iterData(undefined, true, false)) {
             const heightBuff = boardChunk.readRawBuffer(patchIter.localPos)
             const isWithinBoard = this.isWithinBoard(patchIter.pos, heightBuff)
             const isHoleBlock = isWithinBoard && heightBuff.slice(1, this.boardThickness + 1).reduce((sum, val) => sum + val, 0) === 0
@@ -420,7 +419,7 @@ export class BoardProvider {
         }
     }
 
-    *overrideOriginalChunksContent(boardChunk: ChunkBlocksContainer) {
+    * overrideOriginalChunksContent(boardChunk: ChunkBlocksContainer) {
         const { nonOverlappingItemsChunks } = this
         const chunkDim = this.worldLocalEnv.getChunkDimensions()
         // iter processed original chunks
@@ -437,7 +436,7 @@ export class BoardProvider {
         }
     }
 
-    *restoreOriginalChunksContent() {
+    * restoreOriginalChunksContent() {
         const chunkDim = this.worldLocalEnv.getChunkDimensions()
         // iter processed original chunks
         for (const originalChunk of this.cacheProvider.chunks) {
