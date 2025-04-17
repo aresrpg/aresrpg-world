@@ -65,10 +65,10 @@ const PatchBitAllocation = {
     flags: 3, // 8 additional flags
 }
 
-export class GroundDataAdapter {
+export class GroundDataAdapter implements BlockDataAdapter<GroundBlockData> {
     // implements BlockDataAdapter<GroundBlockData> {
 
-    decodeBlockData(rawData: number) {
+    decode(rawData: number) {
         const shift = PatchBitAllocation
         // build a mask: 1<<4 = 1000
         const level = (rawData >> (shift.biome + shift.landIndex + shift.flags)) & ((1 << shift.level) - 1)
@@ -85,7 +85,7 @@ export class GroundDataAdapter {
         return blockData
     }
 
-    encodeBlockData(groundData: GroundBlockData): number {
+    encode(groundData: GroundBlockData): number {
         const { level, biome, landIndex, flags } = groundData
         const shift = PatchBitAllocation
         let blockRawVal = level

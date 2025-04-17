@@ -2,7 +2,7 @@ import { Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 
 import { LinkedList } from '../datacontainers/LinkedList.js'
 import { SpawnRules } from '../procgen/SpawnDistributionMap.js'
-import { PatchDataIteration } from '../datacontainers/PatchBase.js'
+import { PatchDataIteration } from '../datacontainers/PatchContainer.js'
 
 // reserved native block types
 export enum BlockType {

@@ -1,21 +1,19 @@
-import { Box2, Vector2, Vector3 } from 'three'
+import { Box2, Vector2 } from 'three'
 
-import { GroundBlock, BiomeLands, PatchBoundId, PatchId, BlockType, BiomeType, GroundBlockData, PatchGroundBlock } from '../utils/common_types.js'
-import { asVect2, serializePatchId } from '../utils/patch_chunk.js'
+import { GroundBlock, BiomeLands, PatchBoundId, PatchId, BiomeType, GroundBlockData, PatchGroundBlock } from '../utils/common_types.js'
+import { serializePatchId } from '../utils/patch_chunk.js'
 import { Biome, BiomeInfluence } from '../procgen/Biome.js'
-import { PatchBase, PatchDataContainer, PatchDataIteration, PatchStub } from '../datacontainers/PatchBase.js'
+import { PatchDataContainer, PatchDataStub } from '../datacontainers/PatchContainer.js'
 import { getPatchNeighbours, getPatchBoundingPoints } from '../utils/spatial_utils.js'
 import { bilinearInterpolation } from '../utils/math_utils.js'
-import { copySourceToTargetPatch } from '../utils/data_operations.js'
 import { WorldModules } from '../factory/WorldModules.js'
 import { Heightmap } from '../procgen/Heightmap.js'
 import { GroundDataAdapter } from '../datacontainers/BlockDataAdapter.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
-export type GroundPatchStub = PatchStub & {
+export type GroundPatchStub = PatchDataStub & {
     valueRange?: { min: number; max: number }
-    rawData: Uint32Array
 }
 
 export type BlockIteratorRes = IteratorResult<GroundBlock, void>
@@ -28,7 +26,7 @@ export const parseGroundFlags = (rawFlags: number) => {
     return groundFlags
 }
 
-export class GroundPatch extends PatchBase implements PatchDataContainer {
+export class GroundPatch extends PatchDataContainer<GroundBlockData> {
     biomeInfluence: BiomeInfluence | PatchBoundingBiomes | undefined
     rawData: Uint32Array
     dataAdapter: GroundDataAdapter
@@ -58,13 +56,13 @@ export class GroundPatch extends PatchBase implements PatchDataContainer {
             }
             const boundsPoints = getPatchBoundingPoints(this.bounds)
             const boundsInfluences = {} as PatchBoundingBiomes
-            ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-                const boundPos = boundsPoints[key] as Vector2
-                const biomeInfluence = biome.getBiomeInfluence(boundPos)
-                boundsInfluences[key] = biomeInfluence
-                // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-                return biomeInfluence
-            })
+                ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+                    const boundPos = boundsPoints[key] as Vector2
+                    const biomeInfluence = biome.getBiomeInfluence(boundPos)
+                    boundsInfluences[key] = biomeInfluence
+                    // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+                    return biomeInfluence
+                })
             const allEquals =
                 equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
                 equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&
@@ -73,87 +71,10 @@ export class GroundPatch extends PatchBase implements PatchDataContainer {
         }
 
         this.biomeInfluence = getBiomeInfluence()
-
-        //   const stub: GroundPatchStub =
-        //   await WorldComputeProxy.current.bakeGroundPatch(this.key || this.bounds)
-        // this.valueRange = stub.valueRange || this.valueRange
-        // this.rawData.set(stub.rawData)
-        // this.isEmpty = false
     }
 
     isTransitionPatch() {
         return !!(this.biomeInfluence as PatchBoundingBiomes)[PatchBoundId.xMyM]
-    }
-
-    readBlockData(blockIndex: number): GroundBlockData {
-        const blockRawData = this.rawData[blockIndex]
-        const blockData = this.dataAdapter.decodeBlockData(blockRawData as number)
-        return blockData
-    }
-
-    writeBlockData(blockIndex: number, blockData: GroundBlockData) {
-        this.rawData[blockIndex] = this.dataAdapter.encodeBlockData(blockData)
-    }
-
-    getBlock(inputPos: Vector2, isLocalPos = false) {
-        const isWithingRange = isLocalPos ? this.inLocalRange(inputPos) : this.inWorldRange(inputPos)
-        let block: PatchGroundBlock | undefined
-        if (isWithingRange) {
-            const localPos = isLocalPos ? inputPos : this.toLocalPos(inputPos)
-            const pos = isLocalPos ? this.toWorldPos(inputPos) : inputPos
-            const blockIndex = this.getIndex(localPos)
-            const blockData = this.readBlockData(blockIndex) || BlockType.NONE
-            block = {
-                index: blockIndex,
-                pos: pos,
-                localPos: localPos,
-                data: blockData,
-            }
-        }
-        return block
-    }
-
-    setBlock(inputPos: Vector2 | Vector3, blockData: GroundBlockData, isLocalPos = false) {
-        inputPos = inputPos instanceof Vector2 ? inputPos : asVect2(inputPos)
-        const isWithinPatch = isLocalPos ? this.inLocalRange(inputPos) : this.inWorldRange(inputPos)
-        if (isWithinPatch) {
-            const localPos = isLocalPos ? inputPos : this.toLocalPos(inputPos)
-            const blockIndex = this.getIndex(localPos)
-            this.writeBlockData(blockIndex, blockData)
-        }
-        // const levelMax = blockLevel + blockData.over.length
-        // bounds.min.y = Math.min(bounds.min.y, levelMax)
-        // bounds.max.y = Math.max(bounds.max.y, levelMax)
-    }
-
-    // genGroundBuffer(blockIndex: number, ymin: number, ymax: number) {
-    //   const block = this.readBlockData(blockIndex)
-    //   const bufferCount = MathUtils.clamp(block.level - ymin, 0, ymax - ymin)
-    //   const groundBuffer = []
-    //   while (bufferCount > 0) {
-    //     groundBuffer.push(block.type)
-    //   }
-    //   return groundBuffer
-    // }
-
-    /**
-     * iteration range as global coords
-     * @param iterBounds
-     * @param includeMargins
-     */
-    override *iterData(iterBounds?: Box2, includeMargins = true) {
-        const patchSectors = super.iterData(iterBounds, includeMargins)
-        for (const sector of patchSectors) {
-            const { index, localPos } = sector
-            const blockData = this.readBlockData(index) || BlockType.NONE
-            const block: PatchDataIteration<GroundBlockData> = {
-                index,
-                pos: this.toWorldPos(localPos),
-                localPos: localPos,
-                data: blockData,
-            }
-            yield block
-        }
     }
 
     getBlockBiome(blockPos: Vector2) {
@@ -233,7 +154,7 @@ export class GroundPatch extends PatchBase implements PatchDataContainer {
                 // const count = this.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
                 // const count2 = sidePatch.rawData.reduce((count, val) => count + (val ? 1 : 0), 0)
                 // console.log(`rawData count:  source ${count2} target ${count}`)
-                copySourceToTargetPatch(sidePatch, this, false)
+                sidePatch.copyContentToTarget(this, false)
             })
         }
 
@@ -250,7 +171,7 @@ export class GroundPatch extends PatchBase implements PatchDataContainer {
             // blockData.landIndex = this.isTransitionPatch() ? 0 : blockData.landIndex
             valueRange.min = Math.min(valueRange.min, blockData.level)
             valueRange.max = Math.max(valueRange.max, blockData.level)
-            this.writeBlockData(block.index, blockData)
+            this.writeData(block.localPos, blockData)
         }
         this.isEmpty = false
         // for whole patch with margins only
@@ -266,10 +187,10 @@ export class GroundPatch extends PatchBase implements PatchDataContainer {
 
     override toStub() {
         const patchStub = super.toStub()
-        const { rawData, valueRange } = this
+        const { valueRange } = this
         const groundPatchStub: GroundPatchStub = {
             ...patchStub,
-            rawData,
+            // rawdata: rawData,
             valueRange,
         }
         return groundPatchStub
@@ -277,7 +198,15 @@ export class GroundPatch extends PatchBase implements PatchDataContainer {
 
     override fromStub(patchStub: GroundPatchStub) {
         super.fromStub(patchStub)
-        this.rawData.set(patchStub.rawData)
+        const { rawdata } = patchStub
+        if (rawdata) {
+            this.rawData = new Uint32Array(this.dataSize)
+            this.rawData.set(rawdata)
+        } else {
+            console.warn(
+                'could not initialize PatchDataContainer properly: raw data missing. If this is an empty chunk, use ChunkContainer instead',
+            )
+        }
         this.valueRange.min = patchStub.valueRange?.min || this.valueRange.min
         this.valueRange.max = patchStub.valueRange?.max || this.valueRange.max
         return this

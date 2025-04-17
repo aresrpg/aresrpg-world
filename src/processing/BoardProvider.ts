@@ -14,15 +14,14 @@ import {
     serializePatchId,
 } from '../utils/patch_chunk.js'
 import { BlockType, ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
-import { DataContainer, PatchBase, PatchDataIteration } from '../datacontainers/PatchBase.js'
-import { copySourceToTargetPatch } from '../utils/data_operations.js'
+import { PatchDataContainer, PatchDataIteration } from '../datacontainers/PatchContainer.js'
 import { DataChunkStub } from '../datacontainers/ChunkContainer.js'
 import { WorldLocals } from '../config/WorldEnv.js'
 import { ChunkBlocksContainer, SpawnChunk } from '../factory/ChunksFactory.js'
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { WorkerPool } from './WorkerPool.js'
 import { ItemsTask } from './ItemsProcessing.js'
-import { SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
+import { IdenticalDataAdapter, SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
 
 export enum BlockCategory {
     EMPTY = 0,
@@ -53,7 +52,8 @@ export type BoardCacheData = {
     items: SpawnChunk[]
 }
 
-class BoardPatch extends PatchBase implements DataContainer {
+class BoardPatch extends PatchDataContainer<number> {
+    override dataAdapter = new IdenticalDataAdapter
     rawData: Uint8Array
 
     constructor(bounds: Box2, margin = 0) {
@@ -370,7 +370,7 @@ export class BoardProvider {
             patch: new BoardPatch(this.finalBounds),
             chunk: new ChunkBlocksContainer(finalChunkBounds, 1),
         }
-        copySourceToTargetPatch(boardPatch, boardContent.patch)
+        boardPatch.copyContentToTarget(boardContent.patch)
         boardChunk.copyContentToTarget(boardContent.chunk)
 
         const boardSpawnedItems = this.cacheProvider.getSpawnedItems(boardChunk.bounds)

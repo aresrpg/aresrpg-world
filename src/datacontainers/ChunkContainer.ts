@@ -108,9 +108,11 @@ export class ChunkContainer {
      */
     getIndex(localPos: Vector2 | Vector3) {
         localPos = localPos instanceof Vector3 ? localPos : asVect3(localPos, -this.margin)
-        const index = (localPos.z + this.margin) * this.extendedDims.x * this.extendedDims.y +
+        const index =
+            (localPos.z + this.margin) * this.extendedDims.x * this.extendedDims.y +
             (localPos.x + this.margin) * this.extendedDims.y +
-            localPos.y + this.margin
+            localPos.y +
+            this.margin
         return index
     }
 
@@ -477,7 +479,7 @@ export abstract class ChunkDataContainer<BlockData> extends ChunkSharedContainer
 
     override fromKey(chunkKey: ChunkKey, chunkDim: Vector3) {
         super.fromKey(chunkKey, chunkDim)
-        this.rawData = new Uint16Array(this.extendedDims.x * this.extendedDims.y * this.extendedDims.z)
+        this.rawData = new Uint16Array(this.dataSize)
         return this
     }
 
