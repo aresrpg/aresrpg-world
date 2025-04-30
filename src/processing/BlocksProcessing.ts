@@ -109,13 +109,13 @@ export class BlocksTask<ProcessingInput extends BlocksTaskInput, ProcessingOutpu
 
     static factory =
         <ProcessingInput extends BlocksTaskInput, ProcessingOutput extends BlocksTaskOutput>(recipe: BlocksTaskRecipe) =>
-            (input: ProcessingInput) => {
-                const task = new BlocksTask<ProcessingInput, ProcessingOutput>()
-                task.handlerId = BlocksTask.handlerId
-                task.processingInput = input
-                task.processingParams = { recipe }
-                return task
-            }
+        (input: ProcessingInput) => {
+            const task = new BlocksTask<ProcessingInput, ProcessingOutput>()
+            task.handlerId = BlocksTask.handlerId
+            task.processingInput = input
+            task.processingParams = { recipe }
+            return task
+        }
 
     static get groundPositions() {
         return this.factory<BlocksTaskInput, BlocksTaskOutput>(BlocksTaskRecipe.Ground)
@@ -205,8 +205,7 @@ class Vector2ArrayIOAdapter extends BlocksDataIOAdapter<PatchDataCell<BlockData>
     isStubData: boolean
     constructor(patchDimensions: Vector2, rawInputData: Vector2[], isStubData = false) {
         super(patchDimensions)
-        this.inputData = rawInputData.map(pos => isStubData ? parseThreeStub(pos) : pos)
-            .map(pos => ({ pos, data: null }))
+        this.inputData = rawInputData.map(pos => (isStubData ? parseThreeStub(pos) : pos)).map(pos => ({ pos, data: null }))
         this.isStubData = isStubData
         this.outputData = {}
     }
@@ -240,19 +239,20 @@ class Vector3ArrayIOAdapter extends BlocksDataIOAdapter<PatchDataCell<BlockData>
             const dataCell: PatchDataCell<{ elevation: number }> = {
                 pos,
                 data: {
-                    elevation: blockPos.y
-                }
+                    elevation: blockPos.y,
+                },
             }
             return dataCell
         })
     }
+
     override formatOutput(): PatchDataCell<BlockData>[] {
         throw new Error('Method not implemented.')
     }
+
     override writeData(inputIndex: number, blockData: PatchDataCell<BlockData>): void {
         this.outputData[inputIndex] = blockData
     }
-
 }
 
 const parseFloat32Data = (inputData: Float32Array) => {
@@ -346,12 +346,12 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
                 const { biome, landIndex, level } = groundData as GroundBlockData
                 const blockRawData: Partial<BlockRawData> = includeRawData
                     ? {
-                        biome,
-                        landIndex,
-                        level,
-                    }
+                          biome,
+                          landIndex,
+                          level,
+                      }
                     : {}
-                const landConf = worldModules.biomes.mappings[biome].nth(landIndex)
+                const landConf = worldModules.ground.biomes[biome].nth(landIndex)
                 const groundConf = landConf.data
                 // check for block emptyness if specified
                 const isEmptyBlock = () => worldModules.cavesDensity.getBlockDensity(asVect3(pos, level), level + 20)
@@ -361,7 +361,7 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
                     ...blockRawData,
                     level,
                     type,
-                    ...data
+                    ...data,
                 }
 
                 const groundBlock: BatchDataIteration<MergedBlockData<any>> = {
@@ -449,11 +449,12 @@ export const createBlocksTaskHandler = (worldModules: WorldModules) => {
         const ioDataAdapter =
             dataFormat === BlocksDataFormat.FloatArrayXZ
                 ? new FloatArrayIOAdapter(patchDim, processingInput as Float32Array)
-                : recipe === BlocksTaskRecipe.Floor ? new Vector3ArrayIOAdapter(patchDim, processingInput as Vector3[]) :
-                    new Vector2ArrayIOAdapter(patchDim, processingInput as Vector2[], processingParams.isDelegated)
+                : recipe === BlocksTaskRecipe.Floor
+                  ? new Vector3ArrayIOAdapter(patchDim, processingInput as Vector3[])
+                  : new Vector2ArrayIOAdapter(patchDim, processingInput as Vector2[], processingParams.isDelegated)
 
         const itemsChunksProvider = (inputBatch: Vector2[]) => {
-            const itemsTask = ItemsTask.spawnedChunks(inputBatch) // new ItemsTask().individualChunks(taskInput)
+            const itemsTask = ItemsTask.sparsedChunks(inputBatch) // new ItemsTask().individualChunks(taskInput)
             // speed up queries at the cost of lesser accuracy (acceptable for LOD requests)
             itemsTask.processingParams.skipPostprocessing = true
             const itemsRes = itemsTask.process(taskHandlers)

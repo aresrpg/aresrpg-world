@@ -2,7 +2,7 @@ import { Vector2 } from 'three'
 
 import { ProceduralItemGenerator } from '../tools/ProceduralGenerators.js'
 import { SchematicLoader } from '../tools/SchematicLoader.js'
-import { ItemsEnv, WorldGlobals } from '../config/WorldEnv.js'
+import { InventoryEnv, WorldGlobals } from '../config/WorldEnv.js'
 import { asBox2 } from '../utils/patch_chunk.js'
 import { isNotWorkerEnv } from '../utils/misc_utils.js'
 import { SpawnCategory, SpawnType } from '../utils/common_types.js'
@@ -11,23 +11,29 @@ import { SpawnChunkStub, SpawnChunkMetadata } from './ChunksFactory.js'
 // import { asVect2 } from '../utils/patch_chunk'
 
 /**
- * Referencing all items either coming from schematic definitions or procedurally generated
+ * Referencing all items from schematic content or procedural definitions
  */
 // ItemsFactory, ItemsCatalog
-export class ItemsInventory {
-    // TODO rename catalog as inventory
+export class SpawnInventory {
+    static singleton: SpawnInventory
+    static get instance() {
+        this.singleton = this.singleton || new SpawnInventory()
+        return this.singleton
+    }
     catalog: Record<SpawnType, SpawnChunkStub> = {}
-    itemsEnv: ItemsEnv
-    constructor(itemsEnv: ItemsEnv) {
-        this.itemsEnv = itemsEnv
+    // externally provided
+    inventoryEnv!: InventoryEnv
+
+    populateInventory() {
+
     }
 
     get schematicFilesIndex() {
-        return this.itemsEnv.schematics.filesIndex
+        return this.inventoryEnv.schematics.filesIndex
     }
 
     getProceduralConfig(id: SpawnType) {
-        return this.itemsEnv.proceduralConfigs[id]
+        return this.inventoryEnv.proceduralConfigs[id]
     }
 
     // static spawners: Record<ItemType, PseudoDistributionMap> = {}
@@ -39,8 +45,8 @@ export class ItemsInventory {
     async importSchematic(spawnType: SpawnType) {
         const fileUrl = this.schematicFilesIndex[spawnType]
         if (fileUrl) {
-            const customBlocksMapping = this.itemsEnv.schematics.localBlocksMapping[spawnType]
-            const { globalBlocksMapping } = this.itemsEnv.schematics
+            const customBlocksMapping = this.inventoryEnv.schematics.localBlocksMapping[spawnType]
+            const { globalBlocksMapping } = this.inventoryEnv.schematics
             const { metadata, rawdata } = await SchematicLoader.createChunkContainer(fileUrl, globalBlocksMapping, customBlocksMapping)
             const spawnRadius = Math.ceil(asBox2(metadata.bounds).getSize(new Vector2()).length() / 2)
             // TODO remove hardcoded values

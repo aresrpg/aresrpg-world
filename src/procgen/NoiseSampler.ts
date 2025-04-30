@@ -1,6 +1,5 @@
 import { createNoise2D, createNoise3D } from 'simplex-noise'
 import { Vector2, Vector3 } from 'three'
-
 import Alea from '../libs/alea.js'
 import { clamp } from '../utils/math_utils.js'
 
@@ -24,7 +23,7 @@ export type NoiseSamplerParams = {
     spreading: number
 }
 
-export abstract class NoiseSampler<PosInput extends (Vector2 | Vector3)> {
+export abstract class NoiseSampler<PosInput extends Vector2 | Vector3> {
     // eslint-disable-next-line no-use-before-define
     static instances: NoiseSampler<any>[] = []
     harmonics: Harmonic[] = []
@@ -46,7 +45,7 @@ export abstract class NoiseSampler<PosInput extends (Vector2 | Vector3)> {
     stats = {}
     parent: any
 
-    constructor(seed?: string, name = '') {
+    constructor(name = '', seed?: string, ) {
         this.params.seed = seed || name
         this.initNoiseSource()
         this.init()
@@ -157,8 +156,9 @@ export class Noise2dSampler extends NoiseSampler<Vector2> {
     override initNoiseSource(): void {
         // create a new random function based on the seed
         const prng = Alea(this.seed)
-        this.noiseSource = createNoise2D(prng) //noiseConstructor[this.params.dimensions](prng)
+        this.noiseSource = createNoise2D(prng) // noiseConstructor[this.params.dimensions](prng)
     }
+
     override eval(rawInput: Vector2): number {
         const { scaling } = this.params
         const { x, y } = rawInput
@@ -175,6 +175,7 @@ export class Noise3dSampler extends NoiseSampler<Vector3> {
         const prng = Alea(this.seed)
         this.noiseSource = createNoise3D(prng)
     }
+
     override eval(rawInput: Vector3): number {
         const { scaling } = this.params
         const { x, y, z } = rawInput
@@ -191,6 +192,7 @@ export class VolumetricDensity extends NoiseSampler<Vector3> {
         const prng = Alea(this.seed)
         this.noiseSource = createNoise3D(prng)
     }
+
     params2 = {
         spreading: 0,
         scaling: 0.1,

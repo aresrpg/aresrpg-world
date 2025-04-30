@@ -1,14 +1,15 @@
 import { Box2, Vector2 } from 'three'
 
-import { GroundBlock, BiomeLands, PatchBoundId, PatchId, BiomeType, GroundBlockData, PatchGroundBlock } from '../utils/common_types.js'
+import { GroundBlock, BiomeLands, PatchBoundId, PatchId, BiomeType, GroundBlockData, LandFields, PartialLandFields } from '../utils/common_types.js'
 import { serializePatchId } from '../utils/patch_chunk.js'
 import { Biome, BiomeInfluence } from '../procgen/Biome.js'
 import { PatchDataContainer, PatchDataStub } from '../datacontainers/PatchContainer.js'
 import { getPatchNeighbours, getPatchBoundingPoints } from '../utils/spatial_utils.js'
 import { bilinearInterpolation } from '../utils/math_utils.js'
 import { WorldModules } from '../factory/WorldModules.js'
-import { Heightmap } from '../procgen/Heightmap.js'
+import { Ground } from '../procgen/Ground.js'
 import { GroundDataAdapter } from '../datacontainers/BlockDataAdapter.js'
+import { LinkedList } from '../datacontainers/LinkedList.js'
 
 export type PatchBoundingBiomes = Record<PatchBoundId, BiomeInfluence>
 
@@ -84,37 +85,39 @@ export class GroundPatch extends PatchDataContainer<GroundBlockData> {
         return this.biomeInfluence as BiomeInfluence
     }
 
-    computeGroundBlock = (blockPos: Vector2, { heightmap, biomes }: { heightmap: Heightmap; biomes: Biome }) => {
+    computeGroundBlock = (blockPos: Vector2, { ground, biomes }: { ground: Ground; biomes: Biome }) => {
         const biomeInfluence = this.getBlockBiome(blockPos)
         // const biomeInfluenceBis = Biome.instance.getBiomeInfluence(blockPos)
         const biomeType = biomes.getBiomeType(biomeInfluence)
-        const rawVal = heightmap.getRawVal(blockPos)
-        const nominalConf = biomes.getBiomeConf(rawVal, biomeType) as BiomeLands
+        const rawVal = ground.getRawVal(blockPos)
+        const biomeLand = ground.getBiomeLand(biomeType, rawVal) as BiomeLands
         // const confIndex = Biome.instance.getConfIndex(currLevelConf.key)
         // const confData = Biome.instance.indexedConf.get(confIndex)
-        const level = heightmap.getGroundLevel(blockPos, rawVal, biomeInfluence)
+        const level = ground.getGroundLevel(blockPos, rawVal, biomeInfluence)
         const isCavern = false // DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
-        let usedConf = nominalConf // isCavern ? nominalConf : nominalConf
+        let selectedLand = biomeLand as LinkedList<PartialLandFields> // isCavern ? nominalConf : nominalConf
         // let isEmpty = isCavern
         // while (isEmpty && level > 0) {
         //   blockPos.y = level--
         //   isEmpty = DensityVolume.instance.getBlockType(blockPos) === BlockType.NONE
         // }
         // const pos = new Vector3(blockPos.x, level, blockPos.z)
-        if (!isCavern && nominalConf.next?.data) {
-            const variation = biomes.posRandomizer.eval(blockPos.clone().multiplyScalar(50)) // Math.cos(0.1 * blockPos.length()) / 100
-            const min = new Vector2(nominalConf.data.x, nominalConf.data.y)
-            const max = new Vector2(nominalConf.next.data.x, nominalConf.next.data.y)
+        if (!isCavern && biomeLand.next?.data) {
+            const variation = ground.transition.eval(blockPos.clone().multiplyScalar(50)) // Math.cos(0.1 * blockPos.length()) / 100
+            const min = new Vector2(biomeLand.data.threshold, biomeLand.data.elevation)
+            const max = new Vector2(biomeLand.next.data.threshold, biomeLand.next.data.elevation)
             const rangeBox = new Box2(min, max)
             const dims = rangeBox.getSize(new Vector2())
             // const slope = dims.y / dims.x
             const distRatio = (rawVal - min.x) / dims.x
             const threshold = 4 * distRatio
-            usedConf = variation > threshold && nominalConf.prev?.data.type ? nominalConf.prev : nominalConf
+            selectedLand = variation > threshold && biomeLand.prev?.data.type ? biomeLand.prev : biomeLand
         }
 
-        if (isNaN(usedConf.data.type)) {
-            console.log(nominalConf.data)
+        const landData = selectedLand.data as LandFields
+
+        if (isNaN(landData.type)) {
+            console.log(biomeLand.data)
         }
 
         // }
@@ -123,8 +126,8 @@ export class GroundPatch extends PatchDataContainer<GroundBlockData> {
         const groundBlockData: GroundBlockData = {
             level,
             biome: biomeType,
-            landIndex: usedConf.index,
-            landId: usedConf.data.key,
+            landIndex: selectedLand.index,
+            landId: landData.key,
             flags,
         }
         return groundBlockData

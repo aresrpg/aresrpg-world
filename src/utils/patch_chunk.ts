@@ -156,6 +156,14 @@ const patchRangeFromBounds = (bounds: Box2, patchDims: Vector2) => {
     return patchRange
 }
 
+const patchRangeToBounds = (mapRange: Box2, patchDims: Vector2) => {
+    const { min, max } = mapRange
+    const minBounds = min.clone().multiplyScalar(patchDims.x)
+    const maxBounds = max.clone().multiplyScalar(patchDims.y)
+    const bounds = new Box2(minBounds, maxBounds)
+    return bounds
+}
+
 const getPatchIds = (bounds: Box2, patchDims: Vector2) => {
     const patchIds = []
     const patchRange = patchRangeFromBounds(bounds, patchDims)
@@ -246,6 +254,7 @@ export {
     serializePatchId,
     // getBoundsPatchRange,
     patchRangeFromBounds,
+    patchRangeToBounds,
     patchRangeFromMapCenterRad,
     patchIndexFromMapRange,
     getPatchIds,

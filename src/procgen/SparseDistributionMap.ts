@@ -15,21 +15,41 @@ export type DistributionParams = {
     maxElementSize?: number // will generate all multiple of minDistance until maxElementSize is reached
 }
 
+export enum SlotSize {
+    'Size64' = 64,
+    'Size48' = 48,
+    'Size32' = 32,
+    'Size24' = 24,
+    'Size16' = 16,
+    'Size12' = 12,
+    'Size8' = 8,
+    'Size4' = 4,
+}
+
 /**
  * Pseudo-random distribution made from infinitely repeatable patterns
  * providing independant and deterministic behavior
  */
-export class DiscreteDistributionMap {
+export class SparseDistributionMap {
     patternDimension: Vector2
     // densityMap: NoiseSampler
     bounds: Box2
-    samplesIndex: Record<number, Vector2[]> = {}
-    seed
+    samplesIndex: Record<SlotSize, Vector2[]> = {
+        [SlotSize.Size64]: [],
+        [SlotSize.Size48]: [],
+        [SlotSize.Size32]: [],
+        [SlotSize.Size24]: [],
+        [SlotSize.Size16]: [],
+        [SlotSize.Size12]: [],
+        [SlotSize.Size8]: [],
+        [SlotSize.Size4]: []
+    }
+    name
 
-    constructor(dimensions: Vector2, seed: string) {
+    constructor(dimensions: Vector2, name = '') {
         this.patternDimension = dimensions
         this.bounds = new Box2(new Vector2(), dimensions)
-        this.seed = seed
+        this.name = name
         // this.densityMap = new NoiseSampler(params.seed || '')
         this.populateSamplesIndex()
     }
@@ -42,13 +62,13 @@ export class DiscreteDistributionMap {
         return 0
     }
 
-    genPassSamples(maxSpawnRadius: number, previousPoints: Vector2[]) {
+    genPassSamples(slotSize: SlotSize, previousPoints: Vector2[]) {
         const debugLogs = WorldGlobals.instance.debug.logs
-        const { dimensions, seed } = this
-        const prng = Alea(seed || '')
+        const { dimensions, name } = this
+        const prng = Alea(name || '')
         const shape = [dimensions.x, dimensions.y]
-        const minDistance = Math.round(maxSpawnRadius * 1.4)
-        const maxDistance = maxSpawnRadius * 4
+        const minDistance = Math.round(slotSize * 1.4)
+        const maxDistance = slotSize * 4
         const tries = 20
         const params = {
             shape,
@@ -59,7 +79,7 @@ export class DiscreteDistributionMap {
 
         debugLogs &&
             isNotWorkerEnv() &&
-            console.log(`generating map distribution for spawnRadius ${maxSpawnRadius}, minDistance: ${minDistance}`)
+            console.log(`generating map distribution for spawnRadius ${slotSize}, minDistance: ${minDistance}`)
         const generator = new PoissonDiskSampling(params, prng)
         previousPoints.map(point => [point.x, point.y]).forEach(point => generator.addPoint(point))
 
@@ -71,29 +91,46 @@ export class DiscreteDistributionMap {
             samples.push(point)
         }
         debugLogs && isNotWorkerEnv() && console.log(`samples count: ${samples.length}, total: ${this.samplesCount}`)
-        this.samplesIndex[maxSpawnRadius] = samples
+        this.samplesIndex[slotSize] = samples
         return samples
     }
 
     // populate with discrete elements using relative pos
     populateSamplesIndex() {
-        const samplingPasses = [64, 48, 32, 24, 16, 12, 8, 4]
+        const samplingPasses = Object.keys(this.samplesIndex)
         const points = [new Vector2(0, 0)]
         samplingPasses
             // .filter(sampleSize => sampleSize >= 64)
-            .forEach(samplePass => points.push(...this.genPassSamples(samplePass, points)))
+            .forEach(samplePass => points.push(...this.genPassSamples(parseInt(samplePass), points)))
     }
+
+    // queryInvertedSlots(bounds: Box2) {
+    //     const invertedSpawnSlots = []
+    //     const spawnSlots = this.querySpawnSlots(bounds, true)
+    //     const posIndex: Record<string, boolean> = {}
+    //     Object.values(spawnSlots).forEach(list => {
+    //         list.map(pos => `${pos.x}:${pos.y}`).forEach(posKey => (posIndex[posKey] = true))
+    //     })
+    //     const patch = new PatchContainer(bounds)
+    //     for (const { pos } of patch.iterData()) {
+    //         const neighbours = getPatchNeighbours(pos)
+    //         const match = neighbours.map(({ x, y }) => `${x}:${y}`).find(posKey => posIndex[posKey])
+    //         if (!match) invertedSpawnSlots.push(pos)
+    //     }
+    //     return invertedSpawnSlots
+    // }
 
     /**
      * Based on provided items' dimensions, will find all surrounding items overlapping with given point
      * @param searchedArea tested point
      * @param itemDimension max dimensions of items likely to overlap tested point
      */
-    queryMapSpawnSlots(query: Vector2[] | Box2, slotsInsideAreaOnly = false) {
-        const spawnSlotsIndex: Record<number, Vector2[]> = {}
-        for (const [spawnRadius, patternSamples] of Object.entries(this.samplesIndex)) {
-            const searchedArea = query instanceof Box2 ? query.clone() : new Box2().setFromPoints(query)
-            !slotsInsideAreaOnly && searchedArea.expandByScalar(parseInt(spawnRadius))
+    queryMap(mapQuery: Vector2[] | Box2, slotsInsideAreaOnly = false) {
+        const slotsIndex: Partial<Record<SlotSize, Vector2[]>> = {}
+        for (const [slotType, patternSamples] of Object.entries(this.samplesIndex)) {
+            const slotSize = parseInt(slotType)
+            const searchedArea = mapQuery instanceof Box2 ? mapQuery.clone() : new Box2().setFromPoints(mapQuery)
+            !slotsInsideAreaOnly && searchedArea.expandByScalar(slotSize)
             // get all patterns that can have spawn position within queriedArea
             const mapPatterns = getPatchIds(searchedArea, this.patternDimension)
             const spawnSlots: Vector2[] = []
@@ -119,10 +156,10 @@ export class DiscreteDistributionMap {
                     // })
                     .forEach(worldPos => spawnSlots.push(worldPos))
             }
-            spawnSlotsIndex[parseInt(spawnRadius)] = spawnSlots
+            slotsIndex[slotSize as SlotSize] = spawnSlots
         }
         // console.log(spawnSlotsIndex)
-        return spawnSlotsIndex
+        return slotsIndex
     }
 
     getPatchOrigin(patchId: Vector2) {

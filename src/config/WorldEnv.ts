@@ -3,15 +3,14 @@ import { Vector2, Vector3 } from 'three'
 import { ProcItemConf } from '../tools/ProceduralGenerators.js'
 import { SchematicsBlocksMapping } from '../tools/SchematicLoader.js'
 import { BiomesRawConf, BlockType, SpawnProfiles, SpawnType } from '../utils/common_types.js'
-import { SpawnRules } from '../procgen/SpawnDistributionMap.js'
+import { SpawnRules } from '../procgen/Spawn.js'
 
 export enum WorldSeed {
     Global = 'global',
-    Heightmap = 'heightmap',
+    Ground = 'ground',
     Amplitude = 'amplitude',
     Heatmap = 'heatmap',
     Rainmap = 'rainmap',
-    RandomPos = 'random_pos',
     Spawn = 'spawn',
     Density = 'density',
     Sprite = 'sprite',
@@ -34,7 +33,6 @@ export type PatchViewRanges = {
 
 export type BiomesEnvSettings = {
     rawConf: BiomesRawConf
-    seaLevel: number
     periodicity: number
     repartition: {
         centralHalfSegment: number
@@ -42,9 +40,10 @@ export type BiomesEnvSettings = {
     }
 }
 
-export type HeightmapEnvSettings = {
+export type GroundEnvSettings = {
     spreading: number
     harmonics: number
+    seaLevel: number
     seed?: string
 }
 
@@ -62,7 +61,7 @@ export type DebugEnvSettings = {
     }
 }
 
-export type ItemsEnv = {
+export type InventoryEnv = {
     schematics: {
         globalBlocksMapping: SchematicsBlocksMapping
         localBlocksMapping: Record<SpawnType, SchematicsBlocksMapping>
@@ -157,9 +156,9 @@ export type WorldLocalSettings = {
         verticalRange: ChunksVerticalRange
     }
 
-    items: ItemsEnv
+    inventory: InventoryEnv
 
-    heightmap: HeightmapEnvSettings
+    ground: GroundEnvSettings
 
     biomes: BiomesEnvSettings
 
@@ -196,7 +195,7 @@ export class WorldLocals {
             },
         },
 
-        items: {
+        inventory: {
             schematics: {
                 globalBlocksMapping: {} as SchematicsBlocksMapping,
                 localBlocksMapping: {} as Record<SpawnType, SchematicsBlocksMapping>,
@@ -205,14 +204,14 @@ export class WorldLocals {
             proceduralConfigs: {} as Record<SpawnType, ProcItemConf>,
         },
 
-        heightmap: {
+        ground: {
             spreading: 0.42,
             harmonics: 6,
+            seaLevel: 0
         },
 
         biomes: {
             rawConf: {} as BiomesRawConf,
-            seaLevel: 0,
             periodicity: 8,
             repartition: {
                 centralHalfSegment: 0.07, // half range of central segment in proportion to first and last symetrical segments
@@ -236,16 +235,16 @@ export class WorldLocals {
         return this.rawSettings.biomes
     }
 
-    get heightmapEnv() {
-        return this.rawSettings.heightmap
+    get groundEnv() {
+        return this.rawSettings.ground
     }
 
     get boardEnv() {
         return this.rawSettings.boards
     }
 
-    get itemsEnv() {
-        return this.rawSettings.items
+    get inventoryEnv() {
+        return this.rawSettings.inventory
     }
 
     get globalEnv() {
@@ -260,10 +259,10 @@ export class WorldLocals {
 
     getChunksVerticalRange = () => this.rawSettings.chunks.verticalRange
 
-    getSeaLevel = () => this.rawSettings.biomes.seaLevel
-    setSeaLevel = (seaLevel: number) => (this.rawSettings.biomes.seaLevel = seaLevel)
+    getSeaLevel = () => this.rawSettings.ground.seaLevel
+    setSeaLevel = (seaLevel: number) => (this.rawSettings.ground.seaLevel = seaLevel)
 
-    getDistributionMapDimensions = () => new Vector2(1, 1).multiplyScalar(this.rawSettings.distribution.mapPatchRange * this.getPatchSize())
+    getSparseMapSize = () => this.rawSettings.distribution.mapPatchRange * this.getPatchSize()
 
     getSeed = (seedName: WorldSeed) => getWorldSeed(this.rawSettings.seeds, seedName)
 

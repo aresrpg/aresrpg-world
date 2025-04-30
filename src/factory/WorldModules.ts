@@ -4,13 +4,11 @@ import { ChunksTask, createChunksTaskHandler } from '../processing/ChunksProcess
 import { createItemsTaskHandler, ItemsTask } from '../processing/ItemsProcessing.js'
 import { GenericTaskHandler, TaskHandlerId } from '../processing/TaskProcessing.js'
 import { Biome } from '../procgen/Biome.js'
-// import { DistributionLayers } from './procgen/DistributionLayers.js'
-import { Heightmap } from '../procgen/Heightmap.js'
-// import { NoiseSampler } from './procgen/NoiseSampler.js'
-import { SpawnDistributionMap } from '../procgen/SpawnDistributionMap.js'
-import { CavernsVolumetricDensity, VolumetricDensity } from '../procgen/NoiseSampler.js'
-
-import { ItemsInventory } from './ItemsInventory.js'
+import { Ground } from '../procgen/Ground.js'
+import { CavernsVolumetricDensity } from '../procgen/NoiseSampler.js'
+import { Spawn } from '../procgen/Spawn.js'
+import { parseBiomesConf } from '../config/world-conf-parser.js'
+import { SpawnInventory } from './SpawnInventory.js'
 
 /**
  * All world modules required to compute world objects
@@ -22,41 +20,31 @@ export type WorldModules = {
     worldLocalEnv: WorldLocals
     // distributionLayers: DistributionLayers
     biomes: Biome
-    heightmap: Heightmap
+    ground: Ground
+    spawn: Spawn
     cavesDensity: CavernsVolumetricDensity
-    spriteDensity: VolumetricDensity
-    itemsInventory: ItemsInventory
-    spawnDistributionMap: SpawnDistributionMap
     taskHandlers: WorldTasksHandlers
 }
 
 export const createWorldModules = async (worldLocalSettings: WorldLocalSettings) => {
     const worldLocalEnv = new WorldLocals().fromStub(worldLocalSettings)
     WorldGlobals.instance.import(worldLocalEnv.globalEnv)
+    SpawnInventory.instance.inventoryEnv = worldLocalEnv.inventoryEnv
     const worldSeeds = worldLocalEnv.rawSettings.seeds
-    const itemsInventory = new ItemsInventory(worldLocalEnv.itemsEnv)
     // this will trigger schematics preloading to avoid async afterwhile
-    const parsedBiomes = await Biome.parseBiomesConf(worldLocalEnv.biomeEnv.rawConf, itemsInventory)
-    const biomes = new Biome(parsedBiomes, worldLocalEnv.biomeEnv, worldSeeds)
-    const heightmap = new Heightmap(biomes, worldLocalEnv.heightmapEnv, worldSeeds)
+    const biomesConf = await parseBiomesConf(worldLocalEnv.biomeEnv.rawConf)
+    const biomes = new Biome(worldLocalEnv.biomeEnv, worldSeeds)
+    const ground = new Ground(biomes, biomesConf, worldLocalEnv.groundEnv, worldSeeds)
+    const spawn = new Spawn(biomes, ground, worldLocalEnv.getSparseMapSize(), getWorldSeed(worldSeeds, WorldSeed.Spawn))
     const cavesDensity = new CavernsVolumetricDensity(getWorldSeed(worldSeeds, WorldSeed.Density))
-    const spriteDensity = new VolumetricDensity(getWorldSeed(worldSeeds, WorldSeed.Sprite))
-    // const distributionLayers = new DistributionLayers(worldLocalEnv)
-    const spawnDistributionMap = new SpawnDistributionMap(worldLocalEnv, heightmap, biomes)
-    // const spriteDistribution = new NoiseSampler(
-    //   worldLocalEnv.getSeed(WorldSeed.Sprite),
-    //   'sprite_distribution',
-    // )
     // console.log('world modules initialized')
     const worldModules: WorldModules = {
         worldLocalEnv,
         // distributionLayers,
-        heightmap,
+        ground,
         biomes,
+        spawn,
         cavesDensity,
-        spriteDensity,
-        itemsInventory,
-        spawnDistributionMap,
         taskHandlers: {},
     }
     populateTaskHandlers(worldModules)

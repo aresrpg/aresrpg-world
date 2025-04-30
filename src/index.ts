@@ -8,8 +8,7 @@ export { ItemsTask } from './processing/ItemsProcessing.js'
 export { WorkerPool } from './processing/WorkerPool.js'
 // Procgen
 export { Biome } from './procgen/Biome.js'
-export { Heightmap } from './procgen/Heightmap.js'
-export { SpawnDistributionMap } from './procgen/SpawnDistributionMap.js'
+export { Ground } from './procgen/Ground.js'
 // Data structures
 export { ChunkContainer, type EmptyChunkStub, type DataChunkStub } from './datacontainers/ChunkContainer.js'
 // Factory
