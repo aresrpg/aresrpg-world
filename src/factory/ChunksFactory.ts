@@ -2,7 +2,18 @@
 import { Vector2, Vector3 } from 'three'
 
 import { asVect2, serializePatchId, asBox2, asVect3 } from '../utils/patch_chunk.js'
-import { BlockData, BlockType, BiomeType, SpawnType, SpawnCategory, PatchGroundBlock, PatchDataCell } from '../utils/common_types.js'
+import {
+    BlockData,
+    BlockType,
+    BiomeType,
+    SpawnType,
+    SpawnCategory,
+    PatchGroundBlock,
+    PatchDataCell,
+    SpriteBlockType,
+    SpriteType,
+    LandFields,
+} from '../utils/common_types.js'
 import {
     ChunkHeightBuffer,
     ChunkDataContainer,
@@ -13,12 +24,20 @@ import {
 } from '../datacontainers/ChunkContainer.js'
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
-import { Biome } from '../procgen/Biome.js'
+
 import { adjustItemBounds } from '../utils/misc_utils.js'
 import { WorldGlobals } from '../config/WorldEnv.js'
-import { BlockDataAdapter, BlockDataType, ChunkBlockData, ChunkDataAdapter, SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
+import {
+    BlockDataAdapter,
+    BlockDataType,
+    ChunkBlockData,
+    ChunkDataAdapter,
+    SolidBlockData,
+    SpriteBlockData,
+} from '../datacontainers/BlockDataAdapter.js'
 
 import { WorldModules } from './WorldModules.js'
+import { Ground } from '../procgen/Ground.js'
 
 export class ChunkBlocksContainer extends ChunkDataContainer<ChunkBlockData> {
     static dataAdapter = new ChunkDataAdapter()
@@ -45,14 +64,30 @@ export const getSolidBlock = (blockType: BlockType, isCheckerBlock = false) => {
     return block
 }
 
+const getSpriteBlock = (spriteType: SpriteBlockType) => {
+    const count = spriteType === SpriteType.GRASS5 ? 1 : 2
+    const empty = false
+    const data: SpriteBlockData = {
+        spriteType,
+        count,
+    }
+    const dataType = BlockDataType.SpriteBlock
+    const block: ChunkBlockData = {
+        empty,
+        data,
+        dataType,
+    }
+    return block
+}
+
 export class GroundChunk extends ChunkBlocksContainer {
-    generateHeightBuffer(block: PatchGroundBlock, ymin: number, ymax: number, biome: Biome) {
+    generateHeightBuffer(block: PatchGroundBlock, ymin: number, ymax: number, ground: Ground, spriteType?: number) {
         //, isTransition = false) {
         const undegroundDepth = 4
         const { biome: biomeType, landIndex } = block.data
         const blockLocalPos = block.localPos
-        const biomeLand = biome.mappings[biomeType].nth(landIndex)
-        const landConf = biomeLand.data
+        const biomeLand = ground.biomes[biomeType].nth(landIndex)
+        const landConf = biomeLand.data as LandFields
         const blockType = highlightPatchBorders(blockLocalPos) || landConf.type // isTransition ? BlockType.SAND :
         // const groundFlags = parseGroundFlags(flags)
         // const blockMode = groundFlags.boardMode
@@ -61,7 +96,10 @@ export class GroundChunk extends ChunkBlocksContainer {
         const bedRock = getSolidBlock(biomeType === BiomeType.Arctic ? BlockType.ICE : BlockType.BEDROCK)
         const groundSurface = getSolidBlock(blockType) // this.dataEncoder(blockType, blockMode)
         const undergroundLayer = getSolidBlock(landConf.subtype || BlockType.BEDROCK) // this.dataEncoder(landConf.subtype || BlockType.BEDROCK)
-        const topLevel = block.data.level + 1
+        // const hasSprite = landConf.key === 'LANDS' //landConf.flora.find(item => item.type === 'sprite')
+        // const spriteLayer = hasSprite && spriteDensity.getBlockDensity(block.pos, 0.5) ? getSpriteBlock(0, 1) : null
+        const spriteLayer = spriteType !== undefined ? getSpriteBlock(spriteType) : null
+        const topLevel = block.data.level + (spriteLayer ? 1 : 0)
         // generate ground buffer
         const buffSize = clamp(topLevel - ymin, 0, ymax - ymin)
         if (buffSize > 0) {
@@ -71,7 +109,9 @@ export class GroundChunk extends ChunkBlocksContainer {
             // add underground layer
             groundBuffer.fill(undergroundLayer, -undegroundDepth - 1)
             // ground surface block
-            groundBuffer.fill(groundSurface, -1)
+            groundBuffer.fill(groundSurface, spriteLayer ? -2 : -1)
+            // finish with sprite blocks over surface
+            spriteLayer && groundBuffer.fill(spriteLayer, -1)
             const chunkBuffer: ChunkHeightBuffer<ChunkBlockData> = {
                 pos: blockLocalPos,
                 content: groundBuffer.slice(0, buffSize),
@@ -82,21 +122,38 @@ export class GroundChunk extends ChunkBlocksContainer {
     }
 
     bake(worldModules: WorldModules, groundLayer?: GroundPatch, cavesMask?: ChunkMask) {
-        const { worldLocalEnv, biomes } = worldModules
+        const { worldLocalEnv, ground, spawn } = worldModules
         const patchDim = worldLocalEnv.getPatchDimensions()
         const patchId = asVect2(this.chunkId as Vector3)
         const patchKey = serializePatchId(patchId)
         groundLayer = groundLayer || new GroundPatch().fromKey(patchKey, patchDim, 1)
         groundLayer.isEmpty && groundLayer.bake(worldModules)
-
+        // const spriteSpots = worldModules.spawnDistributionMap.invertedQueryMapArea(groundLayer.bounds)
         const ymin = this.extendedBounds.min.y
         const ymax = this.extendedBounds.max.y
-
         // const isBiomeTransition = groundLayer.isTransitionPatch()
-
         const blocks = groundLayer.iterData()
         for (const block of blocks) {
-            const groundBlocks = this.generateHeightBuffer(block, ymin, ymax, biomes)
+            // const threshold = 0.2
+            // const transition = 0.2
+
+            // const drawSprite = (distNoise: number) => {
+            //     const probability = 1 - (distNoise - 0.2) / transition
+
+            //     const rand = Math.random()
+            //     return rand <= probability
+            // }
+            // const getSpriteType = () => {
+            //     const spriteNoise = worldModules.spriteDistribution.eval(block.pos)
+            //     return spriteNoise > 0.65 ? SpriteType.FLOWER2 : spriteNoise < 0.3 ? SpriteType.FLOWER : SpriteType.GRASS6
+            // }
+            // const distNoise = worldModules.spawnDistributionMap.spawnDistributionLaw.eval(block.pos)
+            // const isTransitionZone = (distNoise: number) => distNoise > 0.2 && distNoise <= (threshold + transition)
+            // const isSpriteZone = (distNoise: number) => distNoise > 0.1 && distNoise <= threshold
+            // const hasSprite = isSpriteZone(distNoise) || isTransitionZone(distNoise) && drawSprite(distNoise)
+            // const spriteType = hasSprite ? getSpriteType() : undefined
+            const spriteType = spawn.getSpriteType(block.pos)||undefined
+            const groundBlocks = block.data ? this.generateHeightBuffer(block as PatchGroundBlock, ymin, ymax, ground, spriteType) : null
             if (groundBlocks) {
                 // const chunk_buffer = this.readBuffer(groundBuff.pos)
                 // chunk_buffer.set(groundBuff.content)
@@ -123,7 +180,7 @@ export class CavesMask extends ChunkMask {
         for (const block of groundLayer.iterData()) {
             // const buffPos = asVect2(block.localPos)
             // const chunkBuff = chunkContainer.readBuffer(buffPos)
-            const groundLevel = block.data.level
+            const groundLevel = block.data?.level || 0
             const ymin = this.extendedBounds.min.y
             const ymax = Math.min(groundLevel, this.extendedBounds.max.y)
             let startIndex = this.getIndex(block.localPos)

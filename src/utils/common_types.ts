@@ -1,8 +1,9 @@
 import { Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 
-import { LinkedList } from '../datacontainers/LinkedList.js'
-import { SpawnRules } from '../procgen/SpawnDistributionMap.js'
+import { NoiseLayerData, RangesLinkedList, RangeThreshold } from '../datacontainers/LinkedList.js'
+import { DistributionMode, SpawnRules } from '../procgen/Spawn.js'
 import { PatchDataIteration } from '../datacontainers/PatchContainer.js'
+import { SpawnTypeLayer } from '../procgen/Spawn.js'
 
 // reserved native block types
 export enum BlockType {
@@ -20,6 +21,28 @@ export enum BlockType {
     FOLIAGE_LIGHT,
     FOLIAGE_DARK,
     LAST_PLACEHOLDER,
+}
+
+export enum SpriteType {
+    FLOWER,
+    FLOWER2,
+    MUSHROOM,
+    MUSHROOM2,
+    GRASS,
+    GRASS2,
+    GRASS3,
+    GRASS4,
+    GRASS5,
+    GRASS6,
+    GRASS7,
+    GRASS8,
+}
+
+export type SpriteConf = {
+    file: string,
+    width: number,
+    height: number,
+    count: number
 }
 
 export enum BiomeType {
@@ -302,49 +325,54 @@ export type ChunkId = Vector3Like
 export type PatchIndex<T> = Record<PatchKey, T>
 export type ChunkIndex<T> = Record<ChunkKey, T>
 
-// export enum TerrainType {
-//   SEA,
-//   BEACH,
-//   CLIFF,
-//   LOWLANDS,
-//   MIDLANDS,
-//   HIGHLANDS,
-//   MOUNTAINS,
-//   MOUNTAINS_TOP,
-// }
+
+/**
+ * Spawn distribution conf
+ */
+
+export type SparseLayerConf = { weights: Record<string, number> }
+export type ZoneLayerConf = { thresholds: Record<string, number> }
+export type SpawnTypeLayerConf<T = SparseLayerConf | ZoneLayerConf> = { mode: DistributionMode } & T
+export type SpawnAreaLayers<T> = {
+    schematics: T,
+    sprites: T
+}
+export type SpawnArea<T> = NoiseLayerData<SpawnAreaLayers<T>>
+export type SpawnAreaConf = SpawnArea<SpawnTypeLayerConf>
+export type SpawnConf = Record<string, SpawnAreaConf>
+export type SpawnAreas = RangesLinkedList<SpawnArea<SpawnTypeLayer<any>>>
+
+/**
+ * Land configuration
+ */
 
 export type LandConfigId = string // landscape id assigned to noise level
 export type BiomeLandKey = string // combination of BiomeType and LandId
 
-type LandBaseFields = {
-    x: number // noise value
-    y: number // height noise mapping
+type LandNoiseLevel = {
+    x: number // noise threshold
+    y: number // height mapping
 }
 
-type LandConfigFields = {
+type LandDataFields<SpawnData> = {
+    key: BiomeLandKey
+    elevation: number
     type: BlockType // ground surface
     subtype: BlockType // below ground or mixed with ground surface
+    spawn: SpawnData
     mixratio: number // mixing ratio between type/subtype
     fadein: any
     fadeout: any
 }
 
-export type SpawnElement = {
-    weight: number
-    type: string
-    size: number
-}
+type LandRawFields = LandNoiseLevel & Partial<LandDataFields<SpawnConf>>
+export type PartialLandFields = RangeThreshold & Partial<LandDataFields<SpawnAreas | null>>
+export type LandFields = RangeThreshold & LandDataFields<SpawnAreas | null>
 
-type LandPreprocessedFields = {
-    key: BiomeLandKey
-    flora: SpawnElement[]
-}
-
-type LandRawFields = LandBaseFields & Partial<LandConfigFields> & { flora?: Record<SpawnType, number> }
-export type LandFields = LandBaseFields & LandConfigFields & LandPreprocessedFields
-
-// Biome landscapes mappings
+/**
+ * Biomes configuration
+ */
 export type BiomeLandsConf = Record<LandConfigId, LandRawFields>
 export type BiomesRawConf = Record<BiomeType, BiomeLandsConf>
-export type BiomeLands = LinkedList<LandFields>
+export type BiomeLands = RangesLinkedList<PartialLandFields>
 export type BiomesConf = Record<BiomeType, BiomeLands>

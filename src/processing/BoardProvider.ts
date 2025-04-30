@@ -14,14 +14,15 @@ import {
     serializePatchId,
 } from '../utils/patch_chunk.js'
 import { BlockType, ChunkId, PatchId, PatchKey } from '../utils/common_types.js'
-import { PatchDataContainer, PatchDataIteration } from '../datacontainers/PatchContainer.js'
+import { PatchDataContainer } from '../datacontainers/PatchContainer.js'
 import { DataChunkStub } from '../datacontainers/ChunkContainer.js'
 import { WorldLocals } from '../config/WorldEnv.js'
 import { ChunkBlocksContainer, SpawnChunk } from '../factory/ChunksFactory.js'
+import { IdenticalDataAdapter, SolidBlockData, BlockDataType } from '../datacontainers/BlockDataAdapter.js'
+
 import { ChunksProcessing } from './ChunksProcessing.js'
 import { WorkerPool } from './WorkerPool.js'
 import { ItemsTask } from './ItemsProcessing.js'
-import { IdenticalDataAdapter, SolidBlockData } from '../datacontainers/BlockDataAdapter.js'
 
 export enum BlockCategory {
     EMPTY = 0,
@@ -53,7 +54,7 @@ export type BoardCacheData = {
 }
 
 class BoardPatch extends PatchDataContainer<number> {
-    override dataAdapter = new IdenticalDataAdapter
+    override dataAdapter = new IdenticalDataAdapter()
     rawData: Uint8Array
 
     constructor(bounds: Box2, margin = 0) {
@@ -61,29 +62,29 @@ class BoardPatch extends PatchDataContainer<number> {
         this.rawData = new Uint8Array(this.extendedDims.x * this.extendedDims.y)
     }
 
-    override toStub(): BoardStub {
-        const { rawData, bounds } = this
-        return {
-            bounds,
-            // elevation: 0,
-            content: rawData,
-        }
-    }
+    // override toStub(): BoardStub {
+    //     const { rawData, bounds } = this
+    //     return {
+    //         bounds,
+    //         // elevation: 0,
+    //         content: rawData,
+    //     }
+    // }
 
-    override *iterData(globalBounds?: Box2 | undefined, includeMargins?: boolean, skipEmpty = true) {
-        const elements = super.iterData(globalBounds, includeMargins)
-        for (const element of elements) {
-            const { index } = element
-            const data = this.rawData[index] || BlockCategory.EMPTY
-            if (data || !skipEmpty) {
-                const boardElement: PatchDataIteration<number> = {
-                    ...element,
-                    data,
-                }
-                yield boardElement
-            }
-        }
-    }
+    // override *iterData(globalBounds?: Box2 | undefined, includeMargins?: boolean, skipEmpty = true) {
+    //     const elements = super.iterData(globalBounds, includeMargins, )
+    //     for (const element of elements) {
+    //         const { index } = element
+    //         const data = this.rawData[index] || BlockCategory.EMPTY
+    //         if (data || !skipEmpty) {
+    //             const boardElement: PatchDataIteration<number> = {
+    //                 ...element,
+    //                 data,
+    //             }
+    //             yield boardElement
+    //         }
+    //     }
+    // }
 
     override containsPoint(pos: Vector2) {
         const localPos = this.toLocalPos(pos)
@@ -176,7 +177,7 @@ export class BoardCacheProvider {
             // enqueue items processing tasks
             const itemsPendingTasks = Object.keys(patchIndex)
                 .filter(patchKey => !this.patchIndex[patchKey])
-                .map(patchKey => ItemsTask.spawnedChunks(patchKey)) // new ItemsTask().individualChunks(patchKey))
+                .map(patchKey => ItemsTask.sparsedChunks(patchKey)) // new ItemsTask().individualChunks(patchKey))
                 .map(itemTask => {
                     const pendingItemTask = itemTask.delegate(this.workerPool)
                     // once done put result in cache
@@ -305,25 +306,32 @@ export class BoardProvider {
 
     overrideHeightBuffer = (heightBuff: Uint16Array, isHoleBlock: boolean) => {
         const { dataAdapter } = ChunkBlocksContainer
+
+        const isSpriteBlock = (rawVal: number) => dataAdapter.decode(rawVal).dataType === BlockDataType.SpriteBlock
+
+        const reencodeSurfaceBlock = (rawVal: number, isCheckerBlock = true) => {
+            const decodedBlock = dataAdapter.decode(rawVal)
+            const { blockType } = decodedBlock.data as SolidBlockData
+            return dataAdapter.encodeSolidBlock(blockType, isCheckerBlock)
+        }
         const { boardThickness } = this
         // const marginBlockType = isHoleBlock ? BlockType.HOLE : heightBuff[0]
-        const surfaceType = heightBuff
+        const surfaceBlock = heightBuff
             .slice(1, boardThickness + 1)
             .reverse()
-            .find(val => !!val)
+            .find(val => !!val && !isSpriteBlock(val))
         const boardHeightBuffer = heightBuff.map((rawVal, i) => {
             // return i <= boardThickness ? val : BlockType.NONE
             if (i > boardThickness) {
-                return BlockType.NONE
+                return 0
             } else {
                 const isCheckerBlock = i === boardThickness // ? BlockMode.CHECKERBOARD : BlockMode.REGULAR
-                if (isHoleBlock && i < boardThickness) return dataAdapter.encodeSolidBlock(BlockType.HOLE, isCheckerBlock)
-                else if (isHoleBlock && !rawVal) return dataAdapter.encodeSolidBlock(surfaceType || BlockType.NONE, isCheckerBlock)
-                else if (isCheckerBlock && rawVal) {
-                    const decodedBlock = dataAdapter.decode(rawVal)
-                    const { blockType } = decodedBlock.data as SolidBlockData
-                    return dataAdapter.encodeSolidBlock(blockType, isCheckerBlock)
-                } else return rawVal
+                if (isHoleBlock) {
+                    if (i < boardThickness) return dataAdapter.encodeSolidBlock(BlockType.HOLE, isCheckerBlock)
+                } else if (!rawVal || isSpriteBlock(rawVal)) {
+                    if (surfaceBlock && isCheckerBlock) return reencodeSurfaceBlock(surfaceBlock)
+                }
+                return isCheckerBlock ? reencodeSurfaceBlock(rawVal) : rawVal
             }
         })
 
@@ -419,7 +427,7 @@ export class BoardProvider {
         }
     }
 
-    * overrideOriginalChunksContent(boardChunk: ChunkBlocksContainer) {
+    *overrideOriginalChunksContent(boardChunk: ChunkBlocksContainer) {
         const { nonOverlappingItemsChunks } = this
         const chunkDim = this.worldLocalEnv.getChunkDimensions()
         // iter processed original chunks
@@ -436,7 +444,7 @@ export class BoardProvider {
         }
     }
 
-    * restoreOriginalChunksContent() {
+    *restoreOriginalChunksContent() {
         const chunkDim = this.worldLocalEnv.getChunkDimensions()
         // iter processed original chunks
         for (const originalChunk of this.cacheProvider.chunks) {

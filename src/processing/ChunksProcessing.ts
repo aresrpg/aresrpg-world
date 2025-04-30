@@ -136,7 +136,7 @@ export const createChunksTaskHandler = (worldModules: WorldModules) => {
             let yMin = groundLayer.valueRange.min
             let yMax = groundLayer.valueRange.max
 
-            const mergedChunk = skipEntities ? null : (ItemsTask.mergedSpawnChunk(patchKey).process(taskHandlers) as ChunkBlocksContainer)
+            const mergedChunk = skipEntities ? null : (ItemsTask.mergedChunk(patchKey).process(taskHandlers) as ChunkBlocksContainer)
             if (mergedChunk) {
                 // adjust chunks range accordingly
                 yMin = Math.min(mergedChunk.bounds.min.y, yMin)

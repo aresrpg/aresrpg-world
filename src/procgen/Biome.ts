@@ -2,22 +2,13 @@ import { Vector2, Vector2Like } from 'three'
 
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 // import {  smoothstep as smoothStep } from 'three/src/math/MathUtils'
-import { LinkedList } from '../datacontainers/LinkedList.js'
 import {
-    BiomesConf,
-    BiomesRawConf,
-    BiomeLands,
-    LandFields,
-    BiomeLandsConf,
-    SpawnElement,
-    SpawnCategory,
     BiomeType,
 } from '../utils/common_types.js'
-import { clamp, roundToDec, smoothStep } from '../utils/math_utils.js'
-import { findMatchingRange, MappingRangeSorter } from '../utils/misc_utils.js'
+import { roundToDec, smoothStep } from '../utils/math_utils.js'
 import { isVect2Stub } from '../utils/patch_chunk.js'
 import { BiomesEnvSettings, getWorldSeed, WorldSeed, WorldSeeds } from '../config/WorldEnv.js'
-import { ItemsInventory } from '../factory/ItemsInventory.js'
+
 import { Noise2dSampler } from './NoiseSampler.js'
 
 enum Level {
@@ -114,9 +105,6 @@ export class Biome {
     rainmap: Noise2dSampler
     // heatProfile: MappingRanges
     // rainProfile: MappingRanges
-
-    mappings: BiomesConf
-    posRandomizer: Noise2dSampler
     /**
      * val < lowToMid=> LOW = 1
      * lowToMid < val < mid => LOW decrease, MID increase
@@ -127,27 +115,18 @@ export class Biome {
     steps
     biomeEnv: BiomesEnvSettings
 
-    constructor(biomesParsedConf: BiomesConf, biomeEnv: BiomesEnvSettings, worldSeeds: WorldSeeds) {
-        this.heatmap = new Noise2dSampler(getWorldSeed(worldSeeds, WorldSeed.Heatmap), WorldSeed.Heatmap)
+    constructor(biomeEnv: BiomesEnvSettings, worldSeeds: WorldSeeds) {
+        this.heatmap = new Noise2dSampler(WorldSeed.Heatmap, getWorldSeed(worldSeeds, WorldSeed.Heatmap))
         this.heatmap.harmonicsCount = 6
         this.heatmap.periodicity = biomeEnv.periodicity
-        this.rainmap = new Noise2dSampler(getWorldSeed(worldSeeds, WorldSeed.Rainmap), WorldSeed.Rainmap)
+        this.rainmap = new Noise2dSampler(WorldSeed.Rainmap, getWorldSeed(worldSeeds, WorldSeed.Rainmap))
         this.rainmap.harmonicsCount = 6
         this.rainmap.periodicity = biomeEnv.periodicity
         // const mappingProfile = MappingProfiles[ProfilePreset.Stairs2]()
         // this.heatProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter)  // 3 levels (COLD, TEMPERATE, HOT)
         // this.rainProfile = LinkedList.fromArrayAfterSorting(mappingProfile, MappingRangeSorter) // 3 levels (DRY, MODERATE, WET)
-        this.posRandomizer = new Noise2dSampler(getWorldSeed(worldSeeds, WorldSeed.RandomPos), WorldSeed.RandomPos)
-        this.posRandomizer.periodicity = 6
-
-        this.mappings = biomesParsedConf
-
         this.steps = getTransitionSteps(biomeEnv.repartition)
         this.biomeEnv = biomeEnv
-    }
-
-    get ready() {
-        return Object.keys(this.mappings).length > 0
     }
 
     /**
@@ -242,112 +221,32 @@ export class Biome {
         return biomeContribs
     }
 
-    landscapeTransition = (groundPos: Vector2, baseHeight: number, biomeLands: BiomeLands) => {
-        const period = 0.005 * Math.pow(2, 2)
-        const mapCoords = groundPos.clone().multiplyScalar(period)
-        const posRandomizerVal = this.posRandomizer.eval(mapCoords)
-        // add some height variations to break painting monotony
-        const { amplitude }: any = biomeLands.data
-        const bounds = {
-            lower: biomeLands.data.x,
-            upper: biomeLands.next?.data.x || 1,
-        }
-        let blockType
-        // randomize on lower side
-        if (biomeLands.prev && baseHeight - bounds.lower <= bounds.upper - baseHeight && baseHeight - amplitude.low < bounds.lower) {
-            const heightVariation = posRandomizerVal * amplitude.low
-            const varyingHeight = baseHeight - heightVariation
-            blockType = varyingHeight < biomeLands.data.x ? biomeLands.prev?.data.type : biomeLands.data.type
-        }
-        // randomize on upper side
-        else if (biomeLands.next && baseHeight + amplitude.high > bounds.upper) {
-            //   let heightVariation =
-            //   Utils.clamp(this.paintingRandomness.eval(groundPos), 0.5, 1) * randomness.high
-            // heightVariation = heightVariation > 0 ? (heightVariation - 0.5) * 2 : 0
-            const heightVariation = posRandomizerVal * amplitude.high
-            const varyingHeight = baseHeight + heightVariation
-            blockType = varyingHeight > biomeLands.next.data.x ? biomeLands.next.data.type : biomeLands.data.type
-        }
-        return blockType
-    }
-
-    getBlockLevel = (rawVal: number, biomeType: BiomeType, includeSea = false) => {
-        const { seaLevel } = this.biomeEnv
-        rawVal = includeSea ? Math.max(rawVal, seaLevel) : rawVal
-        rawVal = clamp(rawVal, 0, 1)
-        const firstItem = this.mappings[biomeType]
-        const confId = findMatchingRange(rawVal as number, firstItem)
-        const current = firstItem.nth(confId)
-        const upper = current?.next || current
-        const min = new Vector2(current.data.x, current.data.y)
-        const max = new Vector2(upper.data.x, upper.data.y)
-        const alpha = max.x > min.x ? (rawVal - min.x) / (max.x - min.x) : 0
-        const lerp = min.lerp(max, alpha)
-        return lerp.y // includeSea ? Math.max(interpolated, seaLevel) : interpolated
-    }
-
-    getBlockLevelInterpolated = (rawVal: number, biomeContribs: BiomeInfluence) => {
-        // sum weighted contributions from all biome types
-        const blockLevel = Object.entries(biomeContribs).reduce(
-            (res, [biome, weight]) => res + weight * this.getBlockLevel(rawVal, biome as BiomeType),
-            0,
-        )
-        return blockLevel
-    }
-
-    getBiomeConf = (rawVal: number, biomeType: BiomeType) => {
-        const firstItem = this.mappings[biomeType]
-        const confId = findMatchingRange(rawVal as number, firstItem)
-        let currentItem = firstItem.nth(confId)
-        while (!currentItem?.data.type && currentItem?.prev) {
-            currentItem = currentItem.prev
-        }
-        return currentItem
-    }
-
-    // these are static functions to be called externally to avoid instance dependance towards itemsInventory
-
-    static async parseSpawnableElements(floraConf: Record<string, number>, itemsInventory: ItemsInventory) {
-        const pendingLoad = Object.entries(floraConf).map(async ([type, weight]) => {
-            const templateStub = await itemsInventory.loadTemplate(type)
-            if (templateStub) {
-                const { spawnRadius, spawnCat } = templateStub.metadata
-                const sizeTolerance = spawnCat === SpawnCategory.Flora ? spawnRadius / 5 : 0
-                const size = spawnRadius - sizeTolerance
-                const spawnElement: SpawnElement = {
-                    weight,
-                    type,
-                    size,
-                }
-                return spawnElement
-            }
-            return null
-        })
-        const spawnElements = (await Promise.all(pendingLoad)).filter(val => val) as SpawnElement[]
-        return spawnElements
-    }
-
-    static async parseBiomeLands(landsConf: BiomeLandsConf, itemsInventory: ItemsInventory) {
-        const biomeLandsArr: LandFields[] = []
-        for (const [landKey, landRawConf] of Object.entries(landsConf)) {
-            const flora = landRawConf.flora ? await this.parseSpawnableElements(landRawConf.flora, itemsInventory) : []
-            const landConf = { ...landRawConf, key: landKey, flora } as LandFields
-            biomeLandsArr.push(landConf)
-            // landConf.flora =
-        }
-        const biomeLands = LinkedList.fromArrayAfterSorting(biomeLandsArr, MappingRangeSorter)
-        return biomeLands
-    }
-
-    static async parseBiomesConf(biomesRawConf: BiomesRawConf, itemsInventory: ItemsInventory) {
-        // const biomesConf: Partial<BiomesParsedConf> = {}
-        const biomesMappings = {} as BiomesConf
-        // complete missing data
-        for (const [biomeType, landsConf] of Object.entries(biomesRawConf)) {
-            const biomeLands = await this.parseBiomeLands(landsConf, itemsInventory)
-            // biomesConf[biomeType as BiomeType] = biomeLands
-            biomesMappings[biomeType as BiomeType] = biomeLands
-        }
-        return biomesMappings
-    }
+    // landscapeTransition = (groundPos: Vector2, baseHeight: number, biomeLands: BiomeLands) => {
+    //     const period = 0.005 * Math.pow(2, 2)
+    //     const mapCoords = groundPos.clone().multiplyScalar(period)
+    //     const posRandomizerVal = this.posRandomizer.eval(mapCoords)
+    //     // add some height variations to break painting monotony
+    //     const { amplitude }: any = biomeLands.data
+    //     const bounds = {
+    //         lower: biomeLands.data.threshold,
+    //         upper: biomeLands.next?.data.threshold || 1,
+    //     }
+    //     let blockType
+    //     // randomize on lower side
+    //     if (biomeLands.prev && baseHeight - bounds.lower <= bounds.upper - baseHeight && baseHeight - amplitude.low < bounds.lower) {
+    //         const heightVariation = posRandomizerVal * amplitude.low
+    //         const varyingHeight = baseHeight - heightVariation
+    //         blockType = varyingHeight < biomeLands.data.threshold ? biomeLands.prev?.data.type : biomeLands.data.type
+    //     }
+    //     // randomize on upper side
+    //     else if (biomeLands.next && baseHeight + amplitude.high > bounds.upper) {
+    //         //   let heightVariation =
+    //         //   Utils.clamp(this.paintingRandomness.eval(groundPos), 0.5, 1) * randomness.high
+    //         // heightVariation = heightVariation > 0 ? (heightVariation - 0.5) * 2 : 0
+    //         const heightVariation = posRandomizerVal * amplitude.high
+    //         const varyingHeight = baseHeight + heightVariation
+    //         blockType = varyingHeight > biomeLands.next.data.threshold ? biomeLands.next.data.type : biomeLands.data.type
+    //     }
+    //     return blockType
+    // }
 }
