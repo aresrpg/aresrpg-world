@@ -108,60 +108,60 @@ export const SPRITES_CONF_MAPPING: Record<SpriteType, SpriteConf> = {
         file: 'flower.png',
         width: 3 / 4,
         height: 1,
-        count: 3
+        count: 3,
     },
     [SpriteType.FLOWER2]: {
         file: 'flower2.png',
         width: 1,
         height: 1 / 2,
-        count: 1
+        count: 1,
     },
     [SpriteType.GRASS]: {
         file: 'grass.png',
         width: 3 / 4,
         height: 1,
-        count: 1
+        count: 1,
     },
     [SpriteType.GRASS2]: {
         file: 'grass2.png',
         width: 1,
         height: 2,
-        count: 1
+        count: 1,
     },
     [SpriteType.GRASS3]: {
         file: 'grass3.png',
         width: 1,
         height: 2,
-        count: 1
+        count: 1,
     },
     [SpriteType.GRASS4]: {
         file: 'grass4.png',
         width: 1,
         height: 3,
-        count: 2
+        count: 2,
     },
     [SpriteType.GRASS5]: {
         file: 'grass5.png',
         width: 2,
         height: 4,
-        count: 1
+        count: 1,
     },
     [SpriteType.GRASS6]: {
         file: 'grass6.png',
         width: 2,
         height: 3,
-        count: 2
+        count: 2,
     },
     [SpriteType.GRASS7]: {
         file: 'grass7.png',
         width: 2,
         height: 3,
-        count: 1
+        count: 1,
     },
     [SpriteType.GRASS8]: {
         file: 'grass8.png',
         width: 2,
         height: 3,
-        count: 1
-    }
+        count: 1,
+    },
 }

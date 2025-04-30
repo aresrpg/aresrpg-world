@@ -5,6 +5,7 @@ import { asPatchBounds, parseThreeStub } from '../utils/patch_chunk.js'
 import { BlockData, PatchDataCell, PatchKey } from '../utils/common_types.js'
 import { WorldModules } from '../factory/WorldModules.js'
 import { ChunkBlocksContainer, SpawnChunk, SpawnChunkStub, SpawnData } from '../factory/ChunksFactory.js'
+
 import { BlocksTask } from './BlocksProcessing.js'
 import { BaseProcessingParams, ProcessingTask, ProcessingTaskHandler, ProcessingTaskStub } from './TaskProcessing.js'
 
@@ -91,13 +92,13 @@ export class ItemsTask<ProcessingInput extends ItemsTaskInput, ProcessingOutput 
 
     static factory =
         <ProcessingInput extends ItemsTaskInput, ProcessingOutput extends ItemsTaskOutput>(recipe: ItemsTaskRecipe) =>
-            (input: ProcessingInput) => {
-                const task = new ItemsTask<ProcessingInput, ProcessingOutput>()
-                task.handlerId = this.handlerId
-                task.processingInput = input
-                task.processingParams = { recipe }
-                return task
-            }
+        (input: ProcessingInput) => {
+            const task = new ItemsTask<ProcessingInput, ProcessingOutput>()
+            task.handlerId = this.handlerId
+            task.processingInput = input
+            task.processingParams = { recipe }
+            return task
+        }
 
     // static get spawnedElements() {
     //     return this.factory<ItemsTaskInput, MapPickedElements>(ItemsTaskRecipe.IndividualChunks)
@@ -130,8 +131,6 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
     const { taskHandlers, worldLocalEnv, spawn } = worldModules
 
     const itemsTaskHandler: ItemsProcessingHandler = (taskStub: ItemsTaskStub) => {
-
-
         const { processingInput, processingParams } = taskStub
         const { recipe, skipPostprocessing, skipOverlapPruning, spawnInsideAreaOnly } = processingParams
         const inputQuery =
@@ -148,12 +147,13 @@ export const createItemsTaskHandler = (worldModules: WorldModules) => {
         // nonOverlappingChunks.length > 0 && console.log(nonOverlappingChunks.map(chunk => chunk.spawnType))
         const sparsedChunks = spawn.querySparseChunks(inputQuery, spawnInsideAreaOnly, skipOverlapPruning)
         // adjust item position to terrain
-        const spawnedChunks = skipPostprocessing ? sparsedChunks : sparsedChunks.filter(sparseChunk => sparseChunk.fitGround(groundBlocksProvider))
-
+        const spawnedChunks = skipPostprocessing
+            ? sparsedChunks
+            : sparsedChunks.filter(sparseChunk => sparseChunk.fitGround(groundBlocksProvider))
 
         switch (recipe) {
             case ItemsTaskRecipe.SpawningItems: {
-                const allStubs = () => [...spawnedChunks.map(spawnChunk => spawnChunk.toLightStub())]//, ...discardedSlots]
+                const allStubs = () => [...spawnedChunks.map(spawnChunk => spawnChunk.toLightStub())] //, ...discardedSlots]
                 return processingParams.isDelegated ? allStubs() : spawnedChunks
                 // return processingParams.isDelegated ? spawnedChunks.map(spawnChunk => spawnChunk.toLightStub()) : spawnedChunks
             }

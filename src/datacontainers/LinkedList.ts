@@ -111,7 +111,6 @@ export type NoiseLayerData<DataType> = {
     key?: string
 } & DataType
 
-
 export class RangesLinkedList<T extends RangeThreshold> extends LinkedList<T> {
     /**
      * find element index with inputVal within range
@@ -154,6 +153,6 @@ export class RangesLinkedList<T extends RangeThreshold> extends LinkedList<T> {
 
     toIndexStub() {
         const stub: Record<string, T> = {}
-        this.asArray().map((dataElement, i) => stub[dataElement.key || `${i}`] = dataElement)
+        this.asArray().map((dataElement, i) => (stub[dataElement.key || `${i}`] = dataElement))
     }
 }

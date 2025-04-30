@@ -2,9 +2,7 @@ import { Vector2, Vector2Like } from 'three'
 
 // import { MappingProfiles, ProfilePreset } from "../tools/MappingPresets"
 // import {  smoothstep as smoothStep } from 'three/src/math/MathUtils'
-import {
-    BiomeType,
-} from '../utils/common_types.js'
+import { BiomeType } from '../utils/common_types.js'
 import { roundToDec, smoothStep } from '../utils/math_utils.js'
 import { isVect2Stub } from '../utils/patch_chunk.js'
 import { BiomesEnvSettings, getWorldSeed, WorldSeed, WorldSeeds } from '../config/WorldEnv.js'

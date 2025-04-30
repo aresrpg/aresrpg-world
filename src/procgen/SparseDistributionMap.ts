@@ -42,8 +42,9 @@ export class SparseDistributionMap {
         [SlotSize.Size16]: [],
         [SlotSize.Size12]: [],
         [SlotSize.Size8]: [],
-        [SlotSize.Size4]: []
+        [SlotSize.Size4]: [],
     }
+
     name
 
     constructor(dimensions: Vector2, name = '') {
@@ -77,9 +78,7 @@ export class SparseDistributionMap {
             tries,
         }
 
-        debugLogs &&
-            isNotWorkerEnv() &&
-            console.log(`generating map distribution for spawnRadius ${slotSize}, minDistance: ${minDistance}`)
+        debugLogs && isNotWorkerEnv() && console.log(`generating map distribution for spawnRadius ${slotSize}, minDistance: ${minDistance}`)
         const generator = new PoissonDiskSampling(params, prng)
         previousPoints.map(point => [point.x, point.y]).forEach(point => generator.addPoint(point))
 

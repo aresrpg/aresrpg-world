@@ -24,7 +24,6 @@ import {
 } from '../datacontainers/ChunkContainer.js'
 import { GroundPatch } from '../processing/GroundPatch.js'
 import { clamp } from '../utils/math_utils.js'
-
 import { adjustItemBounds } from '../utils/misc_utils.js'
 import { WorldGlobals } from '../config/WorldEnv.js'
 import {
@@ -35,9 +34,9 @@ import {
     SolidBlockData,
     SpriteBlockData,
 } from '../datacontainers/BlockDataAdapter.js'
+import { Ground } from '../procgen/Ground.js'
 
 import { WorldModules } from './WorldModules.js'
-import { Ground } from '../procgen/Ground.js'
 
 export class ChunkBlocksContainer extends ChunkDataContainer<ChunkBlockData> {
     static dataAdapter = new ChunkDataAdapter()
@@ -152,7 +151,7 @@ export class GroundChunk extends ChunkBlocksContainer {
             // const isSpriteZone = (distNoise: number) => distNoise > 0.1 && distNoise <= threshold
             // const hasSprite = isSpriteZone(distNoise) || isTransitionZone(distNoise) && drawSprite(distNoise)
             // const spriteType = hasSprite ? getSpriteType() : undefined
-            const spriteType = spawn.getSpriteType(block.pos)||undefined
+            const spriteType = spawn.getSpriteType(block.pos) || undefined
             const groundBlocks = block.data ? this.generateHeightBuffer(block as PatchGroundBlock, ymin, ymax, ground, spriteType) : null
             if (groundBlocks) {
                 // const chunk_buffer = this.readBuffer(groundBuff.pos)

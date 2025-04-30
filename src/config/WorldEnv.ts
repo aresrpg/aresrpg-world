@@ -207,7 +207,7 @@ export class WorldLocals {
         ground: {
             spreading: 0.42,
             harmonics: 6,
-            seaLevel: 0
+            seaLevel: 0,
         },
 
         biomes: {

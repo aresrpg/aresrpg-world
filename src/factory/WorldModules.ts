@@ -8,6 +8,7 @@ import { Ground } from '../procgen/Ground.js'
 import { CavernsVolumetricDensity } from '../procgen/NoiseSampler.js'
 import { Spawn } from '../procgen/Spawn.js'
 import { parseBiomesConf } from '../config/world-conf-parser.js'
+
 import { SpawnInventory } from './SpawnInventory.js'
 
 /**

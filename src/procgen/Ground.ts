@@ -1,12 +1,12 @@
 import { Vector2 } from 'three'
 
 import { getWorldSeed, GroundEnvSettings, WorldSeed, WorldSeeds } from '../config/WorldEnv.js'
+import { BiomesConf, BiomeType } from '../utils/common_types.js'
+import { clamp } from '../utils/math_utils.js'
 
 import { Biome, BiomeInfluence } from './Biome.js'
 import { BlendMode, getCompositor } from './NoiseComposition.js'
 import { Noise2dSampler } from './NoiseSampler.js'
-import { BiomesConf, BiomeType } from '../utils/common_types.js'
-import { clamp } from '../utils/math_utils.js'
 
 const MODULATION_THRESHOLD = 0.318
 
@@ -26,7 +26,7 @@ export class Ground {
     // maps (externally provided)
     heightmap: Noise2dSampler
     amplitude: Noise2dSampler
-    transition: Noise2dSampler  // variations
+    transition: Noise2dSampler // variations
     biome: Biome
     biomes: BiomesConf
     seaLevel: number
@@ -75,11 +75,11 @@ export class Ground {
     }
 
     /**
-     * 
-     * @param blockPos 
-     * @param rawVal 
-     * @param biomeInfluence 
-     * @returns 
+     *
+     * @param blockPos
+     * @param rawVal
+     * @param biomeInfluence
+     * @returns
      */
     getGroundLevel(
         blockPos: Vector2,

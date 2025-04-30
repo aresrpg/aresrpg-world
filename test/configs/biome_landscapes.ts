@@ -2,6 +2,7 @@
 
 import { BiomeType, BlockType, SpriteType } from '../../src/utils/common_types.js'
 import { SpawnArea, SpawnConfHelper } from '../../src/config/world-conf-helpers.js'
+
 import { SCHEMATICS_COLLECTIONS } from './schematics_collections.js'
 
 const { alpine, temperate_forest, siberian } = SCHEMATICS_COLLECTIONS
@@ -55,19 +56,15 @@ const temperate = {
         fadeIn: 0,
         fadeOut: 0.2,
         spawn: SpawnConfHelper(
-            new SpawnArea('villages', 0)
-                .addSparseSchematic('structures/mce-desertpyramid', 1)
-                .addSparseSchematic('', 10),
+            new SpawnArea('villages', 0).addSparseSchematic('structures/mce-desertpyramid', 1).addSparseSchematic('', 10),
             new SpawnArea('fields', 0.1)
                 .addSpriteZone(SpriteType.FLOWER, 0)
                 .addSpriteZone(SpriteType.GRASS4, 0.3)
                 .addSpriteZone(SpriteType.FLOWER2, 0.7),
-            new SpawnArea('forest', 0.45)
-                .addSchematicsCollection(temperate_forest.medium)
+            new SpawnArea('forest', 0.45).addSchematicsCollection(temperate_forest.medium),
             // .addSpriteZone(SpriteType.MUSHROOM, 0)
             // .addSpriteZone(SpriteType.MUSHROOM2, 0.55),
-        )
-
+        ),
     },
     MOUNTAINS_LOW: {
         x: 0.68,
@@ -77,11 +74,7 @@ const temperate = {
         mixratio: 0.1,
         fadeIn: 0,
         fadeOut: 25,
-        spawn: SpawnConfHelper(
-            new SpawnArea('forest', 0.45)
-                .addSchematicsCollection(alpine.medium)
-                .addSchematicsCollection(alpine.small)
-        )
+        spawn: SpawnConfHelper(new SpawnArea('forest', 0.45).addSchematicsCollection(alpine.medium).addSchematicsCollection(alpine.small)),
     },
     MOUNTAINS: {
         x: 0.8,
@@ -91,10 +84,7 @@ const temperate = {
         mixratio: 0.1,
         fadeIn: 0,
         fadeOut: 25,
-        spawn: SpawnConfHelper(
-            new SpawnArea('forest', 0.45)
-                .addSchematicsCollection(alpine.small)
-        )
+        spawn: SpawnConfHelper(new SpawnArea('forest', 0.45).addSchematicsCollection(alpine.small)),
     },
     MOUNTAINS_PEAK: {
         id: 6,
@@ -154,8 +144,8 @@ const arctic = {
         spawn: SpawnConfHelper(
             new SpawnArea('forest', 0.45)
                 .addSchematicsCollection(temperate_forest.medium)
-                .addSparseSchematic('structures/mce-desertpyramid', 1)
-        )
+                .addSparseSchematic('structures/mce-desertpyramid', 1),
+        ),
     },
     MOUNTAINS: {
         id: 5,
@@ -165,10 +155,7 @@ const arctic = {
         subtype: BlockType.ROCK,
         fadeIn: 5,
         fadeOut: 30,
-        spawn: SpawnConfHelper(
-            new SpawnArea('forest', 0.45)
-                .addSchematicsCollection(siberian.medium)
-        )
+        spawn: SpawnConfHelper(new SpawnArea('forest', 0.45).addSchematicsCollection(siberian.medium)),
     },
     MOUNTAINS_MIDDLE: {
         id: 6,
@@ -178,10 +165,7 @@ const arctic = {
         subtype: BlockType.ROCK,
         fadeIn: 10,
         fadeOut: 40,
-        spawn: SpawnConfHelper(
-            new SpawnArea('forest', 0.45)
-                .addSchematicsCollection(alpine.small)
-        )
+        spawn: SpawnConfHelper(new SpawnArea('forest', 0.45).addSchematicsCollection(alpine.small)),
     },
     MOUNTAINS_PEAK: { x: 0.95, y: 0.7 },
     END: { x: 1, y: 0.7 },

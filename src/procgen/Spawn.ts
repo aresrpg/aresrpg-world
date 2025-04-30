@@ -1,18 +1,20 @@
-import { Box2, Vector2 } from "three"
-import { Biome } from "./Biome.js"
-import { Ground } from "./Ground.js"
-import { Noise2dSampler } from "./NoiseSampler.js"
-import { SpawnCategory, SpawnType, SpriteType } from "../utils/common_types.js"
-import { NoiseLayerData, RangesLinkedList } from "../datacontainers/LinkedList.js"
-import Alea from "../libs/alea.js"
-import { SparseDistributionMap, SlotSize } from "./SparseDistributionMap.js"
-import { SpawnInventory } from "../factory/SpawnInventory.js"
-import { SpawnChunk, SpawnData } from "../factory/ChunksFactory.js"
-import { asBox2, asVect3 } from "../utils/patch_chunk.js"
+import { Box2, Vector2 } from 'three'
+
+import { SpawnCategory, SpawnType, SpriteType } from '../utils/common_types.js'
+import { NoiseLayerData, RangesLinkedList } from '../datacontainers/LinkedList.js'
+import Alea from '../libs/alea.js'
+import { SpawnInventory } from '../factory/SpawnInventory.js'
+import { SpawnChunk, SpawnData } from '../factory/ChunksFactory.js'
+import { asBox2, asVect3 } from '../utils/patch_chunk.js'
+
+import { SparseDistributionMap, SlotSize } from './SparseDistributionMap.js'
+import { Noise2dSampler } from './NoiseSampler.js'
+import { Ground } from './Ground.js'
+import { Biome } from './Biome.js'
 
 export enum DistributionMode {
     SPARSE = 'sparse',
-    ZONES = 'zones'
+    ZONES = 'zones',
 }
 
 export type SpawnSlot = {
@@ -32,7 +34,6 @@ export type SpawnRules = {
  * Spawn type provider
  */
 export abstract class SpawnTypeLayer<T extends SpawnType | SpriteType> {
-
     getRandomNumber(spawnPos: Vector2) {
         const { x, y } = spawnPos
         const posId = `${x}:${y}`
@@ -61,8 +62,9 @@ export class SpawnSparseArea extends SpawnTypeLayer<SpawnType> {
         [SlotSize.Size16]: 0,
         [SlotSize.Size12]: 0,
         [SlotSize.Size8]: 0,
-        [SlotSize.Size4]: 0
+        [SlotSize.Size4]: 0,
     }
+
     rankedSpawnTypes: RangesLinkedList<SparseLayerData>
 
     private constructor(rankedSpawnTypes: RangesLinkedList<SparseLayerData>) {
@@ -136,8 +138,10 @@ export class SpawnSubZoneLayer<T extends SpawnType | SpriteType> extends SpawnTy
     constructor(zoneLayerThresholds: Record<T, number>, spawnSubZoneDistribution: Noise2dSampler) {
         super()
         this.spawnSubZoneDistribution = spawnSubZoneDistribution
-        const subZonesStub: SpawnSubZoneData<T>[] = Object.entries<number>(zoneLayerThresholds)
-            .map(([spawnType, threshold]) => ({ spawnType, threshold })) as SpawnSubZoneData<T>[]
+        const subZonesStub: SpawnSubZoneData<T>[] = Object.entries<number>(zoneLayerThresholds).map(([spawnType, threshold]) => ({
+            spawnType,
+            threshold,
+        })) as SpawnSubZoneData<T>[]
         this.spawnSubZones = RangesLinkedList.fromArrayStub(subZonesStub) as SpawnSubZones<T>
     }
 
@@ -148,12 +152,11 @@ export class SpawnSubZoneLayer<T extends SpawnType | SpriteType> extends SpawnTy
         if (isSpawning) {
             // eval noise to determine zone
             const spawnSubzoneNoise = this.spawnSubZoneDistribution.eval(spawnPos)
-            const spawnType = this.spawnSubZones.findMatchingElement(spawnSubzoneNoise).data.spawnType
+            const { spawnType } = this.spawnSubZones.findMatchingElement(spawnSubzoneNoise).data
             return spawnType
         }
         return null
     }
-
 }
 
 export type DiscardedSlot = Partial<SpawnData> & {
@@ -195,7 +198,7 @@ export class Spawn {
             const upperThresholdDist = nextThreshold - spawnNoiseEval
             // if within zone transition
             const isWithinZoneTransition = lowerThresholdDist < zoneTransition || upperThresholdDist < zoneTransition
-            const intensity = 1 - 2 * dist / zoneSize
+            const intensity = 1 - (2 * dist) / zoneSize
             const spawnProbability = isWithinZoneTransition ? intensity : intensity
             const elevation = this.ground.getGroundLevel(pos, groundRawVal)
             return { mappingZone, spawnProbability, elevation }
@@ -252,16 +255,15 @@ export class Spawn {
             const freeSlots = skipOverlapPruning
                 ? spawnSlots
                 : spawnSlots.filter(slotPos => {
-                    const isDiscarded = nonOverlappingChunks.find(item => item.containsPoint(slotPos))
-                    isDiscarded &&
-                        discardedSlots.push({
-                            spawnOrigin: asVect3(slotPos),
-                            spawnStage: 0,
-                            spawnPass: slotSize,
-                        })
-                    return !isDiscarded
-                })
-
+                      const isDiscarded = nonOverlappingChunks.find(item => item.containsPoint(slotPos))
+                      isDiscarded &&
+                          discardedSlots.push({
+                              spawnOrigin: asVect3(slotPos),
+                              spawnStage: 0,
+                              spawnPass: slotSize,
+                          })
+                      return !isDiscarded
+                  })
 
             freeSlots.forEach(slotPos => {
                 const sparseChunk = this.getSpawnChunk(slotPos)
@@ -280,5 +282,4 @@ export class Spawn {
 
         return spawnedChunks
     }
-
 }

@@ -1,5 +1,6 @@
 import { createNoise2D, createNoise3D } from 'simplex-noise'
 import { Vector2, Vector3 } from 'three'
+
 import Alea from '../libs/alea.js'
 import { clamp } from '../utils/math_utils.js'
 
@@ -45,7 +46,7 @@ export abstract class NoiseSampler<PosInput extends Vector2 | Vector3> {
     stats = {}
     parent: any
 
-    constructor(name = '', seed?: string, ) {
+    constructor(name = '', seed?: string) {
         this.params.seed = seed || name
         this.initNoiseSource()
         this.init()

@@ -15,18 +15,18 @@ import { SpawnChunkStub, SpawnChunkMetadata } from './ChunksFactory.js'
  */
 // ItemsFactory, ItemsCatalog
 export class SpawnInventory {
+    // eslint-disable-next-line no-use-before-define
     static singleton: SpawnInventory
     static get instance() {
         this.singleton = this.singleton || new SpawnInventory()
         return this.singleton
     }
+
     catalog: Record<SpawnType, SpawnChunkStub> = {}
     // externally provided
     inventoryEnv!: InventoryEnv
 
-    populateInventory() {
-
-    }
+    populateInventory() {}
 
     get schematicFilesIndex() {
         return this.inventoryEnv.schematics.filesIndex

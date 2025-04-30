@@ -1,6 +1,15 @@
 import { Box2, Vector2 } from 'three'
 
-import { GroundBlock, BiomeLands, PatchBoundId, PatchId, BiomeType, GroundBlockData, LandFields, PartialLandFields } from '../utils/common_types.js'
+import {
+    GroundBlock,
+    BiomeLands,
+    PatchBoundId,
+    PatchId,
+    BiomeType,
+    GroundBlockData,
+    LandFields,
+    PartialLandFields,
+} from '../utils/common_types.js'
 import { serializePatchId } from '../utils/patch_chunk.js'
 import { Biome, BiomeInfluence } from '../procgen/Biome.js'
 import { PatchDataContainer, PatchDataStub } from '../datacontainers/PatchContainer.js'
@@ -57,13 +66,13 @@ export class GroundPatch extends PatchDataContainer<GroundBlockData> {
             }
             const boundsPoints = getPatchBoundingPoints(this.bounds)
             const boundsInfluences = {} as PatchBoundingBiomes
-                ;[xMyM, xMyP, xPyM, xPyP].map(key => {
-                    const boundPos = boundsPoints[key] as Vector2
-                    const biomeInfluence = biome.getBiomeInfluence(boundPos)
-                    boundsInfluences[key] = biomeInfluence
-                    // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
-                    return biomeInfluence
-                })
+            ;[xMyM, xMyP, xPyM, xPyP].map(key => {
+                const boundPos = boundsPoints[key] as Vector2
+                const biomeInfluence = biome.getBiomeInfluence(boundPos)
+                boundsInfluences[key] = biomeInfluence
+                // const block = computeGroundBlock(asVect3(pos), biomeInfluence)
+                return biomeInfluence
+            })
             const allEquals =
                 equals(boundsInfluences[xMyM], boundsInfluences[xPyM]) &&
                 equals(boundsInfluences[xMyM], boundsInfluences[xMyP]) &&

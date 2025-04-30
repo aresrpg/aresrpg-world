@@ -4,9 +4,16 @@
  * Spawn conf generators
  */
 
-import { DistributionMode } from "../procgen/Spawn.js"
-import { SparseLayerConf, SpawnAreaConf, SpawnConf, SpawnType, SpawnTypeLayerConf, SpriteType, ZoneLayerConf } from "../utils/common_types.js"
-
+import { DistributionMode } from '../procgen/Spawn.js'
+import {
+    SparseLayerConf,
+    SpawnAreaConf,
+    SpawnConf,
+    SpawnType,
+    SpawnTypeLayerConf,
+    SpriteType,
+    ZoneLayerConf,
+} from '../utils/common_types.js'
 
 // const mushroom_mix = {
 //     mode: DistributionMode.ZONES,
@@ -16,8 +23,6 @@ import { SparseLayerConf, SpawnAreaConf, SpawnConf, SpawnType, SpawnTypeLayerCon
 //         mushroom3: 0.66,
 //     }
 // }
-
-
 
 // const flora_grass_mix = {
 //     mode: DistributionMode.ZONES,
@@ -35,22 +40,25 @@ export class SpawnArea {
     threshold: number
     sparseSchematics: SpawnTypeLayerConf<SparseLayerConf> = {
         mode: DistributionMode.SPARSE,
-        weights: {}
-    }
-    schematicsZone: SpawnTypeLayerConf<ZoneLayerConf> = {
-        mode: DistributionMode.ZONES,
-        thresholds: {}
-    }
-    sparseSprites: SpawnTypeLayerConf<SparseLayerConf> = {
-        mode: DistributionMode.SPARSE,
-        weights: {}
-    }
-    spriteZones: SpawnTypeLayerConf<ZoneLayerConf> = {
-        mode: DistributionMode.ZONES,
-        thresholds: {}
+        weights: {},
     }
 
-    constructor(name: string, threshold: number,) {
+    schematicsZone: SpawnTypeLayerConf<ZoneLayerConf> = {
+        mode: DistributionMode.ZONES,
+        thresholds: {},
+    }
+
+    sparseSprites: SpawnTypeLayerConf<SparseLayerConf> = {
+        mode: DistributionMode.SPARSE,
+        weights: {},
+    }
+
+    spriteZones: SpawnTypeLayerConf<ZoneLayerConf> = {
+        mode: DistributionMode.ZONES,
+        thresholds: {},
+    }
+
+    constructor(name: string, threshold: number) {
         this.name = name
         this.threshold = threshold
     }
@@ -59,14 +67,17 @@ export class SpawnArea {
         this.sparseSchematics.weights = { ...this.sparseSchematics.weights, ...collection }
         return this
     }
+
     addSparseSchematic(type: SpawnType, weight: number) {
         this.sparseSchematics.weights[type] = weight
         return this
     }
+
     addSpriteZone(type: SpriteType, threshold: number) {
         this.spriteZones.thresholds[type] = threshold
         return this
     }
+
     addSparseSprite(type: SpriteType, weight: number) {
         this.sparseSchematics.weights[type] = weight
         return this
@@ -83,13 +94,11 @@ export class SpawnArea {
     }
 }
 
-export const SpawnConfHelper = (...spawnAreas:SpawnArea[])=>{
-    const spawnConf:SpawnConf={}
-    spawnAreas.forEach(spawnArea=>spawnConf[spawnArea.name]=spawnArea.toJsonConf())
+export const SpawnConfHelper = (...spawnAreas: SpawnArea[]) => {
+    const spawnConf: SpawnConf = {}
+    spawnAreas.forEach(spawnArea => (spawnConf[spawnArea.name] = spawnArea.toJsonConf()))
     return spawnConf
 }
-
-
 
 // class SpawnConfHelper extends RangesLinkedList<SpawnZone> {
 

@@ -55,5 +55,3 @@ export function isBrowserEnv() {
 
 export const isWorkerEnv = () => typeof self !== 'undefined'
 export const isNotWorkerEnv = () => typeof window !== 'undefined'
-
-

@@ -1,9 +1,8 @@
 import { Vector2, Vector2Like, Vector3, Vector3Like } from 'three'
 
 import { NoiseLayerData, RangesLinkedList, RangeThreshold } from '../datacontainers/LinkedList.js'
-import { DistributionMode, SpawnRules } from '../procgen/Spawn.js'
+import { DistributionMode, SpawnRules, SpawnTypeLayer } from '../procgen/Spawn.js'
 import { PatchDataIteration } from '../datacontainers/PatchContainer.js'
-import { SpawnTypeLayer } from '../procgen/Spawn.js'
 
 // reserved native block types
 export enum BlockType {
@@ -39,9 +38,9 @@ export enum SpriteType {
 }
 
 export type SpriteConf = {
-    file: string,
-    width: number,
-    height: number,
+    file: string
+    width: number
+    height: number
     count: number
 }
 
@@ -325,7 +324,6 @@ export type ChunkId = Vector3Like
 export type PatchIndex<T> = Record<PatchKey, T>
 export type ChunkIndex<T> = Record<ChunkKey, T>
 
-
 /**
  * Spawn distribution conf
  */
@@ -334,7 +332,7 @@ export type SparseLayerConf = { weights: Record<string, number> }
 export type ZoneLayerConf = { thresholds: Record<string, number> }
 export type SpawnTypeLayerConf<T = SparseLayerConf | ZoneLayerConf> = { mode: DistributionMode } & T
 export type SpawnAreaLayers<T> = {
-    schematics: T,
+    schematics: T
     sprites: T
 }
 export type SpawnArea<T> = NoiseLayerData<SpawnAreaLayers<T>>
