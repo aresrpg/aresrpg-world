@@ -1,7 +1,7 @@
 import { Vector2 } from 'three'
 
 import { getWorldSeed, GroundEnvSettings, WorldSeed, WorldSeeds } from '../config/WorldEnv.js'
-import { BiomesConf, BiomeType } from '../utils/common_types.js'
+import { BiomeLands, BiomesConf, BiomeType } from '../utils/common_types.js'
 import { clamp } from '../utils/math_utils.js'
 
 import { Biome, BiomeInfluence } from './Biome.js'
@@ -111,6 +111,6 @@ export class Ground {
                 biomeLand = biomeLand.prev
             }
         }
-        return biomeLand
+        return biomeLand as BiomeLands
     }
 }

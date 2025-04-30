@@ -118,18 +118,18 @@ export class RangesLinkedList<T extends RangeThreshold> extends LinkedList<T> {
      * @returns
      */
     findMatchingIndex(inputVal: number) {
-        let match = this.first
+        let match = inputVal >= this.first.data.threshold ? this.first : null
         let i = 1
-        while (match.next && inputVal > match.next.data.threshold) {
+        while (match?.next && inputVal >= match.next.data.threshold) {
             match = match.next
             i++
         }
-        return i
+        return match ? i : NaN
     }
 
     findMatchingElement(inputVal: number) {
         const matchingIndex = this.findMatchingIndex(inputVal)
-        return this.first.nth(matchingIndex)
+        return isNaN(matchingIndex) ? null : this.first.nth(matchingIndex)
     }
 
     // fromArray(dataElements: T[], sortItems = true) {

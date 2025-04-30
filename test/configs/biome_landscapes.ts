@@ -62,6 +62,7 @@ const temperate = {
                 .addSpriteZone(SpriteType.GRASS4, 0.3)
                 .addSpriteZone(SpriteType.FLOWER2, 0.7),
             new SpawnArea('forest', 0.45).addSchematicsCollection(temperate_forest.medium),
+            // .addSparseSchematic('structures/mce-desertpyramid', 1),
             // .addSpriteZone(SpriteType.MUSHROOM, 0)
             // .addSpriteZone(SpriteType.MUSHROOM2, 0.55),
         ),
@@ -142,9 +143,8 @@ const arctic = {
         fadeIn: 1,
         fadeOut: 5,
         spawn: SpawnConfHelper(
-            new SpawnArea('forest', 0.45)
-                .addSchematicsCollection(temperate_forest.medium)
-                .addSparseSchematic('structures/mce-desertpyramid', 1),
+            new SpawnArea('forest', 0.45).addSchematicsCollection(temperate_forest.medium),
+            // .addSparseSchematic('structures/mce-desertpyramid', 1),
         ),
     },
     MOUNTAINS: {

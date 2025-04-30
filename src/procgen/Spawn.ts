@@ -42,7 +42,7 @@ export abstract class SpawnTypeLayer<T extends SpawnType | SpriteType> {
         return rand
     }
 
-    abstract pickSpawnType(spawnPos: Vector2, spawnProbability: number): T | null
+    abstract pickSpawnType(spawnPos: Vector2, spawnProbability: number, constraints?: any): T | null
 }
 
 type SpawnTypeData = {
@@ -53,7 +53,6 @@ type SpawnTypeData = {
 type SparseLayerData = NoiseLayerData<SpawnTypeData>
 
 export class SpawnSparseArea extends SpawnTypeLayer<SpawnType> {
-    spawnTypesIndex: Record<SpawnType, number> = {}
     sizeWeightRanks: Record<SlotSize, number> = {
         [SlotSize.Size64]: 0,
         [SlotSize.Size48]: 0,
@@ -73,9 +72,11 @@ export class SpawnSparseArea extends SpawnTypeLayer<SpawnType> {
         // fill spawn size index
         for (const sizeRank of Object.keys(this.sizeWeightRanks)) {
             const rankSize = parseInt(sizeRank)
-            let rank = rankedSpawnTypes.first
-            while (rank.next && rank.next.data.spawnSize < rankSize) rank = rank.next
-            this.sizeWeightRanks[rankSize as SlotSize] = rank.next?.data.threshold || rank.data.threshold + rank.data.spawnWeight
+            let rank = rankedSpawnTypes.first.data.spawnSize <= rankSize ? rankedSpawnTypes.first : null
+            while (rank?.next && rank.next.data.spawnSize < rankSize) rank = rank.next
+            this.sizeWeightRanks[rankSize as SlotSize] = rank
+                ? rank.next?.data.threshold || rank.data.threshold + rank.data.spawnWeight
+                : NaN
         }
     }
 
@@ -88,7 +89,7 @@ export class SpawnSparseArea extends SpawnTypeLayer<SpawnType> {
             const weightRange = sizeConstraint ? this.sizeWeightRanks[sizeConstraint] : this.sizeWeightRanks[SlotSize.Size64]
             const randomIndex = Math.round(((rand * 10) % 1) * weightRange)
             const matchingRank = this.rankedSpawnTypes.findMatchingElement(randomIndex)
-            const selectedSpawnType = matchingRank.data.spawnType
+            const selectedSpawnType = matchingRank?.data.spawnType || null
             return selectedSpawnType
         }
         return null
@@ -152,7 +153,8 @@ export class SpawnSubZoneLayer<T extends SpawnType | SpriteType> extends SpawnTy
         if (isSpawning) {
             // eval noise to determine zone
             const spawnSubzoneNoise = this.spawnSubZoneDistribution.eval(spawnPos)
-            const { spawnType } = this.spawnSubZones.findMatchingElement(spawnSubzoneNoise).data
+            const subZone = this.spawnSubZones.findMatchingElement(spawnSubzoneNoise) as SpawnSubZones<T>
+            const { spawnType } = subZone.data
             return spawnType
         }
         return null
@@ -226,11 +228,11 @@ export class Spawn {
         return null
     }
 
-    getSpawnChunk = (pos: Vector2) => {
+    getSpawnChunk = (pos: Vector2, sizeConstraint: SlotSize) => {
         const spawnArea = this.getSpawnArea(pos)
         if (spawnArea) {
             const { mappingZone, spawnProbability, elevation } = spawnArea
-            const spawnType = mappingZone?.data.schematics?.pickSpawnType(pos, spawnProbability)
+            const spawnType = mappingZone?.data.schematics?.pickSpawnType(pos, spawnProbability, sizeConstraint)
             const templateStub = SpawnInventory.instance.catalog[spawnType]
             if (templateStub) {
                 // using shared data containers to avoid copying data from original template
@@ -266,7 +268,7 @@ export class Spawn {
                   })
 
             freeSlots.forEach(slotPos => {
-                const sparseChunk = this.getSpawnChunk(slotPos)
+                const sparseChunk = this.getSpawnChunk(slotPos, slotSize)
                 if (sparseChunk) {
                     // once spawn type is known do second discarding based on spawned shape
                     const isDiscarded =

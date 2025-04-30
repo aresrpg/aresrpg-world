@@ -3,6 +3,7 @@ import { Vector2, Vector3 } from 'three'
 
 import Alea from '../libs/alea.js'
 import { clamp } from '../utils/math_utils.js'
+import { WorldGlobals } from '../config/WorldEnv.js'
 
 export type InputType = Vector2 | Vector3
 export type Generator = (input: InputType) => number
@@ -143,13 +144,18 @@ export abstract class NoiseSampler<PosInput extends Vector2 | Vector3> {
         return clamp(noise, 0, 1)
     }
 
+    handleNoiseAnomaly(noise: number) {
+        WorldGlobals.instance.debug.logs && console.warn(`handled noise anomaly: ${noise} `)
+        return 0
+    }
+
     eval(rawInput: PosInput) {
         const { scaling } = this.params
         const { x, y } = rawInput
         const noiseRawVal = this.rawEval(x * scaling, y * scaling)
         const noiseVal = (noiseRawVal - 0.5) * 2 ** this.params.spreading + 0.5
         // val = this.mapping.apply(val)
-        return noiseVal
+        return noiseVal >= 0 ? noiseVal : this.handleNoiseAnomaly(noiseVal)
     }
 }
 
@@ -158,15 +164,6 @@ export class Noise2dSampler extends NoiseSampler<Vector2> {
         // create a new random function based on the seed
         const prng = Alea(this.seed)
         this.noiseSource = createNoise2D(prng) // noiseConstructor[this.params.dimensions](prng)
-    }
-
-    override eval(rawInput: Vector2): number {
-        const { scaling } = this.params
-        const { x, y } = rawInput
-        const noiseRawVal = this.rawEval(x * scaling, y * scaling)
-        const noiseVal = (noiseRawVal - 0.5) * 2 ** this.params.spreading + 0.5
-        // val = this.mapping.apply(val)
-        return noiseVal
     }
 }
 

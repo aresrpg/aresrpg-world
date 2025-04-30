@@ -96,11 +96,13 @@ export class SparseDistributionMap {
 
     // populate with discrete elements using relative pos
     populateSamplesIndex() {
-        const samplingPasses = Object.keys(this.samplesIndex)
+        const samplingSizes = Object.keys(this.samplesIndex)
+            .map(key => parseInt(key))
+            .sort((a, b) => b - a)
         const points = [new Vector2(0, 0)]
-        samplingPasses
+        samplingSizes
             // .filter(sampleSize => sampleSize >= 64)
-            .forEach(samplePass => points.push(...this.genPassSamples(parseInt(samplePass), points)))
+            .forEach(sampleSize => points.push(...this.genPassSamples(sampleSize, points)))
     }
 
     // queryInvertedSlots(bounds: Box2) {
